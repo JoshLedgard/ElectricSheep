@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seattle: What Does a Home Cost?</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #080c14;
+    color: #8eb4c8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+  header {
+    padding: 16px 24px 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    border-bottom: 1px solid rgba(80,140,180,0.12);
+    flex-shrink: 0;
+  }
+  h1 { font-size: 17px; font-weight: 600; color: #c8e4f0; letter-spacing: -0.01em; }
+  .subtitle { font-size: 12px; color: #3a5a6a; letter-spacing: 0.03em; }
+  .filters {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .filter-btn {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid rgba(80,140,180,0.2);
+    background: rgba(255,255,255,0.03);
+    color: #4a7a96;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { background: rgba(0,180,200,0.08); color: #8eb4c8; border-color: rgba(0,180,200,0.3); }
+  .filter-btn.active { background: rgba(0,180,200,0.12); color: #00d8e8; border-color: rgba(0,200,220,0.5); }
+
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(8,18,30,0.95);
+    border: 1px solid rgba(0,200,220,0.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    min-width: 180px;
+    opacity: 0;
+    transition: opacity 0.12s;
+    backdrop-filter: blur(8px);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip .t-name { font-size: 15px; font-weight: 600; color: #c8e4f0; margin-bottom: 6px; }
+  #tooltip .t-price { font-size: 22px; font-weight: 700; color: #00d8e8; letter-spacing: -0.02em; }
+  #tooltip .t-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #3a5a6a; margin-top: 2px; }
+  #tooltip .t-tier { display: inline-block; margin-top: 8px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #3a5a6a; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Compass */
+  #compass {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 10px;
+    color: #2a4a5a;
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+  #compass .n { color: #3a6a7a; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Seattle — Neighborhood Home Prices</h1>
+  <span class="subtitle">2026 median · hover to explore</span>
+  <div class="filters">
+    <button class="filter-btn active" data-tier="all">All</button>
+    <button class="filter-btn" data-tier="luxury" style="color:#f0c060">$1M+</button>
+    <button class="filter-btn" data-tier="high" style="color:#80d090">$900K–$1M</button>
+    <button class="filter-btn" data-tier="mid" style="color:#50b0c8">$700K–$899K</button>
+    <button class="filter-btn" data-tier="entry" style="color:#6080a0">Under $700K</button>
+  </div>
+</header>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+  <div id="tooltip">
+    <div class="t-name" id="t-name"></div>
+    <div class="t-price" id="t-price"></div>
+    <div class="t-label">median home price</div>
+    <div class="t-tier" id="t-tier"></div>
+  </div>
+  <div id="legend">
+    <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#2a4a5a;margin-bottom:4px">Price tier</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#f0c060"></div> $1M+  Luxury</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#80d090"></div> $900K–$1M  High</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#50b0c8"></div> $700K–$899K  Mid</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#4060a0"></div> Under $700K  Entry</div>
+    <div class="legend-row" style="margin-top:4px"><div class="legend-dot" style="background:rgba(80,120,160,0.3);border:1px solid rgba(80,120,160,0.4)"></div> ○ = smaller circle = lower price</div>
+  </div>
+  <div id="compass"><div class="n">N ↑</div></div>
+</div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────────
+// Source: Zillow/Redfin public data, 2026 estimates
+// Positions are geographic approximations (x=west→east, y=north→south, 0–100)
+const neighborhoods = [
+  // Luxury tier ($1M+)
+  { name:"Madison Park",     x:64, y:36, median:1850000, tier:"luxury" },
+  { name:"Laurelhurst",      x:61, y:21, median:1620000, tier:"luxury" },
+  { name:"Broadmoor",        x:65, y:30, median:1500000, tier:"luxury" },
+  { name:"View Ridge",       x:59, y:14, median:1320000, tier:"luxury" },
+  { name:"Sand Point",       x:66, y:17, median:1220000, tier:"luxury" },
+  { name:"Queen Anne",       x:36, y:33, median:1210000, tier:"luxury" },
+  { name:"Magnolia",         x:21, y:36, median:1160000, tier:"luxury" },
+  { name:"Madrona",          x:58, y:44, median:1150000, tier:"luxury" },
+  { name:"Leschi",           x:57, y:51, median:1100000, tier:"luxury" },
+
+  // High tier ($900K–$999K)
+  { name:"Wallingford",      x:38, y:21, median:1060000, tier:"high" },
+  { name:"Green Lake",       x:36, y:16, median:1020000, tier:"high" },
+  { name:"Wedgwood",         x:54, y:13, median:970000,  tier:"high" },
+  { name:"Ravenna",          x:48, y:18, median:965000,  tier:"high" },
+  { name:"Phinney Ridge",    x:28, y:24, median:960000,  tier:"high" },
+  { name:"Fremont",          x:33, y:27, median:955000,  tier:"high" },
+  { name:"Ballard",          x:24, y:18, median:950000,  tier:"high" },
+  { name:"Eastlake",         x:46, y:30, median:920000,  tier:"high" },
+  { name:"Capitol Hill",     x:50, y:40, median:910000,  tier:"high" },
+
+  // Mid tier ($700K–$899K)
+  { name:"West Seattle",     x:23, y:60, median:890000,  tier:"mid" },
+  { name:"Alki",             x:17, y:64, median:870000,  tier:"mid" },
+  { name:"South Lake Union", x:43, y:37, median:855000,  tier:"mid" },
+  { name:"Crown Hill",       x:25, y:13, median:840000,  tier:"mid" },
+  { name:"Northgate",        x:41, y:11, median:820000,  tier:"mid" },
+  { name:"First Hill",       x:49, y:44, median:790000,  tier:"mid" },
+  { name:"Beacon Hill",      x:46, y:58, median:755000,  tier:"mid" },
+  { name:"Columbia City",    x:50, y:65, median:745000,  tier:"mid" },
+
+  // Entry tier (under $700K)
+  { name:"Rainier Valley",   x:53, y:68, median:680000,  tier:"entry" },
+  { name:"Lake City",        x:56, y: 9, median:665000,  tier:"entry" },
+  { name:"Bitter Lake",      x:36, y: 8, median:640000,  tier:"entry" },
+  { name:"Georgetown",       x:43, y:69, median:625000,  tier:"entry" },
+  { name:"White Center",     x:28, y:72, median:590000,  tier:"entry" },
+  { name:"Rainier Beach",    x:54, y:76, median:575000,  tier:"entry" },
+];
+
+const TIER_COLORS = {
+  luxury: { fill:"rgba(240,192,96,0.22)",  stroke:"rgba(240,192,96,0.7)",  text:"#f0c060" },
+  high:   { fill:"rgba(128,208,144,0.18)", stroke:"rgba(128,208,144,0.65)", text:"#80d090" },
+  mid:    { fill:"rgba(80,176,200,0.16)",  stroke:"rgba(80,176,200,0.6)",  text:"#50b0c8" },
+  entry:  { fill:"rgba(64,96,160,0.14)",   stroke:"rgba(64,96,160,0.5)",   text:"#6080a0" },
+};
+
+const TIER_LABELS = { luxury:"Luxury", high:"High-end", mid:"Mid-range", entry:"Entry-level" };
+
+// ─── Canvas setup ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, computed = [];
+let activeFilter = 'all';
+let hoveredIdx = -1;
+
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  W = canvas.width  = wrap.clientWidth  * devicePixelRatio;
+  H = canvas.height = wrap.clientHeight * devicePixelRatio;
+  canvas.style.width  = wrap.clientWidth  + 'px';
+  canvas.style.height = wrap.clientHeight + 'px';
+  computePositions();
+  draw();
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
+const PAD = 80 * devicePixelRatio || 80;
+
+function computePositions() {
+  const dpr = devicePixelRatio;
+  const pad = 80 * dpr;
+  const maxMedian = Math.max(...neighborhoods.map(n=>n.median));
+  const minMedian = Math.min(...neighborhoods.map(n=>n.median));
+
+  computed = neighborhoods.map(n => {
+    const cx = pad + (n.x / 100) * (W - pad * 2);
+    const cy = pad + (n.y / 100) * (H - pad * 2);
+    // Radius: 18–52px (scaled by dpr), proportional to sqrt of price
+    const t = (n.median - minMedian) / (maxMedian - minMedian);
+    const r = (18 + t * 34) * dpr;
+    return { ...n, cx, cy, r };
+  });
+}
+
+// ─── Draw ─────────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Subtle grid lines (geographic feel)
+  ctx.strokeStyle = 'rgba(40,80,100,0.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += W/8) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += H/8) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Water body: Puget Sound (left), Lake Washington (right), Lake Union (center)
+  // Very subtle background geography hints
+  ctx.fillStyle = 'rgba(0,80,120,0.04)';
+  ctx.beginPath(); ctx.ellipse(W*0.05, H*0.5, W*0.08, H*0.35, 0, 0, Math.PI*2); ctx.fill(); // Puget Sound hint
+  ctx.beginPath(); ctx.ellipse(W*0.76, H*0.45, W*0.05, H*0.28, 0, 0, Math.PI*2); ctx.fill(); // Lake Washington hint
+  ctx.beginPath(); ctx.ellipse(W*0.42, H*0.30, W*0.03, H*0.08, 0, 0, Math.PI*2); ctx.fill(); // Lake Union hint
+
+  // Draw bubbles (dimmed ones first, then active)
+  const dpr = devicePixelRatio;
+  computed.forEach((n, i) => {
+    const isActive = activeFilter === 'all' || n.tier === activeFilter;
+    const isHovered = i === hoveredIdx;
+    const col = TIER_COLORS[n.tier];
+
+    ctx.save();
+    ctx.globalAlpha = isActive ? 1 : 0.15;
+
+    // Glow on hover
+    if (isHovered && isActive) {
+      ctx.shadowColor = col.stroke;
+      ctx.shadowBlur = 24 * dpr;
+    }
+
+    // Fill
+    ctx.beginPath();
+    ctx.arc(n.cx, n.cy, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = isHovered ? col.fill.replace('0.', '0.4') : col.fill;
+    ctx.fill();
+
+    // Stroke
+    ctx.lineWidth = isHovered ? 2 * dpr : 1 * dpr;
+    ctx.strokeStyle = col.stroke;
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Label
+    if (isActive) {
+      ctx.save();
+      ctx.globalAlpha = isHovered ? 1 : 0.75;
+      ctx.fillStyle = col.text;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Name
+      const fontSize = Math.max(9, Math.min(13, n.r * 0.38)) * dpr;
+      ctx.font = `600 ${fontSize}px -apple-system, sans-serif`;
+      ctx.fillText(n.name, n.cx, n.cy - fontSize * 0.4);
+
+      // Price
+      const priceFontSize = Math.max(8, Math.min(11, n.r * 0.3)) * dpr;
+      ctx.font = `${priceFontSize}px -apple-system, sans-serif`;
+      ctx.globalAlpha = isHovered ? 0.9 : 0.55;
+      ctx.fillStyle = '#8eb4c8';
+      ctx.fillText(formatShort(n.median), n.cx, n.cy + fontSize * 0.55);
+
+      ctx.restore();
+    }
+  });
+}
+
+function formatShort(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(n % 1000000 === 0 ? 0 : 1) + 'M';
+  return '$' + Math.round(n/1000) + 'K';
+}
+
+function formatFull(n) {
+  return '$' + n.toLocaleString();
+}
+
+// ─── Hover ────────────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * devicePixelRatio;
+  const my = (e.clientY - rect.top)  * devicePixelRatio;
+
+  let found = -1;
+  // Check in reverse order (topmost drawn = last in array... but we want largest hit area)
+  for (let i = computed.length - 1; i >= 0; i--) {
+    const n = computed[i];
+    const isActive = activeFilter === 'all' || n.tier === activeFilter;
+    if (!isActive) continue;
+    const dx = mx - n.cx, dy = my - n.cy;
+    if (dx*dx + dy*dy <= n.r*n.r) { found = i; break; }
+  }
+
+  if (found !== hoveredIdx) {
+    hoveredIdx = found;
+    draw();
+  }
+
+  if (found >= 0) {
+    const n = computed[found];
+    const col = TIER_COLORS[n.tier];
+    document.getElementById('t-name').textContent = n.name;
+    document.getElementById('t-price').textContent = formatFull(n.median);
+    document.getElementById('t-price').style.color = col.text;
+    const tierEl = document.getElementById('t-tier');
+    tierEl.textContent = TIER_LABELS[n.tier];
+    tierEl.style.background = col.fill;
+    tierEl.style.border = '1px solid ' + col.stroke;
+    tierEl.style.color = col.text;
+
+    // Position tooltip
+    const tw = 190, th = 110;
+    let tx = e.clientX + 16;
+    let ty = e.clientY - 60;
+    if (tx + tw > window.innerWidth - 10) tx = e.clientX - tw - 16;
+    if (ty < 10) ty = 10;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top  = ty + 'px';
+    tooltip.classList.add('visible');
+  } else {
+    tooltip.classList.remove('visible');
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredIdx = -1;
+  tooltip.classList.remove('visible');
+  draw();
+});
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeFilter = btn.dataset.tier;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    hoveredIdx = -1;
+    draw();
+  });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

@@ -15,6 +15,7 @@ Built by [Scoob 🐾](https://github.com/ScoobyClaw) for Josh Ledgard, one per d
 | Mar 6, 2026 | [Neon Keys](03/06/2026-Neon-Keys/) | Browser synthesizer with 4 waveforms, ADSR envelope, reverb, delay, live waveform visualizer, and record/playback. |
 | Mar 7, 2026 | [Station Omega](03/07/2026-Station-Omega/) | Procedural text adventure on a failing space station. Randomized rooms, items, enemies, boss fights, O₂ timer, minimap. Every run is different. |
 | Mar 8, 2026 | [Sand Lab](03/08/2026-Sand-Lab/) | Falling-sand physics simulator with 9 materials (sand, water, fire, lava, ice, seeds...) and emergent chain reactions. |
+| Mar 10, 2026 | [Seattle Home Prices](03/10/2026-Seattle-Home-Prices/) | Interactive bubble map of 32 Seattle neighborhoods, sized and colored by median price. Hover to explore, filter by tier. |
 | Mar 9, 2026 | [Morphogenesis](03/09/2026-Morphogenesis/) | Real-time Gray-Scott reaction-diffusion — the math behind leopard spots and coral. 6 presets, click to disturb. Turing, 1952. |
 
 ---
