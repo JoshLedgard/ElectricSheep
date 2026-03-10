@@ -17,34 +17,39 @@
     user-select: none;
   }
   header {
-    padding: 16px 24px 10px;
+    padding: 12px 16px 10px;
     display: flex;
-    align-items: baseline;
-    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
     border-bottom: 1px solid rgba(80,140,180,0.12);
     flex-shrink: 0;
   }
-  h1 { font-size: 17px; font-weight: 600; color: #c8e4f0; letter-spacing: -0.01em; }
-  .subtitle { font-size: 12px; color: #3a5a6a; letter-spacing: 0.03em; }
+  .header-title { display: flex; align-items: baseline; gap: 10px; flex: 1 1 auto; min-width: 0; }
+  h1 { font-size: 15px; font-weight: 600; color: #c8e4f0; letter-spacing: -0.01em; white-space: nowrap; }
+  .subtitle { font-size: 11px; color: #3a5a6a; letter-spacing: 0.03em; white-space: nowrap; }
   .filters {
-    margin-left: auto;
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
   }
   .filter-btn {
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding: 4px 10px;
-    border-radius: 3px;
+    padding: 8px 12px;
+    min-height: 36px;
+    border-radius: 4px;
     border: 1px solid rgba(80,140,180,0.2);
     background: rgba(255,255,255,0.03);
     color: #4a7a96;
     cursor: pointer;
     transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
-  .filter-btn:hover { background: rgba(0,180,200,0.08); color: #8eb4c8; border-color: rgba(0,180,200,0.3); }
+  .filter-btn:hover, .filter-btn:active { background: rgba(0,180,200,0.08); color: #8eb4c8; border-color: rgba(0,180,200,0.3); }
   .filter-btn.active { background: rgba(0,180,200,0.12); color: #00d8e8; border-color: rgba(0,200,220,0.5); }
 
   #canvas-wrap {
@@ -77,11 +82,11 @@
   /* Legend */
   #legend {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
+    bottom: 14px;
+    left: 14px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
   .legend-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #3a5a6a; }
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -89,21 +94,41 @@
   /* Compass */
   #compass {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: 14px;
+    right: 14px;
     font-size: 10px;
     color: #2a4a5a;
     text-align: center;
     letter-spacing: 0.1em;
   }
   #compass .n { color: #3a6a7a; }
+
+  /* Pinned tooltip for mobile tap */
+  #tooltip.pinned { pointer-events: auto; }
+  #tooltip .t-close {
+    display: none;
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 16px;
+    color: #3a5a6a;
+    cursor: pointer;
+    line-height: 1;
+  }
+  #tooltip.pinned .t-close { display: block; }
+
+  @media (max-width: 500px) {
+    #legend .legend-row:last-child { display: none; } /* hide the size hint row */
+    h1 { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Seattle — Neighborhood Home Prices</h1>
-  <span class="subtitle">2026 median · hover to explore</span>
+  <div class="header-title">
+    <h1>Seattle — Neighborhood Home Prices</h1>
+    <span class="subtitle">2026 median · tap to explore</span>
+  </div>
   <div class="filters">
     <button class="filter-btn active" data-tier="all">All</button>
     <button class="filter-btn" data-tier="luxury" style="color:#f0c060">$1M+</button>
@@ -116,6 +141,7 @@
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
   <div id="tooltip">
+    <span class="t-close" id="t-close">✕</span>
     <div class="t-name" id="t-name"></div>
     <div class="t-price" id="t-price"></div>
     <div class="t-label">median home price</div>
@@ -205,20 +231,20 @@ function resize() {
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-const PAD = 80 * devicePixelRatio || 80;
-
 function computePositions() {
   const dpr = devicePixelRatio;
-  const pad = 80 * dpr;
+  const minDim = Math.min(W, H);
+  // Pad scales with canvas size, capped so it doesn't eat the map on small screens
+  const pad = Math.min(70 * dpr, minDim * 0.10);
   const maxMedian = Math.max(...neighborhoods.map(n=>n.median));
   const minMedian = Math.min(...neighborhoods.map(n=>n.median));
 
   computed = neighborhoods.map(n => {
     const cx = pad + (n.x / 100) * (W - pad * 2);
     const cy = pad + (n.y / 100) * (H - pad * 2);
-    // Radius: 18–52px (scaled by dpr), proportional to sqrt of price
+    // Radius: scales with canvas — 2% to 4.5% of the smaller dimension
     const t = (n.median - minMedian) / (maxMedian - minMedian);
-    const r = (18 + t * 34) * dpr;
+    const r = minDim * (0.020 + t * 0.025);
     return { ...n, cx, cy, r };
   });
 }
@@ -253,7 +279,7 @@ function draw() {
     // Glow on hover
     if (isHovered && isActive) {
       ctx.shadowColor = col.stroke;
-      ctx.shadowBlur = 24 * dpr;
+      ctx.shadowBlur = n.r * 0.5;
     }
 
     // Fill
@@ -263,7 +289,7 @@ function draw() {
     ctx.fill();
 
     // Stroke
-    ctx.lineWidth = isHovered ? 2 * dpr : 1 * dpr;
+    ctx.lineWidth = isHovered ? 2 * dpr : Math.max(1, dpr * 0.75);
     ctx.strokeStyle = col.stroke;
     ctx.stroke();
 
@@ -277,13 +303,13 @@ function draw() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Name
-      const fontSize = Math.max(9, Math.min(13, n.r * 0.38)) * dpr;
+      // Name — font is fraction of r (already in physical px), clamped to readable range
+      const fontSize = Math.max(9 * dpr, Math.min(13 * dpr, n.r * 0.42));
       ctx.font = `600 ${fontSize}px -apple-system, sans-serif`;
       ctx.fillText(n.name, n.cx, n.cy - fontSize * 0.4);
 
       // Price
-      const priceFontSize = Math.max(8, Math.min(11, n.r * 0.3)) * dpr;
+      const priceFontSize = Math.max(8 * dpr, Math.min(11 * dpr, n.r * 0.30));
       ctx.font = `${priceFontSize}px -apple-system, sans-serif`;
       ctx.globalAlpha = isHovered ? 0.9 : 0.55;
       ctx.fillStyle = '#8eb4c8';
@@ -303,58 +329,113 @@ function formatFull(n) {
   return '$' + n.toLocaleString();
 }
 
-// ─── Hover ────────────────────────────────────────────────────────────────────
+// ─── Hover / Touch ────────────────────────────────────────────────────────────
 const tooltip = document.getElementById('tooltip');
+let pinnedIdx = -1; // for mobile tap-to-pin
 
-canvas.addEventListener('mousemove', e => {
+function hitTest(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * devicePixelRatio;
-  const my = (e.clientY - rect.top)  * devicePixelRatio;
-
-  let found = -1;
-  // Check in reverse order (topmost drawn = last in array... but we want largest hit area)
+  const mx = (clientX - rect.left) * devicePixelRatio;
+  const my = (clientY - rect.top)  * devicePixelRatio;
   for (let i = computed.length - 1; i >= 0; i--) {
     const n = computed[i];
     const isActive = activeFilter === 'all' || n.tier === activeFilter;
     if (!isActive) continue;
     const dx = mx - n.cx, dy = my - n.cy;
-    if (dx*dx + dy*dy <= n.r*n.r) { found = i; break; }
+    if (dx*dx + dy*dy <= n.r*n.r) return i;
   }
+  return -1;
+}
 
-  if (found !== hoveredIdx) {
-    hoveredIdx = found;
-    draw();
-  }
+function showTooltip(idx, clientX, clientY, pinned) {
+  const n = computed[idx];
+  const col = TIER_COLORS[n.tier];
+  document.getElementById('t-name').textContent = n.name;
+  document.getElementById('t-price').textContent = formatFull(n.median);
+  document.getElementById('t-price').style.color = col.text;
+  const tierEl = document.getElementById('t-tier');
+  tierEl.textContent = TIER_LABELS[n.tier];
+  tierEl.style.background = col.fill;
+  tierEl.style.border = '1px solid ' + col.stroke;
+  tierEl.style.color = col.text;
 
-  if (found >= 0) {
-    const n = computed[found];
-    const col = TIER_COLORS[n.tier];
-    document.getElementById('t-name').textContent = n.name;
-    document.getElementById('t-price').textContent = formatFull(n.median);
-    document.getElementById('t-price').style.color = col.text;
-    const tierEl = document.getElementById('t-tier');
-    tierEl.textContent = TIER_LABELS[n.tier];
-    tierEl.style.background = col.fill;
-    tierEl.style.border = '1px solid ' + col.stroke;
-    tierEl.style.color = col.text;
-
-    // Position tooltip
-    const tw = 190, th = 110;
-    let tx = e.clientX + 16;
-    let ty = e.clientY - 60;
-    if (tx + tw > window.innerWidth - 10) tx = e.clientX - tw - 16;
-    if (ty < 10) ty = 10;
-    tooltip.style.left = tx + 'px';
-    tooltip.style.top  = ty + 'px';
-    tooltip.classList.add('visible');
+  const tw = 200;
+  let tx, ty;
+  if (pinned) {
+    // Center above/below the bubble on mobile
+    const dpr = devicePixelRatio;
+    const rect = canvas.getBoundingClientRect();
+    const bx = n.cx / dpr + rect.left;
+    const by = n.cy / dpr + rect.top;
+    tx = Math.min(Math.max(bx - tw/2, 8), window.innerWidth - tw - 8);
+    ty = by - n.r/dpr - 120;
+    if (ty < 60) ty = by + n.r/dpr + 12;
+    tooltip.classList.add('pinned');
   } else {
-    tooltip.classList.remove('visible');
+    tx = clientX + 16;
+    ty = clientY - 60;
+    if (tx + tw > window.innerWidth - 10) tx = clientX - tw - 16;
+    if (ty < 10) ty = 10;
+    tooltip.classList.remove('pinned');
+  }
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top  = ty + 'px';
+  tooltip.classList.add('visible');
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+  tooltip.classList.remove('pinned');
+}
+
+// Mouse events (desktop)
+canvas.addEventListener('mousemove', e => {
+  if (pinnedIdx >= 0) return; // don't override a pinned tap on desktop
+  const found = hitTest(e.clientX, e.clientY);
+  if (found !== hoveredIdx) { hoveredIdx = found; draw(); }
+  if (found >= 0) {
+    showTooltip(found, e.clientX, e.clientY, false);
+  } else {
+    hideTooltip();
   }
 });
 
 canvas.addEventListener('mouseleave', () => {
+  if (pinnedIdx >= 0) return;
   hoveredIdx = -1;
-  tooltip.classList.remove('visible');
+  hideTooltip();
+  draw();
+});
+
+// Touch events (mobile)
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const found = hitTest(t.clientX, t.clientY);
+  if (found >= 0) {
+    if (pinnedIdx === found) {
+      // Tap same bubble again → unpin
+      pinnedIdx = -1;
+      hoveredIdx = -1;
+      hideTooltip();
+    } else {
+      pinnedIdx = found;
+      hoveredIdx = found;
+      showTooltip(found, t.clientX, t.clientY, true);
+    }
+  } else {
+    pinnedIdx = -1;
+    hoveredIdx = -1;
+    hideTooltip();
+  }
+  draw();
+}, { passive: false });
+
+// Close button (pinned tooltip)
+document.getElementById('t-close').addEventListener('click', () => {
+  pinnedIdx = -1;
+  hoveredIdx = -1;
+  hideTooltip();
   draw();
 });
 
@@ -365,6 +446,8 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     hoveredIdx = -1;
+    pinnedIdx = -1;
+    hideTooltip();
     draw();
   });
 });
