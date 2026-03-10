@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Morphogenesis</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #080c14;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: #8eb4c8;
+    overflow: hidden;
+    user-select: none;
+  }
+  h1 {
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #4a7a96;
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+  #canvas-wrap {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 80px rgba(0,180,180,0.12), 0 0 4px rgba(0,200,200,0.3);
+  }
+  canvas {
+    display: block;
+    cursor: crosshair;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #controls {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+  .preset-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(100,160,180,0.25);
+    color: #6ba0b8;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { background: rgba(100,200,210,0.1); border-color: rgba(100,200,210,0.5); color: #a0d8e8; }
+  .preset-btn.active { background: rgba(0,180,190,0.15); border-color: rgba(0,220,230,0.6); color: #00e0f0; }
+  #pause-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(100,160,180,0.25);
+    color: #6ba0b8;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding: 6px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  #pause-btn:hover { background: rgba(255,200,100,0.08); border-color: rgba(255,200,100,0.4); color: #ffd080; }
+  #info {
+    margin-top: 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #3a5a6a;
+    text-align: center;
+    line-height: 1.8;
+  }
+  #info span { color: #4a8a9a; }
+</style>
+</head>
+<body>
+
+<h1>Morphogenesis</h1>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+
+<div id="controls">
+  <button class="preset-btn active" data-preset="coral">Coral</button>
+  <button class="preset-btn" data-preset="mitosis">Mitosis</button>
+  <button class="preset-btn" data-preset="fingerprints">Fingerprints</button>
+  <button class="preset-btn" data-preset="worms">Worms</button>
+  <button class="preset-btn" data-preset="spirals">Spirals</button>
+  <button class="preset-btn" data-preset="holes">Holes</button>
+  <button id="pause-btn">Pause</button>
+</div>
+
+<div id="info">
+  <span>click / drag</span> to disturb &nbsp;·&nbsp; <span>preset</span> to change pattern &nbsp;·&nbsp; Turing, 1952
+</div>
+
+<script>
+// ─── Gray-Scott Reaction-Diffusion ──────────────────────────────────────────
+// dA/dt = Da·∇²A − A·B² + f·(1−A)
+// dB/dt = Db·∇²B + A·B² − (k+f)·B
+// Two chemicals reacting and diffusing produce organic patterns.
+
+const SCALE = 3;
+const W = 220, H = 220;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width  = W * SCALE;
+canvas.height = H * SCALE;
+
+const Da = 1.0, Db = 0.5;
+const STEPS_PER_FRAME = 8;
+
+// Presets: { f, k, name }
+const PRESETS = {
+  coral:        { f: 0.0545, k: 0.062  },
+  mitosis:      { f: 0.0367, k: 0.0649 },
+  fingerprints: { f: 0.037,  k: 0.060  },
+  worms:        { f: 0.078,  k: 0.061  },
+  spirals:      { f: 0.010,  k: 0.047  },
+  holes:        { f: 0.039,  k: 0.058  },
+};
+
+let f = PRESETS.coral.f;
+let k = PRESETS.coral.k;
+
+// Flat typed arrays: index = y*W + x
+let A  = new Float32Array(W * H);
+let B  = new Float32Array(W * H);
+let nA = new Float32Array(W * H);
+let nB = new Float32Array(W * H);
+
+function initGrid() {
+  // Fill with A=1, B=0, then seed random patches of B
+  A.fill(1);
+  B.fill(0);
+  const numSeeds = 30 + Math.floor(Math.random() * 20);
+  for (let s = 0; s < numSeeds; s++) {
+    const cx = 4 + Math.floor(Math.random() * (W - 8));
+    const cy = 4 + Math.floor(Math.random() * (H - 8));
+    const r  = 2 + Math.floor(Math.random() * 3);
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx*dx + dy*dy <= r*r) {
+          const idx = (cy + dy) * W + (cx + dx);
+          if (idx >= 0 && idx < W * H) {
+            A[idx] = 0.5;
+            B[idx] = 0.25;
+          }
+        }
+      }
+    }
+  }
+}
+
+function step() {
+  const dt = 1.0;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const i  = y * W + x;
+      const a  = A[i], b = B[i];
+
+      // Laplacian (weighted 5-point + corners)
+      const lapA =
+        -a
+        + 0.2 * (A[i-1] + A[i+1] + A[i-W] + A[i+W])
+        + 0.05 * (A[i-W-1] + A[i-W+1] + A[i+W-1] + A[i+W+1]);
+
+      const lapB =
+        -b
+        + 0.2 * (B[i-1] + B[i+1] + B[i-W] + B[i+W])
+        + 0.05 * (B[i-W-1] + B[i-W+1] + B[i+W-1] + B[i+W+1]);
+
+      const reaction = a * b * b;
+
+      nA[i] = Math.max(0, Math.min(1, a + dt * (Da * lapA - reaction + f * (1 - a))));
+      nB[i] = Math.max(0, Math.min(1, b + dt * (Db * lapB + reaction - (k + f) * b)));
+    }
+  }
+  // Swap buffers
+  [A, nA] = [nA, A];
+  [B, nB] = [nB, B];
+}
+
+// ─── Color Mapping ───────────────────────────────────────────────────────────
+// Map B (0..1) through a bioluminescent palette:
+// deep navy → teal → gold → white
+
+function colorForB(b) {
+  // Remap slightly for contrast
+  const t = Math.pow(Math.min(1, b * 2.2), 0.75);
+
+  let r, g, bl;
+  if (t < 0.25) {
+    // deep navy → dark teal
+    const s = t / 0.25;
+    r  = lerp(8,  0,  s);
+    g  = lerp(12, 40, s);
+    bl = lerp(20, 70, s);
+  } else if (t < 0.5) {
+    // dark teal → bright teal
+    const s = (t - 0.25) / 0.25;
+    r  = lerp(0,   0,   s);
+    g  = lerp(40,  190, s);
+    bl = lerp(70,  200, s);
+  } else if (t < 0.75) {
+    // bright teal → gold
+    const s = (t - 0.5) / 0.25;
+    r  = lerp(0,   240, s);
+    g  = lerp(190, 200, s);
+    bl = lerp(200, 40,  s);
+  } else {
+    // gold → white
+    const s = (t - 0.75) / 0.25;
+    r  = lerp(240, 255, s);
+    g  = lerp(200, 255, s);
+    bl = lerp(40,  230, s);
+  }
+  return [Math.round(r), Math.round(g), Math.round(bl)];
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+const imgData = ctx.createImageData(W, H);
+const px = imgData.data;
+const offscreen = document.createElement('canvas');
+offscreen.width  = W;
+offscreen.height = H;
+const offCtx = offscreen.getContext('2d');
+
+function render() {
+  for (let i = 0; i < W * H; i++) {
+    const [r, g, b] = colorForB(B[i]);
+    px[i * 4]     = r;
+    px[i * 4 + 1] = g;
+    px[i * 4 + 2] = b;
+    px[i * 4 + 3] = 255;
+  }
+  offCtx.putImageData(imgData, 0, 0);
+  ctx.drawImage(offscreen, 0, 0, W * SCALE, H * SCALE);
+}
+
+// ─── Main Loop ───────────────────────────────────────────────────────────────
+let running = true;
+let raf;
+
+function loop() {
+  if (running) {
+    for (let s = 0; s < STEPS_PER_FRAME; s++) step();
+    render();
+  }
+  raf = requestAnimationFrame(loop);
+}
+
+// ─── Interaction ─────────────────────────────────────────────────────────────
+let painting = false;
+
+function inject(cx, cy, radius = 5) {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx*dx + dy*dy <= radius*radius) {
+        const ix = Math.floor(cx + dx);
+        const iy = Math.floor(cy + dy);
+        if (ix >= 0 && ix < W && iy >= 0 && iy < H) {
+          const idx = iy * W + ix;
+          A[idx] = 0.5;
+          B[idx] = 0.25 + Math.random() * 0.1;
+        }
+      }
+    }
+  }
+}
+
+canvas.addEventListener('mousedown', e => { painting = true; onPaint(e); });
+canvas.addEventListener('mousemove', e => { if (painting) onPaint(e); });
+canvas.addEventListener('mouseup',   () => { painting = false; });
+canvas.addEventListener('mouseleave',() => { painting = false; });
+
+canvas.addEventListener('touchstart', e => { e.preventDefault(); painting = true;  onTouchPaint(e); }, { passive: false });
+canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (painting) onTouchPaint(e); }, { passive: false });
+canvas.addEventListener('touchend',   () => { painting = false; });
+
+function onPaint(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) / SCALE;
+  const cy = (e.clientY - rect.top)  / SCALE;
+  inject(cx, cy);
+}
+
+function onTouchPaint(e) {
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  const cx = (t.clientX - rect.left) / SCALE;
+  const cy = (t.clientY - rect.top)  / SCALE;
+  inject(cx, cy);
+}
+
+// ─── Presets ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = PRESETS[btn.dataset.preset];
+    f = p.f; k = p.k;
+    initGrid();
+    document.querySelectorAll('.preset-btn[data-preset]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+document.getElementById('pause-btn').addEventListener('click', function() {
+  running = !running;
+  this.textContent = running ? 'Pause' : 'Resume';
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+initGrid();
+loop();
+</script>
+</body>
+</html>
