@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STATION OMEGA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0f;
+    color: #c8ffc8;
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  #game-container {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  #header {
+    text-align: center;
+    padding: 18px 0 10px;
+    border-bottom: 1px solid #1a3a1a;
+    margin-bottom: 14px;
+  }
+
+  #header h1 {
+    font-size: 2rem;
+    color: #00ff88;
+    letter-spacing: 0.4em;
+    text-shadow: 0 0 20px #00ff8866;
+  }
+
+  #header .subtitle {
+    color: #4a7a4a;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    margin-top: 4px;
+  }
+
+  #stats-bar {
+    display: flex;
+    gap: 20px;
+    padding: 8px 14px;
+    background: #0d1a0d;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+  }
+
+  .stat { color: #4a7a4a; }
+  .stat span { color: #00ff88; font-weight: bold; }
+  .stat.danger span { color: #ff4444; }
+  .stat.warn span { color: #ffaa00; }
+
+  #map-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  #map {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    padding: 10px 12px;
+    background: #0d1a0d;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+    min-width: 180px;
+    color: #2a5a2a;
+    white-space: pre;
+    flex-shrink: 0;
+  }
+
+  #output {
+    flex: 1;
+    height: 320px;
+    overflow-y: auto;
+    padding: 12px 14px;
+    background: #080d08;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    scroll-behavior: smooth;
+  }
+
+  .line { font-size: 0.87rem; line-height: 1.5; }
+  .line.room-title { color: #00ff88; font-weight: bold; margin-top: 8px; }
+  .line.desc { color: #8ab88a; }
+  .line.cmd { color: #4a7a4a; }
+  .line.cmd::before { content: '> '; color: #2a5a2a; }
+  .line.result { color: #c8ffc8; }
+  .line.danger { color: #ff6666; }
+  .line.pickup { color: #ffcc44; }
+  .line.system { color: #4488ff; font-style: italic; }
+  .line.win { color: #00ff88; font-weight: bold; font-size: 1.05rem; }
+  .line.separator { color: #1a3a1a; }
+  .line.hint { color: #335533; font-size: 0.78rem; }
+
+  #input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #0d1a0d;
+    border: 1px solid #1a3a1a;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+  }
+
+  #prompt-char { color: #00ff88; font-size: 1rem; }
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #c8ffc8;
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    caret-color: #00ff88;
+  }
+
+  #cmd-input::placeholder { color: #2a5a2a; }
+
+  #inventory {
+    padding: 10px 14px;
+    background: #0d1a0d;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #4a7a4a;
+  }
+
+  #inventory .inv-title { color: #2a7a2a; margin-bottom: 4px; letter-spacing: 0.1em; }
+  #inventory .inv-item { color: #ffcc44; }
+  #inventory .inv-empty { color: #2a5a2a; font-style: italic; }
+
+  #help-bar {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #2a5a2a;
+    padding: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  #help-bar span { color: #3a7a3a; }
+
+  @media (max-width: 560px) {
+    #map-container { flex-direction: column; }
+    #map { min-width: unset; height: auto; }
+    #output { height: 260px; }
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div id="header">
+    <h1>STATION OMEGA</h1>
+    <div class="subtitle">DEEP SPACE SURVIVAL — EVERY RUN IS DIFFERENT</div>
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat" id="stat-hp">HP: <span id="v-hp">100</span></div>
+    <div class="stat" id="stat-o2">O₂: <span id="v-o2">100</span></div>
+    <div class="stat" id="stat-moves">Moves: <span id="v-moves">0</span></div>
+    <div class="stat" id="stat-level">Sector: <span id="v-sector">1</span>/3</div>
+    <div class="stat" id="stat-room">Room: <span id="v-room">?</span></div>
+  </div>
+
+  <div id="map-container">
+    <div id="map">MAP\n────\n</div>
+    <div id="output"></div>
+  </div>
+
+  <div id="input-row">
+    <span id="prompt-char">▶</span>
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type a command...">
+  </div>
+
+  <div id="inventory">
+    <div class="inv-title">INVENTORY</div>
+    <div id="inv-list"><span class="inv-empty">empty</span></div>
+  </div>
+
+  <div id="help-bar">
+    <span>MOVE:</span> n s e w &nbsp;|&nbsp; <span>LOOK</span> &nbsp;|&nbsp; <span>TAKE</span> [item] &nbsp;|&nbsp; <span>USE</span> [item] &nbsp;|&nbsp; <span>EXAMINE</span> [thing] &nbsp;|&nbsp; <span>ATTACK</span> [enemy] &nbsp;|&nbsp; <span>INV</span> &nbsp;|&nbsp; <span>RESTART</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// STATION OMEGA — Procedural Text Adventure
+// ═══════════════════════════════════════════
+
+const RNG = (() => {
+  let seed = Date.now();
+  return {
+    next() { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; },
+    int(a, b) { return Math.floor(this.next() * (b - a + 1)) + a; },
+    pick(arr) { return arr[Math.floor(this.next() * arr.length)]; },
+    shuffle(arr) { const a = [...arr]; for (let i=a.length-1;i>0;i--){const j=Math.floor(this.next()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a; }
+  };
+})();
+
+// ── Room templates ──────────────────────────────
+const ROOM_TEMPLATES = [
+  { name: "Crew Quarters", desc: "Bunks are overturned. Personal effects float in the low gravity. Something skitters behind the lockers.", exam: { lockers: "A cracked locker swings open. Smells like old socks and fear." }, items: ["medkit","ration"], enemy: "space rat", enemyChance: 0.3 },
+  { name: "Engineering Bay", desc: "Sparks cascade from a ruptured conduit. The air tastes metallic. Control panels flicker erratically.", exam: { panels: "Emergency schematics scroll across a cracked screen. One section is circled in red marker: REACTOR CORE." }, items: ["wrench","fuse"], enemy: "repair drone (malfunctioning)", enemyChance: 0.4 },
+  { name: "Science Lab", desc: "Specimen containers have shattered. Something green has spread across the floor. You step around it carefully.", exam: { containers: "Most samples are ruined. One sealed case bears a biohazard symbol and the words: DO NOT OPEN. You open it anyway." }, items: ["medkit","stim-pack"], enemy: "lab specimen (escaped)", enemyChance: 0.35 },
+  { name: "Cafeteria", desc: "Freeze-dried meal trays orbit the serving counter. The vending machine hums. A tray of something unidentifiable still steams.", exam: { vending: "Still operational. You force the panel. Inside: two nutrition bars, a can of synthetic coffee, and a note reading 'IOU — K'" }, items: ["ration","ration","stim-pack"], enemy: null, enemyChance: 0 },
+  { name: "Airlock Corridor", desc: "Warning lights pulse amber. One of the inner doors is jammed open. Beyond it: the black. You feel the pull.", exam: { door: "The jammed door is held by a piece of pipe. Someone put it there deliberately. Clever." }, items: ["o2-canister"], enemy: "security drone", enemyChance: 0.5 },
+  { name: "Medical Bay", desc: "The autodoc arm is frozen mid-procedure. Surgical tools hang in the air. The patient bay is empty, sheets stained.", exam: { autodoc: "The autodoc has one functioning module. It beeps hopefully when you approach." }, items: ["medkit","medkit","stim-pack"], enemy: null, enemyChance: 0 },
+  { name: "Bridge", desc: "The forward viewport shows nothing but stars and debris. Navigation is locked. The captain's chair is empty — a single glove floats nearby.", exam: { chair: "Tucked under the armrest: a data chip. It reads ACCESS LEVEL 3. Useful." }, items: ["access-chip"], enemy: "bridge AI (hostile)", enemyChance: 0.45 },
+  { name: "Cargo Hold", desc: "Crates the size of cars are stacked to the ceiling. Several have burst open. The manifest screen shows a discrepancy: Manifest says 40 crates. You count 43.", exam: { crates: "Three crates are unmarked. Inside one: emergency suits, vacuum-sealed. Inside another: nothing. Inside the third: someone has been living here." }, items: ["o2-canister","wrench"], enemy: "stowaway (hostile)", enemyChance: 0.3 },
+  { name: "Server Room", desc: "Thousands of blinking lights. The hum is almost musical. The temperature is freezing. Your breath fogs.", exam: { servers: "One server is running hot. You pull the access panel: it's running a game of chess against itself. It's been playing for 11 days." }, items: ["fuse","access-chip"], enemy: "security drone", enemyChance: 0.4 },
+  { name: "Observation Deck", desc: "A panoramic view of the nebula outside. Violet and gold. If you weren't trying to escape a catastrophic failure, this would be beautiful.", exam: { viewport: "Scratched into the viewport: 'THEY'RE IN THE VENTS — CHEN 2191.' Below it, a smiley face." }, items: ["stim-pack"], enemy: null, enemyChance: 0 },
+  { name: "Reactor Antechamber", desc: "The radiation counter on your wrist ticks faster. Yellow warning tape is everywhere. A heavy blast door blocks the way forward.", exam: { door: "The door needs a keycard. Or a wrench and about 40 seconds of improvisation." }, items: ["o2-canister"], enemy: "rad-scorched drone", enemyChance: 0.6 },
+  { name: "Maintenance Tunnels", desc: "You crouch through dimly-lit crawlways. Pipes drip. Something large moved ahead of you — then stopped.", exam: { pipes: "A pipe junction has been modified. Someone rerouted the coolant flow to buy time. Smart." }, items: ["fuse","wrench"], enemy: "mutant ventilator (don't ask)", enemyChance: 0.5 },
+];
+
+const BOSS_ROOMS = [
+  { name: "REACTOR CORE", desc: "Alarms scream. The core is critical. You have minutes. The emergency override panel is across the room — but something massive is in the way.", exam: { panel: "The override takes a fuse and an access chip. You have them. You just need to get there." }, items: [], enemy: "STATION GUARDIAN", isBoss: true },
+  { name: "COMMAND CENTER", desc: "The station's nerve center. Every screen shows red. The escape pod bay is accessible from here — if you can unlock it.", exam: { console: "The launch console needs a code. Stamped on the underside of the console: 7-7-3-1. Old password. You type it. The pod bay opens." }, items: [], enemy: "CORRUPTED STATION AI", isBoss: true },
+  { name: "ESCAPE POD BAY", desc: "Six pods. Five are gone. The last one sits open, interior lights blinking green. Everything you survived for. One thing stands between you and it.", exam: { pod: "The pod is prepped. Coordinates locked. Just... get to it." }, items: [], enemy: "ROGUE SECURITY MECH", isBoss: true },
+];
+
+// ── Items ─────────────────────────────────────
+const ITEMS = {
+  medkit:       { desc: "Medical kit. Restores 35 HP.", use(g){g.hp=Math.min(100,g.hp+35);return "You patch yourself up. (+35 HP)";} },
+  ration:       { desc: "Emergency food ration. Restores 5 O₂ and 8 HP.", use(g){g.o2=Math.min(100,g.o2+5);g.hp=Math.min(100,g.hp+8);return "You eat the ration. Tastes like cardboard. You feel slightly better. (+5 O₂, +8 HP)";} },
+  "stim-pack":  { desc: "Combat stim. +20 HP, boosts next attack.", use(g){g.hp=Math.min(100,g.hp+20);g.stimmed=true;return "Adrenaline floods your system. (+20 HP, next attack is boosted)";} },
+  wrench:       { desc: "Heavy wrench. Good for opening doors. Or skulls.", use(g){return "You brandish the wrench. It wants to hit something.";} },
+  fuse:         { desc: "Emergency fuse. Required for reactor override.", use(g){return "The fuse crackles with potential.";} },
+  "access-chip":{ desc: "Level 3 access chip. Opens secured areas.", use(g){return "The chip blinks green. Ready.";} },
+  "o2-canister":{ desc: "Oxygen canister. Restores 40 O₂.", use(g){g.o2=Math.min(100,g.o2+40);return "Fresh oxygen floods your suit. (+40 O₂)";} },
+};
+
+// ── Enemy stat tables ──────────────────────────
+const ENEMY_STATS = {
+  "space rat":              { hp: 15, atk: 8,  xp: 5  },
+  "repair drone (malfunctioning)": { hp: 25, atk: 12, xp: 10 },
+  "lab specimen (escaped)": { hp: 30, atk: 15, xp: 12 },
+  "security drone":         { hp: 35, atk: 14, xp: 15 },
+  "bridge AI (hostile)":    { hp: 20, atk: 18, xp: 18 },
+  "stowaway (hostile)":     { hp: 28, atk: 10, xp: 12 },
+  "rad-scorched drone":     { hp: 40, atk: 16, xp: 20 },
+  "mutant ventilator (don't ask)": { hp: 35, atk: 13, xp: 18 },
+  "STATION GUARDIAN":       { hp: 80, atk: 25, xp: 50 },
+  "CORRUPTED STATION AI":   { hp: 90, atk: 28, xp: 60 },
+  "ROGUE SECURITY MECH":    { hp: 100, atk: 30, xp: 75 },
+};
+
+// ═══════════════════════════════════════════
+// GAME STATE & GENERATION
+// ═══════════════════════════════════════════
+
+let G; // global game state
+
+function buildSector(sectorNum) {
+  const size = 3 + sectorNum; // sectors get bigger
+  const rooms = [];
+  const pool = RNG.shuffle([...ROOM_TEMPLATES]);
+
+  for (let i = 0; i < size; i++) {
+    const tmpl = pool[i % pool.length];
+    const hasEnemy = tmpl.enemyChance > 0 && RNG.next() < tmpl.enemyChance;
+    const enemyStat = hasEnemy ? { ...ENEMY_STATS[tmpl.enemy], name: tmpl.enemy, current: ENEMY_STATS[tmpl.enemy].hp } : null;
+    const itemPool = RNG.shuffle([...tmpl.items]);
+    const numItems = Math.min(itemPool.length, RNG.int(1,2));
+    rooms.push({
+      id: i,
+      name: tmpl.name + (sectorNum > 1 ? ` (Sector ${sectorNum})` : ''),
+      desc: tmpl.desc,
+      exam: tmpl.exam || {},
+      items: itemPool.slice(0, numItems),
+      enemy: enemyStat,
+      visited: false,
+      exits: {},
+    });
+  }
+
+  // Boss room at the end
+  const bossTmpl = RNG.pick(BOSS_ROOMS);
+  const bossEnemy = { ...ENEMY_STATS[bossTmpl.enemy], name: bossTmpl.enemy, current: ENEMY_STATS[bossTmpl.enemy].hp };
+  rooms.push({
+    id: size,
+    name: bossTmpl.name,
+    desc: bossTmpl.desc,
+    exam: bossTmpl.exam || {},
+    items: [],
+    enemy: bossEnemy,
+    isBoss: true,
+    visited: false,
+    exits: {},
+  });
+
+  // Chain rooms: each room connects to the next
+  const dirs = ['n','e','s','w'];
+  const opposites = {n:'s',e:'w',s:'n',w:'e'};
+  for (let i = 0; i < rooms.length - 1; i++) {
+    const d = RNG.pick(dirs);
+    rooms[i].exits[d] = i + 1;
+    rooms[i+1].exits[opposites[d]] = i;
+    // random extra connections for non-linear feel
+    if (i > 0 && RNG.next() < 0.4) {
+      const backD = RNG.pick(dirs.filter(x => !rooms[i].exits[x]));
+      const backTarget = RNG.int(0, i-1);
+      if (!rooms[i].exits[backD]) {
+        rooms[i].exits[backD] = backTarget;
+        if (!rooms[backTarget].exits[opposites[backD]]) {
+          rooms[backTarget].exits[opposites[backD]] = i;
+        }
+      }
+    }
+  }
+
+  return rooms;
+}
+
+function newGame() {
+  G = {
+    hp: 100, o2: 100, moves: 0,
+    sector: 1, rooms: buildSector(1),
+    currentRoom: 0,
+    inventory: [],
+    stimmed: false,
+    gameOver: false, won: false,
+    history: [],
+  };
+  clearOutput();
+  print("", "separator");
+  print("STATION OMEGA — EMERGENCY LOG", "system");
+  print("", "separator");
+  print("You regain consciousness to the sound of alarms.", "desc");
+  print("Station Omega is failing. The crew is gone.", "desc");
+  print("Three sectors stand between you and the escape pods.", "desc");
+  print("You have no idea what happened. You just know you need to leave.", "desc");
+  print("", "separator");
+  describeRoom();
+}
+
+// ═══════════════════════════════════════════
+// OUTPUT & UI
+// ═══════════════════════════════════════════
+
+const output = document.getElementById('output');
+
+function print(text, cls='result') {
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  div.textContent = text;
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}
+
+function clearOutput() {
+  output.innerHTML = '';
+}
+
+function updateStats() {
+  document.getElementById('v-hp').textContent = G.hp;
+  document.getElementById('v-o2').textContent = G.o2;
+  document.getElementById('v-moves').textContent = G.moves;
+  document.getElementById('v-sector').textContent = G.sector;
+  const room = G.rooms[G.currentRoom];
+  document.getElementById('v-room').textContent = room ? room.name.split(' (')[0] : '?';
+
+  const hpEl = document.getElementById('stat-hp');
+  hpEl.className = 'stat' + (G.hp <= 20 ? ' danger' : G.hp <= 50 ? ' warn' : '');
+  const o2El = document.getElementById('stat-o2');
+  o2El.className = 'stat' + (G.o2 <= 20 ? ' danger' : G.o2 <= 50 ? ' warn' : '');
+
+  // Inventory
+  const invList = document.getElementById('inv-list');
+  if (G.inventory.length === 0) {
+    invList.innerHTML = '<span class="inv-empty">empty</span>';
+  } else {
+    const counts = {};
+    G.inventory.forEach(i => counts[i] = (counts[i]||0)+1);
+    invList.innerHTML = Object.entries(counts).map(([k,v]) =>
+      `<span class="inv-item">${k}${v>1?' x'+v:''}</span>`
+    ).join(' &nbsp;·&nbsp; ');
+  }
+
+  updateMap();
+}
+
+function updateMap() {
+  const mapEl = document.getElementById('map');
+  const visited = G.rooms.filter(r => r.visited);
+  let lines = ['MAP','────'];
+  visited.forEach(r => {
+    const isCurrent = r.id === G.currentRoom;
+    const prefix = isCurrent ? '▶ ' : '  ';
+    const name = r.name.split(' (')[0];
+    const short = name.length > 18 ? name.slice(0,17)+'…' : name;
+    const enemyTag = r.enemy ? ' [!]' : '';
+    const bossTag = r.isBoss ? ' [BOSS]' : '';
+    lines.push(prefix + short + enemyTag + bossTag);
+  });
+  if (visited.length === 0) lines.push('  (exploring...)');
+  mapEl.textContent = lines.join('\n');
+}
+
+// ═══════════════════════════════════════════
+// GAME LOGIC
+// ═══════════════════════════════════════════
+
+function describeRoom() {
+  const room = G.rooms[G.currentRoom];
+  room.visited = true;
+  print("", "separator");
+  print("[ " + room.name + " ]", "room-title");
+  print(room.desc, "desc");
+
+  if (room.items.length > 0) {
+    print("You see: " + room.items.join(', ') + ".", "pickup");
+  }
+
+  if (room.enemy) {
+    print("⚠ " + room.enemy.name.toUpperCase() + " is here! (HP: " + room.enemy.current + ")", "danger");
+  }
+
+  const exits = Object.keys(room.exits);
+  if (exits.length > 0) {
+    const exitNames = {n:'North',s:'South',e:'East',w:'West'};
+    print("Exits: " + exits.map(e => exitNames[e]).join(', ') + ".", "hint");
+  } else {
+    print("No exits visible. Look around.", "hint");
+  }
+
+  updateStats();
+}
+
+function tick() {
+  G.moves++;
+  G.o2 = Math.max(0, G.o2 - RNG.int(1,2));
+  if (G.o2 <= 0) {
+    G.hp = Math.max(0, G.hp - 5);
+    print("⚠ You're out of oxygen! Suffocating! (-5 HP)", "danger");
+  }
+  if (G.hp <= 0 && !G.gameOver) {
+    G.gameOver = true;
+    print("", "separator");
+    print("You collapse. The station doesn't care.", "danger");
+    print("GAME OVER — " + G.moves + " moves survived.", "danger");
+    print("Type RESTART to try again.", "hint");
+  }
+  updateStats();
+}
+
+function move(dir) {
+  const room = G.rooms[G.currentRoom];
+  if (room.enemy && room.enemy.current > 0) {
+    print("You can't leave — the " + room.enemy.name + " blocks your path!", "danger");
+    const dmg = RNG.int(Math.floor(room.enemy.atk*0.5), room.enemy.atk);
+    G.hp = Math.max(0, G.hp - dmg);
+    print("It attacks while you hesitate! (-" + dmg + " HP)", "danger");
+    tick();
+    return;
+  }
+  if (!room.exits[dir]) {
+    print("You can't go that way.", "result");
+    return;
+  }
+  G.currentRoom = room.exits[dir];
+  tick();
+  if (!G.gameOver) describeRoom();
+}
+
+function attack(targetName) {
+  const room = G.rooms[G.currentRoom];
+  if (!room.enemy || room.enemy.current <= 0) {
+    print("Nothing to attack here.", "result");
+    return;
+  }
+  const enemy = room.enemy;
+  if (targetName && !enemy.name.toLowerCase().includes(targetName.toLowerCase())) {
+    print("There's no '" + targetName + "' here.", "result");
+    return;
+  }
+
+  // Player attacks
+  let dmg = RNG.int(12, 22);
+  if (G.stimmed) { dmg = Math.floor(dmg * 1.8); G.stimmed = false; }
+  const hasWrench = G.inventory.includes('wrench');
+  if (hasWrench) dmg = Math.floor(dmg * 1.4);
+
+  enemy.current = Math.max(0, enemy.current - dmg);
+  print("You " + (hasWrench ? "beat" : "strike") + " the " + enemy.name + " for " + dmg + " damage!", "result");
+
+  if (enemy.current <= 0) {
+    print("The " + enemy.name + " goes down!", "result");
+    if (enemy.isBoss) {
+      // Boss defeated = sector cleared
+      advanceSector();
+      return;
+    }
+    room.enemy = null;
+    tick();
+    return;
+  }
+
+  print("The " + enemy.name + " has " + enemy.current + " HP remaining.", "hint");
+
+  // Enemy attacks back
+  const eDmg = RNG.int(Math.floor(enemy.atk*0.6), enemy.atk);
+  G.hp = Math.max(0, G.hp - eDmg);
+  print("The " + enemy.name + " retaliates! (-" + eDmg + " HP)", "danger");
+  tick();
+}
+
+function advanceSector() {
+  if (G.sector >= 3) {
+    // WIN
+    G.won = true;
+    G.gameOver = true;
+    clearOutput();
+    print("", "separator");
+    print("The escape pod seals behind you.", "win");
+    print("Thrusters fire. Station Omega shrinks in the viewport.", "win");
+    print("You watch it go. Whatever happened there... it's over.", "win");
+    print("", "separator");
+    print("YOU ESCAPED — " + G.moves + " moves, " + G.hp + " HP remaining.", "win");
+    print("", "separator");
+    print("Type RESTART to run again. Each run is different.", "hint");
+    updateStats();
+    return;
+  }
+  G.sector++;
+  print("", "separator");
+  print("★ SECTOR " + (G.sector-1) + " CLEARED ★", "system");
+  print("An emergency bulkhead slides open. You push forward into Sector " + G.sector + ".", "system");
+  print("", "separator");
+  G.rooms = buildSector(G.sector);
+  G.currentRoom = 0;
+  tick();
+  if (!G.gameOver) describeRoom();
+}
+
+function takeItem(itemName) {
+  const room = G.rooms[G.currentRoom];
+  const idx = room.items.findIndex(i => i.toLowerCase().includes(itemName.toLowerCase()));
+  if (idx === -1) {
+    print("There's no '" + itemName + "' here.", "result");
+    return;
+  }
+  const item = room.items.splice(idx, 1)[0];
+  G.inventory.push(item);
+  print("You pick up the " + item + ".", "pickup");
+  tick();
+}
+
+function useItem(itemName) {
+  const idx = G.inventory.findIndex(i => i.toLowerCase().includes(itemName.toLowerCase()));
+  if (idx === -1) {
+    print("You don't have '" + itemName + "'.", "result");
+    return;
+  }
+  const item = G.inventory[idx];
+  const def = ITEMS[item];
+  if (!def) { print("You're not sure how to use that.", "result"); return; }
+  const msg = def.use(G);
+  G.inventory.splice(idx, 1);
+  print(msg, "pickup");
+  tick();
+}
+
+function examineItem(target) {
+  const room = G.rooms[G.currentRoom];
+  target = target.toLowerCase();
+  // Check room exam hotspots
+  const match = Object.keys(room.exam).find(k => k.toLowerCase().includes(target));
+  if (match) {
+    print(room.exam[match], "desc");
+    tick();
+    return;
+  }
+  // Check inventory
+  const invMatch = G.inventory.find(i => i.toLowerCase().includes(target));
+  if (invMatch) {
+    print(ITEMS[invMatch] ? ITEMS[invMatch].desc : "It's a " + invMatch + ".", "desc");
+    return;
+  }
+  // Check floor items
+  const floorMatch = room.items.find(i => i.toLowerCase().includes(target));
+  if (floorMatch) {
+    print(ITEMS[floorMatch] ? ITEMS[floorMatch].desc : "It's a " + floorMatch + ".", "desc");
+    return;
+  }
+  print("You don't see anything notable about that.", "result");
+}
+
+// ═══════════════════════════════════════════
+// COMMAND PARSER
+// ═══════════════════════════════════════════
+
+const ALIASES = {
+  n:'n', north:'n', s:'s', south:'s', e:'e', east:'e', w:'w', west:'w',
+  l:'look', look:'look',
+  i:'inv', inv:'inv', inventory:'inv',
+  take:'take', get:'take', grab:'take', pick:'take',
+  use:'use', apply:'use',
+  ex:'examine', examine:'examine', x:'examine', inspect:'examine', check:'examine',
+  attack:'attack', hit:'attack', fight:'attack', kill:'attack', punch:'attack', stab:'attack',
+  restart:'restart', new:'restart', reset:'restart',
+  help:'help', h:'help', '?':'help',
+  wait:'wait',
+};
+
+function parseCommand(raw) {
+  if (G.gameOver && raw.toLowerCase() !== 'restart') {
+    print("Game over. Type RESTART.", "hint"); return;
+  }
+
+  const parts = raw.trim().toLowerCase().split(/\s+/);
+  const verb = ALIASES[parts[0]] || parts[0];
+  const arg = parts.slice(1).join(' ');
+
+  print(raw, "cmd");
+
+  switch(verb) {
+    case 'n': case 's': case 'e': case 'w': move(verb); break;
+    case 'look': describeRoom(); break;
+    case 'inv':
+      if (G.inventory.length === 0) print("You're carrying nothing.", "result");
+      else print("Carrying: " + G.inventory.join(', '), "result");
+      break;
+    case 'take':
+      if (!arg) { print("Take what?", "result"); break; }
+      takeItem(arg);
+      break;
+    case 'use':
+      if (!arg) { print("Use what?", "result"); break; }
+      useItem(arg);
+      break;
+    case 'examine':
+      if (!arg) { describeRoom(); break; }
+      examineItem(arg);
+      break;
+    case 'attack':
+      attack(arg);
+      break;
+    case 'wait':
+      print("You wait. The station groans. O₂ ticks down.", "desc");
+      tick();
+      break;
+    case 'restart':
+      newGame();
+      break;
+    case 'help':
+      print("COMMANDS: n/s/e/w (move) · look · take [item] · use [item] · examine [thing] · attack [enemy] · inv · wait · restart", "system");
+      break;
+    default:
+      const flavors = [
+        "The station doesn't respond to that.",
+        "In zero-g, that makes even less sense.",
+        "You consider it. The alarms disagree.",
+        "Not a command. Try: n s e w look take use examine attack inv",
+      ];
+      print(RNG.pick(flavors), "result");
+  }
+}
+
+// ═══════════════════════════════════════════
+// INPUT HANDLING
+// ═══════════════════════════════════════════
+
+const input = document.getElementById('cmd-input');
+const history = [];
+let histIdx = -1;
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = input.value.trim();
+    if (!val) return;
+    history.unshift(val);
+    histIdx = -1;
+    input.value = '';
+    parseCommand(val);
+  } else if (e.key === 'ArrowUp') {
+    if (histIdx < history.length - 1) { histIdx++; input.value = history[histIdx]; }
+    e.preventDefault();
+  } else if (e.key === 'ArrowDown') {
+    if (histIdx > 0) { histIdx--; input.value = history[histIdx]; }
+    else { histIdx = -1; input.value = ''; }
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.target !== input && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+    input.focus();
+  }
+});
+
+// Start
+newGame();
+input.focus();
+</script>
+</body>
+</html>

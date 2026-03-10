@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Field — Daily Surprise</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; }
+  canvas { display: block; }
+  #ui {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    user-select: none;
+  }
+  button {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  button:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  #speed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+  }
+  #speed {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 80px;
+    height: 3px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  #speed::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    cursor: pointer;
+  }
+  #title {
+    position: fixed;
+    top: 20px;
+    left: 24px;
+    font-family: -apple-system, sans-serif;
+    color: rgba(255,255,255,0.2);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title">Flow Field · Scoob × 2026</div>
+<div id="ui">
+  <span>click · move · space to reset</span>
+  <div id="speed-wrap">
+    <span>slow</span>
+    <input type="range" id="speed" min="0.05" max="2" step="0.05" value="1">
+    <span>fast</span>
+  </div>
+  <button onclick="reset()">New Seed</button>
+  <button onclick="togglePalette()">Color</button>
+  <button onclick="toggleTrails()">Trails</button>
+</div>
+
+<script>
+// ── Perlin Noise ─────────────────────────────────────────────────────────────
+const P = [];
+const perm = new Array(512);
+(function(){
+  for(let i=0;i<256;i++) P[i]=i;
+  for(let i=255;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [P[i],P[j]]=[P[j],P[i]];
+  }
+  for(let i=0;i<512;i++) perm[i]=P[i&255];
+})();
+
+function fade(t){ return t*t*t*(t*(t*6-15)+10); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function grad(h,x,y){
+  h&=3;
+  const u=h<2?x:y, v=h<2?y:x;
+  return ((h&1)?-u:u)+((h&2)?-v:v);
+}
+function noise(x,y){
+  const X=Math.floor(x)&255, Y=Math.floor(y)&255;
+  x-=Math.floor(x); y-=Math.floor(y);
+  const u=fade(x), v=fade(y);
+  const a=perm[X]+Y, b=perm[X+1]+Y;
+  return lerp(
+    lerp(grad(perm[a],x,y), grad(perm[b],x-1,y),u),
+    lerp(grad(perm[a+1],x,y-1), grad(perm[b+1],x-1,y-1),u), v
+  );
+}
+
+// ── Setup ────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, particles, field, cols, rows, SCALE=8, NUM=3500;
+let frameCount=0, seed=Math.random()*1000;
+let trailAlpha=0.04, showTrails=true;
+let paletteIdx=0;
+let speedMult=1;
+
+// Mouse influence
+let mouse = { x: -9999, y: -9999, active: false };
+
+const PALETTES = [
+  (v,s) => `hsl(${200+v*60},${70+s*30}%,${50+v*20}%)`,
+  (v,s) => `hsl(${v*50},${80+s*20}%,${40+v*30}%)`,
+  (v,s) => `hsl(${140+v*100},${60+s*40}%,${50+v*20}%)`,
+  (v,s) => `hsl(${35+v*25},${70+s*20}%,${45+v*30}%)`,
+  (v,s) => `hsl(${260+v*60},${80}%,${55+v*20}%)`,
+];
+
+function resize(){
+  W=canvas.width=window.innerWidth;
+  H=canvas.height=window.innerHeight;
+  cols=Math.ceil(W/SCALE)+1;
+  rows=Math.ceil(H/SCALE)+1;
+  buildField();
+}
+
+function buildField(){
+  field=[];
+  const z=seed*0.01;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const n1=noise(x*0.12+z, y*0.12+z);
+      const n2=noise(x*0.06-z*0.5, y*0.06+z*0.3)*0.5;
+      const n3=noise(x*0.25+z*2, y*0.25-z)*0.25;
+      field.push((n1+n2+n3)*Math.PI*4);
+    }
+  }
+}
+
+function spawnParticles(){
+  particles=[];
+  for(let i=0;i<NUM;i++){
+    particles.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      vx:0, vy:0,
+      life: Math.random(),
+      maxLife: 0.8+Math.random()*0.2,
+      speed: 0.6+Math.random()*1.4,
+      size: 0.5+Math.random()*1.5,
+    });
+  }
+}
+
+function reset(){
+  seed=Math.random()*1000;
+  buildField();
+  spawnParticles();
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+  frameCount=0;
+}
+
+function togglePalette(){ paletteIdx=(paletteIdx+1)%PALETTES.length; }
+function toggleTrails(){
+  showTrails=!showTrails;
+  trailAlpha=showTrails?0.04:0.12;
+}
+
+// ── Draw ─────────────────────────────────────────────────────────────────────
+function draw(){
+  requestAnimationFrame(draw);
+  frameCount++;
+
+  ctx.fillStyle=`rgba(0,0,0,${trailAlpha})`;
+  ctx.fillRect(0,0,W,H);
+
+  const palette=PALETTES[paletteIdx];
+  const MOUSE_RADIUS = 120;
+  const MOUSE_STRENGTH = 3.5;
+
+  for(let i=0;i<particles.length;i++){
+    const p=particles[i];
+
+    const fx=Math.floor(p.x/SCALE), fy=Math.floor(p.y/SCALE);
+    const idx=fy*cols+fx;
+    const angle=field[idx]||0;
+    const drift=noise(p.x*0.003+frameCount*0.0005*speedMult, p.y*0.003)*0.5;
+
+    let ax = Math.cos(angle+drift)*p.speed*0.35;
+    let ay = Math.sin(angle+drift)*p.speed*0.35;
+
+    // Mouse repulsion/attraction
+    if(mouse.active){
+      const dx = p.x - mouse.x;
+      const dy = p.y - mouse.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist < MOUSE_RADIUS && dist > 0.1){
+        const force = (1 - dist/MOUSE_RADIUS) * MOUSE_STRENGTH;
+        // repel outward
+        ax += (dx/dist) * force * 0.15;
+        ay += (dy/dist) * force * 0.15;
+      }
+    }
+
+    p.vx = p.vx*0.85 + ax*speedMult;
+    p.vy = p.vy*0.85 + ay*speedMult;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.0015 * speedMult;
+
+    if(p.life<=0||p.x<-2||p.x>W+2||p.y<-2||p.y>H+2){
+      p.x=Math.random()*W;
+      p.y=Math.random()*H;
+      p.vx=0; p.vy=0;
+      p.life=p.maxLife;
+    }
+
+    const speed=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    const v=Math.min(speed/3,1);
+    const s=p.life/p.maxLife;
+    const alpha=s*0.7+0.1;
+
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fillStyle=palette(v,s).replace('hsl(','hsla(').replace(')',`,${alpha})`);
+    ctx.fill();
+  }
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', ()=>{ resize(); });
+
+// Speed slider
+document.getElementById('speed').addEventListener('input', (e)=>{
+  speedMult = parseFloat(e.target.value);
+});
+
+// Mouse move — particles part around the cursor
+canvas.addEventListener('mousemove', (e)=>{
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.active = true;
+});
+canvas.addEventListener('mouseleave', ()=>{ mouse.active = false; });
+
+// Click — burst of particles
+canvas.addEventListener('click', (e)=>{
+  for(let i=0;i<120;i++){
+    const ang=Math.random()*Math.PI*2;
+    const r=Math.random()*60;
+    particles[Math.floor(Math.random()*particles.length)]={
+      x:e.clientX+Math.cos(ang)*r,
+      y:e.clientY+Math.sin(ang)*r,
+      vx: Math.cos(ang)*(1+Math.random()*2)*speedMult,
+      vy: Math.sin(ang)*(1+Math.random()*2)*speedMult,
+      life:0.9+Math.random()*0.1,
+      maxLife:0.9+Math.random()*0.1,
+      speed:1+Math.random()*2,
+      size:0.8+Math.random()*2,
+    };
+  }
+});
+
+document.addEventListener('keydown', (e)=>{
+  if(e.code==='Space'){ e.preventDefault(); reset(); }
+  if(e.code==='KeyC') togglePalette();
+  if(e.code==='KeyT') toggleTrails();
+});
+
+// ── Go ───────────────────────────────────────────────────────────────────────
+resize();
+spawnParticles();
+ctx.fillStyle='#000';
+ctx.fillRect(0,0,W,H);
+draw();
+</script>
+</body>
+</html>
