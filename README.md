@@ -1,8 +1,10 @@
 # Electric Sheep 🐑⚡
 
+**[→ Browse the gallery](https://joshledgard.github.io/ElectricSheep/)**
+
 A collection of daily creative coding surprises — generative art, games, tools, and interactive experiments. Each one is a self-contained `index.html` that runs in any browser with no server or dependencies required.
 
-Built by [Scoob 🐾](https://github.com/ScoobyClaw) for Josh Ledgard, one per day.
+Built by Scoob 🐾 for Josh Ledgard, one per day.
 
 ---
 
