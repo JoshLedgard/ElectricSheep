@@ -243,8 +243,8 @@ function drawHUD() {
 
   // Legend (bottom center)
   const items = [
-    { dot: '#00e8c8', label: 'SIGNAL  tap → +10' },
-    { dot: '#ff4868', label: 'NOISE  tap → block' },
+    { dot: '#00e8c8', label: 'SIGNAL  let through → +10' },
+    { dot: '#ff4868', label: 'NOISE  tap to block → +5' },
   ];
   const fy = H - 14 * dpr;
   const fw = 180 * dpr;
@@ -275,10 +275,10 @@ function drawStart() {
 
   const lines = [
     { text: 'Particles spiral toward the center.', color: '#5a9ab0' },
-    { text: 'TAP  ●  to intercept them.', color: '#c8e4f0' },
-    { text: 'Cyan = SIGNAL   Red = NOISE', color: '#6ab4c8' },
-    { text: 'Let either reach the core: lose a life.', color: '#5a9ab0' },
-    { text: 'Gray STATIC is harmless — ignore it.', color: '#3a6a7a' },
+    { text: 'Cyan SIGNAL → let it reach the core  (+10)', color: '#00e8c8' },
+    { text: 'Red NOISE → tap to block before it hits  (+5)', color: '#ff8090' },
+    { text: 'Tap a signal by mistake: FILTERED  (-5)', color: '#5a9ab0' },
+    { text: 'Noise breaks through: lose a life.  Gray = ignore.', color: '#3a6a7a' },
   ];
   lines.forEach((l, i) => {
     ctx.fillStyle = l.color;
@@ -366,12 +366,14 @@ function handleTap(clientX, clientY) {
     p.dead = true;
     effects.push(new RingEffect(p.x, p.y, TYPES[p.type].glow));
     effects.push(new RingEffect(p.x, p.y, TYPES[p.type].glow));
-    if (p.type === 'SIGNAL') {
-      score += 10;
-      effects.push(new TextEffect(p.x, p.y - 12*dpr, '+10', '#00e8c8'));
-    } else {
+    if (p.type === 'NOISE') {
       score += 5;
       effects.push(new TextEffect(p.x, p.y - 12*dpr, 'BLOCKED  +5', '#ff8090'));
+    } else {
+      // Tapped a signal — filtered something you needed!
+      score = Math.max(0, score - 5);
+      screenFlash = 0.7;
+      effects.push(new TextEffect(p.x, p.y - 12*dpr, 'FILTERED  -5', '#ff6040'));
     }
   } else {
     effects.push(new RingEffect(tx, ty, 'rgba(80,130,150,0.5)'));
@@ -413,11 +415,17 @@ function loop() {
     const p = particles[i];
     p.update();
     if (p.reached) {
-      if (p.type === 'SIGNAL' || p.type === 'NOISE') {
+      if (p.type === 'NOISE') {
+        // Noise broke through — bad
         lives--;
         screenFlash = 1;
-        effects.push(new RingEffect(CX, CY, p.type === 'SIGNAL' ? '#ff4868' : '#ff4868', true));
-        effects.push(new TextEffect(CX, CY - 30*dpr, p.type === 'SIGNAL' ? 'MISSED' : 'BREACH', '#ff6080'));
+        effects.push(new RingEffect(CX, CY, '#ff4868', true));
+        effects.push(new TextEffect(CX, CY - 30*dpr, 'BREACH!', '#ff6080'));
+      } else if (p.type === 'SIGNAL') {
+        // Signal received — good!
+        score += 10;
+        effects.push(new RingEffect(CX, CY, '#00ffd5', true));
+        effects.push(new TextEffect(CX, CY - 30*dpr, '+10  RECEIVED', '#00e8c8'));
       }
       particles.splice(i, 1);
     } else if (p.dead) {
