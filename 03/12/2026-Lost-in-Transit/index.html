@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lost in Transit</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117;
+  --surface: #161b27;
+  --card: #1e2436;
+  --border: rgba(255,255,255,0.08);
+  --accent: #f0a500;
+  --blue: #4e9eff;
+  --text: #e6e8f0;
+  --muted: #7a8299;
+  --success: #5cdb8a;
+  --danger: #ff6b6b;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 16px 48px;
+}
+.top {
+  text-align: center;
+  padding: 28px 0 20px;
+  width: 100%;
+  max-width: 500px;
+}
+.game-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.game-sub {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+.progress-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 18px 0 4px;
+}
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: background 0.35s, border-color 0.35s;
+}
+.dot.done { background: var(--accent); border-color: var(--accent); }
+.dot.current { background: var(--blue); border-color: var(--blue); }
+
+.history-log {
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 10px;
+}
+.hist-line {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.45;
+}
+.hist-line em { color: var(--blue); font-style: italic; }
+
+.scene-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px 22px;
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 14px;
+}
+.scene-loc {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 13px;
+}
+.scene-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.choices-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 500px;
+}
+.choice-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 20px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  min-height: 58px;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.choice-btn:active, .choice-btn:hover {
+  background: rgba(78, 158, 255, 0.12);
+  border-color: var(--blue);
+}
+.arrow {
+  color: var(--blue);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+/* ENDING */
+.ending-wrap {
+  width: 100%;
+  max-width: 500px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 36px 24px 30px;
+  text-align: center;
+}
+.ending-emoji { font-size: 52px; margin-bottom: 14px; }
+.ending-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.ending-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.ending-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+.all-endings {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.all-endings span { color: var(--accent); font-weight: 700; }
+.restart-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  color: #000;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 50px;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.restart-btn:active { opacity: 0.8; }
+.endings-count {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="game-title">✈️ Lost in Transit</div>
+  <div class="game-sub">A choose-your-own-adventure for the stranded traveler</div>
+  <div class="progress-bar" id="progress"></div>
+</div>
+
+<div class="history-log" id="history"></div>
+<div id="main"></div>
+
+<script>
+const STEPS = 4;
+
+const scenes = {
+  start: {
+    step: 1,
+    loc: "🇳🇱 Amsterdam Schiphol · Gate B12",
+    text: "The departure board flips. Your connection to Valencia departed eight minutes ago. You're standing in Amsterdam Schiphol with a half-eaten stroopwafel, a carry-on, and absolutely no plan. A toddler nearby stares at you with frank disappointment.",
+    choices: [
+      { text: "Rush to the airline desk", next: "desk" },
+      { text: "Check the app for alternatives", next: "app" },
+      { text: "Accept your fate — find the bar", next: "bar" }
+    ]
+  },
+
+  desk: {
+    step: 2,
+    loc: "🪟 KLM Service Desk",
+    text: "The gate agent — Marta, per her badge — eyes you with the practiced patience of someone who has heard every excuse. \"Volgende vlucht is morgen,\" she says. Tomorrow. Then she softens slightly. \"But... there is a train. Tonight. From Centraal.\" She slides you a timetable printout like a peace offering.",
+    choices: [
+      { text: "The train sounds perfect", next: "train" },
+      { text: "What about a hotel voucher first?", next: "hotel" }
+    ]
+  },
+
+  app: {
+    step: 2,
+    loc: "📱 Standing Still, Staring at Your Phone",
+    text: "Your app shows a KLM flight to Valencia departing in 44 minutes — from Gate D67. You're at B12. The airport map suggests a 15-minute sprint. You've eaten a stroopwafel and some pretzels today. You think about your shoes.",
+    choices: [
+      { text: "Sprint. Obviously sprint.", next: "sprint" },
+      { text: "Too risky — find the train station", next: "train" }
+    ]
+  },
+
+  bar: {
+    step: 2,
+    loc: "🍺 The Flying Dutchman, Concourse B",
+    text: "The Dutch lager is cold and exceptional. You explain your situation to the bartender, Joop, who nods with the gravity of a man who has heard many stories. \"My cousin,\" he says, setting down a glass, \"drives to Valencia. Every March. He leaves—\" he checks his watch \"—in fifty minutes. I can call him.\"",
+    choices: [
+      { text: "Get in a stranger's van to Valencia. Obviously.", next: "henk" },
+      { text: "Tempting — but find the actual train", next: "train" }
+    ]
+  },
+
+  hotel: {
+    step: 3,
+    loc: "🏨 Sheraton Amsterdam Airport",
+    text: "Marta produces a voucher with the efficiency of someone who does this ten times a day. The room is quiet, the minibar is stocked, and room service sends up a burger that is — unexpectedly — one of the best you've ever eaten. Runway lights shimmer beyond the curtains. You set an alarm.",
+    choices: [
+      { text: "Sleep the sleep of someone at peace with their itinerary", next: "end_sensible" },
+      { text: "Actually... maybe the train after all", next: "train" }
+    ]
+  },
+
+  train: {
+    step: 3,
+    loc: "🚂 Amsterdam Centraal",
+    text: "Centraal Station is a cathedral of departures — vaulted ceilings, gleaming rails, a departures board cascading through a dozen destinations. Track 7: Barcelona via Lyon, connection Valencia. Eight hours. Two transfers. The couchette car is half-empty. A conductor named Claude stamps your ticket without looking up.",
+    choices: [
+      { text: "Book the couchette — sleep through France", next: "end_romantic" },
+      { text: "Business class. You've earned it.", next: "end_upgrade" }
+    ]
+  },
+
+  sprint: {
+    step: 3,
+    loc: "🏃 Somewhere Between B and D",
+    text: "You run. Past duty-free chocolate. Past a confused family with a luggage cart the size of a small yacht. Past a golf cart that beeps at you. Gate D67. The jetway door is closing. The gate agent looks up. You wave your boarding pass. She hesitates.",
+    choices: [
+      { text: "Make eye contact. Don't stop running.", next: "end_hero" },
+      { text: "Accept it's over — slow to a walk", next: "train" }
+    ]
+  },
+
+  henk: {
+    step: 3,
+    loc: "🚐 Joop's Cousin's Van",
+    text: "His name is Henk. The van smells of tulip bulbs and something warmly spiced — paprika, maybe, or destiny. He drives at 140kph and plays Dutch folk music at a volume that makes conversation optional. He mentions a shortcut through Belgium. \"I know a man in Ghent,\" he says. \"He makes a sandwich.\"",
+    choices: [
+      { text: "You embrace the Henk experience fully", next: "end_henk" }
+    ]
+  },
+
+  // ── ENDINGS ──────────────────────────────────────────────────────────────
+
+  end_romantic: {
+    step: 4, ending: true,
+    emoji: "🌙",
+    title: "The Romantic Route",
+    badge: "Ending 1 of 5",
+    text: "The couchette folds down from the wall. Belgium slides past in darkness, then France in pale predawn. You wake to coffee brought by conductor Claude, to the Alps in full morning sun, to the Mediterranean glittering below Valencia by noon. You arrive late. You arrive perfectly."
+  },
+
+  end_upgrade: {
+    step: 4, ending: true,
+    emoji: "🥂",
+    title: "The Upgrade",
+    badge: "Ending 2 of 5",
+    text: "Business class is quiet and the wine list is longer than expected. The Alps scroll past like a screensaver. You compose a leisurely email explaining your delay — its carefully vague phrasing implies adventure without admitting chaos. You arrive rested, slightly smug, and with an excellent story that will only improve with retelling."
+  },
+
+  end_sensible: {
+    step: 4, ending: true,
+    emoji: "🛌",
+    title: "The Sensible Traveler",
+    badge: "Ending 3 of 5",
+    text: "You sleep eight hours and eat a hotel breakfast that costs €32 and is worth every cent. The 9AM flight boards without incident. You land in Valencia by noon, the kind of rested that only works trips produce. Practical? Yes. Embarrassing to admit? Honestly, not even a little."
+  },
+
+  end_hero: {
+    step: 4, ending: true,
+    emoji: "🎬",
+    title: "The Hero's Arrival",
+    badge: "Ending 4 of 5",
+    text: "She holds the door. You stumble aboard, wheezing, boarding pass crumpled. The cabin watches with mild interest. Someone in 14C gives a slow golf clap. Three hours later you land in Valencia under an orange-lit sky, feeling — despite all evidence — like the protagonist of something."
+  },
+
+  end_henk: {
+    step: 4, ending: true,
+    emoji: "🌷",
+    title: "The Henk Special",
+    badge: "Ending 5 of 5",
+    text: "Henk knows people in Ghent, Lyon, and a small town in the Pyrenees where you stop for what he calls 'the good sandwich.' It is, genuinely, exceptional. You arrive in Valencia at 3AM, wind-chapped and caffeinated, having seen more of Europe in 14 hours than most manage in a week. Henk waves and vanishes into the night. You never get his number. Some stories are complete."
+  }
+};
+
+// Track discovered endings
+const STORAGE_KEY = 'lost_transit_endings';
+function getFound() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+}
+function addFound(id) {
+  const found = getFound();
+  if (!found.includes(id)) { found.push(id); localStorage.setItem(STORAGE_KEY, JSON.stringify(found)); }
+}
+
+const endingIds = ['end_romantic','end_upgrade','end_sensible','end_hero','end_henk'];
+
+let current = 'start';
+let histLog = [];
+
+function renderDots(step) {
+  const el = document.getElementById('progress');
+  el.innerHTML = '';
+  for (let i = 1; i <= STEPS; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i < step ? ' done' : i === step ? ' current' : '');
+    el.appendChild(d);
+  }
+}
+
+function renderHistory() {
+  const el = document.getElementById('history');
+  el.innerHTML = histLog.map(h =>
+    `<div class="hist-line"><em>"${h.choice}"</em> — ${h.loc}</div>`
+  ).join('');
+}
+
+function go(nextId, choiceText) {
+  if (choiceText) {
+    histLog.push({ choice: choiceText, loc: scenes[current].loc });
+  }
+  current = nextId;
+  if (scenes[current].ending) addFound(current);
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function restart() {
+  current = 'start';
+  histLog = [];
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function render() {
+  const s = scenes[current];
+  renderDots(s.step);
+  renderHistory();
+
+  const main = document.getElementById('main');
+
+  if (s.ending) {
+    const found = getFound();
+    const foundCount = found.length;
+    main.innerHTML = `
+      <div class="ending-wrap">
+        <div class="ending-emoji">${s.emoji}</div>
+        <div class="ending-title">${s.title}</div>
+        <div class="ending-badge">${s.badge}</div>
+        <div class="ending-text">${s.text}</div>
+        <div class="all-endings">Endings found: <span>${foundCount} / 5</span></div>
+        <button class="restart-btn" onclick="restart()">Try another path ↩</button>
+        ${foundCount === 5 ? '<div class="endings-count" style="margin-top:14px; color: var(--success);">🎉 All 5 endings discovered!</div>' : ''}
+      </div>`;
+  } else {
+    const choicesHTML = s.choices.map(c =>
+      `<button class="choice-btn" data-next="${c.next}" data-text="${c.text.replace(/"/g,'&quot;')}">
+         <span class="arrow">→</span>${c.text}
+       </button>`
+    ).join('');
+
+    main.innerHTML = `
+      <div class="scene-card">
+        <div class="scene-loc">${s.loc}</div>
+        <div class="scene-text">${s.text}</div>
+      </div>
+      <div class="choices-wrap">${choicesHTML}</div>`;
+
+    main.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => go(btn.dataset.next, btn.dataset.text));
+    });
+  }
+}
+
+render();
+</script>
+</body>
+</html>
