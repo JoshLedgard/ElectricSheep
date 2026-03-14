@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pi Day — How Far Can You Go?</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a1a;
+      color: #e8e0ff;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px;
+      overflow-x: hidden;
+    }
+    header { text-align: center; margin-bottom: 20px; padding-top: 8px; }
+    .pi-symbol {
+      font-size: 72px;
+      color: #7c9eff;
+      line-height: 1;
+      text-shadow: 0 0 30px rgba(124,158,255,0.6);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { text-shadow: 0 0 30px rgba(124,158,255,0.6); }
+      50%      { text-shadow: 0 0 60px rgba(124,158,255,0.9), 0 0 100px rgba(124,158,255,0.4); }
+    }
+    h1 { font-size: 17px; color: #a89ff0; margin-top: 6px; letter-spacing: 0.1em; }
+    .date-tag { font-size: 11px; color: #443f70; margin-top: 4px; letter-spacing: 0.15em; }
+
+    .score-row { display: flex; gap: 32px; margin-bottom: 16px; }
+    .score-item { text-align: center; }
+    .score-item .val { font-size: 30px; color: #7c9eff; display: block; font-weight: bold; }
+    .score-item .lbl { font-size: 11px; color: #554f80; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    .progress-bar {
+      width: 100%; max-width: 400px; height: 4px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px; margin-bottom: 18px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4a6cf7, #7c9eff);
+      border-radius: 2px; transition: width 0.3s ease; width: 0%;
+    }
+
+    /* Digit strip */
+    .digit-strip {
+      width: 100%; max-width: 400px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 3px; margin-bottom: 14px; overflow: hidden; position: relative;
+    }
+    .digit-cell {
+      width: 30px; height: 40px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; font-weight: bold; flex-shrink: 0; transition: all 0.15s;
+    }
+    .digit-cell.correct {
+      background: rgba(72,199,142,0.18); color: #48c78e;
+      border: 1px solid rgba(72,199,142,0.35);
+    }
+    .digit-cell.active {
+      background: rgba(124,158,255,0.12); color: #7c9eff;
+      border: 2px solid #7c9eff;
+      box-shadow: 0 0 14px rgba(124,158,255,0.4);
+      animation: blink 1s step-end infinite;
+    }
+    .digit-cell.wrong {
+      background: rgba(255,100,100,0.2); color: #ff6464;
+      border: 2px solid #ff6464; animation: shake 0.3s ease;
+    }
+    .digit-cell.upcoming {
+      background: rgba(255,255,255,0.02); color: #222;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .dot-cell { color: #a89ff0; font-size: 22px; font-weight: bold; flex-shrink: 0; width: 12px; text-align: center; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+    /* Numpad */
+    .numpad {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; width: 100%; max-width: 300px; margin-bottom: 18px;
+    }
+    .num-btn {
+      height: 64px; border: none; border-radius: 12px;
+      font-size: 26px; font-weight: bold;
+      background: rgba(124,158,255,0.08); color: #c0c8ff;
+      border: 1px solid rgba(124,158,255,0.18);
+      cursor: pointer; transition: all 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Courier New', monospace;
+    }
+    .num-btn:active { background: rgba(124,158,255,0.28); transform: scale(0.93); }
+    .num-btn.zero { grid-column: 1 / 3; }
+    .num-btn.del { background: rgba(255,100,100,0.07); color: #ff8080; border-color: rgba(255,100,100,0.2); font-size: 18px; }
+    .num-btn.del:active { background: rgba(255,100,100,0.2); }
+
+    /* Result */
+    .result-panel {
+      display: none; flex-direction: column; align-items: center;
+      gap: 10px; padding: 22px 20px;
+      background: rgba(124,158,255,0.05);
+      border: 1px solid rgba(124,158,255,0.18);
+      border-radius: 16px; width: 100%; max-width: 400px;
+      margin-bottom: 16px; text-align: center;
+    }
+    .result-panel.show { display: flex; }
+    .result-emoji { font-size: 48px; }
+    .result-msg { font-size: 17px; color: #c0c8ff; line-height: 1.5; white-space: pre-line; }
+    .result-sub { font-size: 13px; color: #554f80; }
+    .try-again-btn {
+      padding: 13px 30px;
+      background: rgba(124,158,255,0.12);
+      border: 1px solid rgba(124,158,255,0.35);
+      border-radius: 10px; color: #7c9eff;
+      font-size: 16px; cursor: pointer;
+      font-family: 'Courier New', monospace; margin-top: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .try-again-btn:active { opacity: 0.7; }
+
+    /* Milestone toast */
+    .milestone {
+      position: fixed; top: 16px; left: 50%;
+      transform: translateX(-50%) translateY(-90px);
+      background: linear-gradient(135deg, #4a6cf7, #7c4af7);
+      color: white; padding: 10px 22px;
+      border-radius: 30px; font-size: 14px; font-weight: bold;
+      font-family: 'Courier New', monospace;
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 100; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(74,108,247,0.5);
+    }
+    .milestone.show { transform: translateX(-50%) translateY(0); }
+
+    #confetti { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:50; }
+
+    .hint-text { font-size: 12px; color: #3a3660; text-align: center; margin-top: -8px; margin-bottom: 10px; }
+    .best-tag { font-size: 11px; color: #f0c040; }
+  </style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+<div class="milestone" id="milestone">🎉</div>
+
+<header>
+  <div class="pi-symbol">π</div>
+  <h1>How far can you go?</h1>
+  <div class="date-tag">π DAY · MARCH 14, 2026</div>
+</header>
+
+<div class="score-row">
+  <div class="score-item">
+    <span class="val" id="cur-score">0</span>
+    <span class="lbl">digits</span>
+  </div>
+  <div class="score-item">
+    <span class="val" id="best-score">—</span>
+    <span class="lbl">best <span class="best-tag" id="best-tag"></span></span>
+  </div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div class="digit-strip" id="digit-strip"></div>
+
+<div class="result-panel" id="result-panel">
+  <div class="result-emoji" id="result-emoji">🎉</div>
+  <div class="result-msg" id="result-msg"></div>
+  <div class="result-sub" id="result-sub"></div>
+  <button class="try-again-btn" onclick="resetGame()">Try again →</button>
+</div>
+
+<div class="numpad" id="numpad">
+  <button class="num-btn" onclick="inputDigit('7')">7</button>
+  <button class="num-btn" onclick="inputDigit('8')">8</button>
+  <button class="num-btn" onclick="inputDigit('9')">9</button>
+  <button class="num-btn" onclick="inputDigit('4')">4</button>
+  <button class="num-btn" onclick="inputDigit('5')">5</button>
+  <button class="num-btn" onclick="inputDigit('6')">6</button>
+  <button class="num-btn" onclick="inputDigit('1')">1</button>
+  <button class="num-btn" onclick="inputDigit('2')">2</button>
+  <button class="num-btn" onclick="inputDigit('3')">3</button>
+  <button class="num-btn zero" onclick="inputDigit('0')">0</button>
+  <button class="num-btn del" onclick="deleteLast()">⌫</button>
+</div>
+
+<div class="hint-text" id="hint-text">Type the digits of π — starting with 3</div>
+
+<script>
+// Pi to 100 digits (as one string, no decimal point)
+const PI_DIGITS = "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
+
+const MILESTONES = [5, 10, 20, 30, 50];
+const MILESTONE_MSGS = {
+  5:  "⚡ 5 digits! You got through math class.",
+  10: "🌀 10 digits! Getting impressive.",
+  20: "🔥 20 digits! That's genuinely good.",
+  30: "🧠 30 digits! Do you actually practice this?",
+  50: "🏆 50 DIGITS. You're a menace."
+};
+
+let currentIndex = 0;
+let gameOver = false;
+let bestScore = parseInt(localStorage.getItem('piday-best-2026') || '0');
+let milestonesHit = new Set();
+
+const WINDOW_BEFORE = 6;
+const WINDOW_AFTER = 5;
+
+function getBestDisplay() { return bestScore > 0 ? bestScore.toString() : "—"; }
+
+function updateScoreDisplay() {
+  document.getElementById('cur-score').textContent = currentIndex;
+  document.getElementById('best-score').textContent = getBestDisplay();
+  const pct = Math.min(100, (currentIndex / 50) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function renderStrip() {
+  const strip = document.getElementById('digit-strip');
+  strip.innerHTML = '';
+
+  const startIdx = Math.max(0, currentIndex - WINDOW_BEFORE);
+  const endIdx = Math.min(PI_DIGITS.length - 1, currentIndex + WINDOW_AFTER);
+
+  // If we're showing from index 0 and index 0 is 3, show dot after it
+  for (let i = startIdx; i <= endIdx; i++) {
+    // Decimal point goes between index 0 (the '3') and index 1
+    if (i === 1 && startIdx === 0) {
+      const dot = document.createElement('div');
+      dot.className = 'dot-cell';
+      dot.textContent = '.';
+      strip.appendChild(dot);
+    }
+
+    const cell = document.createElement('div');
+    cell.className = 'digit-cell';
+
+    if (i < currentIndex) {
+      cell.classList.add('correct');
+      cell.textContent = PI_DIGITS[i];
+    } else if (i === currentIndex) {
+      cell.classList.add('active');
+      cell.textContent = '?';
+    } else {
+      cell.classList.add('upcoming');
+      cell.textContent = '·';
+    }
+    strip.appendChild(cell);
+  }
+
+  // Show a scrolling dot indicator if we've gone past the initial window
+  if (currentIndex > WINDOW_BEFORE + 1 && !document.querySelector('.dot-cell')) {
+    // Insert the dot at the right relative position if it's still in view
+    // (handled naturally by the loop — dot is always between index 0 and 1)
+  }
+}
+
+function flashWrong() {
+  const active = document.querySelector('.digit-cell.active');
+  if (active) {
+    active.classList.add('wrong');
+    active.classList.remove('active');
+    setTimeout(() => { active.classList.remove('wrong'); active.classList.add('active'); }, 350);
+  }
+}
+
+function showMilestone(n) {
+  const el = document.getElementById('milestone');
+  el.textContent = MILESTONE_MSGS[n];
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function checkMilestones() {
+  for (const m of MILESTONES) {
+    if (currentIndex >= m && !milestonesHit.has(m)) {
+      milestonesHit.add(m);
+      showMilestone(m);
+    }
+  }
+}
+
+function endGame(correct) {
+  gameOver = true;
+  const prev = bestScore;
+  const isNewBest = correct > bestScore;
+  if (isNewBest) {
+    bestScore = correct;
+    localStorage.setItem('piday-best-2026', bestScore);
+  }
+  updateScoreDisplay();
+
+  document.getElementById('numpad').style.opacity = '0.3';
+  document.getElementById('numpad').style.pointerEvents = 'none';
+  document.getElementById('hint-text').style.display = 'none';
+
+  let emoji, msg;
+  if (correct === 0)      { emoji = "😬"; msg = "0 digits.\nEven 3 would've been a start."; }
+  else if (correct < 4)   { emoji = "😅"; msg = `${correct} digit${correct>1?'s':''}.\nPi is not impressed.`; }
+  else if (correct < 8)   { emoji = "🙂"; msg = `${correct} digits!\nYou got through the classics.`; }
+  else if (correct < 15)  { emoji = "😎"; msg = `${correct} digits.\nYou clearly paid attention in school.`; }
+  else if (correct < 25)  { emoji = "🔥"; msg = `${correct} digits!\nOk, ok. Respect.`; }
+  else if (correct < 40)  { emoji = "🧠"; msg = `${correct} digits.\nSomeone memorized these on purpose.`; }
+  else                    { emoji = "👾"; msg = `${correct} digits.\nThat's unhinged. Well done.`; }
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-msg').textContent = msg;
+  document.getElementById('result-sub').textContent = isNewBest
+    ? (prev > 0 ? `New best! (was ${prev}) 🏆` : `New personal best! 🏆`)
+    : `Your best: ${prev} digit${prev !== 1 ? 's' : ''}`;
+  document.getElementById('result-panel').classList.add('show');
+
+  if (correct >= 10) launchConfetti();
+}
+
+function inputDigit(d) {
+  if (gameOver) return;
+  if (currentIndex >= PI_DIGITS.length) return;
+
+  if (d === PI_DIGITS[currentIndex]) {
+    currentIndex++;
+    checkMilestones();
+    updateScoreDisplay();
+    renderStrip();
+    if (currentIndex === 1) document.getElementById('hint-text').textContent = '3. … what comes after the decimal?';
+    else if (currentIndex >= 4) document.getElementById('hint-text').textContent = '';
+    if (currentIndex >= PI_DIGITS.length) endGame(currentIndex);
+  } else {
+    flashWrong();
+    setTimeout(() => endGame(currentIndex), 420);
+  }
+}
+
+function deleteLast() {
+  if (gameOver) return;
+  if (currentIndex > 0) {
+    currentIndex--;
+    updateScoreDisplay();
+    renderStrip();
+    if (currentIndex < 4) document.getElementById('hint-text').textContent = 'Type the digits of π — starting with 3';
+  }
+}
+
+function resetGame() {
+  currentIndex = 0;
+  gameOver = false;
+  milestonesHit = new Set();
+  document.getElementById('numpad').style.opacity = '1';
+  document.getElementById('numpad').style.pointerEvents = 'auto';
+  document.getElementById('hint-text').style.display = '';
+  document.getElementById('hint-text').textContent = 'Type the digits of π — starting with 3';
+  document.getElementById('result-panel').classList.remove('show');
+  document.getElementById('best-score').textContent = getBestDisplay();
+  updateScoreDisplay();
+  renderStrip();
+  const canvas = document.getElementById('confetti');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  confettiParticles = [];
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key >= '0' && e.key <= '9') { e.preventDefault(); inputDigit(e.key); }
+  if (e.key === 'Backspace') { e.preventDefault(); deleteLast(); }
+  if (e.key === 'Enter' && gameOver) resetGame();
+});
+
+// Confetti
+let confettiParticles = [];
+function launchConfetti() {
+  const canvas = document.getElementById('confetti');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const colors = ['#7c9eff','#a89ff0','#48c78e','#f0c040','#ff7eb6','#60d0f0'];
+  confettiParticles = [];
+  for (let i = 0; i < 90; i++) {
+    confettiParticles.push({
+      x: Math.random() * canvas.width, y: -10,
+      vx: (Math.random() - 0.5) * 5, vy: Math.random() * 3 + 2,
+      rot: Math.random() * 360, rotV: (Math.random() - 0.5) * 10,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 9 + 4
+    });
+  }
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    confettiParticles = confettiParticles.filter(p => p.y < canvas.height + 20);
+    for (const p of confettiParticles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.rot += p.rotV;
+      ctx.save();
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+    }
+    if (confettiParticles.length > 0) requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// Init
+updateScoreDisplay();
+renderStrip();
+</script>
+</body>
+</html>
