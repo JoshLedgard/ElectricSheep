@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Word Weight — What Are You Really Saying?</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d12;
+      color: #e0dff5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 40px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-top: 8px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #6b6890;
+    }
+
+    /* Input area */
+    .input-area {
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 16px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 14px;
+      color: #e0dff5;
+      font-size: 15px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #6c63ff; }
+    textarea::placeholder { color: #3a3a55; }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 11px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary {
+      background: #6c63ff;
+      color: #fff;
+      flex: 1;
+    }
+    .btn-primary:active { background: #5549e0; transform: scale(0.97); }
+    .btn-sample {
+      background: #1e1e2e;
+      color: #9d96d8;
+      border: 1px solid #2a2a3a;
+    }
+    .btn-sample:active { background: #2a2a3a; transform: scale(0.97); }
+    .btn-clear {
+      background: transparent;
+      color: #4a4a65;
+      border: 1px solid #2a2a3a;
+    }
+    .btn-clear:active { background: #1e1e2e; transform: scale(0.97); }
+
+    /* Stats bar */
+    .stats-bar {
+      display: none;
+      width: 100%;
+      max-width: 560px;
+      gap: 12px;
+      margin-bottom: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .stats-bar.show { display: flex; }
+    .stat-pill {
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #9d96d8;
+    }
+    .stat-pill strong { color: #fff; }
+
+    /* Bubble grid */
+    .viz-area {
+      display: none;
+      width: 100%;
+      max-width: 560px;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .viz-area.show { display: flex; }
+
+    .viz-label {
+      font-size: 11px;
+      color: #3a3a55;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    /* Bubble container */
+    .bubbles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      padding: 20px;
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      min-height: 180px;
+    }
+
+    .bubble {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      flex-shrink: 0;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes pop-in {
+      from { opacity: 0; transform: scale(0.3); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .bubble:active { transform: scale(0.93); }
+    .bubble.selected {
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.25), 0 0 20px rgba(108,99,255,0.5);
+    }
+
+    /* Tooltip */
+    .tooltip {
+      display: none;
+      position: fixed;
+      background: #0d0d12;
+      border: 1px solid #2a2a3a;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      z-index: 100;
+      pointer-events: none;
+      color: #e0dff5;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+    .tooltip.show { display: block; }
+    .tooltip strong { color: #fff; font-size: 16px; display: block; margin-bottom: 2px; }
+
+    /* Word list */
+    .word-list {
+      display: none;
+      width: 100%;
+      max-width: 560px;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .word-list.show { display: flex; }
+    .word-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: background 0.1s;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .word-row:active { background: #1e1e2e; }
+    .word-rank {
+      font-size: 11px;
+      color: #3a3a55;
+      width: 18px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .word-text {
+      font-weight: 600;
+      font-size: 15px;
+      flex: 1;
+    }
+    .word-bar-wrap {
+      flex: 2;
+      height: 6px;
+      background: #1e1e2e;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .word-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .word-count {
+      font-size: 12px;
+      color: #6b6890;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Toggle */
+    .view-toggle {
+      display: none;
+      width: 100%;
+      max-width: 560px;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .view-toggle.show { display: flex; }
+    .toggle-btn {
+      flex: 1;
+      padding: 9px;
+      background: #16161f;
+      border: 1px solid #2a2a3a;
+      color: #6b6890;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toggle-btn.active {
+      background: #6c63ff;
+      border-color: #6c63ff;
+      color: #fff;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #3a3a55;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="tooltip" id="tooltip">
+  <strong id="tt-word">word</strong>
+  <span id="tt-info">appears X times (Y%)</span>
+</div>
+
+<header>
+  <h1>Word Weight</h1>
+  <div class="subtitle">What are you really saying?</div>
+</header>
+
+<div class="input-area">
+  <textarea id="text-input" placeholder="Paste any text here — an email, a blog post, a speech, anything..."></textarea>
+  <div class="btn-row">
+    <button class="btn-primary" onclick="analyze()">Analyze →</button>
+    <button class="btn-sample" onclick="loadSample()">Try a sample</button>
+    <button class="btn-clear" onclick="clearAll()">Clear</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat-pill">Words: <strong id="stat-total">0</strong></div>
+  <div class="stat-pill">Unique: <strong id="stat-unique">0</strong></div>
+  <div class="stat-pill">Top word: <strong id="stat-top">—</strong></div>
+  <div class="stat-pill">Avg length: <strong id="stat-avg">0</strong> chars</div>
+</div>
+
+<div class="view-toggle" id="view-toggle">
+  <button class="toggle-btn active" id="btn-bubbles" onclick="setView('bubbles')">☁ Bubbles</button>
+  <button class="toggle-btn" id="btn-list" onclick="setView('list')">≡ List</button>
+</div>
+
+<div class="viz-area show" id="viz-area">
+  <div class="empty-state" id="empty-state">Your word cloud will appear here</div>
+  <div class="bubbles" id="bubbles" style="display:none"></div>
+</div>
+
+<div class="word-list" id="word-list"></div>
+
+<script>
+const STOP_WORDS = new Set([
+  'the','a','an','and','or','but','in','on','at','to','for','of','with','by','from',
+  'is','was','are','were','be','been','being','have','has','had','do','does','did',
+  'will','would','could','should','may','might','shall','can','need','dare','ought',
+  'this','that','these','those','it','its','i','you','he','she','we','they','me',
+  'him','her','us','them','my','your','his','our','their','what','which','who',
+  'how','when','where','why','all','any','both','each','few','more','most','other',
+  'some','such','no','not','only','same','so','than','too','very','just','also',
+  'if','as','up','out','into','then','than','there','about','after','before','over',
+  'under','again','because','while','though','although','however','through','during',
+  'between','against','without','within','along','following','across','behind','beyond',
+  'plus','except','but','including','since','unless','until','upon','around','among',
+  'like','get','got','let','put','take','make','go','come','see','know','think',
+  'say','said','says','one','two','three','four','five','new','old','good','great',
+  'well','back','even','still','way','much','many','own','same','s','t','re','ve',
+  'don','doesn','didn','won','isn','aren','wasn','weren','couldn','wouldn','shouldn',
+  'they\'re','you\'re','i\'m','we\'re','it\'s','that\'s','what\'s','here','every'
+]);
+
+const SAMPLES = [
+  `Great content is specific. It makes a claim, backs it with evidence, and then tells the reader exactly what to do next. Vague content hedges everything. "It depends" is the enemy. Specificity is what separates forgettable posts from the ones people bookmark and share. When you write something, ask yourself: could someone read this sentence and know, exactly, what to do differently? If not, rewrite it until they can.`,
+  `Referral programs work because they exploit a fundamental truth about human psychology: we trust our friends more than we trust strangers. A friend's recommendation carries thirty times more weight than an ad. When you build a referral loop into your product, you're converting satisfied customers into a sales force that works on commission. The best referral programs make sharing feel natural, reward both parties, and track everything automatically.`,
+  `The best startups don't start with a product — they start with a problem. Not a problem they invented, but one they personally suffered through. The founder of Airbnb needed rent money. The founder of Dropbox kept forgetting his USB drive. The problem comes first, the solution second, and the company third. Most failed startups did this backwards. They built a product and then went looking for a problem it could solve.`,
+];
+
+let wordData = [];
+let currentView = 'bubbles';
+let selectedBubble = null;
+
+function tokenize(text) {
+  return text.toLowerCase()
+    .replace(/['']/g, "'")
+    .replace(/[^a-z0-9'\-\s]/g, ' ')
+    .split(/\s+/)
+    .map(w => w.replace(/^'+|'+$/g, '').replace(/^-+|-+$/g, ''))
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+}
+
+function analyze() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) return;
+
+  const allWords = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+  const tokens = tokenize(text);
+
+  if (tokens.length === 0) {
+    alert('Not enough meaningful words to analyze. Try a longer passage.');
+    return;
+  }
+
+  // Count
+  const counts = {};
+  tokens.forEach(w => counts[w] = (counts[w] || 0) + 1);
+
+  // Sort by frequency
+  wordData = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50)
+    .map(([word, count], i) => ({ word, count, rank: i + 1 }));
+
+  const maxCount = wordData[0].count;
+  wordData.forEach(d => d.pct = d.count / tokens.length);
+
+  // Stats
+  const uniqueAll = new Set(allWords).size;
+  const avgLen = allWords.reduce((s, w) => s + w.replace(/[^a-z]/gi,'').length, 0) / allWords.length;
+
+  document.getElementById('stat-total').textContent = allWords.length.toLocaleString();
+  document.getElementById('stat-unique').textContent = uniqueAll.toLocaleString();
+  document.getElementById('stat-top').textContent = wordData[0]?.word || '—';
+  document.getElementById('stat-avg').textContent = avgLen.toFixed(1);
+  document.getElementById('stats-bar').classList.add('show');
+  document.getElementById('view-toggle').classList.add('show');
+  document.getElementById('empty-state').style.display = 'none';
+
+  renderBubbles(maxCount);
+  renderList(maxCount);
+}
+
+function getColor(rank, total) {
+  // Gradient: purple → blue → teal → mint based on rank
+  const t = rank / total;
+  const colors = [
+    [108, 99, 255],   // #6c63ff purple
+    [60, 130, 255],   // blue
+    [0, 180, 230],    // cyan
+    [0, 210, 160],    // teal
+    [80, 220, 120],   // mint
+  ];
+  const idx = Math.min(Math.floor(t * (colors.length - 1)), colors.length - 2);
+  const frac = (t * (colors.length - 1)) - idx;
+  const c0 = colors[idx], c1 = colors[idx + 1];
+  const r = Math.round(c0[0] + (c1[0] - c0[0]) * frac);
+  const g = Math.round(c0[1] + (c1[1] - c0[1]) * frac);
+  const b = Math.round(c0[2] + (c1[2] - c0[2]) * frac);
+  return `rgb(${r},${g},${b})`;
+}
+
+function renderBubbles(maxCount) {
+  const container = document.getElementById('bubbles');
+  container.innerHTML = '';
+  container.style.display = 'flex';
+
+  const maxPx = Math.min(window.innerWidth * 0.28, 110);
+  const minPx = 44;
+
+  wordData.slice(0, 35).forEach((d, i) => {
+    const norm = Math.sqrt(d.count / maxCount);
+    const size = Math.round(minPx + (maxPx - minPx) * norm);
+    const color = getColor(i, wordData.length);
+    const opacity = 0.15 + 0.85 * (d.count / maxCount);
+
+    const el = document.createElement('div');
+    el.className = 'bubble';
+    el.style.width = el.style.height = size + 'px';
+    el.style.background = `rgba(${color.slice(4,-1)}, ${opacity})`;
+    el.style.border = `2px solid ${color}`;
+    el.style.color = '#fff';
+    el.style.fontSize = Math.max(10, Math.round(size * 0.28)) + 'px';
+    el.style.animationDelay = (i * 0.025) + 's';
+    el.textContent = d.word;
+    el.title = `${d.word}: ${d.count}×`;
+
+    el.addEventListener('click', (e) => showTooltip(e, d, el));
+    el.addEventListener('touchend', (e) => { e.preventDefault(); showTooltip(e.changedTouches[0], d, el); });
+    container.appendChild(el);
+  });
+}
+
+function renderList(maxCount) {
+  const container = document.getElementById('word-list');
+  container.innerHTML = '';
+
+  wordData.slice(0, 40).forEach((d, i) => {
+    const color = getColor(i, wordData.length);
+    const row = document.createElement('div');
+    row.className = 'word-row';
+
+    row.innerHTML = `
+      <span class="word-rank">${d.rank}</span>
+      <span class="word-text" style="color:${color}">${d.word}</span>
+      <div class="word-bar-wrap">
+        <div class="word-bar" style="width:${(d.count/maxCount*100).toFixed(1)}%; background:${color}"></div>
+      </div>
+      <span class="word-count">${d.count}×</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function showTooltip(e, d, el) {
+  if (selectedBubble) selectedBubble.classList.remove('selected');
+  el.classList.add('selected');
+  selectedBubble = el;
+
+  const tt = document.getElementById('tooltip');
+  document.getElementById('tt-word').textContent = d.word;
+  document.getElementById('tt-info').textContent = `appears ${d.count} time${d.count !== 1 ? 's' : ''} · ${(d.pct * 100).toFixed(1)}% of content`;
+
+  const x = (e.clientX || e.pageX);
+  const y = (e.clientY || e.pageY);
+
+  tt.classList.add('show');
+  const rect = tt.getBoundingClientRect();
+  let left = x - rect.width / 2;
+  let top = y - rect.height - 12;
+  if (left < 8) left = 8;
+  if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
+  if (top < 8) top = y + 20;
+  tt.style.left = left + 'px';
+  tt.style.top = top + 'px';
+
+  setTimeout(() => { tt.classList.remove('show'); el.classList.remove('selected'); selectedBubble = null; }, 2500);
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.classList.contains('bubble')) {
+    document.getElementById('tooltip').classList.remove('show');
+    if (selectedBubble) { selectedBubble.classList.remove('selected'); selectedBubble = null; }
+  }
+});
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('btn-bubbles').classList.toggle('active', view === 'bubbles');
+  document.getElementById('btn-list').classList.toggle('active', view === 'list');
+  document.getElementById('viz-area').classList.toggle('show', view === 'bubbles');
+  document.getElementById('word-list').classList.toggle('show', view === 'list');
+}
+
+function loadSample() {
+  const idx = Math.floor(Math.random() * SAMPLES.length);
+  document.getElementById('text-input').value = SAMPLES[idx];
+  analyze();
+}
+
+function clearAll() {
+  document.getElementById('text-input').value = '';
+  document.getElementById('stats-bar').classList.remove('show');
+  document.getElementById('view-toggle').classList.remove('show');
+  document.getElementById('word-list').classList.remove('show');
+  document.getElementById('bubbles').style.display = 'none';
+  document.getElementById('empty-state').style.display = '';
+  wordData = [];
+  currentView = 'bubbles';
+  setView('bubbles');
+}
+
+// Auto-analyze on paste
+document.getElementById('text-input').addEventListener('paste', () => {
+  setTimeout(analyze, 50);
+});
+</script>
+</body>
+</html>
