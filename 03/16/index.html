@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Drift</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d1117;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e6edf3;
+    user-select: none;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  #header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  #title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #7dd3fc;
+    text-transform: uppercase;
+  }
+
+  #subtitle {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  #stats {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #9ca3af;
+    letter-spacing: 1px;
+  }
+
+  #stats span { color: #e6edf3; font-weight: 600; }
+
+  #canvas-wrap {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(125, 211, 252, 0.15);
+  }
+
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  #controls {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 56px 56px 56px;
+    grid-template-rows: 56px 56px;
+    gap: 8px;
+  }
+
+  .btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    color: #7dd3fc;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .btn:active { background: #2d4a6e; transform: scale(0.93); }
+  .btn-up    { grid-column: 2; grid-row: 1; }
+  .btn-left  { grid-column: 1; grid-row: 2; }
+  .btn-down  { grid-column: 2; grid-row: 2; }
+  .btn-right { grid-column: 3; grid-row: 2; }
+
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(13, 17, 23, 0.92);
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 24px 32px;
+    text-align: center;
+    display: none;
+    z-index: 10;
+    min-width: 220px;
+  }
+
+  #message h2 { font-size: 22px; color: #7dd3fc; margin-bottom: 8px; }
+  #message p  { font-size: 14px; color: #9ca3af; margin-bottom: 16px; }
+
+  #next-btn {
+    background: #1d4ed8;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: background 0.15s;
+    min-height: 44px;
+    min-width: 120px;
+  }
+  #next-btn:hover { background: #2563eb; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="title">DRIFT</div>
+  <div id="subtitle">slide until you stop · reach the star</div>
+</div>
+
+<div id="stats">
+  LEVEL <span id="lvl-num">1</span> &nbsp;·&nbsp; MOVES <span id="move-num">0</span> &nbsp;·&nbsp; BEST <span id="best-num">—</span>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+  <div id="message">
+    <h2 id="msg-title">✦ Nice!</h2>
+    <p id="msg-body">Level complete</p>
+    <button id="next-btn">Next Level →</button>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="btn btn-up"    data-dir="up">↑</button>
+  <button class="btn btn-left"  data-dir="left">←</button>
+  <button class="btn btn-down"  data-dir="down">↓</button>
+  <button class="btn btn-right" data-dir="right">→</button>
+</div>
+
+<script>
+// ─── Levels ──────────────────────────────────────────────────────────────────
+// Grid: 7 cols × 7 rows
+// W=wall, _=empty, P=player start, G=goal
+// Puzzle rules: player slides until hitting a wall or edge
+
+const LEVELS = [
+  // Level 1 — intro
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','_','_','_','_','W',
+    'W','_','W','_','W','_','W',
+    'W','P','_','_','_','G','W',
+    'W','_','W','_','W','_','W',
+    'W','_','_','_','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 3 },
+
+  // Level 2
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','_','W','_','_','W',
+    'W','_','W','_','_','G','W',
+    'W','_','_','_','W','_','W',
+    'W','W','_','_','_','_','W',
+    'W','P','_','W','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 4 },
+
+  // Level 3
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','W','G','W','_','W',
+    'W','_','_','_','_','_','W',
+    'W','W','_','W','_','W','W',
+    'W','_','_','_','_','_','W',
+    'W','_','W','P','W','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 3 },
+
+  // Level 4
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','G','_','W','_','_','W',
+    'W','_','W','_','_','W','W',
+    'W','_','_','W','_','_','W',
+    'W','W','_','_','W','_','W',
+    'W','_','_','_','_','P','W',
+    'W','W','W','W','W','W','W',
+  ], par: 5 },
+
+  // Level 5
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','_','_','_','G','W',
+    'W','_','W','W','_','W','W',
+    'W','_','W','_','_','_','W',
+    'W','_','_','_','W','_','W',
+    'W','P','W','_','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 4 },
+
+  // Level 6
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','W','_','_','_','W',
+    'W','G','_','_','W','_','W',
+    'W','W','W','_','_','W','W',
+    'W','_','_','_','W','_','W',
+    'W','_','W','P','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 5 },
+
+  // Level 7
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','P','_','W','_','_','W',
+    'W','W','_','_','_','W','W',
+    'W','_','W','_','W','_','W',
+    'W','_','_','W','_','_','W',
+    'W','_','_','_','_','G','W',
+    'W','W','W','W','W','W','W',
+  ], par: 5 },
+
+  // Level 8 — tricky
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','_','_','W','G','W',
+    'W','_','W','_','_','_','W',
+    'W','W','_','W','_','W','W',
+    'W','_','_','_','W','_','W',
+    'W','P','W','_','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 6 },
+
+  // Level 9
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','_','_','G','_','_','W',
+    'W','W','_','W','_','W','W',
+    'W','_','_','_','_','_','W',
+    'W','_','W','_','W','_','W',
+    'W','_','_','P','_','_','W',
+    'W','W','W','W','W','W','W',
+  ], par: 4 },
+
+  // Level 10 — finale
+  { grid: [
+    'W','W','W','W','W','W','W',
+    'W','G','W','_','_','_','W',
+    'W','_','_','W','_','W','W',
+    'W','W','_','_','_','_','W',
+    'W','_','W','_','W','_','W',
+    'W','_','_','_','W','P','W',
+    'W','W','W','W','W','W','W',
+  ], par: 6 },
+];
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const COLS = 7, ROWS = 7;
+const CELL = Math.min(Math.floor((window.innerWidth - 40) / COLS), 72);
+const W = COLS * CELL, H = ROWS * CELL;
+const canvas = document.getElementById('c');
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext('2d');
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let levelIdx = 0, moves = 0, bests = {};
+let grid = [], px = 0, py = 0, gx = 0, gy = 0;
+let animating = false;
+// trail: [{x,y,alpha}]
+let trail = [];
+// particle burst
+let particles = [];
+
+// ─── Colors ──────────────────────────────────────────────────────────────────
+const C = {
+  bg:     '#0d1117',
+  wall:   '#1e293b',
+  wallStroke: '#334155',
+  floor:  '#111827',
+  player: '#7dd3fc',
+  playerGlow: 'rgba(125,211,252,0.4)',
+  goal:   '#fbbf24',
+  goalGlow: 'rgba(251,191,36,0.35)',
+  trail:  '#7dd3fc',
+};
+
+// ─── Load level ───────────────────────────────────────────────────────────────
+function loadLevel(idx) {
+  const lvl = LEVELS[idx];
+  grid = lvl.grid.slice();
+  trail = [];
+  particles = [];
+  moves = 0;
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] === 'P') { px = i % COLS; py = Math.floor(i / COLS); grid[i] = '_'; }
+    if (grid[i] === 'G') { gx = i % COLS; gy = Math.floor(i / COLS); }
+  }
+  updateStats();
+  draw();
+  document.getElementById('message').style.display = 'none';
+}
+
+function updateStats() {
+  document.getElementById('lvl-num').textContent = levelIdx + 1;
+  document.getElementById('move-num').textContent = moves;
+  const b = bests[levelIdx];
+  document.getElementById('best-num').textContent = b !== undefined ? b : '—';
+}
+
+// ─── Draw ────────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // floor
+  ctx.fillStyle = C.floor;
+  ctx.fillRect(0, 0, W, H);
+
+  // grid cells
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = grid[r * COLS + c];
+      const x = c * CELL, y = r * CELL;
+      if (cell === 'W') {
+        ctx.fillStyle = C.wall;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.strokeStyle = C.wallStroke;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+      } else {
+        // subtle grid lines on floor
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, CELL, CELL);
+      }
+    }
+  }
+
+  // trail
+  for (const t of trail) {
+    const tx = t.x * CELL + CELL / 2;
+    const ty = t.y * CELL + CELL / 2;
+    const r = CELL * 0.18;
+    ctx.beginPath();
+    ctx.arc(tx, ty, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(125,211,252,${t.alpha * 0.5})`;
+    ctx.fill();
+  }
+
+  // goal
+  {
+    const gxp = gx * CELL + CELL / 2;
+    const gyp = gy * CELL + CELL / 2;
+    const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 400);
+    const gr = ctx.createRadialGradient(gxp, gyp, 0, gxp, gyp, CELL * 0.45 * pulse);
+    gr.addColorStop(0, 'rgba(251,191,36,0.6)');
+    gr.addColorStop(1, 'rgba(251,191,36,0)');
+    ctx.beginPath();
+    ctx.arc(gxp, gyp, CELL * 0.45 * pulse, 0, Math.PI * 2);
+    ctx.fillStyle = gr;
+    ctx.fill();
+    // star
+    drawStar(ctx, gxp, gyp, 5, CELL * 0.2, CELL * 0.1, '#fbbf24', pulse);
+  }
+
+  // particles
+  for (const p of particles) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(125,211,252,${p.alpha})`;
+    ctx.fill();
+  }
+
+  // player
+  {
+    const ppx = px * CELL + CELL / 2;
+    const ppy = py * CELL + CELL / 2;
+    // glow
+    const glowR = ctx.createRadialGradient(ppx, ppy, 0, ppx, ppy, CELL * 0.55);
+    glowR.addColorStop(0, 'rgba(125,211,252,0.4)');
+    glowR.addColorStop(1, 'rgba(125,211,252,0)');
+    ctx.beginPath();
+    ctx.arc(ppx, ppy, CELL * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = glowR;
+    ctx.fill();
+    // body
+    ctx.beginPath();
+    ctx.arc(ppx, ppy, CELL * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = C.player;
+    ctx.fill();
+    ctx.strokeStyle = '#bae6fd';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function drawStar(ctx, cx, cy, spikes, outerR, innerR, color, scale) {
+  let rot = (Math.PI / 2) * 3;
+  const step = Math.PI / spikes;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerR * scale);
+  for (let i = 0; i < spikes; i++) {
+    ctx.lineTo(cx + Math.cos(rot) * outerR * scale, cy + Math.sin(rot) * outerR * scale);
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * innerR * scale, cy + Math.sin(rot) * innerR * scale);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerR * scale);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+// ─── Movement ─────────────────────────────────────────────────────────────────
+function slide(dx, dy) {
+  if (animating) return;
+  let nx = px, ny = py;
+  const steps = [];
+  while (true) {
+    const tx = nx + dx, ty = ny + dy;
+    if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) break;
+    if (grid[ty * COLS + tx] === 'W') break;
+    nx = tx; ny = ty;
+    steps.push({ x: nx, y: ny });
+  }
+  if (nx === px && ny === py) return; // didn't move
+
+  moves++;
+  updateStats();
+
+  // animate slide
+  animating = true;
+  let step = 0;
+  const speed = Math.max(40, 120 - steps.length * 15);
+
+  // add trail for each intermediate cell
+  const trailCells = steps.slice(0, -1);
+  for (const s of trailCells) {
+    trail.push({ x: s.x, y: s.y, alpha: 0.6 });
+  }
+  // fade trail
+  setTimeout(() => {
+    const interval = setInterval(() => {
+      trail = trail.map(t => ({ ...t, alpha: t.alpha - 0.08 })).filter(t => t.alpha > 0);
+    }, 50);
+    setTimeout(() => clearInterval(interval), 500);
+  }, 100);
+
+  function stepAnim() {
+    if (step >= steps.length) {
+      px = nx; py = ny;
+      animating = false;
+      checkWin();
+      return;
+    }
+    px = steps[step].x;
+    py = steps[step].y;
+    step++;
+    setTimeout(stepAnim, speed);
+  }
+  stepAnim();
+}
+
+function checkWin() {
+  if (px === gx && py === gy) {
+    // update best
+    if (bests[levelIdx] === undefined || moves < bests[levelIdx]) {
+      bests[levelIdx] = moves;
+    }
+    burst(gx * CELL + CELL / 2, gy * CELL + CELL / 2);
+    setTimeout(showWin, 400);
+  }
+}
+
+function burst(x, y) {
+  for (let i = 0; i < 18; i++) {
+    const angle = (Math.PI * 2 * i) / 18 + Math.random() * 0.3;
+    const speed = 1.5 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: 2 + Math.random() * 3,
+      alpha: 1,
+    });
+  }
+  const tick = setInterval(() => {
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.1;
+      p.alpha -= 0.04;
+    }
+    particles = particles.filter(p => p.alpha > 0);
+    if (particles.length === 0) clearInterval(tick);
+  }, 16);
+}
+
+function showWin() {
+  const isLast = levelIdx >= LEVELS.length - 1;
+  const par = LEVELS[levelIdx].par;
+  const under = par - moves;
+  let title = '✦ Level Clear!';
+  if (moves <= par - 2) title = '⚡ Brilliant!';
+  else if (moves <= par) title = '✦ Nice!';
+  else title = '✓ Made it!';
+
+  document.getElementById('msg-title').textContent = title;
+  document.getElementById('msg-body').textContent = isLast
+    ? `${moves} moves · par ${par} · You finished all 10 levels!`
+    : `${moves} moves · par ${par}`;
+  document.getElementById('next-btn').textContent = isLast ? 'Play Again' : 'Next Level →';
+  document.getElementById('message').style.display = 'block';
+}
+
+document.getElementById('next-btn').addEventListener('click', () => {
+  if (levelIdx >= LEVELS.length - 1) { levelIdx = 0; }
+  else { levelIdx++; }
+  loadLevel(levelIdx);
+});
+
+// ─── Input ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const dir = btn.dataset.dir;
+    if (dir === 'up')    slide(0, -1);
+    if (dir === 'down')  slide(0,  1);
+    if (dir === 'left')  slide(-1, 0);
+    if (dir === 'right') slide(1,  0);
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp'    || e.key === 'w') { e.preventDefault(); slide(0, -1); }
+  if (e.key === 'ArrowDown'  || e.key === 's') { e.preventDefault(); slide(0,  1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'a') { e.preventDefault(); slide(-1, 0); }
+  if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); slide(1,  0); }
+  if (e.key === 'r') loadLevel(levelIdx);
+});
+
+// swipe
+let touchStartX = 0, touchStartY = 0;
+canvas.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+  if (Math.abs(dx) > Math.abs(dy)) { slide(dx > 0 ? 1 : -1, 0); }
+  else { slide(0, dy > 0 ? 1 : -1); }
+  e.preventDefault();
+}, { passive: false });
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+loadLevel(0);
+</script>
+</body>
+</html>
