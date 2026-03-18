@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check In — March 18</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e1a;
+    color: #c8dce8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #header {
+    text-align: center;
+    padding: 20px 16px 10px;
+    width: 100%;
+    max-width: 500px;
+  }
+  #header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0c060;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  #header .sub {
+    font-size: 13px;
+    color: #5a7a8a;
+    margin-bottom: 8px;
+  }
+
+  #hud {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 6px 16px 10px;
+    font-size: 14px;
+    color: #8ab0c0;
+    width: 100%;
+    max-width: 500px;
+  }
+  #hud .stat { text-align: center; }
+  #hud .stat .val {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f0c060;
+    display: block;
+    line-height: 1.2;
+  }
+  #hud .stat .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #4a6a7a;
+  }
+
+  #guest-area {
+    width: 100%;
+    max-width: 500px;
+    padding: 8px 16px;
+    text-align: center;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .guest-card {
+    background: linear-gradient(135deg, #121a2a, #1a2540);
+    border: 2px solid #2a3a5a;
+    border-radius: 12px;
+    padding: 14px 20px;
+    width: 100%;
+    max-width: 360px;
+    position: relative;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .guest-card .guest-emoji {
+    font-size: 40px;
+    margin-bottom: 4px;
+  }
+  .guest-card .guest-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e8f0;
+    margin-bottom: 4px;
+  }
+  .guest-card .guest-needs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .guest-card .need-tag {
+    background: rgba(240,192,96,0.12);
+    border: 1px solid rgba(240,192,96,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 13px;
+    color: #f0c060;
+  }
+  .guest-card .timer-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: #f0c060;
+    border-radius: 0 0 12px 12px;
+    transition: width 0.1s linear;
+  }
+  .guest-card .bonus-text {
+    font-size: 11px;
+    color: #5a8a6a;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  #rooms-area {
+    width: 100%;
+    max-width: 500px;
+    padding: 8px 12px 20px;
+    flex: 1;
+  }
+  #rooms-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #3a5a6a;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  #rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .room {
+    background: linear-gradient(160deg, #0d1520, #141e30);
+    border: 2px solid #1a2a3a;
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.12s, background 0.15s;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .room:active {
+    transform: scale(0.95);
+  }
+  .room.match-good {
+    border-color: #40c080;
+    background: linear-gradient(160deg, #0a1a10, #102a1a);
+  }
+  .room.match-ok {
+    border-color: #f0c060;
+    background: linear-gradient(160deg, #1a1a0a, #2a2010);
+  }
+  .room.match-bad {
+    border-color: #e04040;
+    background: linear-gradient(160deg, #1a0a0a, #2a1010);
+  }
+  .room.occupied {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .room .room-num {
+    font-size: 10px;
+    color: #3a5a6a;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .room .room-icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+  .room .room-traits {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .room .trait {
+    font-size: 10px;
+    background: rgba(100,160,200,0.1);
+    border: 1px solid rgba(100,160,200,0.2);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #6aa0c0;
+  }
+
+  #feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    font-weight: 700;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+    text-align: center;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+  @keyframes feedbackPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    80% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80%) scale(0.8); }
+  }
+
+  #start-screen, #end-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,20,0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 24px;
+    text-align: center;
+  }
+  #start-screen h2, #end-screen h2 {
+    font-size: 28px;
+    color: #f0c060;
+    margin-bottom: 8px;
+  }
+  #start-screen p, #end-screen p {
+    font-size: 15px;
+    color: #6a8a9a;
+    max-width: 320px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+  .btn {
+    background: linear-gradient(135deg, #f0c060, #e0a030);
+    color: #0a0e1a;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 40px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 48px;
+    min-width: 160px;
+  }
+  .btn:active { transform: scale(0.96); }
+
+  #end-screen .final-score {
+    font-size: 52px;
+    font-weight: 800;
+    color: #f0c060;
+    margin: 8px 0;
+  }
+  #end-screen .breakdown {
+    font-size: 14px;
+    color: #5a8a9a;
+    margin-bottom: 20px;
+    line-height: 1.8;
+  }
+  #end-screen .best-score {
+    font-size: 13px;
+    color: #4a7a6a;
+    margin-bottom: 16px;
+  }
+
+  .stars { font-size: 32px; margin-bottom: 4px; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(2px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div style="font-size:64px;margin-bottom:12px;">🛎️</div>
+  <h2>Check In</h2>
+  <p>Guests are arriving! Match each guest to the best room before they lose patience. Perfect matches earn bonus points. Wrong rooms cost you.</p>
+  <p style="font-size:13px;color:#4a6a7a;margin-bottom:20px;">Match guest needs to room traits. The closer the match, the more points you earn.</p>
+  <button class="btn" onclick="startGame()">Open for Business</button>
+</div>
+
+<div id="end-screen" style="display:none;">
+  <div class="stars" id="end-stars"></div>
+  <h2 id="end-title">Shift Over</h2>
+  <div class="final-score" id="final-score">0</div>
+  <div class="breakdown" id="breakdown"></div>
+  <div class="best-score" id="best-score"></div>
+  <button class="btn" onclick="startGame()">Next Shift</button>
+</div>
+
+<div id="header">
+  <h1>🛎️ Check In</h1>
+  <div class="sub">Match guests to rooms — fast!</div>
+</div>
+
+<div id="hud">
+  <div class="stat"><span class="val" id="score-val">0</span><span class="label">Score</span></div>
+  <div class="stat"><span class="val" id="combo-val">0</span><span class="label">Combo</span></div>
+  <div class="stat"><span class="val" id="guests-val">0</span><span class="label">Guests Left</span></div>
+  <div class="stat"><span class="val" id="misses-val">0</span><span class="label">Misses</span></div>
+</div>
+
+<div id="guest-area">
+  <div class="guest-card" id="guest-card" style="display:none;">
+    <div class="guest-emoji" id="guest-emoji"></div>
+    <div class="guest-name" id="guest-name"></div>
+    <div class="guest-needs" id="guest-needs"></div>
+    <div class="bonus-text" id="guest-bonus"></div>
+    <div class="timer-bar" id="timer-bar"></div>
+  </div>
+  <div id="no-guest" style="color:#3a5a6a;font-size:14px;"></div>
+</div>
+
+<div id="rooms-area">
+  <div id="rooms-label">TAP A ROOM TO ASSIGN</div>
+  <div id="rooms-grid"></div>
+</div>
+
+<div id="feedback"></div>
+
+<script>
+const TRAITS = [
+  { key: 'wifi', label: '📶 WiFi', emoji: '📶' },
+  { key: 'view', label: '🌅 View', emoji: '🌅' },
+  { key: 'quiet', label: '🤫 Quiet', emoji: '🤫' },
+  { key: 'big', label: '📐 Spacious', emoji: '📐' },
+  { key: 'budget', label: '💰 Budget', emoji: '💰' },
+  { key: 'luxury', label: '✨ Luxury', emoji: '✨' },
+  { key: 'pets', label: '🐾 Pet OK', emoji: '🐾' },
+  { key: 'kitchen', label: '🍳 Kitchen', emoji: '🍳' },
+];
+
+const GUEST_TYPES = [
+  { emoji: '👨‍💼', names: ['Business Traveler', 'Remote Worker', 'Conference Attendee'], needs: ['wifi', 'quiet'], bonus: 'wifi' },
+  { emoji: '👨‍👩‍👧‍👦', names: ['Young Family', 'Traveling Family', 'Family of Four'], needs: ['big', 'kitchen'], bonus: 'big' },
+  { emoji: '💑', names: ['Honeymooners', 'Anniversary Couple', 'Weekend Getaway'], needs: ['view', 'luxury'], bonus: 'view' },
+  { emoji: '🎒', names: ['Backpacker', 'Solo Traveler', 'Gap Year Student'], needs: ['budget', 'wifi'], bonus: 'budget' },
+  { emoji: '👴', names: ['Retired Couple', 'Seasoned Travelers', 'Snowbirds'], needs: ['quiet', 'view'], bonus: 'quiet' },
+  { emoji: '🐕', names: ['Dog Owner', 'Pet Parent', 'Traveling with Pets'], needs: ['pets', 'big'], bonus: 'pets' },
+  { emoji: '👩‍🍳', names: ['Food Blogger', 'Culinary Tourist', 'Chef on Vacation'], needs: ['kitchen', 'view'], bonus: 'kitchen' },
+  { emoji: '💼', names: ['VIP Client', 'Executive', 'Luxury Seeker'], needs: ['luxury', 'quiet'], bonus: 'luxury' },
+  { emoji: '📸', names: ['Photographer', 'Content Creator', 'Travel Blogger'], needs: ['view', 'wifi'], bonus: 'view' },
+  { emoji: '🧘', names: ['Wellness Retreat', 'Yoga Enthusiast', 'Mindful Traveler'], needs: ['quiet', 'view'], bonus: 'quiet' },
+];
+
+const ROOM_ICONS = ['🛏️', '🏨', '🚪', '🔑', '🛋️', '🪟', '🏠', '🛌', '🏡'];
+
+let state = {
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  perfect: 0,
+  good: 0,
+  miss: 0,
+  walkaway: 0,
+  guestIndex: 0,
+  guests: [],
+  rooms: [],
+  timerStart: 0,
+  timerDuration: 0,
+  timerRaf: null,
+  gameActive: false,
+};
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+function generateRooms() {
+  const rooms = [];
+  // Guarantee coverage: first 5 rooms cover the most common guest need pairs
+  const guaranteedPairs = [
+    ['wifi', 'quiet'],    // business/exec
+    ['big', 'kitchen'],   // family
+    ['view', 'luxury'],   // honeymoon
+    ['budget', 'wifi'],   // backpacker
+    ['pets', 'big'],      // pet owner
+    ['quiet', 'view'],    // retired/yoga
+    ['kitchen', 'view'],  // food blogger
+  ];
+  for (let i = 0; i < 9; i++) {
+    let traits;
+    if (i < guaranteedPairs.length) {
+      traits = [...guaranteedPairs[i]];
+      // 40% chance to add a bonus third trait
+      if (Math.random() < 0.4) {
+        const extras = TRAITS.filter(t => !traits.includes(t.key));
+        traits.push(pick(extras).key);
+      }
+    } else {
+      // Remaining rooms are random with 2-3 traits
+      const shuffled = shuffle([...TRAITS]);
+      const count = Math.random() < 0.4 ? 3 : 2;
+      traits = shuffled.slice(0, count).map(t => t.key);
+    }
+    traits.sort();
+    rooms.push({
+      num: `${Math.floor(i / 3) + 1}0${(i % 3) + 1}`,
+      icon: ROOM_ICONS[i],
+      traits: traits,
+      occupied: false,
+      occupiedUntil: 0,
+    });
+  }
+  return shuffle(rooms).map((r, i) => ({
+    ...r,
+    num: `${Math.floor(i / 3) + 1}0${(i % 3) + 1}`,
+    icon: ROOM_ICONS[i],
+  }));
+}
+
+function generateGuests() {
+  const guests = [];
+  const totalGuests = 20;
+  // Ensure variety: cycle through guest types, then fill randomly
+  const shuffledTypes = shuffle([...GUEST_TYPES]);
+  for (let i = 0; i < totalGuests; i++) {
+    const type = i < shuffledTypes.length ? shuffledTypes[i] : pick(GUEST_TYPES);
+    guests.push({
+      emoji: type.emoji,
+      name: pick(type.names),
+      needs: [...type.needs],
+      bonus: type.bonus,
+      timeLimit: Math.max(5000, 10000 - i * 250),
+    });
+  }
+  return guests;
+}
+
+function renderRooms() {
+  const grid = document.getElementById('rooms-grid');
+  grid.innerHTML = '';
+  state.rooms.forEach((room, idx) => {
+    const el = document.createElement('div');
+    el.className = 'room' + (room.occupied ? ' occupied' : '');
+    el.innerHTML = `
+      <div class="room-num">RM ${room.num}</div>
+      <div class="room-icon">${room.icon}</div>
+      <div class="room-traits">${room.traits.map(t => {
+        const tr = TRAITS.find(x => x.key === t);
+        return `<span class="trait">${tr.emoji} ${t}</span>`;
+      }).join('')}</div>
+    `;
+    el.addEventListener('click', () => assignRoom(idx));
+    grid.appendChild(el);
+  });
+}
+
+function showGuest() {
+  if (state.guestIndex >= state.guests.length) {
+    endGame();
+    return;
+  }
+
+  // Free up rooms that have expired
+  const now = Date.now();
+  state.rooms.forEach(r => {
+    if (r.occupied && now >= r.occupiedUntil) {
+      r.occupied = false;
+    }
+  });
+  renderRooms();
+
+  const guest = state.guests[state.guestIndex];
+  const card = document.getElementById('guest-card');
+  card.style.display = 'block';
+  document.getElementById('no-guest').textContent = '';
+  document.getElementById('guest-emoji').textContent = guest.emoji;
+  document.getElementById('guest-name').textContent = guest.name;
+
+  const needsEl = document.getElementById('guest-needs');
+  needsEl.innerHTML = guest.needs.map(n => {
+    const tr = TRAITS.find(t => t.key === n);
+    return `<span class="need-tag">${tr.label}</span>`;
+  }).join('');
+
+  const bonusTrait = TRAITS.find(t => t.key === guest.bonus);
+  document.getElementById('guest-bonus').textContent = `Bonus: room with ${bonusTrait.label}`;
+
+  document.getElementById('guests-val').textContent = state.guests.length - state.guestIndex;
+
+  // Start patience timer
+  state.timerStart = Date.now();
+  state.timerDuration = guest.timeLimit;
+  updateTimer();
+}
+
+function updateTimer() {
+  if (!state.gameActive) return;
+  const elapsed = Date.now() - state.timerStart;
+  const pct = Math.max(0, 1 - elapsed / state.timerDuration);
+  const bar = document.getElementById('timer-bar');
+  bar.style.width = (pct * 100) + '%';
+
+  if (pct <= 0.3) {
+    bar.style.background = '#e04040';
+  } else if (pct <= 0.6) {
+    bar.style.background = '#f0a040';
+  } else {
+    bar.style.background = '#f0c060';
+  }
+
+  if (pct <= 0) {
+    guestWalksAway();
+    return;
+  }
+  state.timerRaf = requestAnimationFrame(updateTimer);
+}
+
+function guestWalksAway() {
+  cancelAnimationFrame(state.timerRaf);
+  state.walkaway++;
+  state.combo = 0;
+  state.miss++;
+  showFeedback('😤 Left!', '#e04040');
+  updateHud();
+
+  if (state.miss >= 5) {
+    endGame();
+    return;
+  }
+
+  state.guestIndex++;
+  setTimeout(showGuest, 600);
+}
+
+function assignRoom(roomIdx) {
+  if (!state.gameActive) return;
+  if (state.guestIndex >= state.guests.length) return;
+  cancelAnimationFrame(state.timerRaf);
+
+  const guest = state.guests[state.guestIndex];
+  const room = state.rooms[roomIdx];
+  if (room.occupied) return;
+
+  // Calculate match
+  const matchedNeeds = guest.needs.filter(n => room.traits.includes(n));
+  const hasBonus = room.traits.includes(guest.bonus);
+  const matchRatio = matchedNeeds.length / guest.needs.length;
+
+  const roomEl = document.getElementById('rooms-grid').children[roomIdx];
+
+  let points = 0;
+  if (matchRatio >= 1) {
+    // All needs met
+    const basePoints = hasBonus ? 150 : 100;
+    state.combo++;
+    points = basePoints + (state.combo * 10);
+    state.perfect++;
+    roomEl.classList.add('match-good');
+    showFeedback(hasBonus ? '⭐ Perfect! +' + points : '✅ Great! +' + points, hasBonus ? '#f0c060' : '#40c080');
+  } else if (matchRatio >= 0.5) {
+    points = 40;
+    state.combo = 0;
+    state.good++;
+    roomEl.classList.add('match-ok');
+    showFeedback('😐 OK +' + points, '#f0a040');
+  } else {
+    points = -20;
+    state.combo = 0;
+    state.miss++;
+    roomEl.classList.add('match-bad');
+    showFeedback('😡 Bad Match ' + points, '#e04040');
+    // Shake the guest card
+    const card = document.getElementById('guest-card');
+    card.style.animation = 'shake 0.3s';
+    setTimeout(() => card.style.animation = '', 300);
+  }
+
+  state.score = Math.max(0, state.score + points);
+  if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+
+  // Occupy room
+  room.occupied = true;
+  room.occupiedUntil = Date.now() + 8000 + Math.random() * 6000;
+
+  updateHud();
+
+  if (state.miss >= 5) {
+    setTimeout(endGame, 500);
+    return;
+  }
+
+  // Clear room highlight
+  setTimeout(() => {
+    roomEl.classList.remove('match-good', 'match-ok', 'match-bad');
+  }, 400);
+
+  state.guestIndex++;
+  setTimeout(showGuest, 500);
+}
+
+function showFeedback(text, color) {
+  const el = document.getElementById('feedback');
+  el.textContent = text;
+  el.style.color = color;
+  el.style.animation = 'none';
+  el.offsetHeight; // force reflow
+  el.style.animation = 'feedbackPop 0.8s ease-out forwards';
+}
+
+function updateHud() {
+  document.getElementById('score-val').textContent = state.score;
+  document.getElementById('combo-val').textContent = state.combo > 0 ? 'x' + state.combo : '0';
+  document.getElementById('guests-val').textContent = Math.max(0, state.guests.length - state.guestIndex);
+  document.getElementById('misses-val').textContent = state.miss + '/5';
+}
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'none';
+
+  state = {
+    score: 0,
+    combo: 0,
+    maxCombo: 0,
+    perfect: 0,
+    good: 0,
+    miss: 0,
+    walkaway: 0,
+    guestIndex: 0,
+    guests: generateGuests(),
+    rooms: generateRooms(),
+    timerStart: 0,
+    timerDuration: 0,
+    timerRaf: null,
+    gameActive: true,
+  };
+
+  updateHud();
+  renderRooms();
+  showGuest();
+}
+
+function endGame() {
+  state.gameActive = false;
+  cancelAnimationFrame(state.timerRaf);
+  document.getElementById('guest-card').style.display = 'none';
+
+  const served = state.perfect + state.good;
+  const total = state.guests.length;
+
+  // Stars
+  let stars = 1;
+  if (state.score >= 800) stars = 5;
+  else if (state.score >= 600) stars = 4;
+  else if (state.score >= 400) stars = 3;
+  else if (state.score >= 200) stars = 2;
+
+  const titles = ['Rough Shift', 'Getting There', 'Solid Work', 'Great Service', 'Five Star Manager!'];
+
+  document.getElementById('end-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(5 - stars);
+  document.getElementById('end-title').textContent = titles[stars - 1];
+  document.getElementById('final-score').textContent = state.score;
+  document.getElementById('breakdown').innerHTML =
+    `Perfect matches: ${state.perfect}<br>` +
+    `OK matches: ${state.good}<br>` +
+    `Bad matches + walkouts: ${state.miss}<br>` +
+    `Best combo: x${state.maxCombo}`;
+
+  // Best score
+  const best = parseInt(localStorage.getItem('checkin-best') || '0');
+  if (state.score > best) {
+    localStorage.setItem('checkin-best', state.score);
+    document.getElementById('best-score').textContent = '🎉 New personal best!';
+  } else {
+    document.getElementById('best-score').textContent = `Personal best: ${Math.max(best, state.score)}`;
+  }
+
+  document.getElementById('end-screen').style.display = 'flex';
+}
+
+// Room checkout cycle — periodically free rooms
+setInterval(() => {
+  if (!state.gameActive) return;
+  const now = Date.now();
+  let changed = false;
+  state.rooms.forEach(r => {
+    if (r.occupied && now >= r.occupiedUntil) {
+      r.occupied = false;
+      changed = true;
+    }
+  });
+  if (changed) renderRooms();
+}, 1000);
+</script>
+
+</body>
+</html>
