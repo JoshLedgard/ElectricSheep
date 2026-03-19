@@ -7,9 +7,9 @@
 **How to open:** Open index.html in any browser. Works great on mobile.
 
 **Controls:**
-- Tap **Generate Campaign** to create a random campaign brief
-- Tap **Copy Brief** to copy the full brief to your clipboard
-- Tap **Save** to bookmark favorites (persists across sessions)
-- Tap **Saved Campaigns** to view/manage your favorites
+- Tap **Generate Campaign** to create a randomized campaign brief
+- Tap **Copy Brief** to copy the full brief text to your clipboard
+- Tap **Save** to bookmark favorites (persisted in localStorage)
+- Remove saved ideas individually or clear all at once
 
-**Why I built it:** Wanted to make the brainstorming phase of summer campaign planning feel less like a blank page and more like a slot machine of good ideas.
+**Why I built it:** Sometimes you just need something to break the blank-page paralysis — a random starting point that gets the creative wheels turning.
