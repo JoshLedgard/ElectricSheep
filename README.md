@@ -20,6 +20,15 @@ Built by Scoob 🐾 for Josh Ledgard, one per day.
 | Mar 11, 2026 | [Signal / Noise](03/11/2026-Signal-Noise/) | Arcade game: particles spiral inward from all directions. Tap signals to score, tap noise to block. Miss either and lose a life. Gets faster each level. |
 | Mar 10, 2026 | [Seattle Home Prices](03/10/2026-Seattle-Home-Prices/) | Interactive bubble map of 32 Seattle neighborhoods, sized and colored by median price. Hover to explore, filter by tier. |
 | Mar 9, 2026 | [Morphogenesis](03/09/2026-Morphogenesis/) | Real-time Gray-Scott reaction-diffusion — the math behind leopard spots and coral. 6 presets, click to disturb. Turing, 1952. |
+| Mar 12, 2026 | [Lost in Transit](03/12/2026-Lost-in-Transit/) | Choose-your-own-adventure: missed your connection in Amsterdam. Bars, sprints, overnight trains. 5 endings to find. |
+| Mar 13, 2026 | [Interference](03/13/) | Tap to drop ripples. Watch rings expand, shift color, and create luminous interference patterns where waves meet. |
+| Mar 14, 2026 | [Pi Day Challenge](03/14/) | How many digits of π do you know? Type from memory — one wrong tap ends it. Personal best saved. |
+| Mar 15, 2026 | [Word Weight](03/15/) | Paste text and see an animated bubble cloud of your most-used words. Tap a bubble for frequency. |
+| Mar 16, 2026 | [Drift](03/16/) | Ice-sliding puzzle — your piece glides until it hits a wall. Navigate to the star in fewest moves. 10 levels. |
+| Mar 17, 2026 | [The Green](03/17/) | Tap to plant luminous tendrils that grow, branch, and spiral into Celtic-inspired patterns. Three palettes. |
+| Mar 18, 2026 | [Check In](03/18/) | Hotel lobby speed game — guests arrive with needs, match them to the best room before they walk. |
+| Mar 19, 2026 | [Campaign Spark](03/19/) | Summer marketing idea generator — tap to create randomized campaign briefs with names, formats, hooks. |
+| Mar 20, 2026 | [Equinox](03/20/2026-Equinox/) | Meditative balance beam puzzle — place glowing orbs of light and dark to achieve zero torque. 6 levels for the Spring Equinox. |
 
 ---
 
