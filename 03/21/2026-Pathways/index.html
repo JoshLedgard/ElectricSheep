@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pathways</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #060a12;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #ui {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    z-index: 10;
+    pointer-events: none;
+  }
+  .btn {
+    pointer-events: auto;
+    background: rgba(10,18,30,0.85);
+    border: 1px solid rgba(100,180,220,0.25);
+    color: rgba(160,210,240,0.9);
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 24px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn:active { border-color: rgba(100,200,255,0.5); color: #fff; }
+  .btn.active { border-color: rgba(100,200,255,0.5); color: #c0edff; }
+  #title-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    padding: 48px 20px 20px;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 1.5s ease;
+  }
+  #title-overlay.hidden { opacity: 0; }
+  #title-overlay h1 {
+    font-size: 28px;
+    font-weight: 300;
+    color: rgba(160,210,240,0.8);
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+  }
+  #title-overlay p {
+    font-size: 15px;
+    color: rgba(100,160,200,0.5);
+    letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+
+<div id="title-overlay">
+  <h1>PATHWAYS</h1>
+  <p>Tap anywhere to begin</p>
+</div>
+
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <button class="btn" id="btnPalette">Palette</button>
+  <button class="btn" id="btnClear">Clear</button>
+  <button class="btn" id="btnWaypoints">Waypoints</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const titleOverlay = document.getElementById('title-overlay');
+
+let W, H, dpr;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Simplex-like noise (fast 2D)
+const PERM = new Uint8Array(512);
+const GRAD = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+(function initNoise() {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+function noise2D(x, y) {
+  const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
+  const xf = x - Math.floor(x), yf = y - Math.floor(y);
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const aa = PERM[PERM[xi] + yi] & 7, ab = PERM[PERM[xi] + yi + 1] & 7;
+  const ba = PERM[PERM[xi + 1] + yi] & 7, bb = PERM[PERM[xi + 1] + yi + 1] & 7;
+  const g = (i, fx, fy) => GRAD[i][0] * fx + GRAD[i][1] * fy;
+  const x1 = g(aa, xf, yf) * (1 - u) + g(ba, xf - 1, yf) * u;
+  const x2 = g(ab, xf, yf - 1) * (1 - u) + g(bb, xf - 1, yf - 1) * u;
+  return x1 * (1 - v) + x2 * v;
+}
+
+// Palettes
+const palettes = [
+  { name: 'Aurora', colors: ['#00d4ff','#00ff88','#8844ff','#ff44aa','#44ddff'], bg: '#060a12' },
+  { name: 'Ember',  colors: ['#ff6622','#ffaa00','#ff3366','#ffdd44','#ff8844'], bg: '#0a0604' },
+  { name: 'Ocean',  colors: ['#0066ff','#00cccc','#4488ff','#00ffaa','#2244cc'], bg: '#040810' },
+  { name: 'Dusk',   colors: ['#cc44ff','#ff6688','#8866ff','#ff88aa','#aa44dd'], bg: '#0a0614' },
+];
+let paletteIdx = 0;
+let palette = palettes[0];
+
+// Waypoints
+let waypoints = [];
+let showWaypoints = true;
+const WAYPOINT_COUNT = 12;
+
+function generateWaypoints() {
+  waypoints = [];
+  const margin = 40;
+  for (let i = 0; i < WAYPOINT_COUNT; i++) {
+    waypoints.push({
+      x: margin + Math.random() * (W - margin * 2),
+      y: margin + Math.random() * (H - margin * 2),
+      radius: 4 + Math.random() * 6,
+      pulse: Math.random() * Math.PI * 2,
+      reached: false,
+      reachAlpha: 0,
+      color: palette.colors[Math.floor(Math.random() * palette.colors.length)]
+    });
+  }
+}
+generateWaypoints();
+
+// Trails
+let trails = [];
+const MAX_TRAILS = 80;
+const TRAIL_LENGTH = 200;
+const NOISE_SCALE = 0.003;
+const SPEED = 1.8;
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return [r, g, b];
+}
+
+function createTrail(x, y) {
+  const angle = Math.random() * Math.PI * 2;
+  const color = palette.colors[Math.floor(Math.random() * palette.colors.length)];
+  return {
+    points: [{ x, y }],
+    vx: Math.cos(angle) * SPEED,
+    vy: Math.sin(angle) * SPEED,
+    color,
+    rgb: hexToRgb(color),
+    life: TRAIL_LENGTH,
+    maxLife: TRAIL_LENGTH,
+    width: 1 + Math.random() * 2,
+    noiseOffset: Math.random() * 1000,
+    reachedWaypoint: null,
+    bloomAlpha: 0
+  };
+}
+
+function spawnBurst(x, y, count) {
+  const c = Math.min(count, MAX_TRAILS - trails.length + count);
+  // Remove oldest if needed
+  while (trails.length + c > MAX_TRAILS) trails.shift();
+  for (let i = 0; i < c; i++) {
+    trails.push(createTrail(x, y));
+  }
+}
+
+// Interaction
+let hasInteracted = false;
+
+function handleTap(x, y) {
+  if (!hasInteracted) {
+    hasInteracted = true;
+    titleOverlay.classList.add('hidden');
+  }
+  spawnBurst(x, y, 8 + Math.floor(Math.random() * 6));
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handleTap(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (e.buttons > 0 || e.pressure > 0) {
+    if (Math.random() < 0.3) {
+      spawnBurst(e.clientX, e.clientY, 2);
+    }
+  }
+});
+
+// Buttons
+document.getElementById('btnPalette').addEventListener('click', () => {
+  paletteIdx = (paletteIdx + 1) % palettes.length;
+  palette = palettes[paletteIdx];
+  document.body.style.background = palette.bg;
+  document.getElementById('btnPalette').textContent = palette.name;
+  // Update waypoint colors
+  waypoints.forEach(wp => {
+    wp.color = palette.colors[Math.floor(Math.random() * palette.colors.length)];
+  });
+});
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  trails = [];
+  waypoints.forEach(wp => { wp.reached = false; wp.reachAlpha = 0; });
+  generateWaypoints();
+});
+
+document.getElementById('btnWaypoints').addEventListener('click', () => {
+  showWaypoints = !showWaypoints;
+  document.getElementById('btnWaypoints').classList.toggle('active', showWaypoints);
+});
+document.getElementById('btnWaypoints').classList.add('active');
+
+// Animation
+let time = 0;
+
+function update() {
+  time += 0.016;
+
+  for (let i = trails.length - 1; i >= 0; i--) {
+    const t = trails[i];
+    const last = t.points[t.points.length - 1];
+
+    // Noise-influenced movement
+    const n = noise2D(last.x * NOISE_SCALE + t.noiseOffset, last.y * NOISE_SCALE + time * 0.3);
+    const angle = n * Math.PI * 2;
+    t.vx += Math.cos(angle) * 0.15;
+    t.vy += Math.sin(angle) * 0.15;
+
+    // Gentle attraction to nearest unreached waypoint
+    let nearestDist = Infinity;
+    let nearestWP = null;
+    for (const wp of waypoints) {
+      if (wp.reached) continue;
+      const dx = wp.x - last.x;
+      const dy = wp.y - last.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestWP = wp;
+      }
+    }
+    if (nearestWP && nearestDist < 250) {
+      const dx = nearestWP.x - last.x;
+      const dy = nearestWP.y - last.y;
+      const strength = 0.03 * (1 - nearestDist / 250);
+      t.vx += dx / nearestDist * strength;
+      t.vy += dy / nearestDist * strength;
+    }
+
+    // Check waypoint reach
+    if (nearestWP && nearestDist < nearestWP.radius + 8) {
+      nearestWP.reached = true;
+      nearestWP.reachAlpha = 1;
+      t.reachedWaypoint = nearestWP;
+      t.bloomAlpha = 1;
+    }
+
+    // Damping
+    const speed = Math.sqrt(t.vx * t.vx + t.vy * t.vy);
+    if (speed > SPEED * 2) {
+      t.vx *= (SPEED * 2) / speed;
+      t.vy *= (SPEED * 2) / speed;
+    }
+
+    const nx = last.x + t.vx;
+    const ny = last.y + t.vy;
+    t.points.push({ x: nx, y: ny });
+
+    t.life--;
+
+    // Remove if dead or out of bounds
+    if (t.life <= 0 || nx < -50 || nx > W + 50 || ny < -50 || ny > H + 50) {
+      trails.splice(i, 1);
+    }
+  }
+
+  // Decay waypoint reach glow
+  waypoints.forEach(wp => {
+    if (wp.reachAlpha > 0) wp.reachAlpha *= 0.97;
+  });
+}
+
+function draw() {
+  // Semi-transparent overlay for trail fade
+  ctx.fillStyle = palette.bg + '18';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw waypoints
+  if (showWaypoints) {
+    for (const wp of waypoints) {
+      const pulse = Math.sin(time * 2 + wp.pulse) * 0.3 + 0.7;
+      const r = wp.radius * (wp.reached ? 1 + wp.reachAlpha * 2 : pulse);
+
+      if (wp.reached && wp.reachAlpha > 0.01) {
+        // Bloom effect
+        const grad = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, r * 8);
+        const rgb = hexToRgb(wp.color);
+        grad.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${wp.reachAlpha * 0.4})`);
+        grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, r * 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Core glow
+      const grad2 = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, r * 3);
+      const rgb2 = hexToRgb(wp.color);
+      const alpha = wp.reached ? 0.15 + wp.reachAlpha * 0.3 : 0.2 * pulse;
+      grad2.addColorStop(0, `rgba(${rgb2[0]},${rgb2[1]},${rgb2[2]},${alpha})`);
+      grad2.addColorStop(1, `rgba(${rgb2[0]},${rgb2[1]},${rgb2[2]},0)`);
+      ctx.fillStyle = grad2;
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, r * 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dot
+      ctx.fillStyle = wp.reached
+        ? `rgba(255,255,255,${0.3 + wp.reachAlpha * 0.7})`
+        : `rgba(${rgb2[0]},${rgb2[1]},${rgb2[2]},${0.5 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(wp.x, wp.y, wp.reached ? r * 0.5 : r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw trails
+  for (const t of trails) {
+    const pts = t.points;
+    if (pts.length < 2) continue;
+
+    const lifeRatio = t.life / t.maxLife;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    for (let j = 1; j < pts.length; j++) {
+      ctx.lineTo(pts[j].x, pts[j].y);
+    }
+
+    const alpha = Math.min(1, lifeRatio * 2) * 0.7;
+    ctx.strokeStyle = `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${alpha})`;
+    ctx.lineWidth = t.width * lifeRatio;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Head glow
+    const head = pts[pts.length - 1];
+    const headAlpha = lifeRatio * 0.6;
+    const grad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 6);
+    grad.addColorStop(0, `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${headAlpha})`);
+    grad.addColorStop(1, `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bloom when reaching waypoint
+    if (t.bloomAlpha > 0.01) {
+      const bgrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 30 * t.bloomAlpha);
+      bgrad.addColorStop(0, `rgba(255,255,255,${t.bloomAlpha * 0.5})`);
+      bgrad.addColorStop(0.5, `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${t.bloomAlpha * 0.3})`);
+      bgrad.addColorStop(1, `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},0)`);
+      ctx.fillStyle = bgrad;
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 30, 0, Math.PI * 2);
+      ctx.fill();
+      t.bloomAlpha *= 0.93;
+    }
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Initial clear
+ctx.fillStyle = palette.bg;
+ctx.fillRect(0, 0, W, H);
+
+loop();
+</script>
+</body>
+</html>
