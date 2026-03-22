@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is This Coin Fair?</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0e16;
+  --surface:#12161f;
+  --border:rgba(100,130,160,0.15);
+  --text:#8fa4b8;
+  --text-dim:#4a5c6e;
+  --text-bright:#d0dfe8;
+  --uncertain:#4a8cc8;
+  --converging:#d4944a;
+  --confident:#4ac88a;
+  --accent:var(--uncertain);
+  --coin-face:#c8b070;
+  --coin-edge:#a08840;
+}
+html{font-size:16px}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Mono',monospace;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Header */
+.header{
+  text-align:center;
+  padding:40px 20px 20px;
+  width:100%;
+  max-width:500px;
+}
+.header h1{
+  font-family:'Fraunces',serif;
+  font-size:clamp(1.6rem,5vw,2.2rem);
+  font-weight:700;
+  color:var(--text-bright);
+  letter-spacing:-0.03em;
+  margin-bottom:6px;
+}
+.header .sub{
+  font-size:13px;
+  color:var(--text-dim);
+  line-height:1.5;
+}
+
+/* Coin area */
+.coin-stage{
+  position:relative;
+  width:140px;
+  height:140px;
+  margin:24px auto 16px;
+  perspective:600px;
+}
+.coin{
+  width:140px;
+  height:140px;
+  position:relative;
+  transform-style:preserve-3d;
+  transition:transform 0.08s;
+}
+.coin.flipping{
+  animation:coinFlip 0.6s ease-out;
+}
+@keyframes coinFlip{
+  0%{transform:rotateX(0deg) translateY(0)}
+  30%{transform:rotateX(1080deg) translateY(-60px)}
+  100%{transform:rotateX(1800deg) translateY(0)}
+}
+.coin-face{
+  position:absolute;
+  width:140px;
+  height:140px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Fraunces',serif;
+  font-size:52px;
+  font-weight:700;
+  backface-visibility:hidden;
+  border:4px solid var(--coin-edge);
+  text-shadow:0 2px 4px rgba(0,0,0,0.3);
+}
+.coin-heads{
+  background:radial-gradient(circle at 40% 35%,#e0c878,#b89840);
+  color:#6a5020;
+}
+.coin-tails{
+  background:radial-gradient(circle at 40% 35%,#c8a860,#987828);
+  color:#5a4018;
+  transform:rotateX(180deg);
+}
+.coin.show-tails .coin-heads{opacity:0}
+.coin.show-tails .coin-tails{transform:rotateX(0);opacity:1}
+
+.last-result{
+  text-align:center;
+  font-size:14px;
+  color:var(--text-dim);
+  height:20px;
+  margin-bottom:8px;
+  transition:color 0.3s;
+}
+.last-result.heads-flash{color:#e0c878}
+.last-result.tails-flash{color:#a08840}
+
+/* Flip button */
+.flip-btn{
+  display:block;
+  width:min(85%,320px);
+  margin:0 auto 20px;
+  padding:20px 40px;
+  min-height:80px;
+  background:linear-gradient(135deg,rgba(74,140,200,0.15),rgba(74,140,200,0.05));
+  border:2px solid var(--accent);
+  border-radius:16px;
+  color:var(--accent);
+  font-family:'Fraunces',serif;
+  font-size:22px;
+  font-weight:700;
+  letter-spacing:0.05em;
+  cursor:pointer;
+  transition:all 0.2s;
+  text-transform:uppercase;
+  position:relative;
+  overflow:hidden;
+}
+.flip-btn::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 50%,rgba(74,140,200,0.1),transparent 70%);
+  opacity:0;
+  transition:opacity 0.2s;
+}
+.flip-btn:active{
+  transform:scale(0.97);
+}
+.flip-btn:active::before{opacity:1}
+
+/* Tally */
+.tally{
+  display:flex;
+  justify-content:center;
+  gap:clamp(24px,8vw,48px);
+  padding:0 20px 20px;
+  width:100%;
+  max-width:500px;
+}
+.tally-item{
+  text-align:center;
+}
+.tally-num{
+  font-family:'Fraunces',serif;
+  font-size:clamp(28px,7vw,36px);
+  font-weight:700;
+  color:var(--text-bright);
+  line-height:1;
+  transition:color 0.3s,transform 0.15s;
+}
+.tally-num.bump{
+  animation:bump 0.2s ease-out;
+}
+@keyframes bump{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.2)}
+  100%{transform:scale(1)}
+}
+.tally-label{
+  font-size:11px;
+  color:var(--text-dim);
+  text-transform:uppercase;
+  letter-spacing:0.15em;
+  margin-top:4px;
+}
+
+/* Chart area */
+.chart-section{
+  width:100%;
+  max-width:500px;
+  padding:0 16px;
+}
+.chart-box{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px 16px 12px;
+  margin-bottom:12px;
+}
+.chart-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  color:var(--text-dim);
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.chart-label .confidence-val{
+  font-family:'Fraunces',serif;
+  font-size:16px;
+  font-weight:500;
+  color:var(--accent);
+  letter-spacing:0;
+  text-transform:none;
+}
+canvas#distChart{
+  width:100%;
+  height:180px;
+  display:block;
+}
+
+/* Significance meter */
+.sig-meter{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  margin-bottom:12px;
+}
+.sig-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+.sig-title{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  color:var(--text-dim);
+}
+.sig-value{
+  font-family:'Fraunces',serif;
+  font-size:14px;
+  font-weight:500;
+  color:var(--accent);
+}
+.sig-track{
+  height:8px;
+  background:rgba(255,255,255,0.05);
+  border-radius:4px;
+  overflow:hidden;
+  position:relative;
+}
+.sig-fill{
+  height:100%;
+  border-radius:4px;
+  transition:width 0.4s ease-out, background 0.4s;
+  width:0%;
+}
+.sig-threshold{
+  position:absolute;
+  right:5%;
+  top:-3px;
+  bottom:-3px;
+  width:2px;
+  background:var(--text-dim);
+  border-radius:1px;
+}
+.sig-threshold-label{
+  position:absolute;
+  right:0;
+  top:-16px;
+  font-size:9px;
+  color:var(--text-dim);
+  letter-spacing:0.05em;
+}
+.sig-crossed{
+  animation:sigPulse 0.6s ease-out;
+}
+@keyframes sigPulse{
+  0%{box-shadow:0 0 0 0 rgba(74,200,138,0.4)}
+  100%{box-shadow:0 0 0 12px rgba(74,200,138,0)}
+}
+
+/* Estimate display */
+.estimate-box{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  margin-bottom:16px;
+  text-align:center;
+}
+.estimate-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  color:var(--text-dim);
+  margin-bottom:4px;
+}
+.estimate-val{
+  font-family:'Fraunces',serif;
+  font-size:28px;
+  font-weight:700;
+  color:var(--text-bright);
+  transition:color 0.3s;
+}
+.estimate-range{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-top:2px;
+}
+
+/* Buttons row */
+.btn-row{
+  display:flex;
+  gap:10px;
+  padding:0 16px 40px;
+  width:100%;
+  max-width:500px;
+}
+.btn-secondary{
+  flex:1;
+  padding:14px 16px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  color:var(--text);
+  font-family:'DM Mono',monospace;
+  font-size:13px;
+  cursor:pointer;
+  transition:all 0.2s;
+  text-align:center;
+}
+.btn-secondary:active{
+  transform:scale(0.97);
+  border-color:var(--accent);
+}
+.btn-secondary:disabled{
+  opacity:0.3;
+  cursor:default;
+}
+.btn-secondary.reveal-ready{
+  border-color:var(--confident);
+  color:var(--confident);
+  animation:revealPulse 2s infinite;
+}
+@keyframes revealPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(74,200,138,0)}
+  50%{box-shadow:0 0 0 6px rgba(74,200,138,0.15)}
+}
+
+/* Reveal overlay */
+.reveal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(11,14,22,0.92);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.reveal-overlay.show{display:flex}
+.reveal-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:32px 28px;
+  max-width:380px;
+  width:100%;
+  text-align:center;
+  animation:revealIn 0.4s ease-out;
+}
+@keyframes revealIn{
+  0%{transform:scale(0.9);opacity:0}
+  100%{transform:scale(1);opacity:1}
+}
+.reveal-card h2{
+  font-family:'Fraunces',serif;
+  font-size:24px;
+  font-weight:700;
+  color:var(--text-bright);
+  margin-bottom:20px;
+}
+.reveal-stat{
+  margin:14px 0;
+}
+.reveal-stat .label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  color:var(--text-dim);
+  margin-bottom:4px;
+}
+.reveal-stat .val{
+  font-family:'Fraunces',serif;
+  font-size:32px;
+  font-weight:700;
+}
+.reveal-verdict{
+  margin:20px 0;
+  padding:14px;
+  border-radius:10px;
+  font-family:'Fraunces',serif;
+  font-size:16px;
+  font-weight:500;
+}
+.reveal-verdict.good{
+  background:rgba(74,200,138,0.1);
+  border:1px solid rgba(74,200,138,0.3);
+  color:var(--confident);
+}
+.reveal-verdict.ok{
+  background:rgba(212,148,74,0.1);
+  border:1px solid rgba(212,148,74,0.3);
+  color:var(--converging);
+}
+.reveal-verdict.off{
+  background:rgba(200,74,74,0.1);
+  border:1px solid rgba(200,74,74,0.3);
+  color:#c84a4a;
+}
+.reveal-close{
+  margin-top:20px;
+  padding:14px 32px;
+  background:linear-gradient(135deg,rgba(74,200,138,0.15),rgba(74,200,138,0.05));
+  border:1px solid var(--confident);
+  border-radius:10px;
+  color:var(--confident);
+  font-family:'DM Mono',monospace;
+  font-size:14px;
+  cursor:pointer;
+}
+
+/* Tooltip */
+.tip{
+  font-size:11px;
+  color:var(--text-dim);
+  text-align:center;
+  padding:0 20px 12px;
+  line-height:1.5;
+  max-width:500px;
+}
+
+/* mobile tweaks */
+@media(max-width:420px){
+  .header{padding:28px 16px 16px}
+  .coin-stage{width:120px;height:120px}
+  .coin,.coin-face{width:120px;height:120px}
+  .coin-face{font-size:44px}
+  canvas#distChart{height:150px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Is This Coin Fair?</h1>
+  <div class="sub">Flip a mystery coin. Watch Bayesian inference sharpen your belief in real time.</div>
+</div>
+
+<div class="coin-stage">
+  <div class="coin" id="coin">
+    <div class="coin-face coin-heads">H</div>
+    <div class="coin-face coin-tails">T</div>
+  </div>
+</div>
+<div class="last-result" id="lastResult">&nbsp;</div>
+
+<button class="flip-btn" id="flipBtn">Flip</button>
+
+<div class="tally">
+  <div class="tally-item">
+    <div class="tally-num" id="headsCount">0</div>
+    <div class="tally-label">Heads</div>
+  </div>
+  <div class="tally-item">
+    <div class="tally-num" id="totalCount">0</div>
+    <div class="tally-label">Flips</div>
+  </div>
+  <div class="tally-item">
+    <div class="tally-num" id="tailsCount">0</div>
+    <div class="tally-label">Tails</div>
+  </div>
+</div>
+
+<div class="chart-section">
+  <div class="chart-box">
+    <div class="chart-label">
+      <span>Belief Distribution over Coin Bias</span>
+      <span class="confidence-val" id="peakLabel">—</span>
+    </div>
+    <canvas id="distChart"></canvas>
+  </div>
+
+  <div class="sig-meter" id="sigMeter">
+    <div class="sig-header">
+      <span class="sig-title">Confidence</span>
+      <span class="sig-value" id="sigValue">0%</span>
+    </div>
+    <div class="sig-track">
+      <div class="sig-fill" id="sigFill"></div>
+      <div class="sig-threshold"></div>
+      <div class="sig-threshold-label">95%</div>
+    </div>
+  </div>
+
+  <div class="estimate-box">
+    <div class="estimate-label">Best Estimate of Heads Probability</div>
+    <div class="estimate-val" id="estimateVal">50%</div>
+    <div class="estimate-range" id="estimateRange">no data yet</div>
+  </div>
+</div>
+
+<div class="tip" id="tipText">Tap flip to start collecting evidence</div>
+
+<div class="btn-row">
+  <button class="btn-secondary" id="revealBtn" disabled>Reveal (30+ flips)</button>
+  <button class="btn-secondary" id="newCoinBtn">New Coin</button>
+</div>
+
+<!-- Reveal overlay -->
+<div class="reveal-overlay" id="revealOverlay">
+  <div class="reveal-card">
+    <h2>The Truth</h2>
+    <div class="reveal-stat">
+      <div class="label">True Bias (P of Heads)</div>
+      <div class="val" id="revealBias" style="color:var(--text-bright)">—</div>
+    </div>
+    <div class="reveal-stat">
+      <div class="label">Your Estimate</div>
+      <div class="val" id="revealEstimate" style="color:var(--accent)">—</div>
+    </div>
+    <div class="reveal-verdict" id="revealVerdict"></div>
+    <button class="reveal-close" id="revealClose">Got It</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // State
+  let trueBias, heads, tails, alpha, beta_, revealed, flipping;
+
+  function init(){
+    trueBias = 0.35 + Math.random() * 0.30; // 0.35–0.65
+    heads = 0;
+    tails = 0;
+    alpha = 1; // Beta prior params (uniform)
+    beta_ = 1;
+    revealed = false;
+    flipping = false;
+    updateDisplay();
+    drawDist();
+    document.getElementById('lastResult').innerHTML = '&nbsp;';
+    document.getElementById('coin').className = 'coin';
+    document.getElementById('revealBtn').disabled = true;
+    document.getElementById('revealBtn').className = 'btn-secondary';
+    document.getElementById('revealBtn').textContent = 'Reveal (30+ flips)';
+    document.getElementById('tipText').textContent = 'Tap flip to start collecting evidence';
+    document.getElementById('revealOverlay').classList.remove('show');
+  }
+
+  function flip(){
+    if(flipping || revealed) return;
+    flipping = true;
+
+    const isHeads = Math.random() < trueBias;
+    const coinEl = document.getElementById('coin');
+
+    // Start animation
+    coinEl.classList.remove('flipping','show-tails');
+    void coinEl.offsetWidth; // reflow
+    coinEl.classList.add('flipping');
+
+    setTimeout(()=>{
+      // Update state
+      if(isHeads){
+        heads++;
+        alpha++;
+      } else {
+        tails++;
+        beta_++;
+      }
+
+      // Show result on coin
+      coinEl.classList.remove('flipping');
+      if(!isHeads) coinEl.classList.add('show-tails');
+      else coinEl.classList.remove('show-tails');
+
+      // Flash last result
+      const lr = document.getElementById('lastResult');
+      lr.textContent = isHeads ? 'Heads!' : 'Tails!';
+      lr.className = 'last-result ' + (isHeads ? 'heads-flash' : 'tails-flash');
+
+      // Bump animation on counters
+      const target = isHeads ? 'headsCount' : 'tailsCount';
+      [target, 'totalCount'].forEach(id=>{
+        const el = document.getElementById(id);
+        el.classList.remove('bump');
+        void el.offsetWidth;
+        el.classList.add('bump');
+      });
+
+      updateDisplay();
+      drawDist();
+
+      // Enable reveal
+      const total = heads + tails;
+      const rb = document.getElementById('revealBtn');
+      if(total >= 30 && !revealed){
+        rb.disabled = false;
+        rb.className = 'btn-secondary reveal-ready';
+        rb.textContent = 'Reveal Truth';
+      } else if(!revealed){
+        rb.textContent = `Reveal (${30 - total} more)`;
+      }
+
+      // Update tip
+      updateTip(total);
+
+      flipping = false;
+    }, 550);
+  }
+
+  function updateTip(total){
+    const tip = document.getElementById('tipText');
+    if(total < 5) tip.textContent = 'Keep flipping — the distribution needs data';
+    else if(total < 15) tip.textContent = 'The curve is starting to take shape...';
+    else if(total < 30) tip.textContent = 'Getting sharper. Keep going for the reveal.';
+    else if(!revealed) tip.textContent = 'Reveal is ready — or keep flipping for more precision';
+    else tip.textContent = '';
+  }
+
+  function updateDisplay(){
+    const total = heads + tails;
+    document.getElementById('headsCount').textContent = heads;
+    document.getElementById('tailsCount').textContent = tails;
+    document.getElementById('totalCount').textContent = total;
+
+    // Posterior mean = alpha/(alpha+beta_)
+    const mean = alpha / (alpha + beta_);
+    document.getElementById('estimateVal').textContent = (mean * 100).toFixed(1) + '%';
+
+    // 95% credible interval (approximation using Beta quantiles)
+    const ci = betaCI(alpha, beta_, 0.025, 0.975);
+    if(total === 0){
+      document.getElementById('estimateRange').textContent = 'no data yet';
+    } else {
+      document.getElementById('estimateRange').textContent =
+        `95% interval: ${(ci[0]*100).toFixed(1)}% – ${(ci[1]*100).toFixed(1)}%`;
+    }
+
+    // Confidence = how concentrated the posterior is
+    // Use 1 - (CI width) as a rough confidence measure, mapped to 0–100
+    const ciWidth = ci[1] - ci[0];
+    const confidence = Math.max(0, Math.min(100, (1 - ciWidth) * 100));
+
+    // Significance: can we say it's NOT 0.5?
+    // P(bias < 0.5) or P(bias > 0.5), take the larger
+    const pBelow = betaCDF(0.5, alpha, beta_);
+    const pOneSide = Math.max(pBelow, 1 - pBelow);
+    const significance = pOneSide * 100;
+
+    document.getElementById('sigValue').textContent = significance.toFixed(1) + '%';
+    const fill = document.getElementById('sigFill');
+    fill.style.width = Math.min(significance, 100) + '%';
+
+    // Color system
+    let accent;
+    if(significance >= 95) accent = 'var(--confident)';
+    else if(significance >= 75) accent = 'var(--converging)';
+    else accent = 'var(--uncertain)';
+
+    document.documentElement.style.setProperty('--accent', accent);
+    fill.style.background = accent;
+
+    if(significance >= 95 && total > 1){
+      const meter = document.getElementById('sigMeter');
+      if(!meter.classList.contains('sig-crossed')){
+        meter.classList.add('sig-crossed');
+        setTimeout(()=>meter.classList.remove('sig-crossed'), 600);
+      }
+    }
+
+    // Peak label
+    if(total === 0){
+      document.getElementById('peakLabel').textContent = '—';
+    } else {
+      const mode = total <= 2 ? mean : (alpha - 1) / (alpha + beta_ - 2);
+      document.getElementById('peakLabel').textContent = 'peak: ' + (mode * 100).toFixed(1) + '%';
+    }
+  }
+
+  // Beta distribution PDF
+  function betaPDF(x, a, b){
+    if(x <= 0 || x >= 1) return 0;
+    return Math.exp(
+      (a - 1) * Math.log(x) +
+      (b - 1) * Math.log(1 - x) -
+      lnBeta(a, b)
+    );
+  }
+
+  function lnBeta(a, b){
+    return lnGamma(a) + lnGamma(b) - lnGamma(a + b);
+  }
+
+  // Stirling's approx for ln(Gamma)
+  function lnGamma(z){
+    if(z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+    z -= 1;
+    const g = 7;
+    const c = [
+      0.99999999999980993,676.5203681218851,-1259.1392167224028,
+      771.32342877765313,-176.61502916214059,12.507343278686905,
+      -0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7
+    ];
+    let x = c[0];
+    for(let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+    const t = z + g + 0.5;
+    return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+  }
+
+  // Approximate Beta CDF using numerical integration (Simpson's rule)
+  function betaCDF(x, a, b){
+    if(x <= 0) return 0;
+    if(x >= 1) return 1;
+    const n = 200;
+    const h = x / n;
+    let sum = betaPDF(0.001, a, b) + betaPDF(x, a, b);
+    for(let i = 1; i < n; i++){
+      const xi = i * h;
+      sum += (i % 2 === 0 ? 2 : 4) * betaPDF(xi, a, b);
+    }
+    return (h / 3) * sum;
+  }
+
+  // Approximate Beta quantile via bisection
+  function betaQuantile(p, a, b){
+    let lo = 0, hi = 1;
+    for(let i = 0; i < 50; i++){
+      const mid = (lo + hi) / 2;
+      if(betaCDF(mid, a, b) < p) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  function betaCI(a, b, lo, hi){
+    return [betaQuantile(lo, a, b), betaQuantile(hi, a, b)];
+  }
+
+  // Draw distribution
+  function drawDist(){
+    const canvas = document.getElementById('distChart');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = rect.width;
+    const H = rect.height;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 30, padR = 10, padT = 10, padB = 28;
+    const cw = W - padL - padR;
+    const ch = H - padT - padB;
+
+    // Compute PDF values
+    const steps = Math.min(200, Math.floor(cw));
+    const vals = [];
+    let maxVal = 0;
+    for(let i = 0; i <= steps; i++){
+      const x = 0.005 + (i / steps) * 0.99;
+      const y = betaPDF(x, alpha, beta_);
+      vals.push({x, y});
+      if(y > maxVal) maxVal = y;
+    }
+    if(maxVal === 0) maxVal = 1;
+
+    // Axis lines
+    ctx.strokeStyle = 'rgba(100,130,160,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + ch);
+    ctx.lineTo(padL + cw, padT + ch);
+    ctx.stroke();
+
+    // X-axis labels
+    ctx.fillStyle = 'rgba(100,130,160,0.5)';
+    ctx.font = '10px "DM Mono",monospace';
+    ctx.textAlign = 'center';
+    for(let p = 0; p <= 100; p += 25){
+      const x = padL + (p / 100) * cw;
+      ctx.fillText(p + '%', x, H - 6);
+      // Tick
+      ctx.beginPath();
+      ctx.moveTo(x, padT + ch);
+      ctx.lineTo(x, padT + ch + 4);
+      ctx.stroke();
+    }
+
+    // "0.5" reference line
+    const halfX = padL + 0.5 * cw;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(100,130,160,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(halfX, padT);
+    ctx.lineTo(halfX, padT + ch);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Determine color
+    const total = heads + tails;
+    const pBelow = betaCDF(0.5, alpha, beta_);
+    const significance = Math.max(pBelow, 1 - pBelow) * 100;
+    let r, g, b;
+    if(significance >= 95){ r=74;g=200;b=138; }
+    else if(significance >= 75){ r=212;g=148;b=74; }
+    else { r=74;g=140;b=200; }
+
+    // Fill area under curve
+    ctx.beginPath();
+    ctx.moveTo(padL, padT + ch);
+    for(let i = 0; i <= steps; i++){
+      const sx = padL + (vals[i].x) * cw;
+      const sy = padT + ch - (vals[i].y / maxVal) * ch;
+      if(i === 0) ctx.lineTo(sx, sy);
+      else ctx.lineTo(sx, sy);
+    }
+    ctx.lineTo(padL + cw, padT + ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, padT, 0, padT + ch);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0.3)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0.02)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Curve line
+    ctx.beginPath();
+    for(let i = 0; i <= steps; i++){
+      const sx = padL + (vals[i].x) * cw;
+      const sy = padT + ch - (vals[i].y / maxVal) * ch;
+      if(i === 0) ctx.moveTo(sx, sy);
+      else ctx.lineTo(sx, sy);
+    }
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.9)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Mean marker
+    if(total > 0){
+      const mean = alpha / (alpha + beta_);
+      const mx = padL + mean * cw;
+      ctx.setLineDash([2, 3]);
+      ctx.strokeStyle = `rgba(${r},${g},${b},0.6)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, padT);
+      ctx.lineTo(mx, padT + ch);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function doReveal(){
+    if(heads + tails < 30 || revealed) return;
+    revealed = true;
+
+    const mean = alpha / (alpha + beta_);
+    const error = Math.abs(mean - trueBias);
+
+    document.getElementById('revealBias').textContent = (trueBias * 100).toFixed(1) + '%';
+    document.getElementById('revealEstimate').textContent = (mean * 100).toFixed(1) + '%';
+
+    const verdict = document.getElementById('revealVerdict');
+    if(error < 0.03){
+      verdict.className = 'reveal-verdict good';
+      verdict.textContent = 'Nailed it — your estimate was within 3% of the truth.';
+    } else if(error < 0.08){
+      verdict.className = 'reveal-verdict ok';
+      verdict.textContent = 'Pretty close — off by ' + (error * 100).toFixed(1) + '%. More flips would help.';
+    } else {
+      verdict.className = 'reveal-verdict off';
+      verdict.textContent = 'Off by ' + (error * 100).toFixed(1) + '%. This coin needs more evidence!';
+    }
+
+    document.getElementById('revealOverlay').classList.add('show');
+    document.getElementById('revealBtn').disabled = true;
+    document.getElementById('revealBtn').className = 'btn-secondary';
+    document.getElementById('revealBtn').textContent = 'Revealed';
+    document.getElementById('tipText').textContent = 'Try a new coin to run another experiment';
+  }
+
+  // Event listeners
+  document.getElementById('flipBtn').addEventListener('click', flip);
+  document.getElementById('newCoinBtn').addEventListener('click', init);
+  document.getElementById('revealBtn').addEventListener('click', doReveal);
+  document.getElementById('revealClose').addEventListener('click', ()=>{
+    document.getElementById('revealOverlay').classList.remove('show');
+  });
+
+  // Keyboard shortcut
+  document.addEventListener('keydown', e=>{
+    if(e.code === 'Space' && !e.repeat){
+      e.preventDefault();
+      flip();
+    }
+  });
+
+  // Resize canvas
+  let resizeTimer;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawDist, 100);
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
