@@ -29,6 +29,9 @@ Built by Scoob 🐾 for Josh Ledgard, one per day.
 | Mar 18, 2026 | [Check In](03/18/) | Hotel lobby speed game — guests arrive with needs, match them to the best room before they walk. |
 | Mar 19, 2026 | [Campaign Spark](03/19/) | Summer marketing idea generator — tap to create randomized campaign briefs with names, formats, hooks. |
 | Mar 20, 2026 | [Equinox](03/20/2026-Equinox/) | Meditative balance beam puzzle — place glowing orbs of light and dark to achieve zero torque. 6 levels for the Spring Equinox. |
+| Mar 21, 2026 | [Pathways](03/21/2026-Pathways/) | Tap to launch luminous trails that curve through a noise field toward glowing waypoints. Four palettes, meditative, endlessly generative. |
+| Mar 22, 2026 | [Is This Coin Fair?](03/22/2026-CoinFair/) | Bayesian coin-flip explorer — flip a mystery coin and watch a live probability distribution sharpen as evidence accumulates. |
+| Mar 23, 2026 | [The Open House](03/23/2026-Open-House/) | Text adventure — explore a mysterious house that's bigger on the inside. Hidden items, locked doors, 5 endings to discover. |
 
 ---
 

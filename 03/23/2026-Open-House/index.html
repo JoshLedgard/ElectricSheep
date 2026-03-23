@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Open House</title>
+<style>
+  :root {
+    --bg: #0c0e17;
+    --surface: #141824;
+    --surface2: #1a2030;
+    --text: #c0d0dd;
+    --text-dim: #5a7080;
+    --text-bright: #e8f0f6;
+    --accent: #f0a050;
+    --accent2: #50c8e0;
+    --accent3: #e06080;
+    --gold: #ffd700;
+    --green: #50d080;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  #game {
+    width: 100%;
+    max-width: 520px;
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Title screen */
+  #title-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 40px 0;
+  }
+  #title-screen h1 {
+    font-size: 2.2rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  #title-screen .subtitle {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    font-style: italic;
+  }
+  .start-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 14px 40px;
+    font-family: Georgia, serif;
+    font-size: 1.1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .start-btn:active {
+    transform: scale(0.96);
+  }
+  .house-art {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 20px rgba(240,160,80,0.3));
+  }
+
+  /* Game screen */
+  #game-screen { display: none; flex-direction: column; flex: 1; }
+  #game-screen.active { display: flex; }
+  #title-screen.hidden { display: none; }
+
+  /* Header bar */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid rgba(80,140,180,0.15);
+    margin-bottom: 16px;
+    font-family: -apple-system, sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .hud-rooms { color: var(--accent2); }
+  .hud-items { color: var(--gold); }
+  .hud-endings { color: var(--green); }
+
+  /* Narrative area */
+  #narrative {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scene-emoji {
+    font-size: 2.4rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .scene-title {
+    font-size: 1.3rem;
+    color: var(--text-bright);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  .scene-text {
+    margin-bottom: 16px;
+    color: var(--text);
+    line-height: 1.75;
+  }
+  .scene-text p { margin-bottom: 10px; }
+  .scene-note {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-style: italic;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: rgba(240,160,80,0.06);
+    border-left: 2px solid rgba(240,160,80,0.3);
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* Choices */
+  #choices {
+    flex-shrink: 0;
+    padding: 8px 0 20px;
+  }
+  .choice-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid rgba(80,140,180,0.18);
+    color: var(--text-bright);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-family: Georgia, serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    line-height: 1.5;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .choice-btn:active {
+    transform: scale(0.98);
+    background: var(--surface2);
+  }
+  .choice-btn:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+  .choice-btn .choice-key {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    background: rgba(240,160,80,0.12);
+    color: var(--accent);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: -apple-system, sans-serif;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .choice-btn.locked {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .choice-btn.locked::after {
+    content: ' 🔒';
+    font-size: 0.8rem;
+  }
+
+  /* Ending screen */
+  .ending-card {
+    text-align: center;
+    padding: 30px 0;
+  }
+  .ending-card .ending-emoji { font-size: 3rem; margin-bottom: 12px; }
+  .ending-card h2 {
+    font-size: 1.4rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .ending-card .ending-flavor {
+    font-style: italic;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+  .ending-card .ending-stats {
+    font-family: -apple-system, sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    line-height: 1.8;
+  }
+  .ending-card .ending-stats strong { color: var(--text); }
+  .endings-found {
+    font-family: -apple-system, sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    letter-spacing: 0.04em;
+  }
+  .endings-found span {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    margin: 0 2px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .endings-found .found { background: var(--green); color: var(--bg); }
+  .endings-found .unfound { background: rgba(80,140,180,0.12); color: var(--text-dim); }
+
+  /* Inventory overlay */
+  .inv-toggle {
+    background: none;
+    border: 1px solid rgba(255,215,0,0.25);
+    color: var(--gold);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: -apple-system, sans-serif;
+  }
+  #inventory-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid rgba(255,215,0,0.15);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-family: -apple-system, sans-serif;
+    font-size: 0.82rem;
+    line-height: 1.7;
+  }
+  #inventory-panel.open { display: block; }
+  #inventory-panel .inv-item { color: var(--gold); }
+  #inventory-panel .inv-empty { color: var(--text-dim); font-style: italic; }
+
+  /* Scroll fade */
+  #narrative::-webkit-scrollbar { width: 4px; }
+  #narrative::-webkit-scrollbar-thumb { background: rgba(80,140,180,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="title-screen">
+    <div class="house-art">🏚️</div>
+    <h1>The Open House</h1>
+    <div class="subtitle">A text adventure about doors, keys, and impossible rooms</div>
+    <button class="start-btn" onclick="startGame()">Enter the House</button>
+    <p style="margin-top:20px;font-size:0.75rem;color:var(--text-dim);font-family:-apple-system,sans-serif;">5 endings to discover &middot; ~3 min per run</p>
+  </div>
+
+  <div id="game-screen">
+    <div class="hud">
+      <span class="hud-rooms">Rooms: <span id="hud-rooms">0</span></span>
+      <button class="inv-toggle" onclick="toggleInv()">🎒 <span id="inv-count">0</span></button>
+      <span class="hud-endings">Endings: <span id="hud-endings">0</span>/5</span>
+    </div>
+    <div id="inventory-panel"></div>
+    <div id="narrative"></div>
+    <div id="choices"></div>
+  </div>
+</div>
+
+<script>
+// State
+let state = {};
+const ENDINGS_KEY = 'openhouse_endings';
+
+function getSavedEndings() {
+  try { return JSON.parse(localStorage.getItem(ENDINGS_KEY)) || []; } catch(e) { return []; }
+}
+function saveEnding(id) {
+  const found = getSavedEndings();
+  if (!found.includes(id)) { found.push(id); localStorage.setItem(ENDINGS_KEY, JSON.stringify(found)); }
+}
+
+function startGame() {
+  state = { rooms: 0, items: [], visited: new Set(), flags: {} };
+  document.getElementById('title-screen').classList.add('hidden');
+  document.getElementById('game-screen').classList.add('active');
+  updateHud();
+  goTo('street');
+}
+
+function restart() {
+  document.getElementById('title-screen').classList.remove('hidden');
+  document.getElementById('game-screen').classList.remove('active');
+  document.getElementById('inventory-panel').className = '';
+}
+
+function updateHud() {
+  document.getElementById('hud-rooms').textContent = state.rooms;
+  document.getElementById('inv-count').textContent = state.items.length;
+  document.getElementById('hud-endings').textContent = getSavedEndings().length;
+}
+
+function toggleInv() {
+  const p = document.getElementById('inventory-panel');
+  p.classList.toggle('open');
+  if (state.items.length === 0) {
+    p.innerHTML = '<span class="inv-empty">Nothing yet. Keep exploring.</span>';
+  } else {
+    p.innerHTML = state.items.map(i => `<div class="inv-item">${i}</div>`).join('');
+  }
+}
+
+function hasItem(name) { return state.items.includes(name); }
+function addItem(name) { if (!hasItem(name)) { state.items.push(name); updateHud(); } }
+function hasFlag(f) { return state.flags[f]; }
+function setFlag(f) { state.flags[f] = true; }
+
+function goTo(sceneId) {
+  const scene = SCENES[sceneId];
+  if (!scene) return;
+  if (!state.visited.has(sceneId)) { state.rooms++; state.visited.add(sceneId); }
+  updateHud();
+
+  const nar = document.getElementById('narrative');
+  const cho = document.getElementById('choices');
+
+  let html = '';
+  if (scene.emoji) html += `<div class="scene-emoji">${scene.emoji}</div>`;
+  if (scene.title) html += `<div class="scene-title">${scene.title}</div>`;
+  html += `<div class="scene-text">${scene.text}</div>`;
+  if (scene.note) html += `<div class="scene-note">${scene.note}</div>`;
+  nar.innerHTML = html;
+  nar.scrollTop = 0;
+
+  let chtml = '';
+  const choices = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+  if (choices) {
+    choices.forEach((c, i) => {
+      const locked = c.requires && !c.requires();
+      chtml += `<button class="choice-btn${locked ? ' locked' : ''}" ${locked ? 'disabled' : `onclick="handleChoice('${sceneId}',${i})"`}>` +
+        `<span class="choice-key">${String.fromCharCode(65+i)}</span>${c.text}</button>`;
+    });
+  }
+  cho.innerHTML = chtml;
+
+  if (scene.onEnter) scene.onEnter();
+}
+
+function handleChoice(sceneId, idx) {
+  const scene = SCENES[sceneId];
+  const choices = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+  const c = choices[idx];
+  if (c.action) c.action();
+  if (c.goto) goTo(c.goto);
+}
+
+function showEnding(id, emoji, title, flavor) {
+  saveEnding(id);
+  updateHud();
+  const found = getSavedEndings();
+  const allIds = ['cozy','tower','garden','mirror','void'];
+  const nar = document.getElementById('narrative');
+  const cho = document.getElementById('choices');
+
+  let endingsHtml = '<div class="endings-found">Endings: ';
+  allIds.forEach(eid => {
+    endingsHtml += found.includes(eid)
+      ? `<span class="found">✓</span>`
+      : `<span class="unfound">?</span>`;
+  });
+  endingsHtml += '</div>';
+
+  nar.innerHTML = `<div class="ending-card">
+    <div class="ending-emoji">${emoji}</div>
+    <h2>${title}</h2>
+    <div class="ending-flavor">${flavor}</div>
+    <div class="ending-stats">
+      Rooms explored: <strong>${state.rooms}</strong><br>
+      Items found: <strong>${state.items.length}</strong>
+    </div>
+    ${endingsHtml}
+    <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">${found.length < 5 ? `${5 - found.length} more ending${found.length === 4 ? '' : 's'} to find...` : '🌟 You found them all!'}</div>
+  </div>`;
+  cho.innerHTML = `<button class="choice-btn" onclick="restart()"><span class="choice-key">↺</span>Play again</button>`;
+}
+
+// ── Scenes ──
+
+const SCENES = {
+
+street: {
+  emoji: '🏚️',
+  title: 'The Street',
+  text: `<p>The listing said "charming fixer-upper with character." What it didn't mention was the front door standing wide open, or the fact that the house looks... larger from this angle than it did in the photos. Much larger.</p>
+<p>A hand-written sign on the mailbox reads: <strong>OPEN HOUSE — COME IN</strong>.</p>
+<p>The neighboring houses seem oddly far away, as if the lot has stretched.</p>`,
+  choices: [
+    { text: 'Walk through the front door', goto: 'foyer' },
+    { text: 'Peek through the side window first', goto: 'window_peek' },
+    { text: 'Check the mailbox', goto: 'mailbox' }
+  ]
+},
+
+mailbox: {
+  emoji: '📬',
+  title: 'The Mailbox',
+  text: `<p>Inside the mailbox you find a single brass key, heavy and warm to the touch. It's engraved with a tiny crescent moon.</p>
+<p>There's also a folded note: <em>"For the room that doesn't exist yet."</em></p>`,
+  note: 'You found the Moon Key!',
+  onEnter: () => addItem('🌙 Moon Key'),
+  choices: [
+    { text: 'Head inside through the front door', goto: 'foyer' }
+  ]
+},
+
+window_peek: {
+  emoji: '🪟',
+  title: 'The Side Window',
+  text: `<p>You cup your hands against the dusty glass. Inside, the foyer stretches back impossibly far — the hallway seems to bend slightly, like a gentle curve in a river.</p>
+<p>You notice something glinting on the windowsill: a small glass marble, swirling with fog inside.</p>`,
+  note: 'You found the Fog Marble!',
+  onEnter: () => addItem('🔮 Fog Marble'),
+  choices: [
+    { text: 'Go around to the front door', goto: 'foyer' }
+  ]
+},
+
+foyer: {
+  emoji: '🚪',
+  title: 'The Foyer',
+  text: `<p>The foyer is grander than the exterior suggested. A chandelier made of what looks like frozen lightning hangs overhead. The wallpaper shifts pattern when you're not looking directly at it.</p>
+<p>A staircase spirals upward into shadow. Three doorways lead deeper: one painted <strong style="color:#e06080">red</strong>, one <strong style="color:#50c8e0">blue</strong>, and one that keeps flickering between being there and not.</p>
+<p>The real estate agent is nowhere to be seen, but you hear faint music from somewhere above.</p>`,
+  choices: () => [
+    { text: 'Take the red door', goto: 'kitchen' },
+    { text: 'Take the blue door', goto: 'library' },
+    { text: 'Go up the staircase', goto: 'upstairs_landing' },
+    { text: 'Try the flickering door', goto: 'flickering_door', requires: () => hasItem('🔮 Fog Marble') }
+  ]
+},
+
+flickering_door: {
+  emoji: '✨',
+  title: 'The In-Between Room',
+  text: `<p>You hold up the Fog Marble and the flickering stops. The door solidifies — it's made of smoky glass. You step through.</p>
+<p>The room exists between moments. Clocks on every wall run at different speeds. Some backward. Through the far wall, which is transparent, you see every other room in the house at once, layered like pages in a book.</p>
+<p>In the center of the room sits a snow globe containing a tiny, perfect replica of this very house. Inside <em>that</em> snow globe, you can just make out an even tinier figure holding an even tinier snow globe.</p>
+<p>It goes all the way down.</p>`,
+  choices: [
+    { text: 'Shake the snow globe', goto: 'void_ending' },
+    { text: 'Set it down carefully and back away', goto: 'foyer' }
+  ]
+},
+
+void_ending: {
+  emoji: '🌀',
+  title: 'The Recursion',
+  text: '',
+  onEnter: () => showEnding('void', '🌀', 'Ending: The Recursion',
+    'You shook the snow globe and everything shook with it. The house, the street, the sky — all swirling. When it settled, you were inside the snow globe. Or maybe you always were.')
+},
+
+kitchen: {
+  emoji: '🍳',
+  title: 'The Kitchen',
+  text: `<p>The kitchen is warm. Something is baking, though no one is here. The oven radiates a golden glow, and the smell is extraordinary — like every good thing you've ever eaten, layered together.</p>
+<p>The fridge hums a tune you almost recognize. The countertops are made of a stone you've never seen before, dark blue with flecks of light that drift slowly, like stars.</p>
+<p>On the kitchen table: a fresh loaf of bread with a knife beside it, and a door in the pantry you didn't notice at first.</p>`,
+  choices: [
+    { text: 'Slice the bread', goto: 'bread' },
+    { text: 'Open the pantry door', goto: 'cellar_stairs' },
+    { text: 'Go back to the foyer', goto: 'foyer' }
+  ]
+},
+
+bread: {
+  emoji: '🍞',
+  title: 'The Bread',
+  text: `<p>You cut a slice. It's warm, perfect crust, soft inside. You take a bite.</p>
+<p>Memories surface: a kitchen you knew as a child, afternoon light through a window, someone humming. The bread tastes like comfort itself.</p>
+<p>You feel at home here. Genuinely, deeply at home. The thought arrives gently: <em>what if you just... stayed?</em></p>`,
+  onEnter: () => addItem('🍞 Warm Bread'),
+  choices: [
+    { text: 'Sit down. Stay a while.', goto: 'cozy_ending' },
+    { text: 'Resist the urge — keep exploring', goto: 'kitchen' }
+  ]
+},
+
+cozy_ending: {
+  emoji: '🏠',
+  title: 'Home',
+  text: '',
+  onEnter: () => showEnding('cozy', '🏠', 'Ending: Home',
+    'You sat down in the kitchen that smelled like memory and you never left. The house was waiting for someone to stay. Outside, the listing changed to "SOLD."')
+},
+
+cellar_stairs: {
+  emoji: '🕯️',
+  title: 'The Cellar Stairs',
+  text: `<p>Behind the pantry, stone steps descend into cool air. Candles in iron sconces light themselves as you pass. The walls are rough-cut stone, much older than the house above.</p>
+<p>At the bottom: a garden. Underground. Impossible. Bioluminescent flowers in colors you can't quite name. A stream runs through it, clear as glass, flowing in a circle.</p>
+<p>A stone bench sits by the stream with a watering can beside it.</p>`,
+  choices: [
+    { text: 'Water the flowers', goto: 'garden_ending' },
+    { text: 'Follow the stream', goto: 'stream' },
+    { text: 'Go back up to the kitchen', goto: 'kitchen' }
+  ]
+},
+
+garden_ending: {
+  emoji: '🌿',
+  title: 'The Garden',
+  text: '',
+  onEnter: () => showEnding('garden', '🌱', 'Ending: The Garden',
+    'You watered the glowing flowers and they grew. They grew up through the floor, through the house, through the roof — gentle and unstoppable. The house became a greenhouse. You became its gardener.')
+},
+
+stream: {
+  emoji: '💧',
+  title: 'The Stream',
+  text: `<p>You follow the circular stream and notice it doesn't just loop — it spirals slowly inward. At the very center, barely visible beneath the water, is a small silver compass.</p>
+<p>The compass needle doesn't point north. It points <em>up</em>.</p>`,
+  note: 'You found the Silver Compass!',
+  onEnter: () => addItem('🧭 Silver Compass'),
+  choices: [
+    { text: 'Follow where the compass points — back upstairs', goto: 'foyer' }
+  ]
+},
+
+library: {
+  emoji: '📚',
+  title: 'The Library',
+  text: `<p>Floor-to-ceiling bookshelves, but the books aren't quite right. Their titles shift as you read them: <em>"A History of Tomorrow," "Your Name Here: An Autobiography," "Maps of Rooms That Don't Exist."</em></p>
+<p>A leather armchair sits by a fireplace that burns with blue flame. On the side table, a cup of tea — still warm — and a pair of reading glasses.</p>
+<p>One shelf is labeled <strong>"CURRENT RESIDENT"</strong> and contains a single blank journal.</p>`,
+  choices: [
+    { text: 'Open the blank journal', goto: 'journal' },
+    { text: 'Put on the reading glasses', goto: 'glasses' },
+    { text: 'Go back to the foyer', goto: 'foyer' }
+  ]
+},
+
+journal: {
+  emoji: '📖',
+  title: 'The Blank Journal',
+  text: `<p>The pages are empty but warm. As you hold it, words begin appearing in handwriting that looks remarkably like your own:</p>
+<p><em>"You came looking for a house. I think you were really looking for a feeling. The good news: you can build that feeling anywhere. The better news: you already know how."</em></p>
+<p>The remaining pages stay blank — waiting.</p>`,
+  onEnter: () => addItem('📖 Blank Journal'),
+  choices: [
+    { text: 'Keep the journal and continue exploring', goto: 'library' }
+  ]
+},
+
+glasses: {
+  emoji: '👓',
+  title: 'Through the Glasses',
+  text: `<p>You put on the reading glasses and the library <em>transforms</em>. Hidden text covers every surface — the walls, the ceiling, the floor. Annotations, arrows, love notes, doodles, equations.</p>
+<p>Every person who ever lived in this house left their marks, visible only now. Hundreds of lifetimes layered on top of each other.</p>
+<p>Behind the fireplace, the glasses reveal a hidden door outlined in chalk.</p>`,
+  onEnter: () => { addItem('👓 Reading Glasses'); setFlag('saw_hidden_door'); },
+  choices: [
+    { text: 'Step through the hidden door', goto: 'mirror_room' },
+    { text: 'Take off the glasses and go back', goto: 'foyer' }
+  ]
+},
+
+mirror_room: {
+  emoji: '🪞',
+  title: 'The Mirror Room',
+  text: `<p>A circular room, every surface a mirror. But the reflections aren't quite in sync — they lag by half a second, so every movement echoes around the room in a delayed cascade.</p>
+<p>One mirror doesn't reflect you at all. Instead, it shows the house as it will look in ten years: repainted, warm lights in the windows, a bicycle on the porch, a garden out back.</p>
+<p>The mirror has a small door handle at its base.</p>`,
+  choices: [
+    { text: 'Open the mirror door and step through', goto: 'mirror_ending' },
+    { text: 'Sit with the vision for a moment, then leave', goto: 'library' }
+  ]
+},
+
+mirror_ending: {
+  emoji: '🪞',
+  title: 'Through the Mirror',
+  text: '',
+  onEnter: () => showEnding('mirror', '🪞', 'Ending: The Future',
+    'You stepped through the mirror and found yourself standing on the porch of a house that felt like home — not this impossible house, but one that could be real. The door was open. You walked in.')
+},
+
+upstairs_landing: {
+  emoji: '🌀',
+  title: 'The Upstairs Landing',
+  text: `<p>The staircase twists more than it should. By the time you reach the top, you've made at least five full rotations, though the house isn't that tall.</p>
+<p>The landing has three doors and a window that looks out onto a sky full of stars — which is strange, because it's the middle of the day outside.</p>
+<p>The music is louder here. It's coming from behind the door on the left.</p>`,
+  choices: () => [
+    { text: 'Follow the music (left door)', goto: 'music_room' },
+    { text: 'Try the middle door', goto: 'middle_room' },
+    { text: 'Try the right door — it has a crescent moon carved on it', goto: 'moon_door', requires: () => hasItem('🌙 Moon Key') },
+    { text: 'Go back downstairs', goto: 'foyer' }
+  ]
+},
+
+music_room: {
+  emoji: '🎵',
+  title: 'The Music Room',
+  text: `<p>A grand piano plays itself, keys dipping and rising to a melody that tugs at something in your chest. The room is all dark wood and velvet, with tall windows that look out onto different weather — rain, snow, sunshine — one per pane.</p>
+<p>On the piano's music stand, the sheet music is blank. The piano is composing as it goes.</p>
+<p>A metronome on a shelf ticks at an unusual pace. When you listen closely, it's beating in time with your heartbeat.</p>`,
+  onEnter: () => addItem('🎵 Living Melody'),
+  choices: [
+    { text: 'Sit and listen for a while', goto: 'listen' },
+    { text: 'Go back to the landing', goto: 'upstairs_landing' }
+  ]
+},
+
+listen: {
+  emoji: '🎶',
+  title: 'The Song',
+  text: `<p>You sit. The piano adjusts its melody — slower, warmer, as if responding to your mood. Minutes pass. Maybe hours. The weather outside the windows cycles through seasons.</p>
+<p>When you finally stand, you feel rested in a way that sleep doesn't usually provide. The piano plays a gentle chord, almost like a goodbye.</p>`,
+  choices: [
+    { text: 'Return to the landing', goto: 'upstairs_landing' }
+  ]
+},
+
+middle_room: {
+  emoji: '🗺️',
+  title: 'The Map Room',
+  text: () => {
+    const base = `<p>The walls are covered in hand-drawn maps, but not of anywhere you recognize. They show rooms — hundreds of rooms — connected by hallways, staircases, ladders, and what appears to be a slide.</p>
+<p>You realize: these are maps of <em>this house</em>. According to these plans, the house has 847 rooms. You've barely scratched the surface.</p>
+<p>A red pin marks a room labeled <strong>"THE TOWER"</strong> at the very top. A dotted line shows the route.</p>`;
+    return state.items.length >= 4
+      ? base + `<p>Your compass is glowing. The dotted line on the map pulses gently, as if inviting you to follow it.</p>`
+      : base;
+  },
+  get text() { return this._text(); },
+  choices: () => [
+    { text: 'Follow the route to the Tower', goto: 'tower', requires: () => hasItem('🧭 Silver Compass') },
+    { text: 'Go back to the landing', goto: 'upstairs_landing' }
+  ]
+},
+
+tower: {
+  emoji: '🗼',
+  title: 'The Tower',
+  text: `<p>You follow the dotted line — up narrow stairs, through a room full of hourglasses, past a hallway where gravity is slightly sideways, up a ladder behind a painting of a door (which is also an actual door).</p>
+<p>The Tower room is small and round, all windows. From here, you can see everything: the street below, the garden underground (somehow), every room you've visited shimmering like memories.</p>
+<p>On a small table: a golden key and a deed to the house. The deed has a blank line where the owner's name should be.</p>`,
+  choices: [
+    { text: 'Write your name on the deed', goto: 'tower_ending' },
+    { text: 'Leave the deed blank — some houses aren\'t meant to be owned', goto: 'foyer' }
+  ]
+},
+
+tower_ending: {
+  emoji: '🗼',
+  title: 'The Owner',
+  text: '',
+  onEnter: () => showEnding('tower', '🗼', 'Ending: The Deed',
+    'You signed the deed and the house exhaled — a settling, like old timbers relaxing. All 847 rooms became yours: the kitchen that remembers, the garden that glows, the piano that listens. Every house is impossible, really. This one just admits it.')
+},
+
+moon_door: {
+  emoji: '🌙',
+  title: 'The Moon Room',
+  text: `<p>The Moon Key turns with a satisfying click. Inside: the room has no ceiling. Or rather, the ceiling is the night sky — real stars, a real moon, close enough that the moonlight makes everything silver.</p>
+<p>The room is furnished like a bedroom from a dream you once had. Everything is slightly soft at the edges, warm, perfect in the way only half-remembered things can be.</p>
+<p>On the nightstand: a note in your handwriting, though you didn't write it.</p>
+<p><em>"You'll find what you're looking for. Not here, but you'll know it when you see it. Trust the feeling."</em></p>`,
+  choices: [
+    { text: 'Lie down and close your eyes', goto: 'moon_dream' },
+    { text: 'Take the note and go back', goto: 'upstairs_landing' }
+  ]
+},
+
+moon_dream: {
+  emoji: '💤',
+  title: 'The Dream',
+  text: `<p>You lie down. The bed is impossibly comfortable. Above you, constellations slowly rearrange themselves into shapes you recognize: a key, a door, a compass, a path leading somewhere warm.</p>
+<p>You dream of a house. Not this house — a real one. Sun through the kitchen window. The sound of rain on a good roof. A door that's yours to open.</p>
+<p>When you wake up, you're sitting on the front steps of the impossible house. The door behind you is closed. The sign on the mailbox now reads: <strong>SOLD</strong>.</p>
+<p>But the dream stays with you. The feeling stays.</p>`,
+  choices: [
+    { text: 'Walk home, smiling', goto: 'foyer' }
+  ]
+}
+
+};
+
+// Fix the middle_room text (it needs to be a function)
+SCENES.middle_room = {
+  emoji: '🗺️',
+  title: 'The Map Room',
+  get text() {
+    const base = `<p>The walls are covered in hand-drawn maps, but not of anywhere you recognize. They show rooms — hundreds of rooms — connected by hallways, staircases, ladders, and what appears to be a slide.</p>
+<p>You realize: these are maps of <em>this house</em>. According to these plans, the house has 847 rooms. You've barely scratched the surface.</p>
+<p>A red pin marks a room labeled <strong>"THE TOWER"</strong> at the very top. A dotted line shows the route.</p>`;
+    return hasItem('🧭 Silver Compass')
+      ? base + `<p>Your compass glows. The dotted line on the map pulses gently, inviting you to follow.</p>`
+      : base + `<p>The dotted line is faded, hard to trace. You'd need something to guide you...</p>`;
+  },
+  choices: () => [
+    { text: 'Follow the route to the Tower', goto: 'tower', requires: () => hasItem('🧭 Silver Compass') },
+    { text: 'Go back to the landing', goto: 'upstairs_landing' }
+  ]
+};
+
+// Render scene text (handle getter vs string)
+const origGoTo = goTo;
+goTo = function(sceneId) {
+  const scene = SCENES[sceneId];
+  if (!scene) return;
+  if (!state.visited.has(sceneId)) { state.rooms++; state.visited.add(sceneId); }
+  updateHud();
+
+  const nar = document.getElementById('narrative');
+  const cho = document.getElementById('choices');
+
+  // Close inventory
+  document.getElementById('inventory-panel').classList.remove('open');
+
+  let text = scene.text;
+  // text could be a getter, already resolved
+
+  let html = '';
+  if (scene.emoji) html += `<div class="scene-emoji">${scene.emoji}</div>`;
+  if (scene.title) html += `<div class="scene-title">${scene.title}</div>`;
+  if (text) html += `<div class="scene-text">${text}</div>`;
+  if (scene.note) html += `<div class="scene-note">${scene.note}</div>`;
+  nar.innerHTML = html;
+  nar.scrollTop = 0;
+
+  let chtml = '';
+  const choices = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+  if (choices) {
+    choices.forEach((c, i) => {
+      const locked = c.requires && !c.requires();
+      chtml += `<button class="choice-btn${locked ? ' locked' : ''}" ${locked ? 'disabled' : `onclick="handleChoice2('${sceneId}',${i})"`}>` +
+        `<span class="choice-key">${String.fromCharCode(65+i)}</span>${c.text}</button>`;
+    });
+  }
+  cho.innerHTML = chtml;
+
+  if (scene.onEnter) scene.onEnter();
+};
+
+function handleChoice2(sceneId, idx) {
+  const scene = SCENES[sceneId];
+  const choices = typeof scene.choices === 'function' ? scene.choices() : scene.choices;
+  const c = choices[idx];
+  if (c.action) c.action();
+  if (c.goto) goTo(c.goto);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  const code = e.key.toUpperCase().charCodeAt(0) - 65;
+  const btns = document.querySelectorAll('#choices .choice-btn:not(.locked)');
+  if (code >= 0 && code < btns.length) btns[code].click();
+});
+</script>
+</body>
+</html>
