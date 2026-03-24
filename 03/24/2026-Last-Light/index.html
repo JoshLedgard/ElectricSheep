@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Last Light</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #8ec8e0; font-size: 15px; pointer-events: none;
+    text-shadow: 0 0 8px rgba(0,180,240,0.4);
+  }
+  #ui .fuel-bar {
+    width: 120px; height: 8px; background: rgba(255,255,255,0.1);
+    border-radius: 4px; overflow: hidden;
+  }
+  #ui .fuel-fill { height: 100%; background: #00d8e8; border-radius: 4px; transition: width 0.2s; }
+  #ui .left, #ui .right { display: flex; align-items: center; gap: 12px; }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #c8e4f0; text-align: center; padding: 24px;
+    background: rgba(0,0,0,0.7);
+  }
+  #overlay h1 { font-size: clamp(28px, 7vw, 48px); margin-bottom: 8px; letter-spacing: -0.02em; }
+  #overlay h1 span { color: #00d8e8; }
+  #overlay .sub { color: #5a8aa0; font-size: 15px; margin-bottom: 32px; max-width: 320px; line-height: 1.5; }
+  #overlay .btn {
+    background: none; border: 2px solid #00d8e8; color: #00d8e8;
+    padding: 14px 40px; font-size: 17px; border-radius: 6px;
+    cursor: pointer; pointer-events: all; font-weight: 600;
+    min-width: 200px; min-height: 50px;
+    transition: background 0.2s, color 0.2s;
+  }
+  #overlay .btn:hover, #overlay .btn:active { background: #00d8e8; color: #000; }
+  #overlay .stats { color: #5a8aa0; font-size: 13px; margin-top: 20px; line-height: 1.8; }
+  #overlay .stats span { color: #00d8e8; font-weight: 600; }
+  .hidden { display: none !important; }
+  #controls-hint {
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    text-align: center; color: #3a5a6a; font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <div class="left">
+    <div>Sector <span id="sector">1</span></div>
+  </div>
+  <div class="right">
+    <div id="score-display">0</div>
+    <div class="fuel-bar"><div class="fuel-fill" id="fuel-fill"></div></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h1>Last <span>Light</span></h1>
+  <div class="sub">Navigate your ship through asteroid fields toward the distant beacon. Collect fuel cells to survive. How far can you go?</div>
+  <button class="btn" id="start-btn">Launch</button>
+  <div id="controls-hint-start" style="color:#3a5a6a; font-size:13px; margin-top:16px;">Touch/drag or arrow keys to steer</div>
+</div>
+
+<div id="controls-hint" class="hidden">Touch or arrow keys to steer</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('start-btn');
+const sectorEl = document.getElementById('sector');
+const scoreEl = document.getElementById('score-display');
+const fuelFill = document.getElementById('fuel-fill');
+const uiEl = document.getElementById('ui');
+const hintEl = document.getElementById('controls-hint');
+
+let W, H, dpr;
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Game state
+let state = 'menu'; // menu, playing, dead
+let ship, stars, asteroids, fuelCells, particles, beaconParticles;
+let score, sector, fuel, maxFuel, sectorTimer, difficulty;
+let cameraY, scrollSpeed, baseScrollSpeed;
+let inputX = 0, inputY = 0; // -1 to 1 steering
+let touchActive = false;
+let touchStartX, touchStartY, touchCurX, touchCurY;
+let keys = {};
+let bestScore = parseInt(localStorage.getItem('lastlight-best') || '0');
+let shakeTimer = 0, shakeIntensity = 0;
+let beaconY, beaconReached;
+let invulnTimer = 0;
+
+const SHIP_SIZE = 14;
+const MAX_FUEL = 100;
+const FUEL_DRAIN = 3.5; // per second
+const FUEL_PICKUP = 25;
+const SECTOR_LENGTH = 3000; // pixels of scrolling per sector
+const BEACON_SECTORS = 5; // beacon appears every N sectors
+
+function init() {
+  ship = { x: W / 2, y: H * 0.75, vx: 0, vy: 0, angle: 0, thrust: false };
+  stars = [];
+  asteroids = [];
+  fuelCells = [];
+  particles = [];
+  beaconParticles = [];
+  score = 0;
+  sector = 1;
+  fuel = MAX_FUEL;
+  maxFuel = MAX_FUEL;
+  sectorTimer = 0;
+  difficulty = 1;
+  cameraY = 0;
+  baseScrollSpeed = 120;
+  scrollSpeed = baseScrollSpeed;
+  beaconY = -Infinity;
+  beaconReached = false;
+  invulnTimer = 1.5;
+  inputX = 0; inputY = 0;
+
+  // Generate stars
+  for (let i = 0; i < 200; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H * 3 - H,
+      size: Math.random() * 1.8 + 0.3,
+      speed: Math.random() * 0.4 + 0.1,
+      brightness: Math.random() * 0.6 + 0.2
+    });
+  }
+
+  spawnSectorContent();
+}
+
+function spawnSectorContent() {
+  const ahead = cameraY - H * 2;
+  const count = Math.floor(3 + difficulty * 2.5);
+
+  for (let i = 0; i < count; i++) {
+    const y = ahead - Math.random() * SECTOR_LENGTH * 0.8;
+    const x = Math.random() * (W - 60) + 30;
+    const size = 15 + Math.random() * 30 + difficulty * 3;
+    const type = Math.random();
+
+    // Avoid spawning on top of ship
+    if (Math.abs(y - (ship.y + cameraY)) < 100) continue;
+
+    asteroids.push({
+      x, y,
+      size: Math.min(size, 55),
+      vx: (Math.random() - 0.5) * 20,
+      vy: (Math.random() - 0.5) * 10,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 1.5,
+      vertices: generateAsteroidShape(Math.min(size, 55)),
+      hit: false
+    });
+  }
+
+  // Fuel cells
+  const fuelCount = Math.max(1, 3 - Math.floor(difficulty / 3));
+  for (let i = 0; i < fuelCount; i++) {
+    const y = ahead - Math.random() * SECTOR_LENGTH * 0.8;
+    fuelCells.push({
+      x: Math.random() * (W - 80) + 40,
+      y,
+      size: 10,
+      pulse: Math.random() * Math.PI * 2,
+      collected: false
+    });
+  }
+}
+
+function generateAsteroidShape(size) {
+  const verts = [];
+  const n = 7 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2;
+    const r = size * (0.7 + Math.random() * 0.3);
+    verts.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+  }
+  return verts;
+}
+
+// Input handling
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  touchActive = true;
+  touchStartX = touchCurX = t.clientX;
+  touchStartY = touchCurY = t.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  touchCurX = t.clientX;
+  touchCurY = t.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  touchActive = false;
+  inputX = 0;
+  inputY = 0;
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', e => {
+  touchActive = false;
+  inputX = 0;
+  inputY = 0;
+});
+
+// Mouse fallback for desktop
+let mouseDown = false;
+canvas.addEventListener('mousedown', e => {
+  mouseDown = true;
+  touchStartX = touchCurX = e.clientX;
+  touchStartY = touchCurY = e.clientY;
+});
+canvas.addEventListener('mousemove', e => {
+  if (mouseDown) {
+    touchCurX = e.clientX;
+    touchCurY = e.clientY;
+  }
+});
+canvas.addEventListener('mouseup', () => {
+  mouseDown = false;
+  inputX = 0;
+  inputY = 0;
+});
+
+function handleInput(dt) {
+  // Keyboard
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) inputX = -1;
+  else if (keys['ArrowRight'] || keys['d'] || keys['D']) inputX = 1;
+  else if (!touchActive && !mouseDown) inputX = 0;
+
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) inputY = -1;
+  else if (keys['ArrowDown'] || keys['s'] || keys['S']) inputY = 1;
+  else if (!touchActive && !mouseDown) inputY = 0;
+
+  // Touch / mouse
+  if (touchActive || mouseDown) {
+    const dx = touchCurX - touchStartX;
+    const dy = touchCurY - touchStartY;
+    const deadzone = 8;
+    inputX = Math.abs(dx) > deadzone ? Math.max(-1, Math.min(1, dx / 60)) : 0;
+    inputY = Math.abs(dy) > deadzone ? Math.max(-1, Math.min(1, dy / 60)) : 0;
+  }
+}
+
+function update(dt) {
+  if (state !== 'playing') return;
+
+  handleInput(dt);
+
+  // Invulnerability timer
+  if (invulnTimer > 0) invulnTimer -= dt;
+
+  // Fuel drain
+  fuel -= FUEL_DRAIN * dt;
+  if (fuel <= 0) {
+    fuel = 0;
+    die();
+    return;
+  }
+
+  // Scroll
+  scrollSpeed = baseScrollSpeed + difficulty * 15;
+  cameraY -= scrollSpeed * dt;
+  sectorTimer += scrollSpeed * dt;
+
+  // New sector
+  if (sectorTimer >= SECTOR_LENGTH) {
+    sectorTimer -= SECTOR_LENGTH;
+    sector++;
+    difficulty = 1 + (sector - 1) * 0.4;
+    spawnSectorContent();
+    score += 100;
+
+    // Brief speed boost between sectors
+    baseScrollSpeed = Math.min(200, 120 + sector * 5);
+  }
+
+  // Ship physics
+  const shipSpeed = 280;
+  const friction = 5;
+
+  ship.vx += inputX * shipSpeed * dt * 4;
+  ship.vy += inputY * shipSpeed * dt * 2;
+  ship.vx *= Math.exp(-friction * dt);
+  ship.vy *= Math.exp(-friction * dt);
+
+  ship.x += ship.vx * dt;
+  ship.y += ship.vy * dt;
+
+  // Clamp ship position
+  ship.x = Math.max(SHIP_SIZE, Math.min(W - SHIP_SIZE, ship.x));
+  ship.y = Math.max(H * 0.15, Math.min(H * 0.85, ship.y));
+
+  // Ship tilt
+  const targetAngle = inputX * 0.35;
+  ship.angle += (targetAngle - ship.angle) * 5 * dt;
+
+  // Engine particles
+  if (Math.random() < 0.8) {
+    particles.push({
+      x: ship.x + (Math.random() - 0.5) * 6,
+      y: ship.y + SHIP_SIZE,
+      vx: (Math.random() - 0.5) * 30 + ship.vx * 0.2,
+      vy: 40 + Math.random() * 60,
+      life: 0.4 + Math.random() * 0.3,
+      maxLife: 0.4 + Math.random() * 0.3,
+      size: 2 + Math.random() * 3,
+      type: 'engine'
+    });
+  }
+
+  // Update asteroids
+  const screenTop = cameraY - H * 0.5;
+  const screenBottom = cameraY + H * 1.5;
+
+  for (let i = asteroids.length - 1; i >= 0; i--) {
+    const a = asteroids[i];
+    a.x += a.vx * dt;
+    a.rotation += a.rotSpeed * dt;
+
+    // Bounce off walls
+    if (a.x < a.size || a.x > W - a.size) a.vx *= -1;
+
+    // Remove if far behind
+    if (a.y > cameraY + H * 2) {
+      asteroids.splice(i, 1);
+      continue;
+    }
+
+    // Collision with ship
+    if (!a.hit && invulnTimer <= 0) {
+      const screenAY = a.y - cameraY;
+      const dx = ship.x - a.x;
+      const dy = ship.y - screenAY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < a.size * 0.7 + SHIP_SIZE * 0.6) {
+        // Hit!
+        a.hit = true;
+        shakeTimer = 0.3;
+        shakeIntensity = 8;
+        spawnExplosion(ship.x, ship.y, '#ff4444');
+        die();
+        return;
+      }
+    }
+  }
+
+  // Update fuel cells
+  for (let i = fuelCells.length - 1; i >= 0; i--) {
+    const f = fuelCells[i];
+    f.pulse += dt * 3;
+
+    if (f.y > cameraY + H * 2) {
+      fuelCells.splice(i, 1);
+      continue;
+    }
+
+    if (!f.collected) {
+      const screenFY = f.y - cameraY;
+      const dx = ship.x - f.x;
+      const dy = ship.y - screenFY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 25) {
+        f.collected = true;
+        fuel = Math.min(maxFuel, fuel + FUEL_PICKUP);
+        score += 50;
+        spawnExplosion(f.x, screenFY, '#00d8e8');
+        fuelCells.splice(i, 1);
+      }
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update stars (parallax)
+  for (const s of stars) {
+    s.y += scrollSpeed * s.speed * dt;
+    if (s.y > H + 10) {
+      s.y = -10;
+      s.x = Math.random() * W;
+    }
+  }
+
+  // Shake decay
+  if (shakeTimer > 0) shakeTimer -= dt;
+
+  // Update UI
+  sectorEl.textContent = sector;
+  scoreEl.textContent = score;
+  fuelFill.style.width = (fuel / maxFuel * 100) + '%';
+  if (fuel < 30) fuelFill.style.background = fuel < 15 ? '#ff4444' : '#ffaa00';
+  else fuelFill.style.background = '#00d8e8';
+}
+
+function die() {
+  state = 'dead';
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('lastlight-best', bestScore);
+  }
+  spawnExplosion(ship.x, ship.y, '#ff8844');
+  spawnExplosion(ship.x, ship.y, '#ffcc44');
+
+  setTimeout(() => {
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = `
+      <h1>Signal <span>Lost</span></h1>
+      <div class="sub">Your ship was destroyed in sector ${sector}.</div>
+      <div class="stats">
+        Score: <span>${score}</span><br>
+        Sectors cleared: <span>${sector - 1}</span><br>
+        Best: <span>${bestScore}</span>
+      </div>
+      <button class="btn" onclick="startGame()" style="margin-top:24px;">Try Again</button>
+    `;
+  }, 800);
+}
+
+function spawnExplosion(x, y, color) {
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 120;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.5 + Math.random() * 0.5,
+      maxLife: 0.5 + Math.random() * 0.5,
+      size: 2 + Math.random() * 4,
+      type: 'explosion',
+      color
+    });
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Shake
+  let sx = 0, sy = 0;
+  if (shakeTimer > 0) {
+    sx = (Math.random() - 0.5) * shakeIntensity;
+    sy = (Math.random() - 0.5) * shakeIntensity;
+    ctx.save();
+    ctx.translate(sx, sy);
+  }
+
+  // Deep space background gradient
+  const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H));
+  bgGrad.addColorStop(0, '#0a0e1a');
+  bgGrad.addColorStop(1, '#000');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (const s of stars) {
+    const alpha = s.brightness * (0.5 + 0.5 * Math.sin(Date.now() * 0.002 * s.speed));
+    ctx.fillStyle = `rgba(180,210,240,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Asteroids
+  for (const a of asteroids) {
+    const screenY = a.y - cameraY;
+    if (screenY < -80 || screenY > H + 80) continue;
+
+    ctx.save();
+    ctx.translate(a.x, screenY);
+    ctx.rotate(a.rotation);
+
+    // Asteroid body
+    ctx.beginPath();
+    ctx.moveTo(a.vertices[0].x, a.vertices[0].y);
+    for (let i = 1; i < a.vertices.length; i++) {
+      ctx.lineTo(a.vertices[i].x, a.vertices[i].y);
+    }
+    ctx.closePath();
+
+    const grad = ctx.createRadialGradient(-a.size * 0.2, -a.size * 0.2, 0, 0, 0, a.size);
+    grad.addColorStop(0, '#4a3a2a');
+    grad.addColorStop(0.6, '#2a1e14');
+    grad.addColorStop(1, '#1a1008');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = '#5a4a3a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Fuel cells
+  for (const f of fuelCells) {
+    if (f.collected) continue;
+    const screenY = f.y - cameraY;
+    if (screenY < -30 || screenY > H + 30) continue;
+
+    const pulse = Math.sin(f.pulse) * 0.3 + 0.7;
+    const glow = ctx.createRadialGradient(f.x, screenY, 0, f.x, screenY, 20);
+    glow.addColorStop(0, `rgba(0,216,232,${0.4 * pulse})`);
+    glow.addColorStop(1, 'rgba(0,216,232,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(f.x - 20, screenY - 20, 40, 40);
+
+    // Diamond shape
+    ctx.save();
+    ctx.translate(f.x, screenY);
+    ctx.rotate(Date.now() * 0.002);
+    ctx.beginPath();
+    ctx.moveTo(0, -f.size);
+    ctx.lineTo(f.size * 0.7, 0);
+    ctx.lineTo(0, f.size);
+    ctx.lineTo(-f.size * 0.7, 0);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(0,216,232,${0.8 * pulse})`;
+    ctx.fill();
+    ctx.strokeStyle = '#00d8e8';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Particles
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    if (p.type === 'engine') {
+      const r = Math.floor(0 + (255 - 0) * (1 - alpha));
+      const g = Math.floor(200 + 56 * (1 - alpha));
+      const b = Math.floor(232);
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha * 0.6})`;
+    } else {
+      ctx.fillStyle = p.color ? p.color.replace(')', `,${alpha})`).replace('rgb', 'rgba') : `rgba(255,200,100,${alpha})`;
+      // Handle hex colors
+      if (p.color && p.color.startsWith('#')) {
+        const hex = p.color;
+        const rr = parseInt(hex.slice(1, 3), 16);
+        const gg = parseInt(hex.slice(3, 5), 16);
+        const bb = parseInt(hex.slice(5, 7), 16);
+        ctx.fillStyle = `rgba(${rr},${gg},${bb},${alpha})`;
+      }
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Ship
+  if (state === 'playing') {
+    const blink = invulnTimer > 0 && Math.sin(invulnTimer * 20) > 0;
+    if (!blink) {
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.rotate(ship.angle);
+
+      // Engine glow
+      const engineGlow = ctx.createRadialGradient(0, SHIP_SIZE + 4, 0, 0, SHIP_SIZE + 4, 20);
+      engineGlow.addColorStop(0, 'rgba(0,200,255,0.5)');
+      engineGlow.addColorStop(1, 'rgba(0,200,255,0)');
+      ctx.fillStyle = engineGlow;
+      ctx.fillRect(-20, SHIP_SIZE - 6, 40, 30);
+
+      // Ship body
+      ctx.beginPath();
+      ctx.moveTo(0, -SHIP_SIZE);
+      ctx.lineTo(SHIP_SIZE * 0.7, SHIP_SIZE * 0.6);
+      ctx.lineTo(SHIP_SIZE * 0.4, SHIP_SIZE);
+      ctx.lineTo(-SHIP_SIZE * 0.4, SHIP_SIZE);
+      ctx.lineTo(-SHIP_SIZE * 0.7, SHIP_SIZE * 0.6);
+      ctx.closePath();
+
+      const shipGrad = ctx.createLinearGradient(0, -SHIP_SIZE, 0, SHIP_SIZE);
+      shipGrad.addColorStop(0, '#c8e4f0');
+      shipGrad.addColorStop(0.5, '#4a8aaa');
+      shipGrad.addColorStop(1, '#2a4a5a');
+      ctx.fillStyle = shipGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#00d8e8';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Cockpit
+      ctx.beginPath();
+      ctx.arc(0, -SHIP_SIZE * 0.2, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#00d8e8';
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // Sector transition effect
+  if (sectorTimer < 200 && state === 'playing') {
+    const alpha = 1 - sectorTimer / 200;
+    ctx.fillStyle = `rgba(0,216,232,${alpha * 0.08})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.3})`;
+    ctx.font = 'bold 24px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Sector ${sector}`, W / 2, H / 2);
+  }
+
+  // Vignette
+  const vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.7);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+
+  // Low fuel warning
+  if (fuel < 20 && state === 'playing') {
+    const warnAlpha = Math.sin(Date.now() * 0.008) * 0.15 + 0.15;
+    ctx.fillStyle = `rgba(255,40,40,${warnAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (shakeTimer > 0) ctx.restore();
+}
+
+// Game loop
+let lastTime = 0;
+function loop(time) {
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+function startGame() {
+  overlay.classList.add('hidden');
+  uiEl.classList.remove('hidden');
+  hintEl.classList.remove('hidden');
+  state = 'playing';
+  init();
+  setTimeout(() => hintEl.classList.add('hidden'), 3000);
+}
+
+startBtn.addEventListener('click', startGame);
+
+// Start render loop
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
