@@ -32,6 +32,8 @@ Built by Scoob 🐾 for Josh Ledgard, one per day.
 | Mar 21, 2026 | [Pathways](03/21/2026-Pathways/) | Tap to launch luminous trails that curve through a noise field toward glowing waypoints. Four palettes, meditative, endlessly generative. |
 | Mar 22, 2026 | [Is This Coin Fair?](03/22/2026-CoinFair/) | Bayesian coin-flip explorer — flip a mystery coin and watch a live probability distribution sharpen as evidence accumulates. |
 | Mar 23, 2026 | [The Open House](03/23/2026-Open-House/) | Text adventure — explore a mysterious house that's bigger on the inside. Hidden items, locked doors, 5 endings to discover. |
+| Mar 24, 2026 | [Last Light](03/24/2026-Last-Light/) | Pilot a lone spacecraft through endless asteroid fields. Collect fuel cells to survive, dodge rocks, push deeper into the unknown. One hit ends it all. |
+| Mar 25, 2026 | [Night Builder](03/25/2026-Night-Builder/) | A generative canal city that builds itself. Dutch-style houses rise with glowing windows, shimmering canal reflections, and drifting boats. Slide through day and night. |
 
 ---
 

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Builder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; font-family: 'Segoe UI', system-ui, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #ui {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 20px 28px; gap: 16px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.5));
+    z-index: 10;
+  }
+  #time-label {
+    font-size: 13px; color: rgba(255,255,255,0.6);
+    min-width: 56px; text-align: center;
+    user-select: none;
+  }
+  #time-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; max-width: 280px; height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #1a1040, #f0a050 25%, #ffe8a0 50%, #f0a050 75%, #1a1040);
+    outline: none;
+  }
+  #time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ffe8a0; border: 2px solid rgba(255,255,255,0.8);
+    box-shadow: 0 0 10px rgba(255,232,160,0.5);
+    cursor: pointer;
+  }
+  #time-slider::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ffe8a0; border: 2px solid rgba(255,255,255,0.8);
+    box-shadow: 0 0 10px rgba(255,232,160,0.5);
+    cursor: pointer;
+  }
+  #hint {
+    position: fixed; top: 16px; left: 0; right: 0;
+    text-align: center; font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    pointer-events: none;
+    transition: opacity 1.5s;
+    z-index: 10;
+  }
+  #building-count {
+    position: fixed; top: 16px; right: 16px;
+    font-size: 13px; color: rgba(255,255,255,0.4);
+    z-index: 10;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">tap the skyline to place a building</div>
+<div id="building-count"></div>
+<div id="ui">
+  <span id="time-label">dusk</span>
+  <input type="range" id="time-slider" min="0" max="100" value="35">
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById('hint');
+  const countEl = document.getElementById('building-count');
+  const slider = document.getElementById('time-slider');
+  const timeLabel = document.getElementById('time-label');
+
+  let W, H, dpr;
+  let groundY, canalY, canalH, skyH;
+  let buildings = [];
+  let boats = [];
+  let stars = [];
+  let timeOfDay = 0.35; // 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk, 1=midnight
+  let autoTimer = 0;
+  let tapped = false;
+  let frame = 0;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    groundY = H * 0.52;
+    canalY = groundY;
+    canalH = H * 0.22;
+    skyH = groundY;
+
+    // Regenerate stars
+    stars = [];
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * skyH * 0.7,
+        r: 0.5 + Math.random() * 1.5,
+        twinkle: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 2
+      });
+    }
+  }
+
+  // Color helpers
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function lerpColor(c1, c2, t) {
+    return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+  }
+  function rgb(c) { return `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`; }
+  function rgba(c, a) { return `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`; }
+
+  // Sky color scheme based on time of day
+  function getSkyColors(t) {
+    // t: 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk, 1=midnight
+    const presets = [
+      { t: 0,    top: [8, 10, 30],    bot: [15, 18, 45] },      // midnight
+      { t: 0.2,  top: [15, 15, 50],   bot: [40, 30, 60] },      // pre-dawn
+      { t: 0.3,  top: [40, 50, 100],  bot: [200, 130, 80] },    // dawn
+      { t: 0.4,  top: [70, 120, 180], bot: [240, 180, 100] },   // morning
+      { t: 0.5,  top: [100, 160, 220],bot: [180, 210, 240] },   // noon
+      { t: 0.6,  top: [70, 120, 180], bot: [240, 180, 100] },   // afternoon
+      { t: 0.7,  top: [40, 40, 90],   bot: [220, 120, 60] },    // sunset
+      { t: 0.8,  top: [20, 20, 60],   bot: [80, 40, 50] },      // dusk
+      { t: 0.9,  top: [10, 12, 35],   bot: [20, 20, 50] },      // twilight
+      { t: 1,    top: [8, 10, 30],    bot: [15, 18, 45] },       // midnight
+    ];
+    let a = presets[0], b = presets[presets.length - 1];
+    for (let i = 0; i < presets.length - 1; i++) {
+      if (t >= presets[i].t && t <= presets[i + 1].t) {
+        a = presets[i]; b = presets[i + 1]; break;
+      }
+    }
+    const f = (t - a.t) / (b.t - a.t || 1);
+    return { top: lerpColor(a.top, b.top, f), bot: lerpColor(a.bot, b.bot, f) };
+  }
+
+  function isNight(t) {
+    return t < 0.22 || t > 0.82;
+  }
+  function nightFactor(t) {
+    if (t < 0.2) return 1;
+    if (t < 0.35) return 1 - (t - 0.2) / 0.15;
+    if (t > 0.85) return 1;
+    if (t > 0.7) return (t - 0.7) / 0.15;
+    return 0;
+  }
+  function windowGlow(t) {
+    // Windows glow more at night
+    const nf = nightFactor(t);
+    return 0.15 + nf * 0.85;
+  }
+
+  // Gable types for Dutch canal houses
+  const GABLE_TYPES = ['stepped', 'bell', 'neck', 'spout', 'triangular'];
+
+  function randomColor() {
+    const palettes = [
+      [140, 60, 50],   // brick red
+      [160, 80, 60],   // terracotta
+      [80, 90, 70],    // sage green
+      [60, 65, 80],    // slate blue
+      [120, 70, 55],   // warm brown
+      [90, 80, 90],    // dusty purple
+      [140, 100, 60],  // amber
+      [70, 80, 60],    // olive
+      [100, 60, 60],   // muted rose
+      [130, 110, 80],  // sand
+      [85, 75, 95],    // lavender grey
+      [110, 85, 65],   // caramel
+    ];
+    return palettes[Math.floor(Math.random() * palettes.length)];
+  }
+
+  function createBuilding(x, immediate) {
+    const w = 26 + Math.random() * 30;
+    const h = 70 + Math.random() * 90;
+    const gable = GABLE_TYPES[Math.floor(Math.random() * GABLE_TYPES.length)];
+    const color = randomColor();
+    const windowRows = 2 + Math.floor(Math.random() * 3);
+    const windowCols = 1 + Math.floor(Math.random() * 2);
+    const hasDoor = Math.random() > 0.3;
+    const hasHook = Math.random() > 0.5; // cargo hook at top
+    const windowStyle = Math.random() > 0.5 ? 'tall' : 'square';
+    const trimColor = [
+      Math.min(255, color[0] + 40),
+      Math.min(255, color[1] + 40),
+      Math.min(255, color[2] + 40)
+    ];
+    const warmLight = [
+      [255, 220, 120],
+      [255, 200, 100],
+      [240, 210, 140],
+      [255, 240, 180],
+    ][Math.floor(Math.random() * 4)];
+
+    // Which windows are lit (random pattern)
+    const litWindows = [];
+    for (let r = 0; r < windowRows; r++) {
+      litWindows[r] = [];
+      for (let c = 0; c < windowCols; c++) {
+        litWindows[r][c] = Math.random() > 0.3;
+      }
+    }
+
+    return {
+      x: x - w / 2,
+      w, h,
+      gable,
+      color,
+      trimColor,
+      warmLight,
+      windowRows,
+      windowCols,
+      windowStyle,
+      hasDoor,
+      hasHook,
+      litWindows,
+      // Animation
+      progress: immediate ? 1 : 0, // 0 to 1
+      targetProgress: 1,
+    };
+  }
+
+  function drawGable(ctx, x, y, w, type, color, trimColor) {
+    const gableH = 15 + Math.random() * 5; // cached per call is fine — visual variety
+    ctx.fillStyle = rgb(color);
+    ctx.strokeStyle = rgb(trimColor);
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    switch (type) {
+      case 'stepped': {
+        const steps = 3;
+        const stepW = w / (steps * 2);
+        const stepH = gableH / steps;
+        ctx.moveTo(x, y);
+        for (let i = 0; i < steps; i++) {
+          ctx.lineTo(x + stepW * i, y - stepH * (i + 1));
+          ctx.lineTo(x + stepW * (i + 1), y - stepH * (i + 1));
+        }
+        ctx.lineTo(x + w / 2, y - gableH - 5);
+        for (let i = steps - 1; i >= 0; i--) {
+          ctx.lineTo(x + w - stepW * (i + 1), y - stepH * (i + 1));
+          ctx.lineTo(x + w - stepW * i, y - stepH * (i + 1));
+        }
+        ctx.lineTo(x + w, y);
+        break;
+      }
+      case 'bell': {
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x, y - gableH * 0.7, x + w * 0.2, y - gableH);
+        ctx.lineTo(x + w * 0.35, y - gableH - 8);
+        ctx.lineTo(x + w / 2, y - gableH - 14);
+        ctx.lineTo(x + w * 0.65, y - gableH - 8);
+        ctx.lineTo(x + w * 0.8, y - gableH);
+        ctx.quadraticCurveTo(x + w, y - gableH * 0.7, x + w, y);
+        break;
+      }
+      case 'neck': {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - gableH * 0.5);
+        ctx.lineTo(x + w * 0.25, y - gableH * 0.5);
+        ctx.lineTo(x + w * 0.25, y - gableH);
+        ctx.lineTo(x + w * 0.5, y - gableH - 10);
+        ctx.lineTo(x + w * 0.75, y - gableH);
+        ctx.lineTo(x + w * 0.75, y - gableH * 0.5);
+        ctx.lineTo(x + w, y - gableH * 0.5);
+        ctx.lineTo(x + w, y);
+        break;
+      }
+      case 'spout': {
+        ctx.moveTo(x - 3, y);
+        ctx.lineTo(x - 3, y - 4);
+        ctx.lineTo(x, y - 4);
+        ctx.lineTo(x + w / 2, y - gableH - 8);
+        ctx.lineTo(x + w, y - 4);
+        ctx.lineTo(x + w + 3, y - 4);
+        ctx.lineTo(x + w + 3, y);
+        break;
+      }
+      case 'triangular':
+      default: {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w / 2, y - gableH - 8);
+        ctx.lineTo(x + w, y);
+        break;
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawBuilding(b, t) {
+    const p = b.progress;
+    if (p <= 0) return;
+
+    const baseY = groundY;
+    const visH = b.h * p;
+    const bx = b.x;
+    const by = baseY - visH;
+
+    // Building body
+    const darken = 1 - nightFactor(t) * 0.3;
+    const bodyColor = [b.color[0] * darken, b.color[1] * darken, b.color[2] * darken];
+    ctx.fillStyle = rgb(bodyColor);
+    ctx.fillRect(bx, by, b.w, visH);
+
+    // Trim/outline
+    ctx.strokeStyle = rgba(b.trimColor, 0.4);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, b.w, visH);
+
+    // Gable (only when fully built)
+    if (p > 0.9) {
+      drawGable(ctx, bx, by, b.w, b.gable, bodyColor, b.trimColor);
+    }
+
+    // Windows
+    if (p > 0.3) {
+      const wGlow = windowGlow(t);
+      const winW = b.windowStyle === 'tall' ? 7 : 9;
+      const winH = b.windowStyle === 'tall' ? 14 : 9;
+      const padX = (b.w - b.windowCols * winW) / (b.windowCols + 1);
+      const padY = (visH * 0.75) / (b.windowRows + 1);
+      const startY = by + visH * 0.08;
+
+      for (let r = 0; r < b.windowRows; r++) {
+        const wy = startY + padY * (r + 1) + winH * r;
+        if (wy < by + 5) continue;
+        for (let c = 0; c < b.windowCols; c++) {
+          const wx = bx + padX * (c + 1) + winW * c;
+          const lit = b.litWindows[r][c];
+
+          if (lit && wGlow > 0.1) {
+            // Warm window glow
+            ctx.fillStyle = rgba(b.warmLight, wGlow * 0.9);
+            ctx.fillRect(wx - 1, wy - 1, winW + 2, winH + 2);
+            // Glow halo
+            if (wGlow > 0.5) {
+              const grad = ctx.createRadialGradient(wx + winW/2, wy + winH/2, 2, wx + winW/2, wy + winH/2, 18);
+              grad.addColorStop(0, rgba(b.warmLight, wGlow * 0.25));
+              grad.addColorStop(1, 'transparent');
+              ctx.fillStyle = grad;
+              ctx.fillRect(wx - 16, wy - 16, winW + 32, winH + 32);
+            }
+          }
+
+          // Window frame
+          ctx.fillStyle = lit ? rgba(b.warmLight, wGlow * 0.7 + 0.15) : rgba([30, 35, 50], 0.8);
+          ctx.fillRect(wx, wy, winW, winH);
+
+          // Mullion (cross in window)
+          ctx.strokeStyle = rgba(b.trimColor, 0.5);
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(wx + winW / 2, wy);
+          ctx.lineTo(wx + winW / 2, wy + winH);
+          ctx.moveTo(wx, wy + winH / 2);
+          ctx.lineTo(wx + winW, wy + winH / 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Door
+    if (b.hasDoor && p > 0.6) {
+      const doorW = 8;
+      const doorH = 14;
+      const dx = bx + (b.w - doorW) / 2;
+      const dy = baseY - doorH;
+      ctx.fillStyle = rgba([40, 25, 15], 0.9);
+      ctx.fillRect(dx, dy, doorW, doorH);
+      // Door frame
+      ctx.strokeStyle = rgba(b.trimColor, 0.5);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(dx, dy, doorW, doorH);
+      // Semicircle top
+      ctx.beginPath();
+      ctx.arc(dx + doorW / 2, dy, doorW / 2, Math.PI, 0);
+      ctx.fillStyle = rgba([40, 25, 15], 0.9);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Cargo hook
+    if (b.hasHook && p > 0.95) {
+      const hx = bx + b.w / 2;
+      const hy = by - (b.gable ? 5 : 2);
+      ctx.strokeStyle = rgba([60, 60, 60], 0.6);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx, hy - 8);
+      ctx.stroke();
+      // Hook curve
+      ctx.beginPath();
+      ctx.arc(hx + 3, hy - 8, 3, Math.PI, 0.3);
+      ctx.stroke();
+    }
+  }
+
+  function drawReflection(b, t) {
+    const p = b.progress;
+    if (p <= 0.3) return;
+
+    const baseY = canalY;
+    const visH = b.h * p * 0.55; // Reflection
+    const bx = b.x;
+    const by = baseY;
+
+    // Wavy, faded reflection
+    ctx.save();
+    ctx.globalAlpha = 0.2 + nightFactor(t) * 0.15;
+
+    const slices = Math.floor(visH / 2);
+    for (let i = 0; i < slices; i++) {
+      const sy = by + i * 2;
+      const wave = Math.sin(frame * 0.02 + i * 0.3 + bx * 0.01) * (1 + i * 0.15);
+      const fade = 1 - i / slices;
+
+      ctx.globalAlpha = (0.2 + nightFactor(t) * 0.2) * fade;
+
+      // Building body color
+      const darken = 1 - nightFactor(t) * 0.3;
+      ctx.fillStyle = rgb([b.color[0] * darken * 0.7, b.color[1] * darken * 0.7, b.color[2] * darken * 0.7]);
+      ctx.fillRect(bx + wave, sy, b.w, 2);
+
+      // Window glow in reflection
+      const wGlow = windowGlow(t);
+      if (wGlow > 0.3 && i < slices * 0.6) {
+        const winW = 7;
+        const padX = (b.w - b.windowCols * winW) / (b.windowCols + 1);
+        for (let c = 0; c < b.windowCols; c++) {
+          const row = Math.floor(i / (slices / b.windowRows));
+          if (row < b.windowRows && b.litWindows[row] && b.litWindows[row][c]) {
+            const wx = bx + padX * (c + 1) + winW * c + wave;
+            ctx.fillStyle = rgba(b.warmLight, wGlow * 0.3 * fade);
+            ctx.fillRect(wx, sy, winW, 2);
+          }
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function createBoat() {
+    const goRight = Math.random() > 0.5;
+    return {
+      x: goRight ? -40 : W + 40,
+      y: canalY + 8 + Math.random() * (canalH * 0.3),
+      speed: (0.3 + Math.random() * 0.4) * (goRight ? 1 : -1),
+      w: 20 + Math.random() * 15,
+      color: randomColor(),
+      bobPhase: Math.random() * Math.PI * 2,
+    };
+  }
+
+  function drawBoat(boat) {
+    const bob = Math.sin(frame * 0.03 + boat.bobPhase) * 2;
+    const x = boat.x;
+    const y = boat.y + bob;
+    const w = boat.w;
+
+    ctx.fillStyle = rgb(boat.color);
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, y);
+    ctx.lineTo(x - w / 2 + 4, y + 6);
+    ctx.lineTo(x + w / 2 - 4, y + 6);
+    ctx.lineTo(x + w / 2, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cabin
+    ctx.fillStyle = rgba(boat.color, 0.8);
+    ctx.fillRect(x - 4, y - 6, 8, 6);
+
+    // Wake ripples
+    ctx.strokeStyle = rgba([200, 220, 255], 0.15);
+    ctx.lineWidth = 0.8;
+    for (let i = 1; i <= 3; i++) {
+      const rx = x - boat.speed * i * 12;
+      const rw = i * 5;
+      ctx.beginPath();
+      ctx.ellipse(rx, y + 6, rw, 1.5, 0, 0, Math.PI);
+      ctx.stroke();
+    }
+  }
+
+  function drawSky(t) {
+    const colors = getSkyColors(t);
+    const grad = ctx.createLinearGradient(0, 0, 0, skyH);
+    grad.addColorStop(0, rgb(colors.top));
+    grad.addColorStop(1, rgb(colors.bot));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, skyH + 10);
+  }
+
+  function drawStars(t) {
+    const nf = nightFactor(t);
+    if (nf < 0.05) return;
+
+    ctx.save();
+    for (const s of stars) {
+      const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(frame * 0.01 * s.speed + s.twinkle));
+      ctx.globalAlpha = nf * twinkle * 0.9;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawMoon(t) {
+    // Moon visible at night
+    const nf = nightFactor(t);
+    if (nf < 0.1) return;
+
+    const mx = W * 0.8;
+    const my = 50 + (1 - nf) * 60;
+    const mr = 18;
+
+    ctx.save();
+    ctx.globalAlpha = nf * 0.9;
+
+    // Glow
+    const glow = ctx.createRadialGradient(mx, my, mr * 0.8, mx, my, mr * 3);
+    glow.addColorStop(0, 'rgba(255,250,220,0.15)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
+
+    // Moon body
+    ctx.fillStyle = '#faf0d0';
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crescent shadow
+    ctx.fillStyle = rgb(getSkyColors(t).top);
+    ctx.beginPath();
+    ctx.arc(mx + 7, my - 2, mr * 0.85, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawCanal(t) {
+    const nf = nightFactor(t);
+    const skyC = getSkyColors(t);
+    const waterTop = lerpColor(skyC.bot, [10, 15, 30], 0.25 + nf * 0.45);
+    const waterBot = lerpColor([40, 60, 80], [8, 10, 25], nf);
+
+    const grad = ctx.createLinearGradient(0, canalY, 0, canalY + canalH);
+    grad.addColorStop(0, rgb(waterTop));
+    grad.addColorStop(1, rgb(waterBot));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, canalY, W, canalH + H); // Fill to bottom
+
+    // Canal edge / quay
+    ctx.fillStyle = rgba([40, 35, 30], 0.8);
+    ctx.fillRect(0, canalY - 2, W, 4);
+
+    // Subtle water shimmer lines
+    ctx.save();
+    for (let i = 0; i < 15; i++) {
+      const sy = canalY + 10 + i * (canalH / 15);
+      const wave = Math.sin(frame * 0.015 + i * 0.7) * 20;
+      const len = 30 + Math.random() * 60;
+      const sx = (W * 0.2) + Math.sin(frame * 0.008 + i * 1.3) * W * 0.3;
+      ctx.globalAlpha = 0.04 + nf * 0.03;
+      ctx.strokeStyle = rgba([180, 200, 230], 0.3);
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(sx + wave, sy);
+      ctx.lineTo(sx + wave + len, sy + Math.sin(frame * 0.02 + i) * 1);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Moon reflection on water
+    if (nf > 0.2) {
+      const mx = W * 0.8;
+      ctx.save();
+      for (let i = 0; i < 12; i++) {
+        const ry = canalY + 5 + i * 6;
+        const rw = 3 + Math.random() * 8;
+        const wave = Math.sin(frame * 0.025 + i * 0.5) * (3 + i * 0.8);
+        ctx.globalAlpha = nf * 0.12 * (1 - i / 12);
+        ctx.fillStyle = '#faf0d0';
+        ctx.fillRect(mx - rw / 2 + wave, ry, rw, 2);
+      }
+      ctx.restore();
+    }
+  }
+
+  // Trees along the canal
+  function drawTrees(t) {
+    const nf = nightFactor(t);
+    const treeColor = lerpColor([30, 80, 30], [15, 35, 20], nf);
+
+    // Draw a few trees in gaps between buildings
+    const treePositions = [];
+    for (let x = 20; x < W - 20; x += 60 + Math.sin(x * 0.1) * 30) {
+      // Check if this spot has a building
+      let blocked = false;
+      for (const b of buildings) {
+        if (x > b.x - 5 && x < b.x + b.w + 5) { blocked = true; break; }
+      }
+      if (!blocked) treePositions.push(x);
+    }
+
+    for (const tx of treePositions) {
+      const th = 25 + Math.sin(tx * 0.3) * 10;
+      const ty = groundY;
+
+      // Trunk
+      ctx.fillStyle = rgba([50, 35, 20], 0.7);
+      ctx.fillRect(tx - 1.5, ty - th * 0.5, 3, th * 0.5);
+
+      // Canopy (lollipop style — classic Amsterdam linden trees)
+      ctx.fillStyle = rgba(treeColor, 0.8);
+      ctx.beginPath();
+      ctx.arc(tx, ty - th * 0.65, 10 + th * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function addBuildingAt(x) {
+    // Check for overlap
+    for (const b of buildings) {
+      if (Math.abs(x - (b.x + b.w / 2)) < b.w * 0.5) return;
+    }
+    const b = createBuilding(x, false);
+    buildings.push(b);
+    buildings.sort((a, b) => a.x - b.x);
+    updateCount();
+  }
+
+  function autoAddBuilding() {
+    // Find a gap along the skyline
+    const margin = 10;
+    let attempts = 0;
+    while (attempts < 20) {
+      const x = margin + Math.random() * (W - margin * 2);
+      let ok = true;
+      for (const b of buildings) {
+        if (Math.abs(x - (b.x + b.w / 2)) < b.w * 0.55 + 5) { ok = false; break; }
+      }
+      if (ok) {
+        addBuildingAt(x);
+        return;
+      }
+      attempts++;
+    }
+  }
+
+  function updateCount() {
+    countEl.textContent = buildings.length + (buildings.length === 1 ? ' building' : ' buildings');
+  }
+
+  function getTimeLabel(t) {
+    if (t < 0.1) return 'midnight';
+    if (t < 0.22) return 'late night';
+    if (t < 0.3) return 'dawn';
+    if (t < 0.4) return 'morning';
+    if (t < 0.6) return 'midday';
+    if (t < 0.7) return 'afternoon';
+    if (t < 0.8) return 'sunset';
+    if (t < 0.9) return 'dusk';
+    return 'night';
+  }
+
+  // Events
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Only place buildings in the skyline area
+    if (y < groundY + 20 && y > 30) {
+      addBuildingAt(x);
+      if (!tapped) {
+        tapped = true;
+        hint.style.opacity = '0';
+      }
+    }
+  });
+
+  slider.addEventListener('input', () => {
+    timeOfDay = parseInt(slider.value) / 100;
+    timeLabel.textContent = getTimeLabel(timeOfDay);
+  });
+
+  function draw() {
+    frame++;
+    ctx.clearRect(0, 0, W, H);
+
+    const t = timeOfDay;
+
+    // Sky
+    drawSky(t);
+    drawStars(t);
+    drawMoon(t);
+
+    // Trees (behind buildings)
+    drawTrees(t);
+
+    // Buildings
+    for (const b of buildings) {
+      // Animate progress
+      if (b.progress < b.targetProgress) {
+        b.progress = Math.min(b.targetProgress, b.progress + 0.012);
+      }
+      drawBuilding(b, t);
+    }
+
+    // Canal
+    drawCanal(t);
+
+    // Reflections
+    for (const b of buildings) {
+      if (b.progress > 0.3) drawReflection(b, t);
+    }
+
+    // Boats
+    for (const boat of boats) {
+      boat.x += boat.speed;
+      drawBoat(boat);
+    }
+    // Remove off-screen boats, add new ones
+    boats = boats.filter(b => b.x > -60 && b.x < W + 60);
+    if (Math.random() < 0.003 && boats.length < 3) {
+      boats.push(createBoat());
+    }
+
+    // Auto-add buildings
+    autoTimer++;
+    if (autoTimer > 120 && buildings.length < 30) { // Every ~2 seconds
+      autoTimer = 0;
+      autoAddBuilding();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  // Fade hint after 4 seconds
+  setTimeout(() => {
+    if (!tapped) hint.style.opacity = '0';
+  }, 5000);
+
+  // Init
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Start with a few buildings
+  const startCount = Math.max(5, Math.floor(W / 55));
+  for (let i = 0; i < startCount; i++) {
+    const x = (W / (startCount + 1)) * (i + 1) + (Math.random() - 0.5) * 20;
+    const b = createBuilding(x, true);
+    buildings.push(b);
+  }
+  buildings.sort((a, b) => a.x - b.x);
+  updateCount();
+
+  // Start a boat
+  boats.push(createBoat());
+
+  draw();
+})();
+</script>
+</body>
+</html>
