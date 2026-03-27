@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wander</title>
+<style>
+  :root {
+    --bg: #f7f3ee;
+    --surface: #fff;
+    --text: #2a2520;
+    --text-dim: #8a7e72;
+    --accent: #c4652a;
+    --accent2: #2a6a5a;
+    --border: rgba(42,37,32,0.1);
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 420px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    padding: 48px 20px 32px;
+  }
+  .header h1 {
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .header .subtitle {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ── Screens ── */
+  .screen {
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+  .screen.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Mood Selector ── */
+  .mood-section {
+    margin-bottom: 28px;
+  }
+  .mood-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-left: 2px;
+  }
+  .mood-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mood-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    font-family: Georgia, serif;
+    font-size: 15px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .mood-btn .emoji {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .mood-btn:hover {
+    border-color: var(--accent);
+  }
+  .mood-btn.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(196,101,42,0.25);
+  }
+
+  /* ── Wander Button ── */
+  .wander-btn {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    margin: 36px 0 48px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--radius);
+    font-family: Georgia, serif;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 56px;
+  }
+  .wander-btn:hover {
+    background: var(--accent);
+  }
+  .wander-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* ── Result Screen ── */
+  .result-header {
+    text-align: center;
+    padding: 48px 20px 24px;
+  }
+  .result-neighborhood {
+    font-size: 11px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .result-name {
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .result-vibe {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* Palette */
+  .palette {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: 24px 0;
+  }
+  .palette-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .palette-dot:hover { transform: scale(1.2); }
+
+  /* Detail cards */
+  .detail-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .detail-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .detail-text {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+
+  .local-quote {
+    font-style: italic;
+    position: relative;
+    padding-left: 16px;
+    border-left: 2px solid var(--accent);
+  }
+  .local-attr {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: normal;
+    margin-top: 8px;
+  }
+
+  /* Bottom buttons */
+  .result-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 32px 0 48px;
+  }
+  .action-btn {
+    padding: 16px;
+    border-radius: var(--radius);
+    font-family: Georgia, serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 52px;
+    text-align: center;
+  }
+  .btn-again {
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+  }
+  .btn-again:hover { background: var(--accent); }
+  .btn-back {
+    background: transparent;
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-back:hover { border-color: var(--text); }
+
+  /* History dots */
+  .history {
+    text-align: center;
+    padding-bottom: 48px;
+  }
+  .history-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  .history-dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .history-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    opacity: 0.7;
+    transition: transform 0.2s;
+  }
+  .history-dot:hover { transform: scale(1.5); opacity: 1; }
+
+  /* Theme transitions */
+  body { transition: background-color 0.6s ease, color 0.6s ease; }
+
+  body.theme-dawn { --bg: #fdf5ec; --accent: #d4804a; --accent2: #7a9e4f; }
+  body.theme-afternoon { --bg: #f7f3ee; --accent: #c4652a; --accent2: #2a6a5a; }
+  body.theme-golden { --bg: #f9f0e0; --accent: #b8860b; --accent2: #8b4513; }
+  body.theme-after-dark { --bg: #1a1820; --surface: #252230; --text: #d8d0c8; --text-dim: #6a6272; --accent: #d4a574; --accent2: #6a8a9a; --border: rgba(200,190,180,0.1); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Wander</h1>
+  <div class="subtitle">a neighborhood mood explorer</div>
+</div>
+
+<!-- ── MOOD SCREEN ── -->
+<div class="screen active" id="mood-screen">
+  <div class="container">
+
+    <div class="mood-section">
+      <div class="mood-label">Your energy</div>
+      <div class="mood-options" data-group="energy">
+        <button class="mood-btn" data-val="quiet"><span class="emoji">🌿</span> Quiet</button>
+        <button class="mood-btn" data-val="curious"><span class="emoji">🔍</span> Curious</button>
+        <button class="mood-btn" data-val="restless"><span class="emoji">⚡</span> Restless</button>
+        <button class="mood-btn" data-val="dreamy"><span class="emoji">☁️</span> Dreamy</button>
+      </div>
+    </div>
+
+    <div class="mood-section">
+      <div class="mood-label">You're craving</div>
+      <div class="mood-options" data-group="craving">
+        <button class="mood-btn" data-val="coffee"><span class="emoji">☕</span> Coffee</button>
+        <button class="mood-btn" data-val="art"><span class="emoji">🎨</span> Art</button>
+        <button class="mood-btn" data-val="green"><span class="emoji">🌳</span> Green space</button>
+        <button class="mood-btn" data-val="food"><span class="emoji">🍜</span> Street food</button>
+      </div>
+    </div>
+
+    <div class="mood-section">
+      <div class="mood-label">The light</div>
+      <div class="mood-options" data-group="light">
+        <button class="mood-btn" data-val="dawn"><span class="emoji">🌅</span> Dawn</button>
+        <button class="mood-btn" data-val="afternoon"><span class="emoji">☀️</span> Afternoon</button>
+        <button class="mood-btn" data-val="golden"><span class="emoji">🌇</span> Golden hour</button>
+        <button class="mood-btn" data-val="dark"><span class="emoji">🌙</span> After dark</button>
+      </div>
+    </div>
+
+    <div class="mood-section">
+      <div class="mood-label">Your compass</div>
+      <div class="mood-options" data-group="compass">
+        <button class="mood-btn" data-val="nostalgic"><span class="emoji">📷</span> Nostalgic</button>
+        <button class="mood-btn" data-val="bold"><span class="emoji">🔥</span> Bold</button>
+        <button class="mood-btn" data-val="tender"><span class="emoji">🕊️</span> Tender</button>
+        <button class="mood-btn" data-val="wild"><span class="emoji">🌀</span> Wild</button>
+      </div>
+    </div>
+
+    <button class="wander-btn" id="wander-btn" disabled>Wander</button>
+  </div>
+</div>
+
+<!-- ── RESULT SCREEN ── -->
+<div class="screen" id="result-screen">
+  <div class="result-header">
+    <div class="result-neighborhood">You've wandered into</div>
+    <div class="result-name" id="r-name"></div>
+    <div class="result-vibe" id="r-vibe"></div>
+    <div class="palette" id="r-palette"></div>
+  </div>
+  <div class="container">
+    <div class="detail-card">
+      <div class="detail-label">The streets</div>
+      <div class="detail-text" id="r-streets"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-label">The sounds</div>
+      <div class="detail-text" id="r-sounds"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-label">Around the corner</div>
+      <div class="detail-text" id="r-corner"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-label">A local says</div>
+      <div class="detail-text local-quote" id="r-quote"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="action-btn btn-again" id="btn-again">Wander again</button>
+      <button class="action-btn btn-back" id="btn-back">Change mood</button>
+    </div>
+
+    <div class="history" id="history-section" style="display:none">
+      <div class="history-label">Places you've been</div>
+      <div class="history-dots" id="history-dots"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+const state = { energy: null, craving: null, light: null, compass: null };
+const history = [];
+
+// ── MOOD SELECTION ──
+document.querySelectorAll('.mood-options').forEach(group => {
+  const groupName = group.dataset.group;
+  group.querySelectorAll('.mood-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      state[groupName] = btn.dataset.val;
+      checkReady();
+    });
+  });
+});
+
+function checkReady() {
+  const ready = state.energy && state.craving && state.light && state.compass;
+  document.getElementById('wander-btn').disabled = !ready;
+}
+
+document.getElementById('wander-btn').addEventListener('click', generate);
+document.getElementById('btn-again').addEventListener('click', generate);
+document.getElementById('btn-back').addEventListener('click', () => {
+  showScreen('mood-screen');
+  applyTheme('afternoon');
+});
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function applyTheme(light) {
+  document.body.className = '';
+  document.body.classList.add('theme-' + (light === 'dark' ? 'after-dark' : light));
+}
+
+// ── GENERATION ENGINE ──
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function pickN(arr, n) {
+  const s = [...arr]; const r = [];
+  for (let i = 0; i < n && s.length; i++) { r.push(s.splice(Math.floor(Math.random() * s.length), 1)[0]); }
+  return r;
+}
+
+const NAME_PARTS = {
+  prefixes: ['Old','Little','Upper','Lower','New','East','West','North','South','St.','Port','Villa','Monte','Bel','Grand'],
+  roots: {
+    quiet: ['Haven','Meadow','Willow','Moss','Fern','Hollow','Brook','Linden','Cedar','Ivy','Stone','Ash'],
+    curious: ['Market','Lantern','Compass','Tinker','Foundry','Archive','Lens','Quarter','Bridge','Ink','Gilt','Loom'],
+    restless: ['Edge','Forge','Wire','Spark','Iron','Bolt','Grit','Flame','Riot','Junction','Cross','Spur'],
+    dreamy: ['Cloud','Mist','Pearl','Silk','Luna','Dusk','Petal','Veil','Haze','Echo','Tide','Reverie']
+  },
+  suffixes: ['Hill','Gate','Row','Lane','Yard','Quay','Walk','Steps','End','Cross','Fields','Heights','Passage','Close','Green','Square']
+};
+
+function genName() {
+  const usePrefix = Math.random() > 0.4;
+  const root = pick(NAME_PARTS.roots[state.energy]);
+  const suffix = pick(NAME_PARTS.suffixes);
+  if (usePrefix) return pick(NAME_PARTS.prefixes) + ' ' + root + suffix;
+  return root + ' ' + suffix;
+}
+
+const VIBES = {
+  quiet:   ['A place that breathes slowly','Where the clock forgot its job','Stillness with a pulse','The kind of quiet that hums'],
+  curious: ['Every door hides a question','A place that rewards the second glance','Nothing is what it seems at first','Built by people who loved details'],
+  restless:['A place that never fully sleeps','Energy that crackles underfoot','Where plans get made on napkins','The air tastes like possibility'],
+  dreamy:  ['Half-remembered, like a song','A place you might have dreamed once','Soft at the edges, vivid at the center','Time moves differently here']
+};
+
+const STREETS = {
+  quiet: {
+    coffee: ['Narrow lanes lined with weathered brick lead to a corner café where the barista knows everyone by their order. Window boxes overflow with herbs. A cat watches from a second-floor sill.','Cobblestones worn smooth by centuries give way to a small square with a single fountain. Two women sit on a bench, sharing a thermos. The café across the way has fogged-up windows and a handwritten menu.'],
+    art: ['A row of converted workshops, doors propped open, easels visible inside. Someone has painted the electrical boxes to look like miniature houses. A yarn bombing wraps the old lamppost at the corner.','Between a violin repair shop and a letterpress studio, a courtyard garden grows wild. Sculptures hide among the lavender. The gallery at the end shows work by people who live upstairs.'],
+    green: ['A footpath follows a slow canal bordered by willows. Ducks navigate between moored houseboats. The towpath is soft underfoot, and the only traffic is bicycles.','The main road becomes a greenway, apartments stepping back to leave room for community gardens. Someone has built a little free library inside an old phone booth.'],
+    food: ['A residential street with one surprising element: a window opens at ground level, and the smell of fresh bread fills the block. A hand-lettered sign says "today: olive rosemary." No other advertising needed.','Side streets hide tiny restaurants with four tables each. The menus are short, seasonal, handwritten on chalkboards. Herbs grow in boxes on every windowsill, feeding directly into the kitchen.']
+  },
+  curious: {
+    coffee: ['The café is in a former clock tower. Gears and springs decorate the walls. Each table has a different vintage timepiece, all set to different hours. The espresso is served in mismatched porcelain.','A coffee shop doubles as a cartography library. Maps cover every surface — nautical charts, subway systems, hand-drawn treasure maps. Regulars study them like scripture.'],
+    art: ['Gallery Row bends at odd angles, each building a different century. A glass-blowing studio shares a wall with a bookbinder. The newest gallery is in an abandoned swimming pool — art hangs where the diving board was.','Every surface tells a story. Tile mosaics on staircases. Shadow puppets in shop windows. A phone booth converted into the world\'s smallest photography exhibition, changed weekly by an anonymous artist.'],
+    green: ['A botanical garden hides behind an unremarkable gate. Inside: labeled specimens from five continents, a greenhouse full of carnivorous plants, and a bench dedicated to "everyone who stopped to look."','The park was designed by an eccentric — paths spiral inward, hedges form optical illusions, and the sundial actually works. Locals give tours, each telling a different version of the story.'],
+    food: ['A covered market where every stall specializes in one thing. The cheese seller has been here thirty years. The spice vendor arranges everything by color. The tea stall lets you blend your own.','Food halls connect via narrow passages, each a different cuisine and decade. The dumpling window has been here since the 1970s. Three doors down, a new chef experiments with flavors from places she misses.']
+  },
+  restless: {
+    coffee: ['The roastery is in a converted garage, the coffee is poured fast, and everyone seems to be working on something — laptops, sketchbooks, hushed phone calls. The energy is caffeinated in every sense.','Three competing coffee shops on the same block, each with a different philosophy. Regulars are loyal to the point of absurdity. The rivalry is friendly. Mostly.'],
+    art: ['Street art changes weekly. Yesterday\'s mural is today\'s palimpsest. Wheatpaste posters advertise shows that already happened. The buildings themselves are the gallery, and the city is the curator.','A warehouse district reinventing itself in real time. Studios share walls with startups. Music bleeds through the brickwork. Someone is always building something in the loading dock.'],
+    green: ['A rooftop garden network connects three buildings via improvised bridges. Tomatoes grow next to solar panels. Someone has rigged a pulley system for hauling compost. The view stretches for miles.','An abandoned rail line, converted: wildflowers push through gravel, community plots alternate with gathering spaces. The old signal box is now a lending library. Nothing here was planned. Everything works.'],
+    food: ['Food trucks cluster at the intersection like a compass rose, each pointing to a different continent. The taco truck and the falafel cart have an unspoken alliance. Late at night, a soup vendor appears.','The night market sprawls from a parking lot. String lights. Mismatched tables. A grill sends smoke signals across three blocks. Every vendor has a story about how they ended up here. None of them planned it.']
+  },
+  dreamy: {
+    coffee: ['The café has no sign, just a door the color of old paper. Inside, dried flowers hang from the ceiling. The espresso comes with a tiny shortbread. No wifi password is posted because no one has ever asked.','A tea house in a former greenhouse. Light filters through frosted glass. Plants grow between the tables. The menu is a poem. The owner plays piano on Thursdays, softly, whether anyone listens or not.'],
+    art: ['A single gallery, always open, always empty of crowds. The current show is light installations that change with the weather. On rainy days, the whole room turns the color of the sea.','Art here isn\'t in galleries — it\'s in the ironwork, the tile patterns, the way someone arranged river stones on a windowsill. The entire neighborhood is a composition, and no one remembers who started it.'],
+    green: ['A garden that feels like a secret, walled on three sides by ivy-covered stone. A single ancient tree at the center. People come here to read, to think, or to do nothing at all. The gate is always open.','The park dissolves into fog most mornings. Paths appear and disappear. A small bridge over a pond holds a tradition: whisper what you hope for and drop a leaf. The pond is deep with leaves.'],
+    food: ['A bakery that only makes one thing each day — whatever the baker dreamed about. Yesterday: cardamom knots. Today: something with honey and thyme. Tomorrow: a mystery. There\'s always a line, and no one minds waiting.','A tiny restaurant with candles on every surface. The chef asks what you\'re in the mood for and makes something. No menu. No prices posted. You pay what feels right. It always feels generous.']
+  }
+};
+
+const SOUNDS = {
+  dawn: ['A bicycle bell in the distance. Pigeons stirring on a ledge. The first shutters opening, metal on stone. Someone sweeping a doorstep with a straw broom.','Water moving somewhere below the street — an old canal, maybe, or a spring. A baker\'s door thuds open. The neighborhood exhales its first breath.','Birds competing for the first word. A dog\'s nails on cobblestone. The whir of an espresso machine warming up behind a window just starting to steam.'],
+  afternoon: ['Conversations spill from open windows. A radio plays something with horns. Children\'s laughter echoes off old walls. Somewhere, someone is hammering — building or fixing, it\'s hard to tell.','The clatter of dishes in a café. A street musician tuning a guitar, taking their time. The hiss of a bus pulling away. A church bell marking an hour no one counts.','Footsteps on warm stone. The snap of laundry in the breeze. A vendor calling out prices. The rustle of someone turning the page of an actual newspaper.'],
+  golden: ['Everything softens. Conversations drop to murmurs. Glass clinks on patios. A saxophone player sets up on the corner, unhurried, like the light itself.','Swallows loop and dive overhead. The last market vendors call closing prices. Laughter from a rooftop. The scrape of chairs being pulled closer to tables.','The splash of someone watering a garden. Bikes clicking past. A record starts in an upstairs apartment — something old, something warm. The streetlights think about turning on.'],
+  dark: ['Footsteps and echoes. The low thrum of a bass line behind a closed door. Someone laughs, far away, and the sound travels cleanly through the cool air.','A jazz trio leaks through a basement window. The hiss of rain on warm stone. A café door opens and closes, each time releasing a brief burst of warmth and conversation.','The city settles into its night register — lower, slower. A tram hums past. Candles flicker in a row of windows. Someone is playing chess by lamplight in a doorway.']
+};
+
+const CORNERS = {
+  nostalgic: ['A secondhand bookshop with a cat in the window and a handwritten sign: "Yes, we have that one you\'re thinking of." Inside, the shelves are organized by mood rather than author.','A photography studio from another era, still developing film. The window display shows black-and-white portraits of neighborhood residents spanning decades. You recognize the street in the backgrounds.','An old cinema, single-screen, red velvet seats worn smooth. Tonight\'s showing: a film from the year you were born. Popcorn is made in a copper kettle. The projectionist waves.','A vintage record shop where the owner plays DJ. The crates are organized by "vibe" — rainy Sunday, first date, 3am drive. A listening booth in the back has a chair shaped like a hand.'],
+    bold: ['A pop-up gallery in a shipping container. Inside: immersive projections that respond to your movement. The artist is sitting outside, sketching passersby, and offers you the drawing when you leave.','A climbing wall built into the side of an old factory, lit from below. At the top: a small platform with a telescope pointed at the moon. Someone has left a notebook of observations.','An underground supper club — tonight\'s theme is "food from places that don\'t exist yet." The host greets you by asking what flavor reminds you of courage.','A print shop where you can set your own type, pull your own poster. The phrase board on the wall says "WHAT WOULD YOU SHOUT IF NO ONE COULD HEAR?" Most answers are surprisingly gentle.'],
+    tender: ['A community repair café. Bring anything broken. Volunteers fix toasters, mend clothes, glue ceramics back together. Tea is free. Someone is repairing a music box and it starts to play.','A small garden with a single bench and a locked metal box. The sign says "Letters to Strangers." You can leave one or take one. The box is always full.','A window display of handmade paper — sheets embedded with flower petals, seeds, threads. A note says: "Plant any page and something will grow." The shop is run by two sisters who finish each other\'s sentences.','A piano sits in a small plaza, open to anyone. Someone is playing — not well, but sincerely. A small crowd has gathered, not to judge, but to listen. When they finish, everyone claps.'],
+    wild: ['A door in a wall, unmarked. Behind it: a courtyard strung with hundreds of paper lanterns, each with a wish written on it. A sign says "add yours." Pens and paper are provided.','A rooftop you weren\'t supposed to find, but the door was open. From here: the whole neighborhood spreads below like a map. Someone has left two chairs and a half-empty bottle of wine.','A narrow staircase between buildings leads down to an underground river. The walls are painted with bioluminescent murals that glow faintly. A small boat is tied to the railing. There are no signs.','A night market that only appears on certain days — no one agrees which ones. You hear it before you see it: drums, frying oil, laughter. Turn the corner and it\'s there, fully alive, as if it\'s been waiting.']
+};
+
+const QUOTES = {
+  quiet: [
+    {q:'This neighborhood doesn\'t try to impress you. It just... lets you stay.',a:'A woman reading on her stoop'},
+    {q:'The best mornings here are the ones where nothing happens at all.',a:'The man who feeds the canal ducks'},
+    {q:'I moved here for a year. That was eleven years ago.',a:'A shopkeeper polishing a window'},
+    {q:'Everyone has a spot. Mine is the bench by the old wall. I don\'t sit anywhere else.',a:'An elderly man with a small dog'}
+  ],
+  curious: [
+    {q:'Every building here has a secret. I\'ve lived here twenty years and I\'m still finding new ones.',a:'A locksmith at her workbench'},
+    {q:'The best thing about this place is that nobody agrees on what\'s best about it.',a:'A tour guide, off duty'},
+    {q:'See that alley? Four restaurants, a jazz club, and a telescope shop. None of them were here five years ago.',a:'A cyclist who stopped to point'},
+    {q:'If you look up — nobody looks up — there\'s a garden on the third floor that connects to the roof next door.',a:'A window washer on a break'}
+  ],
+  restless: [
+    {q:'This block changes every month. You blink and there\'s a new mural, a new menu. I love it. My landlord doesn\'t.',a:'A bartender setting up for the night'},
+    {q:'Half the people here are building something. The other half are trying to figure out what.',a:'A welder outside her studio'},
+    {q:'Don\'t take a photo — it\'ll look different tomorrow.',a:'A graffiti artist, not looking up'},
+    {q:'The best ideas here happen after midnight at the place that doesn\'t have a name yet.',a:'A DJ carrying a crate of records'}
+  ],
+  dreamy: [
+    {q:'Sometimes I walk here just to remember that the world has texture.',a:'A student with paint-stained hands'},
+    {q:'This place doesn\'t need to be real. But it is, and that\'s the beautiful part.',a:'A poet who lives above the bakery'},
+    {q:'The light here at six in the evening — I\'ve been trying to paint it for years. I never get it right. I never stop trying.',a:'An artist in a linen apron'},
+    {q:'I came here lost. I stayed because being lost here feels like being found.',a:'A traveler who never left'}
+  ]
+};
+
+const PALETTES = {
+  quiet: {dawn:['#e8c4a0','#b8d4c0','#f0e0cc','#8ab0a0','#d4a880'],afternoon:['#c4d8c0','#e0d4c0','#a0b8a0','#d8c8b0','#8ca888'],golden:['#d4a860','#c09048','#e8d0a0','#a08840','#f0e0c0'],dark:['#2a3040','#4a5060','#3a4858','#5a6878','#6a7888']},
+  curious: {dawn:['#c0a8d0','#a0c0d8','#d8b8c0','#88a8c0','#e0c8d0'],afternoon:['#d4a040','#2a6a8a','#c07830','#3a7898','#e8c060'],golden:['#d08030','#c06828','#e0a048','#a85820','#f0c070'],dark:['#1a2838','#2a4858','#3a5868','#4a6878','#5a7888']},
+  restless: {dawn:['#d04040','#e06848','#c03838','#e88060','#f0a070'],afternoon:['#d83030','#f06020','#2020a0','#e04818','#c82828'],golden:['#d06010','#e08020','#c04808','#f0a030','#b03808'],dark:['#c02040','#e03050','#a01830','#f04060','#801028']},
+  dreamy: {dawn:['#c0b8d8','#d8c0d0','#a8a0c8','#e0d0e0','#b0a8c0'],afternoon:['#a8b8d0','#c0c8d8','#90a0c0','#d0d8e0','#b0b8c8'],golden:['#d0b870','#c0a860','#e0d090','#b09850','#f0e0b0'],dark:['#1a1830','#2a2040','#3a2850','#4a3060','#5a3870']}
+};
+
+function generate() {
+  const { energy, craving, light, compass } = state;
+  applyTheme(light);
+
+  const name = genName();
+  const vibe = pick(VIBES[energy]);
+  const streets = pick(STREETS[energy][craving]);
+  const sounds = pick(SOUNDS[light]);
+  const corner = pick(CORNERS[compass]);
+  const quote = pick(QUOTES[energy]);
+  const palette = PALETTES[energy][light] || PALETTES[energy].afternoon;
+
+  document.getElementById('r-name').textContent = name;
+  document.getElementById('r-vibe').textContent = vibe;
+  document.getElementById('r-streets').textContent = streets;
+  document.getElementById('r-sounds').textContent = sounds;
+  document.getElementById('r-corner').textContent = corner;
+
+  const quoteEl = document.getElementById('r-quote');
+  quoteEl.innerHTML = '"' + quote.q + '"<div class="local-attr">— ' + quote.a + '</div>';
+
+  const palEl = document.getElementById('r-palette');
+  palEl.innerHTML = palette.map(c => '<div class="palette-dot" style="background:' + c + '"></div>').join('');
+
+  history.push({ name, color: palette[0] });
+  updateHistory();
+
+  showScreen('result-screen');
+}
+
+function updateHistory() {
+  if (history.length < 2) { document.getElementById('history-section').style.display = 'none'; return; }
+  document.getElementById('history-section').style.display = 'block';
+  const dots = document.getElementById('history-dots');
+  dots.innerHTML = history.map(h => '<div class="history-dot" style="background:' + h.color + '" title="' + h.name + '"></div>').join('');
+}
+</script>
+</body>
+</html>
