@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Departures</title>
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --board: #0d0d0d;
+    --flap: #222;
+    --flap-text: #ffe066;
+    --flap-border: #333;
+    --dim: #666;
+    --accent: #ffe066;
+    --green: #44cc66;
+    --red: #ee4444;
+    --orange: #ff8833;
+    --blue: #44aaff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: #ccc;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .station-header {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px 16px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .station-name {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .station-clock {
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: bold;
+    letter-spacing: 0.05em;
+  }
+
+  .board {
+    width: 100%;
+    max-width: 600px;
+    background: var(--board);
+    border-radius: 8px;
+    padding: 12px 10px;
+    margin: 0 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+    border: 1px solid #2a2a2a;
+  }
+
+  .board-title {
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #222;
+  }
+
+  .column-headers {
+    display: grid;
+    grid-template-columns: 58px 1fr 70px 52px;
+    gap: 6px;
+    padding: 0 4px 6px;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 58px 1fr 70px 52px;
+    gap: 6px;
+    padding: 4px;
+    margin-bottom: 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .row:active {
+    background: rgba(255,224,102,0.05);
+  }
+
+  .flap-group {
+    display: flex;
+    gap: 1px;
+    overflow: hidden;
+  }
+
+  .flap {
+    width: 11px;
+    height: 22px;
+    background: var(--flap);
+    border: 1px solid var(--flap-border);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--flap-text);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .flap::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    top: 49%;
+    height: 1px;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .flap.flipping {
+    animation: flapFlip 0.08s ease-in-out;
+  }
+  @keyframes flapFlip {
+    0% { transform: scaleY(1); }
+    50% { transform: scaleY(0.1); }
+    100% { transform: scaleY(1); }
+  }
+
+  .status-cell {
+    display: flex;
+    align-items: center;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 5px;
+    flex-shrink: 0;
+  }
+  .status-text {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  .status-ontime .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-ontime .status-text { color: var(--green); }
+  .status-delayed .status-dot { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .status-delayed .status-text { color: var(--orange); }
+  .status-boarding .status-dot { background: var(--blue); box-shadow: 0 0 6px var(--blue); animation: pulse 1.2s infinite; }
+  .status-boarding .status-text { color: var(--blue); }
+  .status-cancelled .status-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .status-cancelled .status-text { color: var(--red); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .controls {
+    width: 100%;
+    max-width: 600px;
+    padding: 16px 16px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .btn {
+    background: #222;
+    border: 1px solid #444;
+    color: var(--accent);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn:active {
+    background: #333;
+    transform: scale(0.97);
+  }
+  .btn-primary {
+    background: rgba(255,224,102,0.1);
+    border-color: var(--accent);
+  }
+
+  .detail-panel {
+    width: 100%;
+    max-width: 600px;
+    padding: 0 16px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 0;
+    opacity: 0;
+  }
+  .detail-panel.open {
+    max-height: 300px;
+    opacity: 1;
+  }
+  .detail-card {
+    background: var(--board);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+  .detail-title {
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .detail-meta {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .detail-desc {
+    font-size: 14px;
+    color: #999;
+    line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 10px;
+    color: #444;
+    padding: 12px 16px 24px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Audio feedback indicator */
+  .tap-hint {
+    text-align: center;
+    font-size: 10px;
+    color: #444;
+    padding: 4px 16px 0;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<div class="station-header">
+  <div class="station-name">Central Station</div>
+  <div class="station-clock" id="clock">--:--</div>
+</div>
+
+<div class="board" id="board">
+  <div class="board-title">Departures</div>
+  <div class="column-headers">
+    <span>Time</span>
+    <span>Destination</span>
+    <span>Platform</span>
+    <span>Status</span>
+  </div>
+  <div id="rows"></div>
+</div>
+
+<div class="tap-hint">Tap a row for details</div>
+
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-card">
+    <div class="detail-title" id="detailTitle"></div>
+    <div class="detail-meta" id="detailMeta"></div>
+    <div class="detail-desc" id="detailDesc"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn btn-primary" id="shuffleBtn" onclick="shuffleAll()">New Departures</button>
+  <button class="btn" id="addBtn" onclick="addDeparture()">+ Add</button>
+</div>
+
+<div class="footer-note">All destinations are fictional</div>
+
+<script>
+const destinations = [
+  { name: "VELORIA", plat: "7A", desc: "A city of glass bridges over a violet sea. Trains arrive at sunset, when the whole station glows amber.", region: "Cerulean Coast" },
+  { name: "THORNWICK", plat: "2B", desc: "Fog-wrapped harbor town. Fishers mend nets under gas lamps and the lighthouse keeper tells stories to anyone who'll listen.", region: "Northern Reach" },
+  { name: "CRESCENZA", plat: "14", desc: "Built into the cliffs above a turquoise bay. Every street is a staircase. The bread alone is worth the journey.", region: "Amber Isles" },
+  { name: "DUNMERE", plat: "3C", desc: "A small canal city where the buildings lean toward each other like old friends sharing secrets across the water.", region: "Lowland Basin" },
+  { name: "SOLAVANE", plat: "9", desc: "Solar-powered rooftop gardens stretch for miles. The evening market smells of cardamom and fresh rain.", region: "Meridian Plains" },
+  { name: "KESTWICK", plat: "11B", desc: "University town in a valley. Students argue philosophy in the courtyards while starlings murmur overhead.", region: "Fell Country" },
+  { name: "AMARANTE", plat: "5", desc: "Walled city with seven gates, each painted a different color. Every spring they repaint them and the whole town celebrates.", region: "The Heartlands" },
+  { name: "PORT LUMEN", plat: "1A", desc: "Where the river meets the sea. Houseboats, floating bookshops, and a lighthouse converted into the world's tallest bar.", region: "Western Shore" },
+  { name: "CALDERIS", plat: "8", desc: "Hot springs steam through cobbled streets. Locals sit in warm pools arguing about which bakery is best.", region: "Thermal Range" },
+  { name: "WINTRITH", plat: "12", desc: "Snow six months of the year. Famous for its glass cathedral and the silence that follows the last tram at midnight.", region: "Crystalpine" },
+  { name: "RAVENSGATE", plat: "4A", desc: "Medieval walls, modern art galleries. The ravens really do guard the gate — they've been here longer than anyone.", region: "Iron Hills" },
+  { name: "ONDARA", plat: "6", desc: "Tiered city built around a waterfall. The mist makes permanent rainbows and everyone owns at least one umbrella.", region: "Cascade Province" },
+  { name: "BREIGHTON", plat: "3", desc: "Seaside promenade with a vintage carousel that still plays real organ music. The chips are legendary.", region: "Saltmarch" },
+  { name: "STELLARA", plat: "15", desc: "Desert observatory town. So dark at night you can see the Milky Way reflected in the salt flats.", region: "Astral Basin" },
+  { name: "MIROVA", plat: "10A", desc: "Hilltop town with painted shutters and a church bell that rings off-beat. Nobody minds. That's just Mirova.", region: "Sunstone Ridge" },
+  { name: "FENHOLLOW", plat: "2", desc: "Marshland village on stilts. The locals navigate by punt and the pub is only accessible by boat after high tide.", region: "The Wetlands" },
+  { name: "ALDPORT", plat: "7", desc: "Old shipping hub turned artist colony. Warehouses full of studios, a jazz club in every alley, paint on every wall.", region: "Dockside Quarter" },
+  { name: "CINDERVALE", plat: "13B", desc: "Built in the shadow of a dormant volcano. The soil grows the sweetest tomatoes you'll ever taste.", region: "Ember Arc" },
+  { name: "THALWEG", plat: "9A", desc: "River junction town with five bridges, each from a different century. The oldest is Roman. The newest has Wi-Fi.", region: "The Confluence" },
+  { name: "LUXHAM", plat: "4", desc: "Former spa town with faded grandeur and excellent pastry. The thermal baths are free on Tuesdays.", region: "Golden Valley" },
+  { name: "NORTHHAVEN", plat: "1", desc: "End of the line. Arctic light, wooden houses, and a community that throws a two-week festival for the sun's return.", region: "Polar Reach" },
+  { name: "CELADON", plat: "6B", desc: "Pottery town where every roof is glazed green. The clay comes from the river and the tradition goes back centuries.", region: "Jade Lowlands" },
+  { name: "VESPERTINE", plat: "8A", desc: "Known as the Evening City. Everything opens at dusk — theaters, markets, cafes. Mornings are for sleeping.", region: "Twilight Coast" },
+  { name: "BRAMBLECROSS", plat: "11", desc: "Four roads meet at a blackberry hedge. The market is on Saturdays and everyone knows your dog's name before yours.", region: "The Commons" },
+  { name: "IRIDIA", plat: "16", desc: "Island city connected by a single bridge. The water changes color with the seasons — green in spring, gold in autumn.", region: "Prismatic Bay" },
+  { name: "HALVARD", plat: "5A", desc: "Timber-built mountain town. Ski lifts in winter, wildflowers in summer, fondue year-round.", region: "Snowpeak" },
+  { name: "MARELUNE", plat: "2A", desc: "Fishing village where the tide reveals ancient carvings on the sea wall. Full moon nights draw crowds.", region: "Lunar Shore" },
+  { name: "ASHWICK", plat: "10", desc: "Former industrial town reborn as a creative hub. The old smokestacks now support climbing walls and bird nests.", region: "Ironbelt" },
+];
+
+const statuses = [
+  { key: "ontime", label: "On Time", weight: 50 },
+  { key: "boarding", label: "Board", weight: 20 },
+  { key: "delayed", label: "Delay", weight: 20 },
+  { key: "cancelled", label: "Cancld", weight: 10 },
+];
+
+let currentRows = [];
+let selectedRow = -1;
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playFlap() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 800 + Math.random() * 400;
+    osc.type = 'square';
+    gain.gain.value = 0.015;
+    osc.start(ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+    osc.stop(ctx.currentTime + 0.03);
+  } catch(e) {}
+}
+
+function playReveal() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 600;
+    osc.type = 'sine';
+    gain.gain.value = 0.04;
+    osc.start(ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+}
+
+function pickStatus() {
+  const r = Math.random() * 100;
+  let acc = 0;
+  for (const s of statuses) {
+    acc += s.weight;
+    if (r < acc) return s;
+  }
+  return statuses[0];
+}
+
+function generateTime(baseHour) {
+  const h = baseHour + Math.floor(Math.random() * 3);
+  const m = Math.floor(Math.random() * 6) * 10;
+  return `${String(h % 24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function makeFlaps(text, maxLen) {
+  const padded = text.padEnd(maxLen).substring(0, maxLen);
+  return padded.split('').map(ch => {
+    const flap = document.createElement('div');
+    flap.className = 'flap';
+    flap.textContent = ' ';
+    flap.dataset.target = ch;
+    return flap;
+  });
+}
+
+function animateFlaps(container, targetText, maxLen, delay) {
+  const padded = targetText.padEnd(maxLen).substring(0, maxLen);
+  const flaps = container.querySelectorAll('.flap');
+
+  flaps.forEach((flap, i) => {
+    const target = padded[i];
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :-';
+    let steps = 3 + Math.floor(Math.random() * 6);
+    let step = 0;
+
+    const baseDelay = delay + i * 30;
+
+    const flip = () => {
+      if (step < steps) {
+        flap.textContent = chars[Math.floor(Math.random() * chars.length)];
+        flap.classList.add('flipping');
+        playFlap();
+        setTimeout(() => flap.classList.remove('flipping'), 60);
+        step++;
+        setTimeout(flip, 50 + Math.random() * 40);
+      } else {
+        flap.textContent = target;
+        flap.classList.add('flipping');
+        setTimeout(() => flap.classList.remove('flipping'), 60);
+      }
+    };
+
+    setTimeout(flip, baseDelay);
+  });
+}
+
+function createRow(index) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.index = index;
+
+  const timeGroup = document.createElement('div');
+  timeGroup.className = 'flap-group time-flaps';
+  for (let i = 0; i < 5; i++) {
+    const f = document.createElement('div');
+    f.className = 'flap';
+    f.textContent = ' ';
+    timeGroup.appendChild(f);
+  }
+
+  const destGroup = document.createElement('div');
+  destGroup.className = 'flap-group dest-flaps';
+  const destLen = Math.min(16, Math.floor((window.innerWidth - 230) / 12));
+  for (let i = 0; i < Math.max(10, destLen); i++) {
+    const f = document.createElement('div');
+    f.className = 'flap';
+    f.textContent = ' ';
+    destGroup.appendChild(f);
+  }
+
+  const platGroup = document.createElement('div');
+  platGroup.className = 'flap-group plat-flaps';
+  for (let i = 0; i < 3; i++) {
+    const f = document.createElement('div');
+    f.className = 'flap';
+    f.textContent = ' ';
+    platGroup.appendChild(f);
+  }
+
+  const statusCell = document.createElement('div');
+  statusCell.className = 'status-cell';
+  statusCell.innerHTML = '<div class="status-dot"></div><span class="status-text"></span>';
+
+  row.appendChild(timeGroup);
+  row.appendChild(destGroup);
+  row.appendChild(platGroup);
+  row.appendChild(statusCell);
+
+  row.addEventListener('click', () => toggleDetail(index));
+
+  return row;
+}
+
+function toggleDetail(index) {
+  const panel = document.getElementById('detailPanel');
+
+  if (selectedRow === index) {
+    panel.classList.remove('open');
+    selectedRow = -1;
+    return;
+  }
+
+  selectedRow = index;
+  const data = currentRows[index];
+  if (!data) return;
+
+  playReveal();
+
+  document.getElementById('detailTitle').textContent = data.dest.name;
+  document.getElementById('detailMeta').innerHTML =
+    `${data.time} \u00b7 Platform ${data.dest.plat} \u00b7 ${data.dest.region}`;
+  document.getElementById('detailDesc').textContent = data.dest.desc;
+
+  panel.classList.add('open');
+
+  setTimeout(() => {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 100);
+}
+
+function getDestLen() {
+  return Math.max(10, Math.min(16, Math.floor((window.innerWidth - 230) / 12)));
+}
+
+function shuffleAll() {
+  const panel = document.getElementById('detailPanel');
+  panel.classList.remove('open');
+  selectedRow = -1;
+
+  const container = document.getElementById('rows');
+  container.innerHTML = '';
+  currentRows = [];
+
+  const usedIndices = new Set();
+  const now = new Date();
+  let baseHour = now.getHours();
+  const numRows = 8;
+  const destLen = getDestLen();
+
+  for (let i = 0; i < numRows; i++) {
+    let dIdx;
+    do { dIdx = Math.floor(Math.random() * destinations.length); } while (usedIndices.has(dIdx));
+    usedIndices.add(dIdx);
+
+    const dest = destinations[dIdx];
+    const time = generateTime(baseHour);
+    const status = pickStatus();
+    baseHour += Math.floor(Math.random() * 2);
+
+    currentRows.push({ dest, time, status });
+
+    const row = createRow(i);
+    container.appendChild(row);
+
+    const delay = i * 150;
+    animateFlaps(row.querySelector('.time-flaps'), time, 5, delay);
+    animateFlaps(row.querySelector('.dest-flaps'), dest.name, destLen, delay + 80);
+    animateFlaps(row.querySelector('.plat-flaps'), dest.plat.padStart(3), 3, delay + 160);
+
+    setTimeout(() => {
+      const cell = row.querySelector('.status-cell');
+      cell.className = `status-cell status-${status.key}`;
+      cell.querySelector('.status-text').textContent = status.label;
+    }, delay + 300 + destLen * 30);
+  }
+}
+
+function addDeparture() {
+  const container = document.getElementById('rows');
+  const usedNames = new Set(currentRows.map(r => r.dest.name));
+  const available = destinations.filter(d => !usedNames.has(d.name));
+  if (available.length === 0) return;
+
+  const dest = available[Math.floor(Math.random() * available.length)];
+  const now = new Date();
+  const time = generateTime(now.getHours() + Math.floor(currentRows.length / 2));
+  const status = pickStatus();
+  const index = currentRows.length;
+  const destLen = getDestLen();
+
+  currentRows.push({ dest, time, status });
+
+  const row = createRow(index);
+  container.appendChild(row);
+
+  animateFlaps(row.querySelector('.time-flaps'), time, 5, 0);
+  animateFlaps(row.querySelector('.dest-flaps'), dest.name, destLen, 80);
+  animateFlaps(row.querySelector('.plat-flaps'), dest.plat.padStart(3), 3, 160);
+
+  setTimeout(() => {
+    const cell = row.querySelector('.status-cell');
+    cell.className = `status-cell status-${status.key}`;
+    cell.querySelector('.status-text').textContent = status.label;
+  }, 300 + destLen * 30);
+
+  row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Init
+shuffleAll();
+</script>
+</body>
+</html>
