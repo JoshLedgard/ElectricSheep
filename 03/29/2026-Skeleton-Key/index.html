@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Skeleton Key</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #0a0e1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  #ui-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .ui-box {
+    background: rgba(10,14,26,0.85);
+    border: 1px solid rgba(100,160,200,0.3);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #c8e4f0;
+    font-size: 15px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .ui-box .label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #5a8a9a; margin-bottom: 2px; }
+  .key-inventory { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .key-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
+  #intro-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,20,0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 24px;
+  }
+  #intro-screen h1 {
+    font-size: clamp(2rem, 6vw, 3rem);
+    color: #c8e4f0;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  #intro-screen h1 span { color: #f0c040; }
+  #intro-screen .intro-sub {
+    color: #6a9aaa;
+    font-size: 15px;
+    max-width: 340px;
+    line-height: 1.5;
+    margin-bottom: 32px;
+  }
+  #intro-screen .start-btn {
+    background: linear-gradient(135deg, #f0c040, #e09020);
+    color: #1a1000;
+    border: none;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 16px 48px;
+    border-radius: 12px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    min-height: 52px;
+    min-width: 200px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #intro-screen .controls-hint {
+    color: #4a7a8a;
+    font-size: 13px;
+    margin-top: 20px;
+    line-height: 1.6;
+  }
+  #reveal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,20,0.92);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    text-align: center;
+    padding: 24px;
+  }
+  #reveal-overlay .reveal-emoji { font-size: 64px; margin-bottom: 16px; }
+  #reveal-overlay .reveal-title { font-size: 24px; color: #c8e4f0; font-weight: 700; margin-bottom: 8px; }
+  #reveal-overlay .reveal-desc { font-size: 15px; color: #7ab0c0; max-width: 320px; line-height: 1.5; margin-bottom: 24px; }
+  #reveal-overlay .reveal-btn {
+    background: rgba(100,160,200,0.2);
+    border: 1px solid rgba(100,160,200,0.4);
+    color: #c8e4f0;
+    font-size: 16px;
+    padding: 14px 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    min-height: 48px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #win-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,20,0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 24px;
+  }
+  #win-screen h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); color: #f0c040; margin-bottom: 12px; }
+  #win-screen .win-sub { color: #7ab0c0; font-size: 15px; max-width: 340px; line-height: 1.5; margin-bottom: 24px; }
+  #win-screen .start-btn {
+    background: linear-gradient(135deg, #f0c040, #e09020);
+    color: #1a1000;
+    border: none;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 16px 48px;
+    border-radius: 12px;
+    cursor: pointer;
+    min-height: 52px;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game-canvas"></canvas>
+
+<div id="ui-overlay">
+  <div class="ui-box">
+    <div class="label">Houses</div>
+    <div id="house-count">0 / 0</div>
+  </div>
+  <div class="ui-box">
+    <div class="label">Keys</div>
+    <div class="key-inventory" id="key-inventory"></div>
+  </div>
+</div>
+
+<div id="intro-screen">
+  <h1>Skeleton <span>Key</span></h1>
+  <p class="intro-sub">A quiet neighborhood full of locked houses. Wander the streets, find keys, unlock doors, and discover what's hidden inside each one.</p>
+  <button class="start-btn" id="start-btn">Explore</button>
+  <p class="controls-hint">Swipe or drag to move · Tap houses to unlock<br>Arrow keys / WASD on desktop</p>
+</div>
+
+<div id="reveal-overlay">
+  <div class="reveal-emoji" id="reveal-emoji"></div>
+  <div class="reveal-title" id="reveal-title"></div>
+  <div class="reveal-desc" id="reveal-desc"></div>
+  <button class="reveal-btn" id="reveal-close">Continue Exploring</button>
+</div>
+
+<div id="win-screen">
+  <h1>Every Door Opened</h1>
+  <div class="win-sub" id="win-sub">You explored the whole neighborhood and discovered every secret. Well done.</div>
+  <button class="start-btn" id="replay-btn">New Neighborhood</button>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
+  const introScreen = document.getElementById('intro-screen');
+  const revealOverlay = document.getElementById('reveal-overlay');
+  const winScreen = document.getElementById('win-screen');
+
+  // --- Constants ---
+  const TILE = 48;
+  const GRID_W = 16;
+  const GRID_H = 16;
+  const WORLD_W = GRID_W * TILE;
+  const WORLD_H = GRID_H * TILE;
+
+  const KEY_COLORS = [
+    { name: 'Red', hex: '#e04060', light: '#ff6080' },
+    { name: 'Blue', hex: '#4080e0', light: '#60a0ff' },
+    { name: 'Green', hex: '#40c060', light: '#60e080' },
+    { name: 'Gold', hex: '#e0a020', light: '#f0c040' },
+    { name: 'Purple', hex: '#a040d0', light: '#c060f0' },
+    { name: 'Cyan', hex: '#20c0c0', light: '#40e0e0' },
+  ];
+
+  const HOUSE_REVEALS = [
+    { emoji: '🎹', title: 'A Grand Piano', desc: 'Dusty but in tune. A half-finished melody sits on the music stand — someone left mid-song.' },
+    { emoji: '🌿', title: 'An Indoor Jungle', desc: 'Every surface covered in lush plants. A misting system hisses softly. The air smells like rain.' },
+    { emoji: '📚', title: 'The Library', desc: 'Floor-to-ceiling bookshelves with a rolling ladder. A warm reading lamp is still on.' },
+    { emoji: '🔭', title: 'The Observatory', desc: 'A brass telescope points through a skylight. Star charts cover every wall. A comet is circled in red.' },
+    { emoji: '🎨', title: 'The Studio', desc: 'Paint-splattered floors, a half-finished canvas on an easel. The colors are vivid, almost alive.' },
+    { emoji: '🧪', title: 'The Workshop', desc: 'Gears, springs, and tiny mechanisms on every surface. Something on the bench is ticking.' },
+    { emoji: '🗺️', title: 'The Map Room', desc: 'Antique maps pinned everywhere — oceans with sea monsters, lands that don\'t exist. A compass spins by itself.' },
+    { emoji: '🎭', title: 'Costume Closet', desc: 'Racks of elaborate costumes from every era. A mirror in the corner shows a different room behind you.' },
+    { emoji: '🍳', title: 'The Kitchen', desc: 'Copper pots, fresh herbs, a sourdough starter bubbling on the counter. Something smells incredible.' },
+    { emoji: '🐈', title: 'The Cat Room', desc: 'Seven cats of various colors, each on their own cushion. They all turn to look at you simultaneously.' },
+    { emoji: '💎', title: 'Crystal Cave', desc: 'The walls sparkle with amethyst and quartz formations. Light refracts into rainbow patterns everywhere.' },
+    { emoji: '🎪', title: 'The Stage', desc: 'A miniature theater with velvet curtains. Tiny mechanical puppets bow, waiting for an audience.' },
+    { emoji: '🌊', title: 'Tide Pool Room', desc: 'The floor is a shallow pool of crystal-clear water. Anemones wave, tiny fish dart between rocks.' },
+    { emoji: '🎵', title: 'Music Boxes', desc: 'Hundreds of music boxes on shelves. Each plays a different melody when opened. The harmonies overlap beautifully.' },
+    { emoji: '🦋', title: 'The Conservatory', desc: 'A warm glass room full of flowers and butterflies. Monarchs, swallowtails, and species you\'ve never seen.' },
+    { emoji: '⏰', title: 'The Clock Tower', desc: 'Hundreds of clocks, all set to different times. None of them show now. One is counting backwards.' },
+  ];
+
+  // --- State ---
+  let W, H, dpr;
+  let gameStarted = false;
+  let grid = []; // 0=road, 1=wall/grass, 2+=house
+  let houses = [];
+  let keys = [];
+  let player = { x: 0, y: 0, vx: 0, vy: 0, keys: [], unlocked: 0 };
+  let camera = { x: 0, y: 0 };
+  let particles = [];
+  let floatTexts = [];
+  let joystick = { active: false, sx: 0, sy: 0, cx: 0, cy: 0 };
+  let keysDown = {};
+  let revealQueue = null;
+  let time = 0;
+  let totalHouses = 0;
+
+  // --- Resize ---
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- Seeded random ---
+  let seed = Date.now();
+  function rng() {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+
+  // --- Generate neighborhood ---
+  function generate() {
+    seed = Date.now();
+    grid = [];
+    houses = [];
+    keys = [];
+    particles = [];
+    floatTexts = [];
+    player.keys = [];
+    player.unlocked = 0;
+
+    // Fill with grass
+    for (let y = 0; y < GRID_H; y++) {
+      grid[y] = [];
+      for (let x = 0; x < GRID_W; x++) {
+        grid[y][x] = 1;
+      }
+    }
+
+    // Carve roads — main grid pattern
+    const roadRows = [2, 5, 8, 11, 14];
+    const roadCols = [2, 5, 8, 11, 14];
+
+    for (let r of roadRows) {
+      if (r < GRID_H) for (let x = 0; x < GRID_W; x++) grid[r][x] = 0;
+    }
+    for (let c of roadCols) {
+      if (c < GRID_W) for (let y = 0; y < GRID_H; y++) grid[y][c] = 0;
+    }
+
+    // Place houses in blocks between roads
+    const blocks = [];
+    for (let i = 0; i < roadRows.length - 1; i++) {
+      for (let j = 0; j < roadCols.length - 1; j++) {
+        const r1 = roadRows[i], r2 = roadRows[i + 1];
+        const c1 = roadCols[j], c2 = roadCols[j + 1];
+        // Place 1-2 houses in each block
+        const spots = [];
+        for (let y = r1 + 1; y < r2; y++) {
+          for (let x = c1 + 1; x < c2; x++) {
+            spots.push({ x, y });
+          }
+        }
+        if (spots.length > 0) {
+          // Shuffle and pick 1-2
+          for (let s = spots.length - 1; s > 0; s--) {
+            const t = Math.floor(rng() * (s + 1));
+            [spots[s], spots[t]] = [spots[t], spots[s]];
+          }
+          const count = spots.length >= 2 && rng() > 0.4 ? 2 : 1;
+          for (let h = 0; h < count && h < spots.length; h++) {
+            spots[h].used = true;
+            blocks.push(spots[h]);
+          }
+        }
+      }
+    }
+
+    // Assign colors and reveals to houses
+    const numHouses = Math.min(blocks.length, HOUSE_REVEALS.length, KEY_COLORS.length * 2);
+    const usedReveals = [];
+    for (let i = 0; i < HOUSE_REVEALS.length; i++) usedReveals.push(i);
+    for (let i = usedReveals.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [usedReveals[i], usedReveals[j]] = [usedReveals[j], usedReveals[i]];
+    }
+
+    const numColors = Math.min(KEY_COLORS.length, numHouses);
+    for (let i = 0; i < numHouses; i++) {
+      const colorIdx = i % numColors;
+      const spot = blocks[i];
+      grid[spot.y][spot.x] = 2 + i;
+      houses.push({
+        x: spot.x, y: spot.y,
+        colorIdx: colorIdx,
+        revealIdx: usedReveals[i % usedReveals.length],
+        unlocked: false,
+        doorAnim: 0,
+      });
+    }
+    totalHouses = houses.length;
+
+    // Place keys on road tiles
+    const roadTiles = [];
+    for (let y = 0; y < GRID_H; y++) {
+      for (let x = 0; x < GRID_W; x++) {
+        if (grid[y][x] === 0) roadTiles.push({ x, y });
+      }
+    }
+    for (let i = roadTiles.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [roadTiles[i], roadTiles[j]] = [roadTiles[j], roadTiles[i]];
+    }
+
+    // Place one key per house, spread across road tiles
+    let ki = 0;
+    houses.forEach(h => {
+      if (ki < roadTiles.length) {
+        keys.push({
+          x: roadTiles[ki].x, y: roadTiles[ki].y,
+          colorIdx: h.colorIdx,
+          collected: false,
+          bobPhase: rng() * Math.PI * 2,
+        });
+        ki++;
+      }
+    });
+
+    // Player start
+    player.x = roadCols[0] * TILE + TILE / 2;
+    player.y = roadRows[0] * TILE + TILE / 2;
+
+    document.getElementById('house-count').textContent = '0 / ' + totalHouses;
+    updateKeyUI();
+  }
+
+  function updateKeyUI() {
+    const inv = document.getElementById('key-inventory');
+    inv.innerHTML = '';
+    if (player.keys.length === 0) {
+      inv.innerHTML = '<span style="color:#4a6a7a;font-size:13px">None</span>';
+      return;
+    }
+    player.keys.forEach(ci => {
+      const dot = document.createElement('div');
+      dot.className = 'key-dot';
+      dot.style.background = KEY_COLORS[ci].hex;
+      dot.style.borderColor = KEY_COLORS[ci].light;
+      inv.appendChild(dot);
+    });
+  }
+
+  // --- Collision ---
+  function isSolid(px, py) {
+    const gx = Math.floor(px / TILE);
+    const gy = Math.floor(py / TILE);
+    if (gx < 0 || gx >= GRID_W || gy < 0 || gy >= GRID_H) return true;
+    const v = grid[gy][gx];
+    if (v === 1) return true;
+    if (v >= 2) {
+      const h = houses[v - 2];
+      if (h && !h.unlocked) return true;
+    }
+    return false;
+  }
+
+  // --- Particles ---
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = rng() * Math.PI * 2;
+      const speed = 40 + rng() * 80;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.6 + rng() * 0.6,
+        maxLife: 0.6 + rng() * 0.6,
+        color: color,
+        size: 2 + rng() * 3,
+      });
+    }
+  }
+
+  function spawnFloatText(x, y, text, color) {
+    floatTexts.push({ x, y, text, color, life: 1.5, maxLife: 1.5 });
+  }
+
+  // --- Update ---
+  function update(dt) {
+    if (!gameStarted) return;
+    time += dt;
+
+    // Player movement
+    let mx = 0, my = 0;
+    const speed = 160;
+
+    if (keysDown['ArrowLeft'] || keysDown['KeyA']) mx -= 1;
+    if (keysDown['ArrowRight'] || keysDown['KeyD']) mx += 1;
+    if (keysDown['ArrowUp'] || keysDown['KeyW']) my -= 1;
+    if (keysDown['ArrowDown'] || keysDown['KeyS']) my += 1;
+
+    if (joystick.active) {
+      const dx = joystick.cx - joystick.sx;
+      const dy = joystick.cy - joystick.sy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 10) {
+        mx += dx / dist;
+        my += dy / dist;
+      }
+    }
+
+    const len = Math.sqrt(mx * mx + my * my);
+    if (len > 0) {
+      mx /= len;
+      my /= len;
+    }
+
+    const nx = player.x + mx * speed * dt;
+    const ny = player.y + my * speed * dt;
+    const r = 10;
+
+    // X movement
+    if (!isSolid(nx - r, player.y - r) && !isSolid(nx + r, player.y - r) &&
+        !isSolid(nx - r, player.y + r) && !isSolid(nx + r, player.y + r)) {
+      player.x = nx;
+    }
+    // Y movement
+    if (!isSolid(player.x - r, ny - r) && !isSolid(player.x + r, ny - r) &&
+        !isSolid(player.x - r, ny + r) && !isSolid(player.x + r, ny + r)) {
+      player.y = ny;
+    }
+
+    // Collect keys
+    keys.forEach(k => {
+      if (k.collected) return;
+      const dx = player.x - (k.x * TILE + TILE / 2);
+      const dy = player.y - (k.y * TILE + TILE / 2);
+      if (Math.sqrt(dx * dx + dy * dy) < TILE * 0.6) {
+        k.collected = true;
+        player.keys.push(k.colorIdx);
+        updateKeyUI();
+        spawnParticles(k.x * TILE + TILE / 2, k.y * TILE + TILE / 2, KEY_COLORS[k.colorIdx].light, 15);
+        spawnFloatText(k.x * TILE + TILE / 2, k.y * TILE, '+' + KEY_COLORS[k.colorIdx].name + ' Key', KEY_COLORS[k.colorIdx].light);
+      }
+    });
+
+    // Try to unlock adjacent houses
+    houses.forEach(h => {
+      if (h.unlocked) return;
+      const hx = h.x * TILE + TILE / 2;
+      const hy = h.y * TILE + TILE / 2;
+      const dx = player.x - hx;
+      const dy = player.y - hy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < TILE * 1.2) {
+        const ki = player.keys.indexOf(h.colorIdx);
+        if (ki !== -1) {
+          player.keys.splice(ki, 1);
+          h.unlocked = true;
+          h.doorAnim = 1;
+          player.unlocked++;
+          grid[h.y][h.x] = 0; // Make walkable
+          updateKeyUI();
+          document.getElementById('house-count').textContent = player.unlocked + ' / ' + totalHouses;
+          spawnParticles(hx, hy, KEY_COLORS[h.colorIdx].light, 25);
+
+          // Show reveal
+          const reveal = HOUSE_REVEALS[h.revealIdx];
+          revealQueue = reveal;
+          showReveal(reveal);
+        }
+      }
+    });
+
+    // Update particles
+    particles.forEach(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.life -= dt;
+    });
+    particles = particles.filter(p => p.life > 0);
+
+    // Update float texts
+    floatTexts.forEach(f => {
+      f.y -= 30 * dt;
+      f.life -= dt;
+    });
+    floatTexts = floatTexts.filter(f => f.life > 0);
+
+    // Door anims
+    houses.forEach(h => {
+      if (h.doorAnim > 0) h.doorAnim = Math.max(0, h.doorAnim - dt * 2);
+    });
+
+    // Camera
+    camera.x = player.x - W / 2;
+    camera.y = player.y - H / 2;
+    camera.x = Math.max(0, Math.min(WORLD_W - W, camera.x));
+    camera.y = Math.max(0, Math.min(WORLD_H - H, camera.y));
+    // If world smaller than screen, center it
+    if (WORLD_W < W) camera.x = (WORLD_W - W) / 2;
+    if (WORLD_H < H) camera.y = (WORLD_H - H) / 2;
+  }
+
+  function showReveal(reveal) {
+    document.getElementById('reveal-emoji').textContent = reveal.emoji;
+    document.getElementById('reveal-title').textContent = reveal.title;
+    document.getElementById('reveal-desc').textContent = reveal.desc;
+    revealOverlay.style.display = 'flex';
+  }
+
+  document.getElementById('reveal-close').addEventListener('click', function() {
+    revealOverlay.style.display = 'none';
+    revealQueue = null;
+    // Check win
+    if (player.unlocked >= totalHouses) {
+      setTimeout(() => {
+        winScreen.style.display = 'flex';
+      }, 500);
+    }
+  });
+
+  // --- Draw ---
+  function draw() {
+    ctx.fillStyle = '#0a1a10';
+    ctx.fillRect(0, 0, W, H);
+
+    if (!gameStarted || grid.length === 0) return;
+
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+
+    // Draw tiles
+    const sx = Math.max(0, Math.floor(camera.x / TILE));
+    const sy = Math.max(0, Math.floor(camera.y / TILE));
+    const ex = Math.min(GRID_W, Math.ceil((camera.x + W) / TILE) + 1);
+    const ey = Math.min(GRID_H, Math.ceil((camera.y + H) / TILE) + 1);
+
+    for (let gy = sy; gy < ey; gy++) {
+      for (let gx = sx; gx < ex; gx++) {
+        const v = grid[gy][gx];
+        const px = gx * TILE;
+        const py = gy * TILE;
+
+        if (v === 0) {
+          // Road
+          ctx.fillStyle = '#2a3040';
+          ctx.fillRect(px, py, TILE, TILE);
+          // Sidewalk edges
+          ctx.fillStyle = '#343e4e';
+          // Check if adjacent tile is grass/house
+          if (gy > 0 && grid[gy-1] && grid[gy-1][gx] >= 1) ctx.fillRect(px, py, TILE, 2);
+          if (gy < GRID_H-1 && grid[gy+1] && grid[gy+1][gx] >= 1) ctx.fillRect(px, py + TILE - 2, TILE, 2);
+          if (gx > 0 && grid[gy][gx-1] >= 1) ctx.fillRect(px, py, 2, TILE);
+          if (gx < GRID_W-1 && grid[gy][gx+1] >= 1) ctx.fillRect(px + TILE - 2, py, 2, TILE);
+          // Road center dashes
+          ctx.fillStyle = '#3a4a5a';
+          if (gy % 3 === 2 && gx % 3 !== 2) {
+            for (let d = 0; d < TILE; d += 12) {
+              ctx.fillRect(px + d, py + TILE / 2 - 1, 6, 1);
+            }
+          }
+          if (gx % 3 === 2 && gy % 3 !== 2) {
+            for (let d = 0; d < TILE; d += 12) {
+              ctx.fillRect(px + TILE / 2 - 1, py + d, 1, 6);
+            }
+          }
+          // Streetlamp at intersections
+          if (gx % 3 === 2 && gy % 3 === 2) {
+            // Lamp post
+            ctx.fillStyle = '#5a6a7a';
+            ctx.fillRect(px + 6, py + 6, 2, 12);
+            ctx.fillRect(px + 4, py + 4, 6, 3);
+            // Lamp glow
+            ctx.save();
+            ctx.globalAlpha = 0.12 + Math.sin(time * 1.5 + gx + gy) * 0.03;
+            const grad = ctx.createRadialGradient(px + 7, py + 7, 0, px + 7, py + 7, TILE * 0.8);
+            grad.addColorStop(0, '#f0d070');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fillRect(px - TILE/2, py - TILE/2, TILE * 2, TILE * 2);
+            ctx.restore();
+          }
+        } else if (v === 1) {
+          // Grass
+          ctx.fillStyle = '#1a2a18';
+          ctx.fillRect(px, py, TILE, TILE);
+          const hash = (gx * 7919 + gy * 104729) % 100;
+          // Grass blades
+          if (hash < 30) {
+            ctx.fillStyle = '#243a20';
+            ctx.fillRect(px + (hash % 6) * 6 + 4, py + ((hash * 3) % 7) * 5 + 4, 2, 5);
+          }
+          if (hash > 60 && hash < 80) {
+            ctx.fillStyle = '#2a4024';
+            ctx.fillRect(px + (hash % 5) * 7 + 8, py + ((hash * 2) % 5) * 7 + 8, 2, 4);
+          }
+          // Trees on some grass tiles (not adjacent to roads)
+          if (hash > 82 && hash < 95) {
+            // Tree trunk
+            ctx.fillStyle = '#4a3020';
+            ctx.fillRect(px + TILE/2 - 2, py + TILE/2, 4, TILE/2 - 4);
+            // Tree canopy
+            ctx.fillStyle = '#2a5a28';
+            ctx.beginPath();
+            ctx.arc(px + TILE/2, py + TILE/2 - 2, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3a6a38';
+            ctx.beginPath();
+            ctx.arc(px + TILE/2 + 3, py + TILE/2 - 5, 7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // Flowers on a few tiles
+          if (hash > 95) {
+            const fc = ['#e06080', '#f0c040', '#60a0e0'][hash % 3];
+            ctx.fillStyle = fc;
+            ctx.beginPath();
+            ctx.arc(px + 12, py + 20, 3, 0, Math.PI * 2);
+            ctx.arc(px + 30, py + 14, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (v >= 2) {
+          // House tile
+          const h = houses[v - 2];
+          if (h) {
+            // Grass beneath
+            ctx.fillStyle = '#1a2a18';
+            ctx.fillRect(px, py, TILE, TILE);
+            drawHouse(px, py, h);
+          }
+        }
+      }
+    }
+
+    // Draw keys
+    keys.forEach(k => {
+      if (k.collected) return;
+      const kx = k.x * TILE + TILE / 2;
+      const ky = k.y * TILE + TILE / 2 + Math.sin(time * 3 + k.bobPhase) * 4;
+      const c = KEY_COLORS[k.colorIdx];
+
+      // Glow
+      ctx.save();
+      ctx.globalAlpha = 0.3 + Math.sin(time * 4 + k.bobPhase) * 0.1;
+      ctx.beginPath();
+      ctx.arc(kx, ky, 16, 0, Math.PI * 2);
+      ctx.fillStyle = c.hex;
+      ctx.fill();
+      ctx.restore();
+
+      // Key shape
+      ctx.save();
+      ctx.translate(kx, ky);
+      ctx.rotate(Math.sin(time * 2 + k.bobPhase) * 0.2);
+      // Key head (circle)
+      ctx.beginPath();
+      ctx.arc(0, -4, 6, 0, Math.PI * 2);
+      ctx.fillStyle = c.light;
+      ctx.fill();
+      ctx.strokeStyle = c.hex;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Key hole
+      ctx.beginPath();
+      ctx.arc(0, -4, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a1a10';
+      ctx.fill();
+      // Key shaft
+      ctx.fillStyle = c.light;
+      ctx.fillRect(-1.5, 2, 3, 10);
+      // Key teeth
+      ctx.fillRect(1.5, 8, 3, 2);
+      ctx.fillRect(1.5, 5, 2, 2);
+      ctx.restore();
+    });
+
+    // Draw unlocked house contents (simple glow)
+    houses.forEach(h => {
+      if (!h.unlocked) return;
+      const hx = h.x * TILE + TILE / 2;
+      const hy = h.y * TILE + TILE / 2;
+      ctx.save();
+      ctx.globalAlpha = 0.15 + Math.sin(time * 2) * 0.05;
+      ctx.beginPath();
+      ctx.arc(hx, hy, TILE * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = KEY_COLORS[h.colorIdx].light;
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Draw particles
+    particles.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Draw player
+    const bobY = Math.sin(time * 8) * 2;
+    ctx.save();
+    ctx.translate(player.x, player.y + bobY);
+
+    // Player shadow
+    ctx.beginPath();
+    ctx.ellipse(0, 8, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fill();
+
+    // Player body
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0e0b0';
+    ctx.fill();
+    ctx.strokeStyle = '#d0b060';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Eyes
+    ctx.fillStyle = '#2a2010';
+    ctx.beginPath();
+    ctx.arc(-3, -2, 2, 0, Math.PI * 2);
+    ctx.arc(3, -2, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // Draw float texts
+    floatTexts.forEach(f => {
+      ctx.save();
+      ctx.globalAlpha = f.life / f.maxLife;
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.restore();
+    });
+
+    ctx.restore();
+
+    // Draw edge-of-screen compass arrows for matching houses (screen-space)
+    if (player.keys.length > 0) {
+      houses.forEach(h => {
+        if (h.unlocked) return;
+        if (player.keys.indexOf(h.colorIdx) === -1) return;
+        const hx = h.x * TILE + TILE / 2 - camera.x;
+        const hy = h.y * TILE + TILE / 2 - camera.y;
+        // If house is visible on screen, draw arrow above it
+        if (hx > -20 && hx < W + 20 && hy > -20 && hy < H + 20) {
+          ctx.save();
+          const pulse = 0.5 + Math.sin(time * 4) * 0.2;
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = KEY_COLORS[h.colorIdx].light;
+          ctx.beginPath();
+          const ay = hy - TILE * 0.8 + Math.sin(time * 3) * 4;
+          ctx.moveTo(hx, ay);
+          ctx.lineTo(hx - 7, ay - 10);
+          ctx.lineTo(hx + 7, ay - 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        } else {
+          // Off-screen: draw arrow at edge
+          const px = player.x - camera.x;
+          const py = player.y - camera.y;
+          const dx = hx - px;
+          const dy = hy - py;
+          const angle = Math.atan2(dy, dx);
+          const margin = 40;
+          const edgeX = Math.max(margin, Math.min(W - margin, px + Math.cos(angle) * 200));
+          const edgeY = Math.max(margin + 50, Math.min(H - margin, py + Math.sin(angle) * 200));
+          ctx.save();
+          ctx.globalAlpha = 0.6 + Math.sin(time * 3) * 0.2;
+          ctx.translate(edgeX, edgeY);
+          ctx.rotate(angle);
+          ctx.fillStyle = KEY_COLORS[h.colorIdx].light;
+          ctx.beginPath();
+          ctx.moveTo(12, 0);
+          ctx.lineTo(-4, -7);
+          ctx.lineTo(-4, 7);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+    }
+
+    // Draw minimap
+    const mmSize = Math.min(80, W * 0.2);
+    const mmX = W - mmSize - 12;
+    const mmY = H - mmSize - 12;
+    const mmScale = mmSize / WORLD_W;
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = 'rgba(10,14,26,0.85)';
+    ctx.strokeStyle = 'rgba(100,160,200,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(mmX - 4, mmY - 4, mmSize + 8, mmSize + 8, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    for (let gy = 0; gy < GRID_H; gy++) {
+      for (let gx = 0; gx < GRID_W; gx++) {
+        const v = grid[gy][gx];
+        const rx = mmX + gx * TILE * mmScale;
+        const ry = mmY + gy * TILE * mmScale;
+        const rs = TILE * mmScale;
+        if (v === 0) {
+          ctx.fillStyle = '#3a4a5a';
+          ctx.fillRect(rx, ry, rs, rs);
+        } else if (v >= 2) {
+          const h = houses[v - 2];
+          if (h) {
+            ctx.fillStyle = h.unlocked ? '#4a6a4a' : KEY_COLORS[h.colorIdx].hex;
+            ctx.fillRect(rx, ry, rs, rs);
+          }
+        }
+      }
+    }
+
+    // Player dot on minimap
+    ctx.fillStyle = '#f0e0b0';
+    ctx.beginPath();
+    ctx.arc(mmX + player.x * mmScale, mmY + player.y * mmScale, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Uncollected keys on minimap
+    keys.forEach(k => {
+      if (k.collected) return;
+      ctx.fillStyle = KEY_COLORS[k.colorIdx].light;
+      ctx.beginPath();
+      ctx.arc(mmX + (k.x * TILE + TILE / 2) * mmScale, mmY + (k.y * TILE + TILE / 2) * mmScale, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+
+    // Draw joystick
+    if (joystick.active) {
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(joystick.sx, joystick.sy, 50, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      const jdx = joystick.cx - joystick.sx;
+      const jdy = joystick.cy - joystick.sy;
+      const jdist = Math.sqrt(jdx * jdx + jdy * jdy);
+      const maxD = 40;
+      const nx = jdist > maxD ? joystick.sx + (jdx / jdist) * maxD : joystick.cx;
+      const ny = jdist > maxD ? joystick.sy + (jdy / jdist) * maxD : joystick.cy;
+      ctx.arc(nx, ny, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawHouse(px, py, h) {
+    const c = KEY_COLORS[h.colorIdx];
+    const m = 4; // margin
+
+    if (h.unlocked) {
+      // Open house - show interior hint
+      ctx.fillStyle = '#1a1520';
+      ctx.fillRect(px + m, py + m, TILE - m * 2, TILE - m * 2);
+      // Doorway
+      ctx.fillStyle = '#2a2030';
+      ctx.fillRect(px + m, py + m, TILE - m * 2, TILE - m * 2);
+      ctx.strokeStyle = c.hex;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + m, py + m, TILE - m * 2, TILE - m * 2);
+      // Checkmark
+      ctx.fillStyle = c.light;
+      ctx.font = '18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✓', px + TILE / 2, py + TILE / 2);
+      return;
+    }
+
+    // House body
+    const bodyH = TILE - m * 2 - 8;
+    ctx.fillStyle = '#3a3040';
+    ctx.fillRect(px + m, py + m + 8, TILE - m * 2, bodyH);
+
+    // Roof (triangle)
+    ctx.beginPath();
+    ctx.moveTo(px + m - 2, py + m + 10);
+    ctx.lineTo(px + TILE / 2, py + m - 2);
+    ctx.lineTo(px + TILE - m + 2, py + m + 10);
+    ctx.closePath();
+    ctx.fillStyle = c.hex;
+    ctx.fill();
+
+    // Door
+    ctx.fillStyle = '#2a2020';
+    ctx.fillRect(px + TILE / 2 - 4, py + TILE - m - 12, 8, 12);
+
+    // Lock
+    const lockPulse = 0.6 + Math.sin(time * 3) * 0.15;
+    ctx.save();
+    ctx.globalAlpha = lockPulse;
+    ctx.fillStyle = c.light;
+    ctx.beginPath();
+    ctx.arc(px + TILE / 2, py + TILE - m - 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Window
+    ctx.fillStyle = '#1a1520';
+    ctx.fillRect(px + m + 4, py + m + 14, 6, 6);
+    ctx.fillRect(px + TILE - m - 10, py + m + 14, 6, 6);
+
+    // Window glow
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(time * 1.5 + h.x + h.y) * 0.1;
+    ctx.fillStyle = '#f0d070';
+    ctx.fillRect(px + m + 4, py + m + 14, 6, 6);
+    ctx.fillRect(px + TILE - m - 10, py + m + 14, 6, 6);
+    ctx.restore();
+
+    // Outline
+    ctx.strokeStyle = c.hex;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.strokeRect(px + m, py + m + 8, TILE - m * 2, bodyH);
+    ctx.globalAlpha = 1;
+  }
+
+  // --- Input ---
+  window.addEventListener('keydown', e => { keysDown[e.code] = true; });
+  window.addEventListener('keyup', e => { keysDown[e.code] = false; });
+
+  function getTouchPos(e) {
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX, y: t.clientY };
+  }
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!gameStarted) return;
+    if (revealOverlay.style.display === 'flex') return;
+    const p = getTouchPos(e);
+    joystick.active = true;
+    joystick.sx = p.x;
+    joystick.sy = p.y;
+    joystick.cx = p.x;
+    joystick.cy = p.y;
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (joystick.active) {
+      const p = getTouchPos(e);
+      joystick.cx = p.x;
+      joystick.cy = p.y;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    joystick.active = false;
+  }, { passive: false });
+
+  // Mouse fallback for desktop
+  let mouseDown = false;
+  canvas.addEventListener('mousedown', e => {
+    if (!gameStarted) return;
+    mouseDown = true;
+    joystick.active = true;
+    joystick.sx = e.clientX;
+    joystick.sy = e.clientY;
+    joystick.cx = e.clientX;
+    joystick.cy = e.clientY;
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (mouseDown) {
+      joystick.cx = e.clientX;
+      joystick.cy = e.clientY;
+    }
+  });
+  canvas.addEventListener('mouseup', () => {
+    mouseDown = false;
+    joystick.active = false;
+  });
+
+  // --- Start ---
+  document.getElementById('start-btn').addEventListener('click', startGame);
+  document.getElementById('replay-btn').addEventListener('click', () => {
+    winScreen.style.display = 'none';
+    startGame();
+  });
+
+  function startGame() {
+    introScreen.style.display = 'none';
+    gameStarted = true;
+    generate();
+  }
+
+  // --- Loop ---
+  let lastTime = 0;
+  function loop(ts) {
+    const dt = Math.min(0.05, (ts - lastTime) / 1000);
+    lastTime = ts;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
