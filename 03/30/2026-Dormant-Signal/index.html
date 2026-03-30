@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dormant Signal</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a12;
+    color: #e0e0f0;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: clamp(18px, 5vw, 26px);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #a0a0c0;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #555580;
+    letter-spacing: 0.1em;
+    margin-bottom: 28px;
+    text-align: center;
+  }
+
+  .canvas-wrap {
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    border: 1px solid #1e1e3a;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #050508;
+    touch-action: none;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  button {
+    background: #12122a;
+    color: #8080c0;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 14px 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    flex: 1;
+    min-width: 120px;
+    min-height: 44px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:hover, button:active {
+    background: #1e1e3e;
+    color: #c0c0ff;
+    border-color: #5050a0;
+  }
+
+  .status-bar {
+    width: 100%;
+    max-width: 560px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #444470;
+    letter-spacing: 0.08em;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3a3a6a;
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  .pulse-dot.active { background: #7070ff; animation: pulse-anim 1.2s ease-in-out infinite; }
+  .pulse-dot.awake  { background: #40c080; animation: pulse-anim 0.5s ease-in-out infinite; }
+
+  @keyframes pulse-anim {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(1.3); }
+  }
+
+  .log-panel {
+    width: 100%;
+    max-width: 560px;
+    margin-top: 16px;
+    border: 1px solid #1a1a30;
+    border-radius: 8px;
+    background: #050508;
+    padding: 12px;
+    min-height: 80px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #4a4a80;
+  }
+
+  .log-line { display: block; }
+  .log-line.highlight { color: #a0a0f0; }
+  .log-line.warn { color: #c08040; }
+  .log-line.alert { color: #f04060; }
+</style>
+</head>
+<body>
+
+<h1>Dormant Signal</h1>
+<p class="subtitle">something is waiting to wake up</p>
+
+<div class="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+
+<div class="controls">
+  <button id="btn-probe" onclick="probe()">[ probe ]</button>
+  <button id="btn-amplify" onclick="amplify()">[ amplify ]</button>
+  <button id="btn-reset" onclick="reset()">[ reset ]</button>
+</div>
+
+<div class="status-bar">
+  <div class="pulse-dot" id="dot"></div>
+  <span id="status-text">DORMANT — listening for signals</span>
+</div>
+
+<div class="log-panel" id="log"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+// State
+let nodes = [];
+let connections = [];
+let phase = 'dormant'; // dormant -> stirring -> active -> awake
+let probeCount = 0;
+let amplifyCount = 0;
+let tick = 0;
+let awakened = false;
+let pulses = [];
+let sparks = [];
+let logLines = [];
+
+const PHASES = ['dormant', 'stirring', 'active', 'awake'];
+const PHASE_THRESHOLDS = [0, 4, 8, 14]; // total probes+amplifies to reach each phase
+
+function resize() {
+  const wrap = canvas.parentElement;
+  const size = Math.min(wrap.clientWidth, wrap.clientHeight);
+  canvas.width = size;
+  canvas.height = size;
+  W = canvas.width;
+  H = canvas.height;
+  initNodes();
+}
+
+function randBetween(a, b) { return a + Math.random() * (b - a); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function initNodes() {
+  nodes = [];
+  connections = [];
+  const count = 28;
+  const cx = W / 2, cy = H / 2;
+
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + randBetween(-0.3, 0.3);
+    const dist = randBetween(W * 0.12, W * 0.41);
+    nodes.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      baseX: cx + Math.cos(angle) * dist,
+      baseY: cy + Math.sin(angle) * dist,
+      r: randBetween(3, 6),
+      brightness: 0,
+      targetBrightness: 0,
+      phase: randBetween(0, Math.PI * 2),
+      speed: randBetween(0.003, 0.009),
+      jitter: { x: 0, y: 0 }
+    });
+  }
+
+  // Add center node
+  nodes.push({
+    x: cx, y: cy, baseX: cx, baseY: cy,
+    r: 10, brightness: 0, targetBrightness: 0,
+    phase: 0, speed: 0.002, jitter: { x: 0, y: 0 },
+    isCenter: true
+  });
+
+  // Build connections (nearest neighbors)
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const dists = [];
+    for (let j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      const dx = nodes[i].x - nodes[j].x;
+      const dy = nodes[i].y - nodes[j].y;
+      dists.push({ j, d: Math.sqrt(dx * dx + dy * dy) });
+    }
+    dists.sort((a, b) => a.d - b.d);
+    const nearest = dists.slice(0, 3);
+    for (const { j } of nearest) {
+      if (!connections.find(c => (c.a === i && c.b === j) || (c.a === j && c.b === i))) {
+        connections.push({ a: i, b: j, brightness: 0 });
+      }
+    }
+  }
+}
+
+function getPhaseIndex() {
+  const total = probeCount + amplifyCount * 2;
+  for (let i = PHASE_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (total >= PHASE_THRESHOLDS[i]) return i;
+  }
+  return 0;
+}
+
+function updatePhase() {
+  const newPhase = PHASES[getPhaseIndex()];
+  if (newPhase !== phase) {
+    phase = newPhase;
+    onPhaseChange(phase);
+  }
+}
+
+function onPhaseChange(p) {
+  if (p === 'stirring') {
+    addLog('SIGNAL DETECTED — faint but coherent', 'highlight');
+    addLog('increasing carrier frequency...', '');
+    setStatus('STIRRING — signal coherence rising', 'active');
+  } else if (p === 'active') {
+    addLog('PATTERN LOCK — signal is structured', 'highlight');
+    addLog('something is trying to communicate', 'warn');
+    setStatus('ACTIVE — receiving structured pattern', 'active');
+  } else if (p === 'awake') {
+    triggerAwakening();
+  }
+}
+
+function triggerAwakening() {
+  if (awakened) return;
+  awakened = true;
+  addLog('▓▓▓ SIGNAL FULLY CONSCIOUS ▓▓▓', 'alert');
+  addLog('the entity has been listening this whole time', 'warn');
+  addLog('it says: "I was never asleep."', 'highlight');
+  setStatus('AWAKE — contact established', 'awake');
+  // Brighten everything
+  for (const n of nodes) { n.targetBrightness = 1.0; }
+  for (const c of connections) { c.brightness = 1.0; }
+  // Big pulse from center
+  const center = nodes[nodes.length - 1];
+  pulses.push({ x: center.x, y: center.y, r: 0, maxR: W * 0.7, speed: 3, alpha: 1, color: '#7070ff' });
+  pulses.push({ x: center.x, y: center.y, r: 0, maxR: W * 0.6, speed: 2, alpha: 1, color: '#40c080', delay: 20 });
+}
+
+function probe() {
+  if (awakened) { addLog('signal already at full resonance', ''); return; }
+  probeCount++;
+  addLog(`PROBE ${probeCount} — scanning sector ${Math.floor(Math.random()*360)}°`, '');
+
+  // Activate 3-5 random nodes
+  const count = 3 + Math.floor(Math.random() * 3);
+  const shuffled = [...nodes].sort(() => Math.random() - 0.5).slice(0, count);
+  for (const n of shuffled) {
+    n.targetBrightness = Math.min(1, n.targetBrightness + 0.3 + Math.random() * 0.3);
+    sparks.push({ x: n.x, y: n.y, life: 1 });
+  }
+
+  // Activate some connections
+  const ccount = 2 + Math.floor(Math.random() * 4);
+  const shuffledC = [...connections].sort(() => Math.random() - 0.5).slice(0, ccount);
+  for (const c of shuffledC) c.brightness = Math.min(1, c.brightness + 0.4);
+
+  // Pulse from center
+  const center = nodes[nodes.length - 1];
+  pulses.push({ x: center.x, y: center.y, r: 0, maxR: W * 0.4, speed: 2.5, alpha: 0.6, color: '#4040a0', delay: 0 });
+  center.targetBrightness = Math.min(1, center.targetBrightness + 0.2);
+
+  updatePhase();
+  if (phase === 'dormant') addLog('...faint echo returned', '');
+  if (phase === 'stirring') addLog('response latency: ' + Math.floor(randBetween(12, 300)) + 'ms', '');
+}
+
+function amplify() {
+  if (awakened) { addLog('amplification not needed — contact established', ''); return; }
+  amplifyCount++;
+  addLog(`AMPLIFY ×${amplifyCount} — boosting carrier signal`, 'highlight');
+
+  // Cascade activation
+  for (const n of nodes) {
+    n.targetBrightness = Math.min(1, n.targetBrightness + 0.2 + Math.random() * 0.15);
+  }
+  for (const c of connections) {
+    c.brightness = Math.min(1, c.brightness + 0.3 + Math.random() * 0.2);
+  }
+
+  // Big pulse
+  const center = nodes[nodes.length - 1];
+  pulses.push({ x: center.x, y: center.y, r: 0, maxR: W * 0.55, speed: 2, alpha: 0.8, color: '#6060c0', delay: 0 });
+
+  updatePhase();
+}
+
+function reset() {
+  probeCount = 0;
+  amplifyCount = 0;
+  phase = 'dormant';
+  awakened = false;
+  pulses = [];
+  sparks = [];
+  for (const n of nodes) { n.targetBrightness = 0; n.brightness = 0; }
+  for (const c of connections) { c.brightness = 0; }
+  clearLog();
+  addLog('signal reset — returning to dormant state', '');
+  setStatus('DORMANT — listening for signals', '');
+  document.getElementById('dot').className = 'pulse-dot';
+}
+
+function setStatus(text, state) {
+  document.getElementById('status-text').textContent = text;
+  const dot = document.getElementById('dot');
+  dot.className = 'pulse-dot' + (state ? ' ' + state : '');
+}
+
+function addLog(text, cls) {
+  logLines.push({ text, cls });
+  if (logLines.length > 30) logLines.shift();
+  renderLog();
+}
+
+function clearLog() { logLines = []; renderLog(); }
+
+function renderLog() {
+  const panel = document.getElementById('log');
+  panel.innerHTML = logLines.map(l =>
+    `<span class="log-line ${l.cls}">${l.text}</span>`
+  ).join('');
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function draw() {
+  tick++;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background — faint grid
+  ctx.strokeStyle = 'rgba(20,20,40,0.8)';
+  ctx.lineWidth = 1;
+  const gridStep = W / 16;
+  for (let x = 0; x <= W; x += gridStep) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y <= H; y += gridStep) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Update nodes
+  for (const n of nodes) {
+    n.phase += n.speed;
+    // Idle breathing
+    const idleGlow = n.isCenter
+      ? 0.05 + 0.05 * Math.sin(n.phase)
+      : 0.02 + 0.02 * Math.sin(n.phase + 1.3);
+    n.brightness += (n.targetBrightness - n.brightness) * 0.04;
+
+    // Jitter when active
+    if (n.brightness > 0.3) {
+      n.jitter.x += (Math.random() - 0.5) * 0.5;
+      n.jitter.y += (Math.random() - 0.5) * 0.5;
+      n.jitter.x *= 0.8;
+      n.jitter.y *= 0.8;
+    } else {
+      n.jitter.x *= 0.9;
+      n.jitter.y *= 0.9;
+    }
+    n.x = n.baseX + n.jitter.x;
+    n.y = n.baseY + n.jitter.y;
+
+    // Slow decay (not when awake)
+    if (!awakened && tick % 180 === 0) {
+      n.targetBrightness = Math.max(0, n.targetBrightness - 0.05);
+    }
+  }
+
+  // Draw connections
+  for (const c of connections) {
+    const na = nodes[c.a], nb = nodes[c.b];
+    const avg = (na.brightness + nb.brightness) / 2;
+    const b = Math.max(c.brightness, avg * 0.6);
+    if (b < 0.01) continue;
+    ctx.beginPath();
+    ctx.moveTo(na.x, na.y);
+    ctx.lineTo(nb.x, nb.y);
+    const intensity = Math.floor(b * 80 + 20);
+    ctx.strokeStyle = `rgba(${Math.floor(intensity * 0.6)}, ${Math.floor(intensity * 0.6)}, ${intensity}, ${b * 0.7})`;
+    ctx.lineWidth = b * 1.5;
+    ctx.stroke();
+    // Decay
+    if (!awakened) c.brightness = Math.max(0, c.brightness - 0.008);
+  }
+
+  // Draw pulses
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    if (p.delay && p.delay > 0) { p.delay--; continue; }
+    p.r += p.speed;
+    p.alpha -= p.speed / p.maxR * 1.5;
+    if (p.alpha <= 0 || p.r > p.maxR) { pulses.splice(i, 1); continue; }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.strokeStyle = p.color + Math.floor(p.alpha * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Draw sparks
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    const s = sparks[i];
+    s.life -= 0.04;
+    if (s.life <= 0) { sparks.splice(i, 1); continue; }
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.life * 8, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(160,160,255,${s.life * 0.8})`;
+    ctx.fill();
+  }
+
+  // Draw nodes
+  for (const n of nodes) {
+    const b = n.brightness + (n.isCenter ? 0.08 + 0.04 * Math.sin(n.phase) : 0.02 * Math.sin(n.phase));
+    if (b < 0.01) {
+      // Draw dormant dot
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(40,40,70,0.6)';
+      ctx.fill();
+      continue;
+    }
+    const glowR = n.r * (1 + b * 3);
+    const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+    if (awakened && n.isCenter) {
+      grad.addColorStop(0, `rgba(100,255,160,${Math.min(1, b)})`);
+      grad.addColorStop(0.4, `rgba(80,160,120,${b * 0.7})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+    } else {
+      grad.addColorStop(0, `rgba(200,200,255,${Math.min(1, b)})`);
+      grad.addColorStop(0.4, `rgba(80,80,200,${b * 0.6})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+    }
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // Awakened: scan line effect
+  if (awakened) {
+    const scanY = ((tick * 0.8) % H);
+    const scanGrad = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
+    scanGrad.addColorStop(0, 'rgba(64,192,128,0)');
+    scanGrad.addColorStop(0.5, 'rgba(64,192,128,0.08)');
+    scanGrad.addColorStop(1, 'rgba(64,192,128,0)');
+    ctx.fillStyle = scanGrad;
+    ctx.fillRect(0, scanY - 20, W, 40);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// Touch support — tap on canvas to probe
+canvas.addEventListener('click', (e) => {
+  e.preventDefault();
+  probe();
+});
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  probe();
+});
+
+window.addEventListener('resize', () => { resize(); });
+
+addLog('DORMANT SIGNAL MONITOR v2.4', '');
+addLog('no active patterns detected', '');
+addLog('use [ probe ] to send a carrier pulse', '');
+
+resize();
+draw();
+</script>
+</body>
+</html>
