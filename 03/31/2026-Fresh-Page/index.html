@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fresh Page</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Caveat:wght@400;600&display=swap');
+
+  :root {
+    --paper: #f5f0e8;
+    --paper-dark: #e8e0d0;
+    --ink: #2a2420;
+    --ink-light: #6a5e52;
+    --accent: #8b4513;
+    --accent-light: #c4956a;
+    --red: #9e2a2b;
+    --green: #386641;
+    --blue: #3a6ea5;
+    --shadow: rgba(40,30,20,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #2a2420;
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(80,60,40,0.3), transparent 60%),
+      radial-gradient(ellipse at 70% 80%, rgba(60,40,30,0.3), transparent 60%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Crimson Pro', Georgia, serif;
+    color: var(--ink);
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  /* Book container */
+  .book-wrapper {
+    perspective: 1800px;
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  .book {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3/4;
+    transform-style: preserve-3d;
+  }
+
+  /* Page base */
+  .page {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px 12px 12px 4px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    backface-visibility: hidden;
+    overflow: hidden;
+  }
+
+  .page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(transparent, transparent 31px, rgba(120,100,80,0.08) 31px, rgba(120,100,80,0.08) 32px);
+    background-position: 0 52px;
+    pointer-events: none;
+  }
+
+  .page::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 48px;
+    background: linear-gradient(to right, rgba(0,0,0,0.03), transparent);
+    border-right: 1px solid rgba(180,60,60,0.15);
+    pointer-events: none;
+  }
+
+  /* March page (front) */
+  .page-march {
+    background: var(--paper);
+    box-shadow:
+      4px 4px 20px var(--shadow),
+      inset 0 0 60px rgba(200,180,150,0.2);
+    z-index: 3;
+    transform-origin: left center;
+    transition: transform 1.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  .page-march.turned {
+    transform: rotateY(-180deg);
+    pointer-events: none;
+  }
+
+  /* March page back face */
+  .page-march-back {
+    position: absolute;
+    inset: 0;
+    background: var(--paper-dark);
+    border-radius: 12px 4px 4px 12px;
+    backface-visibility: hidden;
+    transform: rotateY(180deg);
+    z-index: 3;
+    box-shadow: inset 0 0 40px rgba(180,160,130,0.3);
+    transform-origin: left center;
+    transition: transform 1.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  .page-march.turned ~ .page-march-back {
+    transform: rotateY(0deg);
+  }
+
+  /* April page (underneath) */
+  .page-april {
+    background: var(--paper);
+    box-shadow:
+      4px 4px 20px var(--shadow),
+      inset 0 0 60px rgba(200,180,150,0.2);
+    z-index: 1;
+  }
+
+  /* Page header */
+  .page-header {
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .page-month {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 2px;
+  }
+
+  .page-day {
+    font-size: clamp(36px, 8vw, 52px);
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  .page-year {
+    font-size: 13px;
+    color: var(--ink-light);
+    font-style: italic;
+  }
+
+  .page-weekday {
+    font-size: 14px;
+    color: var(--accent);
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  .divider {
+    width: 60px;
+    height: 1px;
+    background: var(--accent-light);
+    margin: 12px auto;
+  }
+
+  /* Writing area */
+  .prompt-label {
+    font-size: 13px;
+    color: var(--ink-light);
+    font-style: italic;
+    text-align: center;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .writing-area {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: 'Caveat', cursive;
+    font-size: clamp(18px, 4.5vw, 22px);
+    color: var(--blue);
+    line-height: 32px;
+    resize: none;
+    outline: none;
+    position: relative;
+    z-index: 1;
+    padding: 0 0 0 8px;
+    background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(120,100,80,0.08) 31px, rgba(120,100,80,0.08) 32px);
+  }
+
+  .writing-area::placeholder {
+    color: rgba(100,90,80,0.3);
+    font-style: italic;
+  }
+
+  /* Mini calendar */
+  .mini-cal {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin: 8px auto 12px;
+    max-width: 220px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mini-cal-header {
+    font-size: 9px;
+    text-align: center;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+    padding: 2px 0;
+  }
+
+  .mini-cal-day {
+    font-size: 11px;
+    text-align: center;
+    padding: 3px 0;
+    border-radius: 50%;
+    color: var(--ink-light);
+    line-height: 1;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mini-cal-day.past {
+    color: var(--ink);
+    opacity: 0.5;
+  }
+
+  .mini-cal-day.today {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    opacity: 1;
+  }
+
+  /* Turn button */
+  .turn-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px auto 0;
+    padding: 10px 24px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    z-index: 1;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .turn-btn:hover, .turn-btn:active {
+    background: #6b3010;
+    transform: scale(1.03);
+  }
+
+  .turn-btn .arrow {
+    display: inline-block;
+    transition: transform 0.3s;
+  }
+
+  .turn-btn:hover .arrow, .turn-btn:active .arrow {
+    transform: translateX(3px);
+  }
+
+  .turn-btn.back {
+    background: transparent;
+    color: var(--ink-light);
+    border: 1px solid var(--accent-light);
+    font-size: 13px;
+    padding: 8px 20px;
+  }
+
+  .turn-btn.back:hover, .turn-btn.back:active {
+    background: rgba(139,69,19,0.05);
+    color: var(--accent);
+  }
+
+  /* Page number */
+  .page-num {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-light);
+    margin-top: auto;
+    padding-top: 8px;
+    position: relative;
+    z-index: 1;
+    font-style: italic;
+  }
+
+  /* April special */
+  .april-badge {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 10px;
+    margin-top: 4px;
+  }
+
+  /* Flourish */
+  .flourish {
+    text-align: center;
+    color: var(--accent-light);
+    font-size: 18px;
+    margin: 4px 0;
+    opacity: 0.6;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Title outside book */
+  .book-title {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--paper-dark);
+  }
+
+  .book-title h1 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: clamp(22px, 5vw, 32px);
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: var(--accent-light);
+  }
+
+  .book-title p {
+    font-size: 13px;
+    color: rgba(200,180,150,0.5);
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  /* Seal */
+  .wax-seal {
+    width: 60px;
+    height: 60px;
+    margin: 8px auto;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.6s, transform 0.4s;
+    transform: scale(0.5) rotate(-20deg);
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .wax-seal.visible {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  .wax-seal svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+  }
+
+  /* Sparkles */
+  .sparkle {
+    position: fixed;
+    pointer-events: none;
+    font-size: 16px;
+    z-index: 100;
+    animation: sparkleFloat 1.5s ease-out forwards;
+  }
+
+  @keyframes sparkleFloat {
+    0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.3) rotate(180deg); }
+  }
+
+  /* Page reveal */
+  .page-april .page-header,
+  .page-april .prompt-label,
+  .page-april .writing-area,
+  .page-april .flourish,
+  .page-april .april-badge-wrap,
+  .page-april .page-num,
+  .page-april .turn-btn {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .page-april.revealed .page-header,
+  .page-april.revealed .prompt-label,
+  .page-april.revealed .writing-area,
+  .page-april.revealed .flourish,
+  .page-april.revealed .april-badge-wrap,
+  .page-april.revealed .page-num,
+  .page-april.revealed .turn-btn {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .page-april.revealed .page-header { transition-delay: 0.3s; }
+  .page-april.revealed .prompt-label { transition-delay: 0.5s; }
+  .page-april.revealed .writing-area { transition-delay: 0.6s; }
+  .page-april.revealed .flourish { transition-delay: 0.7s; }
+  .page-april.revealed .april-badge-wrap { transition-delay: 0.8s; }
+  .page-april.revealed .turn-btn { transition-delay: 0.9s; }
+
+  /* Quote footer */
+  .footer-quote {
+    text-align: center;
+    margin-top: 24px;
+    padding: 0 20px;
+    max-width: 440px;
+  }
+
+  .footer-quote p {
+    font-size: 13px;
+    color: rgba(200,180,150,0.4);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  /* Instructions hint */
+  .hint {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: rgba(200,180,150,0.3);
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
+  /* Confetti */
+  .confetti {
+    position: fixed;
+    top: -10px;
+    width: 8px;
+    height: 12px;
+    border-radius: 1px;
+    z-index: 99;
+    pointer-events: none;
+    animation: confettiFall linear forwards;
+  }
+
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* Saved indicator */
+  .saved-indicator {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-size: 10px;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 2;
+    font-style: italic;
+  }
+
+  .saved-indicator.show {
+    opacity: 0.7;
+  }
+
+  /* Shadow under book */
+  .book-shadow {
+    width: 90%;
+    max-width: 400px;
+    height: 20px;
+    background: radial-gradient(ellipse, rgba(0,0,0,0.3), transparent 70%);
+    margin: -8px auto 0;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<div class="book-title">
+  <h1>Fresh Page</h1>
+  <p>the last day of March &middot; the first page of something new</p>
+</div>
+
+<div class="book-wrapper">
+  <div class="book">
+    <!-- April page (underneath) -->
+    <div class="page page-april" id="pageApril">
+      <div class="page-header">
+        <div class="page-month">April</div>
+        <div class="page-day">1</div>
+        <div class="page-year">2026</div>
+        <div class="page-weekday">Wednesday</div>
+        <div class="april-badge-wrap" style="margin-top:6px">
+          <span class="april-badge">New Quarter</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="flourish">✦</div>
+      <p class="prompt-label">What are you beginning?</p>
+      <textarea class="writing-area" id="aprilText" placeholder="Write your first words of April here..."></textarea>
+
+      <div id="sealWrap" class="wax-seal" title="Seal your page" role="button" tabindex="0">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="#9e2a2b" stroke="#7a1e1f" stroke-width="2"/>
+          <circle cx="50" cy="50" r="36" fill="none" stroke="#7a1e1f" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="50" y="56" text-anchor="middle" font-family="serif" font-size="22" font-weight="bold" fill="#e8d0b0">Q2</text>
+        </svg>
+      </div>
+
+      <button class="turn-btn back" id="btnBack" onclick="turnBack()">
+        <span class="arrow" style="transform:scaleX(-1)">→</span> Back to March
+      </button>
+      <div class="page-num">— a fresh start —</div>
+    </div>
+
+    <!-- March back face -->
+    <div class="page-march-back"></div>
+
+    <!-- March page (front, on top) -->
+    <div class="page page-march" id="pageMarch">
+      <div class="page-header">
+        <div class="page-month">March</div>
+        <div class="page-day">31</div>
+        <div class="page-year">2026</div>
+        <div class="page-weekday">Tuesday</div>
+      </div>
+
+      <div class="mini-cal" id="miniCal"></div>
+
+      <div class="divider"></div>
+      <div class="flourish">❧</div>
+      <p class="prompt-label">A closing thought for March...</p>
+      <textarea class="writing-area" id="marchText" placeholder="What will you remember about this month?"></textarea>
+
+      <button class="turn-btn" id="btnTurn" onclick="turnPage()">
+        Turn the page <span class="arrow">→</span>
+      </button>
+      <div class="page-num">— the last page of Q1 —</div>
+      <div class="saved-indicator" id="marchSaved">saved ✓</div>
+    </div>
+  </div>
+</div>
+
+<div class="book-shadow"></div>
+
+<div class="footer-quote">
+  <p>"Every new beginning comes from some other beginning's end."</p>
+</div>
+
+<div class="hint" id="hint">write something, then turn the page</div>
+
+<script>
+  // Build mini calendar for March
+  (function buildCal() {
+    const cal = document.getElementById('miniCal');
+    const days = ['S','M','T','W','T','F','S'];
+    days.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'mini-cal-header';
+      el.textContent = d;
+      cal.appendChild(el);
+    });
+    // March 2026 starts on Sunday (day 0)
+    const startDay = 0; // Sunday
+    for (let i = 0; i < startDay; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'mini-cal-day';
+      cal.appendChild(blank);
+    }
+    for (let d = 1; d <= 31; d++) {
+      const el = document.createElement('div');
+      el.className = 'mini-cal-day';
+      if (d === 31) {
+        el.classList.add('today');
+      } else {
+        el.classList.add('past');
+      }
+      el.textContent = d;
+      cal.appendChild(el);
+    }
+  })();
+
+  // State
+  let isTurned = false;
+  let isSealed = false;
+
+  // Save/load text
+  const marchTA = document.getElementById('marchText');
+  const aprilTA = document.getElementById('aprilText');
+  const marchSaved = document.getElementById('marchSaved');
+
+  function saveText(key, value) {
+    try { localStorage.setItem('freshpage_' + key, value); } catch(e) {}
+  }
+
+  function loadText(key) {
+    try { return localStorage.getItem('freshpage_' + key) || ''; } catch(e) { return ''; }
+  }
+
+  marchTA.value = loadText('march');
+  aprilTA.value = loadText('april');
+
+  let saveTimer = null;
+  function onTextChange(key, el) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveText(key, el.value);
+      if (key === 'march') {
+        marchSaved.classList.add('show');
+        setTimeout(() => marchSaved.classList.remove('show'), 1500);
+      }
+    }, 500);
+  }
+
+  marchTA.addEventListener('input', () => onTextChange('march', marchTA));
+  aprilTA.addEventListener('input', () => onTextChange('april', aprilTA));
+
+  // Turn page
+  function turnPage() {
+    if (isTurned) return;
+    isTurned = true;
+
+    const pageMarch = document.getElementById('pageMarch');
+    pageMarch.classList.add('turned');
+
+    document.getElementById('hint').style.opacity = '0';
+
+    // Reveal April content after animation
+    setTimeout(() => {
+      document.getElementById('pageApril').classList.add('revealed');
+    }, 600);
+
+    // Sparkles
+    setTimeout(() => {
+      for (let i = 0; i < 12; i++) {
+        setTimeout(() => createSparkle(), i * 80);
+      }
+    }, 800);
+
+    // Confetti burst
+    setTimeout(() => {
+      for (let i = 0; i < 30; i++) {
+        setTimeout(() => createConfetti(), i * 50);
+      }
+    }, 1000);
+
+    // Focus April text after animation
+    setTimeout(() => {
+      aprilTA.focus();
+    }, 1400);
+  }
+
+  function turnBack() {
+    if (!isTurned) return;
+    isTurned = false;
+
+    const pageMarch = document.getElementById('pageMarch');
+    pageMarch.classList.remove('turned');
+    document.getElementById('pageApril').classList.remove('revealed');
+
+    setTimeout(() => {
+      marchTA.focus();
+    }, 800);
+  }
+
+  // Seal
+  const sealWrap = document.getElementById('sealWrap');
+
+  // Show seal when user types in April
+  aprilTA.addEventListener('input', () => {
+    if (aprilTA.value.trim().length > 0 && !isSealed) {
+      sealWrap.classList.add('visible');
+    } else if (aprilTA.value.trim().length === 0) {
+      sealWrap.classList.remove('visible');
+    }
+  });
+
+  function sealPage() {
+    if (isSealed) return;
+    isSealed = true;
+
+    // Stamp animation
+    sealWrap.style.transition = 'transform 0.15s ease-in';
+    sealWrap.style.transform = 'scale(1.3)';
+    setTimeout(() => {
+      sealWrap.style.transition = 'transform 0.1s ease-out';
+      sealWrap.style.transform = 'scale(1)';
+    }, 150);
+
+    // Big confetti burst
+    for (let i = 0; i < 50; i++) {
+      setTimeout(() => createConfetti(), i * 30);
+    }
+
+    // More sparkles
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => createSparkle(), i * 60);
+    }
+
+    // Disable editing
+    setTimeout(() => {
+      aprilTA.readOnly = true;
+      aprilTA.style.opacity = '0.8';
+    }, 300);
+  }
+
+  sealWrap.addEventListener('click', sealPage);
+  sealWrap.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sealPage(); }
+  });
+
+  // Sparkle effect
+  function createSparkle() {
+    const sparkle = document.createElement('div');
+    sparkle.className = 'sparkle';
+    sparkle.textContent = ['✦','✧','⋆','·','✶','★'][Math.floor(Math.random() * 6)];
+    sparkle.style.left = (20 + Math.random() * 60) + 'vw';
+    sparkle.style.top = (30 + Math.random() * 40) + 'vh';
+    sparkle.style.color = ['#c4956a','#9e2a2b','#386641','#3a6ea5','#8b4513'][Math.floor(Math.random() * 5)];
+    document.body.appendChild(sparkle);
+    setTimeout(() => sparkle.remove(), 1500);
+  }
+
+  // Confetti
+  function createConfetti() {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    const colors = ['#8b4513','#9e2a2b','#386641','#3a6ea5','#c4956a','#e8d0b0','#d4a060'];
+    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+    el.style.left = (10 + Math.random() * 80) + 'vw';
+    el.style.width = (5 + Math.random() * 6) + 'px';
+    el.style.height = (8 + Math.random() * 8) + 'px';
+    el.style.borderRadius = Math.random() > 0.5 ? '50%' : '1px';
+    el.style.animationDuration = (2 + Math.random() * 2) + 's';
+    el.style.animationDelay = Math.random() * 0.3 + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+
+  // Keyboard shortcut
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' && !isTurned && document.activeElement.tagName !== 'TEXTAREA') {
+      turnPage();
+    }
+    if (e.key === 'ArrowLeft' && isTurned && document.activeElement.tagName !== 'TEXTAREA') {
+      turnBack();
+    }
+  });
+
+  // Swipe support
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  document.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0 && !isTurned && document.activeElement.tagName !== 'TEXTAREA') {
+        turnPage();
+      } else if (dx > 0 && isTurned && document.activeElement.tagName !== 'TEXTAREA') {
+        turnBack();
+      }
+    }
+  }, { passive: true });
+</script>
+
+</body>
+</html>
