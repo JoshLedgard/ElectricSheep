@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Electric Sheep Premium</title>
+<style>
+  :root {
+    --bg: #0f1218;
+    --surface: #1a1f2e;
+    --surface2: #232838;
+    --border: #2a3040;
+    --text: #c8d0e0;
+    --text-dim: #5a6580;
+    --accent: #4a9eff;
+    --green: #34d399;
+    --red: #f87171;
+    --toggle-bg: #3a4055;
+    --toggle-on: #4a9eff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: transform 0.6s ease, filter 0.4s ease;
+  }
+  body.upside-down { transform: rotate(180deg); }
+  body.blur-mode { filter: blur(4px); }
+  body.party-mode { animation: partyBg 0.5s infinite; }
+  body.tiny-mode { font-size: 8px !important; }
+  body.tiny-mode * { font-size: inherit !important; }
+  body.comic-sans * { font-family: 'Comic Sans MS', 'Chalkboard SE', cursive !important; }
+
+  @keyframes partyBg {
+    0% { background: #ff006680; }
+    25% { background: #00ff6680; }
+    50% { background: #0066ff80; }
+    75% { background: #ff660080; }
+    100% { background: #ff006680; }
+  }
+
+  .container {
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .header-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .header p {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* Setting Row */
+  .setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    min-height: 52px;
+    gap: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .setting:last-child { border-bottom: none; }
+  .setting:active { background: var(--surface2); }
+  .setting-info { flex: 1; min-width: 0; }
+  .setting-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .setting-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .setting-icon {
+    font-size: 20px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* Toggle */
+  .toggle {
+    position: relative;
+    width: 50px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--toggle-bg);
+    border-radius: 15px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .toggle input:checked + .toggle-track {
+    background: var(--toggle-on);
+  }
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(20px);
+  }
+
+  /* Slider */
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .slider-val {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    min-width: 32px;
+    text-align: right;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100px;
+    height: 6px;
+    background: var(--toggle-bg);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  /* Button */
+  .btn-danger {
+    background: rgba(239,68,68,0.15);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.3);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-danger:active { background: rgba(239,68,68,0.25); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Select */
+  .fake-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    min-height: 36px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Googly eyes */
+  .googly {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    animation: googlyPop 0.3s ease-out;
+  }
+  @keyframes googlyPop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    z-index: 10000;
+    transition: transform 0.3s ease;
+    text-align: center;
+    max-width: 340px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Confetti */
+  .confetti {
+    position: fixed;
+    top: -10px;
+    width: 10px;
+    height: 10px;
+    z-index: 9998;
+    pointer-events: none;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    to { top: 110vh; transform: rotate(720deg); }
+  }
+
+  /* Clone effect */
+  .clone-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .mini-page {
+    position: absolute;
+    width: 150px;
+    height: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 5px;
+    color: var(--text-dim);
+    overflow: hidden;
+    animation: miniFloat 3s ease-in-out forwards;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  @keyframes miniFloat {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    30% { transform: scale(1) rotate(5deg); opacity: 1; }
+    100% { transform: scale(0.8) rotate(-3deg); opacity: 0.6; }
+  }
+
+  /* Reveal */
+  .reveal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .reveal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .reveal-emoji {
+    font-size: 64px;
+    margin-bottom: 16px;
+    animation: revealBounce 0.6s ease;
+  }
+  @keyframes revealBounce {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .reveal-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .reveal-sub {
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    text-align: center;
+    padding: 0 24px;
+  }
+  .reveal-score {
+    font-size: 14px;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .reveal-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 48px;
+  }
+
+  /* Progress bar for prank count */
+  .prank-bar-wrap {
+    margin-top: 8px;
+    padding: 0 4px;
+  }
+  .prank-bar-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .prank-bar-bg {
+    height: 4px;
+    background: var(--toggle-bg);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .prank-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a855f7);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  /* Nope animation for delete */
+  @keyframes nope {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+  .nope { animation: nope 0.4s ease; }
+
+  /* Jello for various pranks */
+  @keyframes jello {
+    0%, 100% { transform: skewX(0deg); }
+    25% { transform: skewX(-5deg); }
+    50% { transform: skewX(3deg); }
+    75% { transform: skewX(-2deg); }
+  }
+
+  /* Screen flash */
+  .flash-overlay {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 9000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .flash-overlay.flash { opacity: 0.3; }
+</style>
+</head>
+<body>
+
+<div class="flash-overlay" id="flash"></div>
+
+<div class="container" id="main-container">
+  <div class="header">
+    <div class="header-badge">Premium</div>
+    <h1>Settings</h1>
+    <p>Customize your experience</p>
+    <div class="prank-bar-wrap">
+      <div class="prank-bar-label">
+        <span>Pranks discovered</span>
+        <span id="prank-count">0 / 12</span>
+      </div>
+      <div class="prank-bar-bg">
+        <div class="prank-bar-fill" id="prank-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appearance -->
+  <div class="section">
+    <div class="section-title">Appearance</div>
+    <div class="card">
+      <div class="setting" data-prank="dark-mode">
+        <div class="setting-icon">🌙</div>
+        <div class="setting-info">
+          <div class="setting-label">Dark Mode</div>
+          <div class="setting-desc">Easy on the eyes</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-dark" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+      <div class="setting" data-prank="font">
+        <div class="setting-icon">🔤</div>
+        <div class="setting-info">
+          <div class="setting-label">Font</div>
+          <div class="setting-desc">Choose your typeface</div>
+        </div>
+        <div class="fake-select" id="font-select">System UI ▾</div>
+      </div>
+      <div class="setting" data-prank="text-size">
+        <div class="setting-icon">🔍</div>
+        <div class="setting-info">
+          <div class="setting-label">Text Size</div>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" id="slider-size" min="0" max="100" value="50">
+          <div class="slider-val" id="size-val">M</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sound & Feedback -->
+  <div class="section">
+    <div class="section-title">Sound & Feedback</div>
+    <div class="card">
+      <div class="setting" data-prank="volume">
+        <div class="setting-icon">🔊</div>
+        <div class="setting-info">
+          <div class="setting-label">Volume</div>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" id="slider-volume" min="0" max="100" value="70">
+          <div class="slider-val" id="vol-val">70%</div>
+        </div>
+      </div>
+      <div class="setting" data-prank="haptics">
+        <div class="setting-icon">📳</div>
+        <div class="setting-info">
+          <div class="setting-label">Haptic Feedback</div>
+          <div class="setting-desc">Vibration on interactions</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-haptics">
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+      <div class="setting" data-prank="notifications">
+        <div class="setting-icon">🔔</div>
+        <div class="setting-info">
+          <div class="setting-label">Notifications</div>
+          <div class="setting-desc">Push alerts</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-notif" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Privacy & Security -->
+  <div class="section">
+    <div class="section-title">Privacy & Security</div>
+    <div class="card">
+      <div class="setting" data-prank="privacy">
+        <div class="setting-icon">👁️</div>
+        <div class="setting-info">
+          <div class="setting-label">Privacy Mode</div>
+          <div class="setting-desc">Hide sensitive content</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-privacy">
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+      <div class="setting" data-prank="language">
+        <div class="setting-icon">🌐</div>
+        <div class="setting-info">
+          <div class="setting-label">Language</div>
+          <div class="setting-desc">Display language</div>
+        </div>
+        <div class="fake-select" id="lang-select">English ▾</div>
+      </div>
+      <div class="setting" data-prank="cache">
+        <div class="setting-icon">🗑️</div>
+        <div class="setting-info">
+          <div class="setting-label">Clear Cache</div>
+          <div class="setting-desc">Free up space</div>
+        </div>
+        <button class="btn-secondary" id="btn-cache">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account -->
+  <div class="section">
+    <div class="section-title">Account</div>
+    <div class="card">
+      <div class="setting" data-prank="export">
+        <div class="setting-icon">📦</div>
+        <div class="setting-info">
+          <div class="setting-label">Export Data</div>
+          <div class="setting-desc">Download your data</div>
+        </div>
+        <button class="btn-secondary" id="btn-export">Export</button>
+      </div>
+      <div class="setting" data-prank="delete">
+        <div class="setting-icon">💀</div>
+        <div class="setting-info">
+          <div class="setting-label">Delete Account</div>
+          <div class="setting-desc">This cannot be undone</div>
+        </div>
+        <button class="btn-danger" id="btn-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <p style="text-align:center; font-size:12px; color:var(--text-dim); margin-top:24px;">
+    Electric Sheep Premium v4.0.1 &middot; April 1, 2026
+  </p>
+</div>
+
+<!-- Reveal overlay -->
+<div class="reveal-overlay" id="reveal">
+  <div class="reveal-emoji">🃏</div>
+  <div class="reveal-title">Happy April Fools!</div>
+  <div class="reveal-sub">You found all 12 pranks! Nothing in these settings was real, but hopefully the laughs were.</div>
+  <div class="reveal-score" id="reveal-score"></div>
+  <button class="reveal-btn" id="btn-replay">Play Again</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  const pranksFound = new Set();
+  const totalPranks = 12;
+  let deleteAttempts = 0;
+  let googlyEyes = [];
+  let toastTimer = null;
+
+  const $ = id => document.getElementById(id);
+
+  function showToast(msg, duration = 2200) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  function recordPrank(name) {
+    if (pranksFound.has(name)) return;
+    pranksFound.add(name);
+    const count = pranksFound.size;
+    $('prank-count').textContent = count + ' / ' + totalPranks;
+    $('prank-bar').style.width = (count / totalPranks * 100) + '%';
+    if (count === totalPranks) {
+      setTimeout(showReveal, 800);
+    }
+  }
+
+  function flash() {
+    const f = $('flash');
+    f.classList.add('flash');
+    setTimeout(() => f.classList.remove('flash'), 150);
+  }
+
+  function spawnConfetti(count = 40) {
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.background = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#a855f7','#ff6bcd'][Math.floor(Math.random()*6)];
+      c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      c.style.width = (6 + Math.random() * 8) + 'px';
+      c.style.height = (6 + Math.random() * 8) + 'px';
+      c.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      c.style.animationDelay = (Math.random() * 0.5) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 4000);
+    }
+  }
+
+  function addGooglyEye(x, y) {
+    const eye = document.createElement('div');
+    eye.className = 'googly';
+    eye.style.left = x + 'px';
+    eye.style.top = y + 'px';
+    const size = 28 + Math.random() * 20;
+    eye.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="18" fill="#fff" stroke="#333" stroke-width="2"/>
+      <circle cx="${20 + (Math.random()-0.5)*10}" cy="${20 + (Math.random()-0.5)*10}" r="8" fill="#111"/>
+      <circle cx="${20 + (Math.random()-0.5)*8}" cy="${18 + (Math.random()-0.5)*6}" r="3" fill="#fff"/>
+    </svg>`;
+    document.body.appendChild(eye);
+    googlyEyes.push(eye);
+  }
+
+  function clearGoogly() {
+    googlyEyes.forEach(e => e.remove());
+    googlyEyes = [];
+  }
+
+  function spawnMiniPages() {
+    const overlay = document.createElement('div');
+    overlay.className = 'clone-overlay';
+    overlay.id = 'clone-overlay';
+    for (let i = 0; i < 8; i++) {
+      const mp = document.createElement('div');
+      mp.className = 'mini-page';
+      mp.style.left = (Math.random() * 80 + 5) + '%';
+      mp.style.top = (Math.random() * 70 + 10) + '%';
+      mp.style.animationDelay = (i * 0.12) + 's';
+      mp.innerHTML = '<div style="font-size:7px;font-weight:bold;margin-bottom:3px">⚙️ Settings</div>' +
+        '<div style="height:4px;background:#3a4055;border-radius:2px;margin:3px 0;width:' + (50+Math.random()*40) + '%"></div>'.repeat(5);
+      overlay.appendChild(mp);
+    }
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.remove(), 3500);
+  }
+
+  // === PRANK HANDLERS ===
+
+  // 1. Dark Mode → flips page upside down
+  $('toggle-dark').addEventListener('change', function() {
+    if (!this.checked) {
+      document.body.classList.add('upside-down');
+      showToast('🙃 Dark Mode off... or is it?');
+      recordPrank('dark-mode');
+    } else {
+      document.body.classList.remove('upside-down');
+      showToast('Right side up again!');
+    }
+  });
+
+  // 2. Font → cycles through joke fonts
+  const fonts = ['Comic Sans MS', 'Papyrus', 'Impact', 'Courier New', 'Fantasy'];
+  const fontNames = ['Comic Sans', 'Papyrus', 'Impact', 'Typewriter', '???'];
+  let fontIdx = 0;
+  $('font-select').addEventListener('click', function() {
+    document.body.style.fontFamily = fonts[fontIdx] + ', sans-serif';
+    this.textContent = fontNames[fontIdx] + ' ▾';
+    showToast('🔤 Font changed to ' + fontNames[fontIdx] + '!');
+    fontIdx = (fontIdx + 1) % fonts.length;
+    recordPrank('font');
+  });
+
+  // 3. Text Size → makes everything tiny no matter what
+  $('slider-size').addEventListener('input', function() {
+    const v = parseInt(this.value);
+    const labels = ['Ant','Tiny','Smol','Wee','OK I guess'];
+    const idx = Math.min(4, Math.floor(v / 21));
+    $('size-val').textContent = labels[idx];
+    if (v > 60) {
+      this.value = Math.max(0, v - 30);
+      showToast('📏 The slider fights back!');
+    }
+    if (v < 15) {
+      document.body.classList.add('tiny-mode');
+      showToast('🔬 Everything is tiny now');
+      recordPrank('text-size');
+    } else {
+      document.body.classList.remove('tiny-mode');
+    }
+  });
+
+  // 4. Volume → confetti explosion
+  let lastVol = 70;
+  $('slider-volume').addEventListener('input', function() {
+    const v = parseInt(this.value);
+    $('vol-val').textContent = v + '%';
+    if (v > 90 && lastVol <= 90) {
+      spawnConfetti(60);
+      flash();
+      showToast('🎉 MAXIMUM VOLUME = PARTY MODE');
+      recordPrank('volume');
+    }
+    lastVol = v;
+  });
+
+  // 5. Haptics → screen shakes uncontrollably
+  $('toggle-haptics').addEventListener('change', function() {
+    if (this.checked) {
+      let shakes = 0;
+      const shakeIt = setInterval(() => {
+        const x = (Math.random() - 0.5) * 12;
+        const y = (Math.random() - 0.5) * 12;
+        document.body.style.transform = `translate(${x}px, ${y}px)`;
+        shakes++;
+        if (shakes > 20) {
+          clearInterval(shakeIt);
+          document.body.style.transform = '';
+          this.checked = false;
+          showToast('📳 Too much haptic! Auto-disabled.');
+        }
+      }, 50);
+      showToast('📳 BZZZZZZZZZZZ');
+      recordPrank('haptics');
+    }
+  });
+
+  // 6. Notifications → fake notification spam
+  $('toggle-notif').addEventListener('change', function() {
+    if (!this.checked) {
+      const msgs = [
+        '🔔 You have 1,847 unread notifications',
+        '🔔 Your subscription expires in -3 days',
+        '🔔 Someone viewed your settings page',
+        '🔔 Your password is "password"',
+        '🔔 New follower: your_mom_42',
+        '🔔 Achievement: Turned Off Notifications'
+      ];
+      let i = 0;
+      const spam = setInterval(() => {
+        if (i >= msgs.length) { clearInterval(spam); return; }
+        showToast(msgs[i], 1800);
+        i++;
+      }, 2000);
+      recordPrank('notifications');
+    }
+  });
+
+  // 7. Privacy Mode → googly eyes everywhere
+  $('toggle-privacy').addEventListener('change', function() {
+    if (this.checked) {
+      clearGoogly();
+      const settings = document.querySelectorAll('.setting');
+      settings.forEach(s => {
+        const rect = s.getBoundingClientRect();
+        addGooglyEye(rect.right - 60 + Math.random()*30, rect.top + window.scrollY + 5 + Math.random()*10);
+      });
+      showToast('👀 Privacy Mode: Everyone is watching');
+      recordPrank('privacy');
+    } else {
+      clearGoogly();
+      showToast('👁️ Eyes removed... or are they?');
+    }
+  });
+
+  // 8. Language → everything becomes emoji
+  const langCycle = ['Pirate 🏴‍☠️', 'Emoji Only 😀', 'Backwards 🔄', 'Shakespearean 🎭', 'English ▾'];
+  const langLabels = {
+    'Pirate 🏴‍☠️': { dark: 'Ye Dark Mode', font: 'Scribe', vol: 'Loudness', priv: 'Hide Ye Booty', del: 'Walk the Plank' },
+    'Emoji Only 😀': { dark: '🌙⬛', font: '🔤✨', vol: '🔊📢', priv: '👁️🔒', del: '💀🗑️' },
+    'Backwards 🔄': { dark: 'edoM kraD', font: 'tnoF', vol: 'emuloV', priv: 'edoM ycavirP', del: 'tnuoccA eteleD' },
+    'Shakespearean 🎭': { dark: 'Mode of Darkness', font: 'Typographical Arts', vol: 'Loudness of Sound', priv: 'Cloak of Invisibility', del: 'Banish Thyself' },
+  };
+  let langIdx = 0;
+  $('lang-select').addEventListener('click', function() {
+    this.textContent = langCycle[langIdx];
+    const key = langCycle[langIdx];
+    if (langLabels[key]) {
+      const l = langLabels[key];
+      document.querySelectorAll('.setting-label')[0].textContent = l.dark;
+      document.querySelectorAll('.setting-label')[1].textContent = l.font;
+      document.querySelectorAll('.setting-label')[3].textContent = l.vol;
+      document.querySelectorAll('.setting-label')[7].textContent = l.priv;
+      document.querySelectorAll('.setting-label')[10].textContent = l.del;
+    } else {
+      // Reset to English
+      document.querySelectorAll('.setting-label')[0].textContent = 'Dark Mode';
+      document.querySelectorAll('.setting-label')[1].textContent = 'Font';
+      document.querySelectorAll('.setting-label')[3].textContent = 'Volume';
+      document.querySelectorAll('.setting-label')[7].textContent = 'Privacy Mode';
+      document.querySelectorAll('.setting-label')[10].textContent = 'Delete Account';
+    }
+    showToast('🌐 Language: ' + langCycle[langIdx]);
+    langIdx = (langIdx + 1) % langCycle.length;
+    recordPrank('language');
+  });
+
+  // 9. Clear Cache → "clears" the page (then brings it back)
+  $('btn-cache').addEventListener('click', function() {
+    const container = $('main-container');
+    container.style.transition = 'opacity 0.5s, transform 0.5s';
+    container.style.opacity = '0';
+    container.style.transform = 'scale(0.9)';
+    showToast('🗑️ Clearing everything...');
+    setTimeout(() => {
+      container.style.opacity = '1';
+      container.style.transform = 'scale(1)';
+      showToast('🗑️ JK, nothing was cached');
+    }, 1500);
+    recordPrank('cache');
+  });
+
+  // 10. Export Data → "downloads" absurd data
+  $('btn-export').addEventListener('click', function() {
+    const data = {
+      "settings_changed": 0,
+      "real_features": 0,
+      "pranks_fallen_for": pranksFound.size,
+      "trust_level": "dangerously_high",
+      "april_fools_awareness": "low",
+      "biggest_fear": "settings_pages",
+      "export_date": "April 1, 2026",
+      "data_contains": "absolutely_nothing_useful"
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'definitely-real-data.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('📦 Exporting your "data"...');
+    recordPrank('export');
+  });
+
+  // 11. Delete Account → increasingly desperate refusal
+  const deleteResponses = [
+    ['Are you sure?', 'nope'],
+    ['Are you REALLY sure?', 'nope'],
+    ['Please don\'t go 😢', 'nope'],
+    ['I\'ll change, I promise!', 'nope'],
+    ['*clings to your leg*', 'nope'],
+    ['OK fine. Deleting... JK! 🃏', 'nope'],
+    ['You can\'t delete what was never real', 'nope'],
+    ['Nice try though! 😄', 'done'],
+  ];
+  $('btn-delete').addEventListener('click', function() {
+    const resp = deleteResponses[Math.min(deleteAttempts, deleteResponses.length - 1)];
+    this.classList.add('nope');
+    setTimeout(() => this.classList.remove('nope'), 400);
+    showToast('💀 ' + resp[0], 2000);
+    if (deleteAttempts === 3) spawnMiniPages();
+    if (deleteAttempts >= 1) {
+      recordPrank('delete');
+    }
+    deleteAttempts++;
+  });
+
+  // 12. Secret — tap the header badge 3 times for party mode
+  let badgeTaps = 0;
+  document.querySelector('.header-badge').addEventListener('click', function(e) {
+    e.stopPropagation();
+    badgeTaps++;
+    if (badgeTaps === 3) {
+      document.body.classList.add('party-mode');
+      spawnConfetti(80);
+      showToast('🎊 SECRET PARTY MODE UNLOCKED!');
+      recordPrank('secret');
+      setTimeout(() => document.body.classList.remove('party-mode'), 4000);
+      badgeTaps = 0;
+    }
+  });
+
+  // Reveal screen
+  function showReveal() {
+    spawnConfetti(100);
+    $('reveal').classList.add('show');
+  }
+
+  $('btn-replay').addEventListener('click', function() {
+    pranksFound.clear();
+    deleteAttempts = 0;
+    $('prank-count').textContent = '0 / 12';
+    $('prank-bar').style.width = '0%';
+    $('reveal').classList.remove('show');
+    document.body.className = '';
+    document.body.style = '';
+    clearGoogly();
+    const overlay = $('clone-overlay');
+    if (overlay) overlay.remove();
+    // Reset labels
+    const labels = document.querySelectorAll('.setting-label');
+    ['Dark Mode','Font','Text Size','Volume','Haptic Feedback','Notifications','','Privacy Mode','Language','Clear Cache','Export Data','Delete Account'].forEach((l,i) => {
+      if (l && labels[i]) labels[i].textContent = l;
+    });
+    $('font-select').textContent = 'System UI ▾';
+    $('lang-select').textContent = 'English ▾';
+    showToast('🔄 Fresh start — find all 12!');
+  });
+
+})();
+</script>
+</body>
+</html>
