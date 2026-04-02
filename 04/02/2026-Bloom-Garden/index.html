@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom Garden</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a2a1a;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #ui {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #title-area {
+    text-align: left;
+  }
+  #title-area h1 {
+    font-size: 20px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 700;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+    margin-bottom: 2px;
+  }
+  #title-area p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  #controls {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: white;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .btn:active { transform: scale(0.9); background: rgba(0,0,0,0.5); }
+  .btn.active { border-color: rgba(100,200,255,0.6); background: rgba(50,100,150,0.4); }
+  #flower-count {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 15px;
+    color: rgba(255,255,255,0.6);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    z-index: 10;
+    text-align: center;
+  }
+  #flower-count strong { color: rgba(255,255,255,0.9); font-size: 18px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="title-area">
+    <h1>Bloom Garden</h1>
+    <p>Tap to plant seeds</p>
+  </div>
+  <div id="controls">
+    <button class="btn" id="rainBtn" title="Rain">🌧️</button>
+    <button class="btn" id="timeBtn" title="Time of day">☀️</button>
+    <button class="btn" id="clearBtn" title="Clear garden">🗑️</button>
+  </div>
+</div>
+<div id="flower-count"><strong id="count">0</strong> blooms planted</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Time of day
+const timeStates = [
+  { name: 'day', sky: ['#87CEEB','#5BA3D9','#3D7A3E','#2A5A2A'], icon: '☀️', groundH: 0.35, ambientLight: 1.0 },
+  { name: 'golden', sky: ['#FF8C42','#E85D75','#5A3A2A','#2A2A1A'], icon: '🌅', groundH: 0.35, ambientLight: 0.8 },
+  { name: 'night', sky: ['#0A0E2A','#1A1A3A','#0A1A0A','#050A05'], icon: '🌙', groundH: 0.35, ambientLight: 0.35 }
+];
+let timeIdx = 0;
+let currentTime = { ...timeStates[0] };
+let targetTime = { ...timeStates[0] };
+
+document.getElementById('timeBtn').addEventListener('click', () => {
+  timeIdx = (timeIdx + 1) % timeStates.length;
+  targetTime = { ...timeStates[timeIdx] };
+  document.getElementById('timeBtn').textContent = timeStates[timeIdx].icon;
+});
+
+// Rain
+let raining = false;
+let rainDrops = [];
+const rainBtn = document.getElementById('rainBtn');
+rainBtn.addEventListener('click', () => {
+  raining = !raining;
+  rainBtn.classList.toggle('active', raining);
+  if (raining) {
+    rainDrops = Array.from({length: 120}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      speed: 4 + Math.random() * 6,
+      length: 8 + Math.random() * 12
+    }));
+  }
+});
+
+// Clear
+document.getElementById('clearBtn').addEventListener('click', () => {
+  plants.length = 0;
+  particles.length = 0;
+  butterflies.length = 0;
+  plantCount = 0;
+  document.getElementById('count').textContent = '0';
+});
+
+// Plant types
+const PLANT_TYPES = [
+  { // Daisy
+    name: 'daisy',
+    stemColor: '#3a7a2a',
+    petalColors: ['#fff','#ffe8a0','#ffd0d0'],
+    centerColor: '#f0c030',
+    drawFlower(x, y, size, age, color) {
+      const petals = 8;
+      const pSize = size * 0.4;
+      ctx.fillStyle = color;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2 + age * 0.2;
+        const px = x + Math.cos(a) * size * 0.3;
+        const py = y + Math.sin(a) * size * 0.3;
+        ctx.beginPath();
+        ctx.ellipse(px, py, pSize, pSize * 0.5, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = this.centerColor;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  { // Tulip
+    name: 'tulip',
+    stemColor: '#2a6a1a',
+    petalColors: ['#e03050','#ff6090','#d020a0','#ff4040','#e06020'],
+    centerColor: '#f0e040',
+    drawFlower(x, y, size, age, color) {
+      const s = size * 0.5;
+      ctx.fillStyle = color;
+      // Cup shape
+      ctx.beginPath();
+      ctx.moveTo(x - s * 0.6, y + s * 0.3);
+      ctx.bezierCurveTo(x - s * 0.8, y - s * 0.5, x - s * 0.2, y - s * 1.0, x, y - s * 0.7);
+      ctx.bezierCurveTo(x + s * 0.2, y - s * 1.0, x + s * 0.8, y - s * 0.5, x + s * 0.6, y + s * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      // Highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(x - s * 0.15, y - s * 0.3, s * 0.15, s * 0.3, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  { // Sunflower
+    name: 'sunflower',
+    stemColor: '#3a7a20',
+    petalColors: ['#f0c000','#f0a000','#e0b020'],
+    centerColor: '#5a3010',
+    drawFlower(x, y, size, age, color) {
+      const petals = 14;
+      const pLen = size * 0.45;
+      ctx.fillStyle = color;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2;
+        const px = x + Math.cos(a) * size * 0.25;
+        const py = y + Math.sin(a) * size * 0.25;
+        ctx.beginPath();
+        ctx.ellipse(px, py, pLen, pLen * 0.25, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = this.centerColor;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      // Seeds pattern
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(a) * size * 0.1, y + Math.sin(a) * size * 0.1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  },
+  { // Lavender
+    name: 'lavender',
+    stemColor: '#4a7a3a',
+    petalColors: ['#9060c0','#a070d0','#7050b0'],
+    centerColor: '#b080e0',
+    drawFlower(x, y, size, age, color) {
+      const buds = 7;
+      ctx.fillStyle = color;
+      for (let i = 0; i < buds; i++) {
+        const by = y - i * size * 0.12;
+        const bSize = size * (0.12 - i * 0.01);
+        ctx.beginPath();
+        ctx.ellipse(x + Math.sin(i * 0.5 + age * 0.3) * 2, by, bSize, bSize * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  },
+  { // Wildflower
+    name: 'wildflower',
+    stemColor: '#3a8030',
+    petalColors: ['#50a0ff','#ff7090','#a0e040','#ffb030','#e050e0'],
+    centerColor: '#f0f0f0',
+    drawFlower(x, y, size, age, color) {
+      const petals = 5;
+      ctx.fillStyle = color;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2 + age * 0.15;
+        ctx.beginPath();
+        const px = x + Math.cos(a) * size * 0.2;
+        const py = y + Math.sin(a) * size * 0.2;
+        ctx.ellipse(px, py, size * 0.22, size * 0.12, a + 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = this.centerColor;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  { // Rose
+    name: 'rose',
+    stemColor: '#2a5a18',
+    petalColors: ['#c01040','#e03060','#a00830','#d02050'],
+    centerColor: '#600020',
+    drawFlower(x, y, size, age, color) {
+      const layers = 3;
+      for (let l = layers; l >= 0; l--) {
+        const lSize = size * (0.15 + l * 0.12);
+        const petals = 5 + l;
+        const alpha = 1 - l * 0.15;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        for (let i = 0; i < petals; i++) {
+          const a = (i / petals) * Math.PI * 2 + l * 0.3;
+          const px = x + Math.cos(a) * lSize * 0.4;
+          const py = y + Math.sin(a) * lSize * 0.4;
+          ctx.beginPath();
+          ctx.ellipse(px, py, lSize * 0.5, lSize * 0.35, a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = this.centerColor;
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+];
+
+// Plants
+let plants = [];
+let plantCount = 0;
+let particles = [];
+let butterflies = [];
+let stars = Array.from({length: 80}, () => ({
+  x: Math.random(), y: Math.random() * 0.6, size: 0.5 + Math.random() * 1.5, twinkle: Math.random() * Math.PI * 2
+}));
+
+class Plant {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.type = PLANT_TYPES[Math.floor(Math.random() * PLANT_TYPES.length)];
+    this.petalColor = this.type.petalColors[Math.floor(Math.random() * this.type.petalColors.length)];
+    this.maxHeight = 40 + Math.random() * 60;
+    this.maxSize = 14 + Math.random() * 18;
+    this.growth = 0; // 0 to 1
+    this.bloomPhase = 0; // 0 to 1 (after growth hits ~0.6)
+    this.age = 0;
+    this.swayOffset = Math.random() * Math.PI * 2;
+    this.swaySpeed = 0.5 + Math.random() * 0.5;
+    this.growthRate = 0.003 + Math.random() * 0.002;
+    this.leaves = [];
+    const leafCount = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < leafCount; i++) {
+      this.leaves.push({
+        height: 0.2 + Math.random() * 0.5,
+        side: Math.random() > 0.5 ? 1 : -1,
+        size: 0.5 + Math.random() * 0.5
+      });
+    }
+    // Spawn particles
+    for (let i = 0; i < 5; i++) {
+      particles.push({
+        x: this.x, y: this.y,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -Math.random() * 2 - 1,
+        life: 1, decay: 0.02 + Math.random() * 0.02,
+        size: 2 + Math.random() * 3,
+        color: '#8B4513'
+      });
+    }
+  }
+
+  update(dt) {
+    this.age += dt;
+    const rate = raining ? this.growthRate * 3 : this.growthRate;
+    if (this.growth < 1) {
+      this.growth = Math.min(1, this.growth + rate);
+    }
+    if (this.growth > 0.5) {
+      this.bloomPhase = Math.min(1, this.bloomPhase + rate * 1.5);
+    }
+    // Bloom burst particles
+    if (this.bloomPhase > 0.05 && this.bloomPhase < 0.15 && Math.random() < 0.3) {
+      const stemH = this.maxHeight * this.growth;
+      particles.push({
+        x: this.x, y: this.y - stemH,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 2,
+        life: 1, decay: 0.015,
+        size: 2 + Math.random() * 2,
+        color: this.petalColor
+      });
+    }
+  }
+
+  draw(time) {
+    const sway = Math.sin(time * this.swaySpeed + this.swayOffset) * 3 * this.growth;
+    const stemH = this.maxHeight * this.growth;
+    const baseX = this.x;
+    const baseY = this.y;
+
+    // Stem
+    ctx.strokeStyle = this.type.stemColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    const tipX = baseX + sway;
+    const tipY = baseY - stemH;
+    const cpX = baseX + sway * 0.5;
+    const cpY = baseY - stemH * 0.5;
+    ctx.quadraticCurveTo(cpX, cpY, tipX, tipY);
+    ctx.stroke();
+
+    // Leaves
+    for (const leaf of this.leaves) {
+      if (this.growth < leaf.height) continue;
+      const t = leaf.height;
+      const lx = baseX + sway * t;
+      const ly = baseY - stemH * t;
+      const leafSize = 8 * leaf.size * Math.min(1, (this.growth - leaf.height) * 4);
+      ctx.fillStyle = this.type.stemColor;
+      ctx.beginPath();
+      const angle = leaf.side * 0.8;
+      ctx.ellipse(
+        lx + Math.cos(angle) * leafSize * 0.5,
+        ly + Math.sin(angle) * leafSize * 0.3,
+        leafSize, leafSize * 0.35, angle, 0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+
+    // Flower
+    if (this.bloomPhase > 0) {
+      const flowerSize = this.maxSize * easeOutBack(this.bloomPhase);
+      this.type.drawFlower(tipX, tipY, flowerSize, this.age, this.petalColor);
+    }
+  }
+}
+
+function easeOutBack(t) {
+  const c = 1.7;
+  return 1 + (t - 1) * (t - 1) * ((c + 1) * (t - 1) + c);
+}
+
+// Butterflies
+class Butterfly {
+  constructor() {
+    this.x = Math.random() * W;
+    this.y = H * 0.3 + Math.random() * H * 0.4;
+    this.targetX = Math.random() * W;
+    this.targetY = H * 0.3 + Math.random() * H * 0.3;
+    this.wingPhase = Math.random() * Math.PI * 2;
+    this.color = ['#f0a030','#e05080','#60a0f0','#a060e0','#f06030'][Math.floor(Math.random() * 5)];
+    this.size = 4 + Math.random() * 4;
+    this.retargetTimer = 0;
+  }
+  update(dt) {
+    this.wingPhase += 8 * dt;
+    this.retargetTimer -= dt;
+    if (this.retargetTimer <= 0) {
+      // Maybe target a plant
+      if (plants.length > 0 && Math.random() < 0.6) {
+        const p = plants[Math.floor(Math.random() * plants.length)];
+        this.targetX = p.x + (Math.random() - 0.5) * 30;
+        this.targetY = p.y - p.maxHeight * p.growth + (Math.random() - 0.5) * 20;
+      } else {
+        this.targetX = Math.random() * W;
+        this.targetY = H * 0.2 + Math.random() * H * 0.4;
+      }
+      this.retargetTimer = 2 + Math.random() * 4;
+    }
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    this.x += dx * 0.015;
+    this.y += dy * 0.015 + Math.sin(this.wingPhase * 0.3) * 0.3;
+  }
+  draw() {
+    const wing = Math.abs(Math.sin(this.wingPhase));
+    const s = this.size;
+    ctx.fillStyle = this.color;
+    // Left wing
+    ctx.beginPath();
+    ctx.ellipse(this.x - s * 0.4, this.y, s * wing, s * 0.6, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Right wing
+    ctx.beginPath();
+    ctx.ellipse(this.x + s * 0.4, this.y, s * wing, s * 0.6, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // Body
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y, 1.5, s * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Spawn initial butterflies
+for (let i = 0; i < 4; i++) butterflies.push(new Butterfly());
+
+// Grass blades
+const grassBlades = [];
+for (let i = 0; i < 200; i++) {
+  grassBlades.push({
+    x: Math.random() * 2000,
+    height: 8 + Math.random() * 18,
+    width: 1 + Math.random() * 1.5,
+    phase: Math.random() * Math.PI * 2,
+    shade: 0.7 + Math.random() * 0.3
+  });
+}
+
+// Clouds
+const clouds = [];
+for (let i = 0; i < 6; i++) {
+  clouds.push({
+    x: Math.random() * W * 1.5,
+    y: 30 + Math.random() * H * 0.2,
+    width: 60 + Math.random() * 100,
+    speed: 0.1 + Math.random() * 0.2
+  });
+}
+
+// Input
+function plantAt(x, y) {
+  const groundY = H * (1 - timeStates[timeIdx].groundH);
+  if (y < groundY - 20) y = groundY - 10;
+  if (y > H - 10) y = H - 10;
+  plants.push(new Plant(x, y));
+  plantCount++;
+  document.getElementById('count').textContent = plantCount;
+  // Maybe spawn butterfly
+  if (plantCount % 5 === 0 && butterflies.length < 12) {
+    butterflies.push(new Butterfly());
+  }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  plantAt(e.clientX, e.clientY);
+});
+
+// Color lerp helper
+function lerpColor(a, b, t) {
+  const parse = c => {
+    if (c.startsWith('#')) {
+      const v = parseInt(c.slice(1), 16);
+      return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+    }
+    return [0,0,0];
+  };
+  const ca = parse(a), cb = parse(b);
+  const r = Math.round(ca[0] + (cb[0] - ca[0]) * t);
+  const g = Math.round(ca[1] + (cb[1] - ca[1]) * t);
+  const bl = Math.round(ca[2] + (cb[2] - ca[2]) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+// Main loop
+let lastTime = 0;
+let elapsed = 0;
+
+function draw(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+  elapsed += dt;
+
+  // Animate time transition
+  currentTime.ambientLight += (targetTime.ambientLight - currentTime.ambientLight) * 0.02;
+
+  // Sky
+  const ts = timeStates[timeIdx];
+  const groundLine = H * (1 - ts.groundH);
+
+  // Draw sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, groundLine);
+  skyGrad.addColorStop(0, ts.sky[0]);
+  skyGrad.addColorStop(1, ts.sky[1]);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, groundLine);
+
+  // Stars (night only)
+  if (timeIdx === 2) {
+    for (const star of stars) {
+      const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(elapsed * 1.5 + star.twinkle));
+      ctx.fillStyle = `rgba(255,255,240,${twinkle * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(star.x * W, star.y * H, star.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Sun/Moon
+  if (timeIdx === 0) {
+    ctx.fillStyle = 'rgba(255,240,100,0.9)';
+    ctx.beginPath();
+    ctx.arc(W * 0.8, H * 0.12, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,100,0.1)';
+    ctx.beginPath();
+    ctx.arc(W * 0.8, H * 0.12, 45, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (timeIdx === 1) {
+    ctx.fillStyle = 'rgba(255,140,50,0.8)';
+    ctx.beginPath();
+    ctx.arc(W * 0.5, groundLine - 15, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,140,50,0.1)';
+    ctx.beginPath();
+    ctx.arc(W * 0.5, groundLine - 15, 60, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = 'rgba(220,220,240,0.85)';
+    ctx.beginPath();
+    ctx.arc(W * 0.75, H * 0.1, 20, 0, Math.PI * 2);
+    ctx.fill();
+    // Crescent shadow
+    ctx.fillStyle = ts.sky[0];
+    ctx.beginPath();
+    ctx.arc(W * 0.75 + 7, H * 0.1 - 3, 17, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Clouds
+  for (const cloud of clouds) {
+    cloud.x += cloud.speed;
+    if (cloud.x > W + 100) cloud.x = -cloud.width;
+    const alpha = timeIdx === 2 ? 0.05 : (timeIdx === 1 ? 0.25 : 0.35);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    const cx = cloud.x, cy = cloud.y, cw = cloud.width;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, cw * 0.5, cw * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx - cw * 0.2, cy + 5, cw * 0.3, cw * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + cw * 0.2, cy + 3, cw * 0.35, cw * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Ground
+  const groundGrad = ctx.createLinearGradient(0, groundLine, 0, H);
+  groundGrad.addColorStop(0, ts.sky[2]);
+  groundGrad.addColorStop(1, ts.sky[3]);
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, groundLine, W, H - groundLine);
+
+  // Grass blades
+  for (const g of grassBlades) {
+    const gx = g.x % W;
+    const sway = Math.sin(elapsed * 1.2 + g.phase) * 3;
+    const alpha = currentTime.ambientLight * g.shade;
+    ctx.strokeStyle = `rgba(60,${Math.floor(100 + g.shade * 60)},30,${alpha})`;
+    ctx.lineWidth = g.width;
+    ctx.beginPath();
+    ctx.moveTo(gx, groundLine);
+    ctx.quadraticCurveTo(gx + sway * 0.5, groundLine - g.height * 0.5, gx + sway, groundLine - g.height);
+    ctx.stroke();
+  }
+
+  // Plants (sort by y for depth)
+  plants.sort((a, b) => a.y - b.y);
+  for (const p of plants) {
+    p.update(dt);
+    p.draw(elapsed);
+  }
+
+  // Butterflies
+  for (const b of butterflies) {
+    b.update(dt);
+    b.draw();
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.03;
+    p.life -= p.decay;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Rain
+  if (raining) {
+    ctx.strokeStyle = 'rgba(150,180,220,0.4)';
+    ctx.lineWidth = 1;
+    for (const drop of rainDrops) {
+      drop.y += drop.speed;
+      drop.x -= 1;
+      if (drop.y > H) { drop.y = -20; drop.x = Math.random() * W; }
+      if (drop.x < 0) drop.x = W;
+      ctx.beginPath();
+      ctx.moveTo(drop.x, drop.y);
+      ctx.lineTo(drop.x + 1, drop.y + drop.length);
+      ctx.stroke();
+    }
+    // Splash particles at ground
+    if (Math.random() < 0.3) {
+      const sx = Math.random() * W;
+      particles.push({
+        x: sx, y: groundLine,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -Math.random() * 1.5,
+        life: 0.5, decay: 0.03,
+        size: 1.5, color: 'rgba(150,180,220,0.5)'
+      });
+    }
+  }
+
+  // Ambient floating pollen/sparkles
+  if (plants.length > 3 && Math.random() < 0.04) {
+    particles.push({
+      x: Math.random() * W,
+      y: H * 0.3 + Math.random() * H * 0.4,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: -0.2 - Math.random() * 0.3,
+      life: 1, decay: 0.005,
+      size: 1.5 + Math.random(),
+      color: timeIdx === 2 ? 'rgba(150,200,255,0.6)' : 'rgba(255,240,150,0.6)'
+    });
+  }
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
