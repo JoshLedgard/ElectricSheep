@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Safe Harbor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #c8e4f0; font-size: 15px; pointer-events: none;
+    z-index: 10;
+  }
+  #ui .stat { text-align: center; min-width: 60px; }
+  #ui .stat .val { font-size: 22px; font-weight: 700; color: #00d8e8; }
+  #ui .stat .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #5a8a9a; margin-top: 2px; }
+  #start-screen, #game-over {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 20;
+    background: rgba(6, 10, 20, 0.92);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #c8e4f0; text-align: center; padding: 24px;
+  }
+  #game-over { display: none; }
+  .screen-title { font-size: clamp(28px, 7vw, 48px); font-weight: 700; margin-bottom: 8px; }
+  .screen-title span { color: #00d8e8; }
+  .screen-sub { font-size: 15px; color: #5a8a9a; max-width: 320px; line-height: 1.5; margin-bottom: 24px; }
+  .screen-btn {
+    background: none; border: 2px solid #00d8e8; color: #00d8e8;
+    font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 8px;
+    cursor: pointer; font-family: inherit; min-width: 200px; min-height: 52px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .screen-btn:hover, .screen-btn:active { background: #00d8e8; color: #0a0e1a; }
+  .final-score { font-size: 48px; font-weight: 700; color: #00d8e8; margin: 12px 0 4px; }
+  .final-detail { font-size: 14px; color: #5a8a9a; margin-bottom: 20px; }
+  .controls-hint { font-size: 12px; color: #3a5a6a; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div class="stat"><div class="val" id="score-val">0</div><div class="lbl">Saved</div></div>
+  <div class="stat"><div class="val" id="wave-val">1</div><div class="lbl">Wave</div></div>
+  <div class="stat"><div class="val" id="lives-val">3</div><div class="lbl">Lives</div></div>
+</div>
+
+<div id="start-screen">
+  <div class="screen-title">Safe <span>Harbor</span></div>
+  <div class="screen-sub">Ships are lost in the dark. Sweep your lighthouse beam to guide them safely home before they hit the rocks.</div>
+  <button class="screen-btn" id="start-btn">Light the Lamp</button>
+  <div class="controls-hint">Drag or tap left/right to aim the beam</div>
+</div>
+
+<div id="game-over">
+  <div class="screen-title">Harbor <span>Dark</span></div>
+  <div class="final-score" id="final-score">0</div>
+  <div class="final-detail" id="final-detail">ships guided to safety</div>
+  <button class="screen-btn" id="retry-btn">Relight</button>
+</div>
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-val');
+const waveEl = document.getElementById('wave-val');
+const livesEl = document.getElementById('lives-val');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over');
+const finalScore = document.getElementById('final-score');
+const finalDetail = document.getElementById('final-detail');
+
+let W, H, dpr;
+let gameRunning = false;
+let beamAngle = Math.PI * 1.25; // pointing up-left initially
+let beamTarget = beamAngle;
+let score = 0;
+let lives = 3;
+let wave = 1;
+let ships = [];
+let particles = [];
+let stars = [];
+let rocks = [];
+let waveTimer = 0;
+let shipsInWave = 0;
+let shipsNeededForWave = 5;
+let spawnTimer = 0;
+let spawnInterval = 3;
+let lighthouseX, lighthouseY;
+let harborRadius;
+let gameTime = 0;
+let shakeMag = 0;
+let lastTime = 0;
+
+// Lighthouse beam properties
+const BEAM_WIDTH = 0.28; // radians, cone half-angle
+const BEAM_LENGTH_MULT = 1.6; // multiplier of max dimension
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  lighthouseX = W * 0.5;
+  lighthouseY = H * 0.78;
+  harborRadius = Math.min(W, H) * 0.12;
+
+  // Generate rocks around harbor
+  rocks = [];
+  const rockCount = 14;
+  for (let i = 0; i < rockCount; i++) {
+    const a = (i / rockCount) * Math.PI * 2;
+    const r = harborRadius + 8 + Math.random() * 14;
+    // Leave a gap at the top for the harbor entrance feel
+    if (a > Math.PI * 0.3 && a < Math.PI * 0.7) continue;
+    rocks.push({
+      x: lighthouseX + Math.cos(a) * r,
+      y: lighthouseY + Math.sin(a) * r,
+      size: 3 + Math.random() * 5
+    });
+  }
+
+  // Stars
+  stars = [];
+  for (let i = 0; i < 120; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H * 0.65,
+      size: Math.random() * 1.5 + 0.3,
+      twinkle: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random() * 2
+    });
+  }
+}
+
+function spawnShip() {
+  // Spawn from edges
+  const side = Math.random();
+  let sx, sy, angle;
+  const margin = 40;
+
+  if (side < 0.3) { // top
+    sx = margin + Math.random() * (W - margin * 2);
+    sy = -20;
+  } else if (side < 0.55) { // left
+    sx = -20;
+    sy = margin + Math.random() * (H * 0.6);
+  } else if (side < 0.8) { // right
+    sx = W + 20;
+    sy = margin + Math.random() * (H * 0.6);
+  } else { // top corners
+    sx = Math.random() < 0.5 ? -20 : W + 20;
+    sy = -20 + Math.random() * H * 0.3;
+  }
+
+  // Aim toward lighthouse area with some spread
+  const dx = lighthouseX + (Math.random() - 0.5) * harborRadius * 2 - sx;
+  const dy = lighthouseY + (Math.random() - 0.5) * harborRadius - sy;
+  angle = Math.atan2(dy, dx);
+
+  const baseSpeed = 18 + wave * 2.5;
+  const speed = baseSpeed + Math.random() * 12;
+
+  ships.push({
+    x: sx, y: sy,
+    angle: angle,
+    speed: speed,
+    lit: 0, // how much light it's received (0-1)
+    litTimer: 0,
+    alive: true,
+    saved: false,
+    crashed: false,
+    size: 6 + Math.random() * 3,
+    trail: [],
+    flashTimer: 0
+  });
+}
+
+function isInBeam(x, y) {
+  const dx = x - lighthouseX;
+  const dy = y - lighthouseY;
+  const angleToPoint = Math.atan2(dy, dx);
+  let diff = angleToPoint - beamAngle;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return Math.abs(diff) < BEAM_WIDTH;
+}
+
+function distToLighthouse(x, y) {
+  const dx = x - lighthouseX;
+  const dy = y - lighthouseY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function addParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 20 + Math.random() * 60;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s,
+      life: 0.6 + Math.random() * 0.6,
+      maxLife: 0.6 + Math.random() * 0.6,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function update(dt) {
+  if (!gameRunning) return;
+  gameTime += dt;
+
+  // Smooth beam rotation
+  let diff = beamTarget - beamAngle;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  beamAngle += diff * Math.min(1, dt * 8);
+
+  // Shake decay
+  shakeMag *= Math.max(0, 1 - dt * 6);
+
+  // Spawn ships
+  spawnTimer -= dt;
+  if (spawnTimer <= 0 && shipsInWave < shipsNeededForWave) {
+    spawnShip();
+    shipsInWave++;
+    spawnTimer = spawnInterval * (0.7 + Math.random() * 0.6);
+  }
+
+  // Check wave completion
+  if (shipsInWave >= shipsNeededForWave) {
+    const allDone = ships.every(s => s.saved || s.crashed || !s.alive);
+    if (allDone && ships.filter(s => s.alive).length === 0) {
+      wave++;
+      waveEl.textContent = wave;
+      shipsInWave = 0;
+      shipsNeededForWave = Math.min(5 + wave * 2, 25);
+      spawnInterval = Math.max(0.8, 3 - wave * 0.15);
+      spawnTimer = 1.5; // brief pause between waves
+    }
+  }
+
+  // Update ships
+  for (const ship of ships) {
+    if (!ship.alive) continue;
+
+    // Move
+    ship.x += Math.cos(ship.angle) * ship.speed * dt;
+    ship.y += Math.sin(ship.angle) * ship.speed * dt;
+
+    // Trail
+    ship.trail.push({ x: ship.x, y: ship.y, age: 0 });
+    if (ship.trail.length > 20) ship.trail.shift();
+    for (const t of ship.trail) t.age += dt;
+
+    // Check if in beam
+    const inBeam = isInBeam(ship.x, ship.y);
+    if (inBeam) {
+      ship.lit = Math.min(1, ship.lit + dt * 1.8);
+      ship.litTimer = 0.3;
+      ship.flashTimer = 0.1;
+    } else {
+      ship.litTimer -= dt;
+      // Lit ships slowly steer toward harbor
+      if (ship.lit > 0.3) {
+        ship.lit = Math.max(0.3, ship.lit - dt * 0.15);
+      }
+    }
+
+    // Lit ships steer toward harbor
+    if (ship.lit > 0.3) {
+      const targetAngle = Math.atan2(lighthouseY - ship.y, lighthouseX - ship.x);
+      let steerDiff = targetAngle - ship.angle;
+      while (steerDiff > Math.PI) steerDiff -= Math.PI * 2;
+      while (steerDiff < -Math.PI) steerDiff += Math.PI * 2;
+      ship.angle += steerDiff * dt * 2.5 * ship.lit;
+    }
+
+    ship.flashTimer -= dt;
+
+    const dist = distToLighthouse(ship.x, ship.y);
+
+    // Saved! Reached harbor
+    if (dist < harborRadius && ship.lit >= 0.5) {
+      ship.alive = false;
+      ship.saved = true;
+      score++;
+      scoreEl.textContent = score;
+      addParticles(ship.x, ship.y, '#00d8e8', 15);
+      addParticles(ship.x, ship.y, '#40ff90', 8);
+    }
+    // Crashed into rocks (near harbor but not lit enough)
+    else if (dist < harborRadius * 1.1 && ship.lit < 0.5) {
+      ship.alive = false;
+      ship.crashed = true;
+      lives--;
+      livesEl.textContent = lives;
+      shakeMag = 8;
+      addParticles(ship.x, ship.y, '#ff4444', 20);
+      addParticles(ship.x, ship.y, '#ff8800', 10);
+      if (lives <= 0) {
+        gameRunning = false;
+        setTimeout(showGameOver, 600);
+      }
+    }
+    // Off screen
+    else if (ship.x < -60 || ship.x > W + 60 || ship.y < -60 || ship.y > H + 60) {
+      ship.alive = false;
+      ship.crashed = true;
+      lives--;
+      livesEl.textContent = lives;
+      shakeMag = 4;
+      if (lives <= 0) {
+        gameRunning = false;
+        setTimeout(showGameOver, 600);
+      }
+    }
+  }
+
+  // Cleanup dead ships after a while
+  ships = ships.filter(s => s.alive || s.trail.length > 0);
+  for (const s of ships) {
+    if (!s.alive) {
+      s.trail = s.trail.filter(t => t.age < 2);
+    }
+  }
+
+  // Particles
+  for (const p of particles) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 30 * dt;
+    p.life -= dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+
+  // Stars twinkle
+  for (const s of stars) {
+    s.twinkle += s.speed * dt;
+  }
+}
+
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (shakeMag > 0.5) {
+    ctx.translate(
+      (Math.random() - 0.5) * shakeMag,
+      (Math.random() - 0.5) * shakeMag
+    );
+  }
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#050810');
+  skyGrad.addColorStop(0.5, '#0a1020');
+  skyGrad.addColorStop(0.75, '#101828');
+  skyGrad.addColorStop(1, '#0a1018');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (const s of stars) {
+    const alpha = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(s.twinkle));
+    ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Water
+  const waterY = H * 0.55;
+  const waterGrad = ctx.createLinearGradient(0, waterY, 0, H);
+  waterGrad.addColorStop(0, '#0a1828');
+  waterGrad.addColorStop(1, '#060e18');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0, waterY, W, H - waterY);
+
+  // Water shimmer
+  ctx.globalAlpha = 0.04;
+  for (let i = 0; i < 30; i++) {
+    const wx = (i * 47 + gameTime * 20) % (W + 100) - 50;
+    const wy = waterY + 20 + Math.sin(gameTime * 0.8 + i) * 30 + (i % 5) * 30;
+    ctx.fillStyle = '#60c0ff';
+    ctx.fillRect(wx, wy, 30 + Math.sin(gameTime + i) * 10, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // Lighthouse beam (drawn behind lighthouse)
+  if (gameRunning || gameTime > 0) {
+    const beamLen = Math.max(W, H) * BEAM_LENGTH_MULT;
+    const bx = lighthouseX;
+    const by = lighthouseY - 20;
+
+    // Beam cone
+    const grad = ctx.createRadialGradient(bx, by, 0, bx, by, beamLen);
+    grad.addColorStop(0, 'rgba(255, 250, 200, 0.35)');
+    grad.addColorStop(0.3, 'rgba(255, 250, 180, 0.12)');
+    grad.addColorStop(0.7, 'rgba(255, 250, 160, 0.04)');
+    grad.addColorStop(1, 'rgba(255, 250, 160, 0)');
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.arc(bx, by, beamLen, beamAngle - BEAM_WIDTH, beamAngle + BEAM_WIDTH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Beam edge glow
+    ctx.strokeStyle = 'rgba(255, 250, 200, 0.06)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Beam center line
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = '#fffae0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + Math.cos(beamAngle) * beamLen, by + Math.sin(beamAngle) * beamLen);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Ship trails and ships
+  for (const ship of ships) {
+    // Trail
+    if (ship.trail.length > 1) {
+      for (let i = 1; i < ship.trail.length; i++) {
+        const t = ship.trail[i];
+        const alpha = Math.max(0, (1 - t.age / 2) * 0.3);
+        const lit = ship.lit > 0.3;
+        ctx.strokeStyle = lit
+          ? `rgba(0, 216, 232, ${alpha})`
+          : `rgba(100, 120, 140, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(ship.trail[i - 1].x, ship.trail[i - 1].y);
+        ctx.lineTo(t.x, t.y);
+        ctx.stroke();
+      }
+    }
+
+    if (!ship.alive) continue;
+
+    // Ship body
+    ctx.save();
+    ctx.translate(ship.x, ship.y);
+    ctx.rotate(ship.angle);
+
+    // Hull
+    const glow = ship.lit > 0.3;
+    ctx.fillStyle = glow ? '#e0f8ff' : '#4a6070';
+    ctx.beginPath();
+    ctx.moveTo(ship.size * 1.2, 0);
+    ctx.lineTo(-ship.size * 0.8, -ship.size * 0.5);
+    ctx.lineTo(-ship.size * 0.6, 0);
+    ctx.lineTo(-ship.size * 0.8, ship.size * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glow effect when lit
+    if (glow) {
+      ctx.shadowColor = '#00d8e8';
+      ctx.shadowBlur = 12 * ship.lit;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // Sail
+    ctx.fillStyle = glow ? 'rgba(200, 240, 255, 0.6)' : 'rgba(80, 100, 120, 0.5)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-ship.size * 0.2, -ship.size * 0.9);
+    ctx.lineTo(-ship.size * 0.5, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+
+    // SOS flash for unlit ships near harbor
+    if (!glow && distToLighthouse(ship.x, ship.y) < harborRadius * 3) {
+      const pulse = Math.sin(gameTime * 8) > 0.3;
+      if (pulse) {
+        ctx.fillStyle = 'rgba(255, 80, 80, 0.7)';
+        ctx.beginPath();
+        ctx.arc(ship.x, ship.y - ship.size * 1.5, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Rocks
+  for (const r of rocks) {
+    ctx.fillStyle = '#1a2030';
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#252f40';
+    ctx.beginPath();
+    ctx.arc(r.x - r.size * 0.2, r.y - r.size * 0.2, r.size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Harbor glow
+  ctx.save();
+  const harborGlow = ctx.createRadialGradient(
+    lighthouseX, lighthouseY, 0,
+    lighthouseX, lighthouseY, harborRadius
+  );
+  harborGlow.addColorStop(0, 'rgba(0, 216, 232, 0.08)');
+  harborGlow.addColorStop(0.7, 'rgba(0, 216, 232, 0.03)');
+  harborGlow.addColorStop(1, 'rgba(0, 216, 232, 0)');
+  ctx.fillStyle = harborGlow;
+  ctx.beginPath();
+  ctx.arc(lighthouseX, lighthouseY, harborRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Lighthouse structure
+  const lx = lighthouseX;
+  const ly = lighthouseY;
+  // Tower
+  ctx.fillStyle = '#2a3040';
+  ctx.beginPath();
+  ctx.moveTo(lx - 8, ly);
+  ctx.lineTo(lx - 5, ly - 35);
+  ctx.lineTo(lx + 5, ly - 35);
+  ctx.lineTo(lx + 8, ly);
+  ctx.closePath();
+  ctx.fill();
+  // Stripes
+  ctx.fillStyle = '#c03030';
+  ctx.fillRect(lx - 6.5, ly - 12, 13, 6);
+  ctx.fillRect(lx - 5.5, ly - 28, 11, 6);
+  // Lamp room
+  ctx.fillStyle = '#fffae0';
+  ctx.shadowColor = '#fffae0';
+  ctx.shadowBlur = 20;
+  ctx.fillRect(lx - 6, ly - 40, 12, 8);
+  ctx.shadowBlur = 0;
+  // Roof
+  ctx.fillStyle = '#1a2030';
+  ctx.beginPath();
+  ctx.moveTo(lx - 8, ly - 40);
+  ctx.lineTo(lx, ly - 48);
+  ctx.lineTo(lx + 8, ly - 40);
+  ctx.closePath();
+  ctx.fill();
+  // Base platform
+  ctx.fillStyle = '#1a2530';
+  ctx.fillRect(lx - 14, ly, 28, 6);
+
+  // Particles
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+function showGameOver() {
+  gameOverScreen.style.display = 'flex';
+  finalScore.textContent = score;
+  const waveText = wave === 1 ? '1 wave' : `${wave} waves`;
+  finalDetail.textContent = `ships guided safely through ${waveText}`;
+}
+
+function startGame() {
+  score = 0; lives = 3; wave = 1;
+  ships = []; particles = [];
+  shipsInWave = 0; shipsNeededForWave = 5;
+  spawnInterval = 3; spawnTimer = 1;
+  gameTime = 0; shakeMag = 0;
+  beamAngle = -Math.PI / 2;
+  beamTarget = beamAngle;
+  scoreEl.textContent = '0';
+  waveEl.textContent = '1';
+  livesEl.textContent = '3';
+  startScreen.style.display = 'none';
+  gameOverScreen.style.display = 'none';
+  gameRunning = true;
+}
+
+// Input handling
+function handlePointer(x, y) {
+  if (!gameRunning) return;
+  const dx = x - lighthouseX;
+  const dy = y - lighthouseY;
+  beamTarget = Math.atan2(dy, dx);
+}
+
+let pointerDown = false;
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  pointerDown = true;
+  handlePointer(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointermove', (e) => {
+  e.preventDefault();
+  if (pointerDown) handlePointer(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointerup', () => pointerDown = false);
+canvas.addEventListener('pointercancel', () => pointerDown = false);
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('retry-btn').addEventListener('click', startGame);
+
+// Game loop
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+resize();
+window.addEventListener('resize', resize);
+lastTime = performance.now();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
