@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pack Your Bag</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a2e;
+    color: #f0f0f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 4px;
+    color: #ffd700;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: #aaa;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+
+  /* Bag capacity indicator */
+  .capacity-bar {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 14px;
+  }
+
+  .capacity-label {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .capacity-label .slots-count {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #ffd700;
+  }
+
+  .capacity-track {
+    height: 10px;
+    background: #2a2a4a;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .capacity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4fc3f7, #ffd700);
+    border-radius: 5px;
+    transition: width 0.3s ease;
+  }
+
+  /* Bag visual */
+  .bag-visual {
+    font-size: 2.2rem;
+    text-align: center;
+    margin-bottom: 12px;
+    transition: transform 0.15s ease;
+  }
+
+  .bag-visual.pop {
+    transform: scale(1.25);
+  }
+
+  /* Items grid */
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 20px;
+  }
+
+  .item-card {
+    background: #16213e;
+    border: 2px solid #2a2a4a;
+    border-radius: 14px;
+    padding: 10px 6px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .item-card:active {
+    transform: scale(0.93);
+  }
+
+  .item-card.selected {
+    border-color: #ffd700;
+    background: #2a2010;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+
+  .item-card.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .item-emoji {
+    font-size: 1.8rem;
+    display: block;
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+
+  .item-name {
+    font-size: 0.62rem;
+    color: #ccc;
+    line-height: 1.2;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .item-card.selected .item-name {
+    color: #ffd700;
+  }
+
+  .checkmark {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 0.75rem;
+    display: none;
+  }
+
+  .item-card {
+    position: relative;
+  }
+
+  .item-card.selected .checkmark {
+    display: block;
+  }
+
+  /* Zip button */
+  .zip-btn {
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #1a1a2e;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    margin-bottom: 24px;
+  }
+
+  .zip-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .zip-btn:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  /* === REVEAL SCREEN === */
+  #reveal-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .destination-card {
+    background: linear-gradient(145deg, #16213e, #0d1b35);
+    border: 2px solid #ffd700;
+    border-radius: 24px;
+    padding: 28px 20px;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 20px;
+    animation: fadeInUp 0.5s ease;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .dest-emoji {
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 10px;
+    animation: bounceIn 0.6s ease 0.2s both;
+  }
+
+  @keyframes bounceIn {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.15); }
+    80% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .dest-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ffd700;
+    margin-bottom: 6px;
+  }
+
+  .dest-tagline {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 16px;
+  }
+
+  .score-ring {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 6px solid #2a2a4a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    position: relative;
+  }
+
+  .score-number {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #ffd700;
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 0.6rem;
+    color: #888;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .score-grade {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  /* Item review */
+  .item-review {
+    width: 100%;
+    text-align: left;
+  }
+
+  .review-section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 8px;
+    margin-top: 14px;
+  }
+
+  .review-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .review-item {
+    background: #2a2a4a;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .review-item.hit {
+    background: #1a3a2a;
+    border: 1px solid #4caf50;
+  }
+
+  .review-item.miss {
+    background: #3a2a2a;
+    border: 1px solid #ef5350;
+  }
+
+  .review-item.neutral {
+    background: #2a2a3a;
+    border: 1px solid #555;
+    opacity: 0.7;
+  }
+
+  .missed-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Play again */
+  .again-btn {
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    background: transparent;
+    color: #ffd700;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    margin-top: 8px;
+    margin-bottom: 32px;
+  }
+
+  .again-btn:active {
+    background: rgba(255, 215, 0, 0.1);
+  }
+
+  /* Share score thing */
+  .score-share {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- PACK SCREEN -->
+<div id="pack-screen">
+  <h1>🧳 Pack Your Bag</h1>
+  <p class="subtitle">Mystery destination. 8 slots. Choose wisely.</p>
+
+  <div class="capacity-bar">
+    <div class="capacity-label">
+      <span>Bag capacity</span>
+      <span><span class="slots-count" id="slots-used">0</span> / 8</span>
+    </div>
+    <div class="capacity-track">
+      <div class="capacity-fill" id="capacity-fill" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <div class="bag-visual" id="bag-icon">🧳</div>
+
+  <div class="items-grid" id="items-grid"></div>
+
+  <button class="zip-btn" id="zip-btn" disabled onclick="zipIt()">
+    ✈️ Zip it up — let's go!
+  </button>
+</div>
+
+<!-- REVEAL SCREEN -->
+<div id="reveal-screen">
+  <!-- filled by JS -->
+</div>
+
+<script>
+const ITEMS = [
+  { id: 'swimsuit',    emoji: '🩱', name: 'Swimsuit' },
+  { id: 'sunscreen',  emoji: '🧴', name: 'Sunscreen' },
+  { id: 'flipflops',  emoji: '🩴', name: 'Flip Flops' },
+  { id: 'sunglasses', emoji: '🕶️', name: 'Sunglasses' },
+  { id: 'jacket',     emoji: '🧥', name: 'Warm Jacket' },
+  { id: 'boots',      emoji: '🥾', name: 'Hiking Boots' },
+  { id: 'sneakers',   emoji: '👟', name: 'Comfy Shoes' },
+  { id: 'formal',     emoji: '👞', name: 'Dress Shoes' },
+  { id: 'camera',     emoji: '📷', name: 'Camera' },
+  { id: 'book',       emoji: '📚', name: 'Book' },
+  { id: 'umbrella',   emoji: '☂️', name: 'Umbrella' },
+  { id: 'adapter',    emoji: '🔌', name: 'Plug Adapter' },
+  { id: 'guidebook',  emoji: '🗺️', name: 'Guidebook' },
+  { id: 'firstaid',   emoji: '🩹', name: 'First Aid' },
+  { id: 'snacks',     emoji: '🍫', name: 'Snacks' },
+  { id: 'water',      emoji: '🧃', name: 'Water Bottle' },
+  { id: 'hat',        emoji: '🧢', name: 'Sun Hat' },
+  { id: 'raincoat',   emoji: '🌧️', name: 'Rain Jacket' },
+  { id: 'laptop',     emoji: '💻', name: 'Laptop' },
+  { id: 'binoculars', emoji: '🔭', name: 'Binoculars' },
+];
+
+const DESTINATIONS = [
+  {
+    name: 'Tropical Beach',
+    emoji: '🏖️',
+    tagline: 'Waves, sand, and way too much sun.',
+    scores: { swimsuit: 3, sunscreen: 3, flipflops: 3, sunglasses: 2, hat: 2, camera: 1, snacks: 1, book: 1, umbrella: 1, water: 1 },
+    top3: ['swimsuit','sunscreen','flipflops'],
+    miss3: ['jacket','boots','laptop'],
+    missEmoji: ['🧥','🥾','💻'],
+  },
+  {
+    name: 'Mountain Ski Trip',
+    emoji: '⛷️',
+    tagline: 'Fresh powder, frozen toes, hot cocoa.',
+    scores: { jacket: 3, boots: 3, hat: 2, sunglasses: 2, camera: 2, snacks: 2, adapter: 1, book: 1, water: 1 },
+    top3: ['jacket','boots','hat'],
+    miss3: ['swimsuit','flipflops','formal'],
+    missEmoji: ['🩱','🩴','👞'],
+  },
+  {
+    name: 'City Break',
+    emoji: '🏙️',
+    tagline: 'Museums, cafés, and getting gloriously lost.',
+    scores: { adapter: 3, guidebook: 3, sneakers: 3, camera: 2, umbrella: 2, formal: 2, laptop: 2, snacks: 1, sunglasses: 1 },
+    top3: ['adapter','guidebook','sneakers'],
+    miss3: ['swimsuit','firstaid','boots'],
+    missEmoji: ['🩱','🩹','🥾'],
+  },
+  {
+    name: 'Jungle Trek',
+    emoji: '🌿',
+    tagline: 'No WiFi. Lots of mud. Worth every step.',
+    scores: { boots: 3, firstaid: 3, water: 3, raincoat: 3, snacks: 2, hat: 2, sunscreen: 2, camera: 2, binoculars: 2 },
+    top3: ['boots','firstaid','water'],
+    miss3: ['formal','laptop','flipflops'],
+    missEmoji: ['👞','💻','🩴'],
+  },
+  {
+    name: 'Coastal Road Trip',
+    emoji: '🛣️',
+    tagline: 'Windows down. No agenda. Wherever the road goes.',
+    scores: { camera: 3, snacks: 3, book: 2, water: 2, umbrella: 2, sunglasses: 2, hat: 2, sneakers: 2, binoculars: 2, raincoat: 1 },
+    top3: ['camera','snacks','water'],
+    miss3: ['formal','laptop','firstaid'],
+    missEmoji: ['👞','💻','🩹'],
+  },
+  {
+    name: 'Fancy City Hotel',
+    emoji: '🏨',
+    tagline: 'Rooftop bar. Concierge. Try not to look too lost.',
+    scores: { formal: 3, adapter: 3, laptop: 2, sunglasses: 2, camera: 2, guidebook: 1, book: 1, umbrella: 1 },
+    top3: ['formal','adapter','laptop'],
+    miss3: ['boots','firstaid','raincoat'],
+    missEmoji: ['🥾','🩹','🌧️'],
+  },
+];
+
+const MAX_SLOTS = 8;
+let selected = new Set();
+let itemMap = {};
+
+ITEMS.forEach(it => { itemMap[it.id] = it; });
+
+function buildGrid() {
+  const grid = document.getElementById('items-grid');
+  grid.innerHTML = '';
+  ITEMS.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.id = 'card-' + item.id;
+    card.innerHTML = `<span class="item-emoji">${item.emoji}</span>
+      <span class="item-name">${item.name}</span>
+      <span class="checkmark">✓</span>`;
+    card.addEventListener('click', () => toggleItem(item.id));
+    grid.appendChild(card);
+  });
+}
+
+function toggleItem(id) {
+  const card = document.getElementById('card-' + id);
+  if (selected.has(id)) {
+    selected.delete(id);
+    card.classList.remove('selected');
+  } else {
+    if (selected.size >= MAX_SLOTS) return;
+    selected.add(id);
+    card.classList.add('selected');
+    // bag pop
+    const bag = document.getElementById('bag-icon');
+    bag.classList.add('pop');
+    setTimeout(() => bag.classList.remove('pop'), 200);
+  }
+  updateCapacity();
+}
+
+function updateCapacity() {
+  const count = selected.size;
+  document.getElementById('slots-used').textContent = count;
+  document.getElementById('capacity-fill').style.width = (count / MAX_SLOTS * 100) + '%';
+
+  // Update bag emoji as it fills
+  const bag = document.getElementById('bag-icon');
+  if (count === 0) bag.textContent = '🧳';
+  else if (count <= 2) bag.textContent = '🧳';
+  else if (count <= 5) bag.textContent = '🪝';
+  else bag.textContent = '💼';
+
+  // Disable unpicked if full
+  ITEMS.forEach(item => {
+    const card = document.getElementById('card-' + item.id);
+    if (!selected.has(item.id) && count >= MAX_SLOTS) {
+      card.classList.add('disabled');
+    } else {
+      card.classList.remove('disabled');
+    }
+  });
+
+  // Enable zip button if at least 1 picked
+  document.getElementById('zip-btn').disabled = count === 0;
+}
+
+function zipIt() {
+  if (selected.size === 0) return;
+
+  // Random destination
+  const dest = DESTINATIONS[Math.floor(Math.random() * DESTINATIONS.length)];
+
+  // Score
+  let total = 0;
+  let maxPossible = 0;
+  const maxValues = Object.values(dest.scores).sort((a,b) => b-a);
+  // max possible = top 8 items sum
+  maxValues.slice(0, MAX_SLOTS).forEach(v => maxPossible += v);
+
+  selected.forEach(id => {
+    total += (dest.scores[id] || 0);
+  });
+
+  const pct = maxPossible > 0 ? Math.round(total / maxPossible * 100) : 0;
+
+  let grade, gradeColor;
+  if (pct >= 85) { grade = '🌟 Expert Packer!'; gradeColor = '#ffd700'; }
+  else if (pct >= 65) { grade = '✅ Solid Packer'; gradeColor = '#4caf50'; }
+  else if (pct >= 40) { grade = '😅 You'll Manage'; gradeColor = '#ff9800'; }
+  else { grade = '😬 Buy It There'; gradeColor = '#ef5350'; }
+
+  // Categorize packed items
+  const hits = [...selected].filter(id => (dest.scores[id] || 0) >= 2);
+  const okay = [...selected].filter(id => (dest.scores[id] || 0) === 1);
+  const waste = [...selected].filter(id => (dest.scores[id] || 0) === 0);
+
+  // Key misses (items in top scores that weren't packed)
+  const keyMissed = Object.entries(dest.scores)
+    .filter(([id, v]) => v >= 2 && !selected.has(id))
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,4)
+    .map(([id]) => id);
+
+  // Build reveal HTML
+  const hitsHtml = hits.map(id => `<div class="review-item hit">${itemMap[id].emoji} ${itemMap[id].name}</div>`).join('') || '<span style="color:#666;font-size:0.85rem">None — brave.</span>';
+  const okayHtml = okay.map(id => `<div class="review-item neutral">${itemMap[id].emoji} ${itemMap[id].name}</div>`).join('');
+  const wasteHtml = waste.map(id => `<div class="review-item miss">${itemMap[id].emoji} ${itemMap[id].name}</div>`).join('');
+  const missedHtml = keyMissed.map(id => `<div class="review-item miss">${itemMap[id].emoji} ${itemMap[id].name}</div>`).join('');
+
+  document.getElementById('pack-screen').style.display = 'none';
+  const rev = document.getElementById('reveal-screen');
+  rev.style.display = 'flex';
+  rev.innerHTML = `
+    <h1 style="margin-bottom:4px">✈️ You're going to…</h1>
+    <p class="subtitle">Destination revealed</p>
+
+    <div class="destination-card">
+      <span class="dest-emoji">${dest.emoji}</span>
+      <div class="dest-name">${dest.name}</div>
+      <div class="dest-tagline">${dest.tagline}</div>
+
+      <div class="score-ring">
+        <div class="score-number">${pct}%</div>
+        <div class="score-label">packed</div>
+      </div>
+
+      <div class="score-grade" style="color:${gradeColor}">${grade}</div>
+
+      <div class="item-review">
+        <div class="review-section-title">Great calls ✓</div>
+        <div class="review-items">${hitsHtml}</div>
+
+        ${okayHtml ? `<div class="review-section-title">Helpful, actually</div>
+        <div class="review-items">${okayHtml}</div>` : ''}
+
+        ${wasteHtml ? `<div class="review-section-title">Didn't need it ✗</div>
+        <div class="review-items">${wasteHtml}</div>` : ''}
+
+        ${missedHtml ? `<div class="review-section-title">Wish you'd packed…</div>
+        <div class="review-items">${missedHtml}</div>` : ''}
+      </div>
+    </div>
+
+    <button class="again-btn" onclick="playAgain()">🔄 Pack again — different destination</button>
+  `;
+}
+
+function playAgain() {
+  selected.clear();
+  document.getElementById('reveal-screen').style.display = 'none';
+  document.getElementById('pack-screen').style.display = 'block';
+  buildGrid();
+  updateCapacity();
+}
+
+// Init
+buildGrid();
+updateCapacity();
+</script>
+</body>
+</html>
