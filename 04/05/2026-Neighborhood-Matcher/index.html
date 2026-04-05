@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neighborhood Matcher</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #21253a;
+      --accent: #6c8aff;
+      --accent2: #ff7eb3;
+      --accent3: #4ecdc4;
+      --accent4: #ffd166;
+      --text: #e8eaf0;
+      --muted: #7a7f99;
+      --radius: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .priorities-section h2 {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 18px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .slider-label .name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slider-label .name .emoji {
+      font-size: 1.1rem;
+    }
+
+    .slider-label .val {
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 700;
+      min-width: 28px;
+      text-align: right;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--surface2);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(108,138,255,0.5);
+      cursor: pointer;
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    .match-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent), #8f5cf5);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 4px;
+      letter-spacing: 0.03em;
+      transition: opacity 0.2s, transform 0.1s;
+      min-height: 52px;
+    }
+
+    .match-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+    .results-section {
+      display: none;
+    }
+
+    .results-section.visible {
+      display: block;
+    }
+
+    .results-section h2 {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .hood-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 12px;
+      border: 2px solid transparent;
+      transition: border-color 0.3s;
+      cursor: default;
+    }
+
+    .hood-card.top {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, #1a1d27, #1e2040);
+    }
+
+    .hood-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .hood-name {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .hood-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .hood-badge.gold { background: rgba(255,209,102,0.2); color: var(--accent4); }
+    .hood-badge.silver { background: rgba(180,180,200,0.15); color: #b0b8cc; }
+    .hood-badge.bronze { background: rgba(200,130,80,0.15); color: #c8916a; }
+    .hood-badge.rest { background: rgba(100,100,120,0.15); color: var(--muted); }
+
+    .hood-score {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 10px;
+      line-height: 1;
+    }
+
+    .hood-score span {
+      font-size: 0.9rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .hood-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-row .bar-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      width: 90px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .bar-row .bar-score {
+      font-size: 0.75rem;
+      color: var(--text);
+      font-weight: 600;
+      width: 24px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .hood-vibe {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 10px;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .shuffle-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: color 0.2s, background 0.2s;
+      min-height: 48px;
+    }
+
+    .shuffle-btn:active { background: #2a2f4a; color: var(--text); }
+
+    .tip {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏘 Neighborhood Matcher</h1>
+  <p>Dial in what matters. Find your fit.</p>
+</header>
+
+<div class="card priorities-section">
+  <h2>What matters most to you?</h2>
+
+  <div class="slider-row" data-key="schools">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">🎒</span> Schools</div>
+      <div class="val" id="val-schools">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-schools" oninput="updateVal('schools',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="space">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">📐</span> Space & quiet</div>
+      <div class="val" id="val-space">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-space" oninput="updateVal('space',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="walkability">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">🚶</span> Walkability</div>
+      <div class="val" id="val-walkability">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-walkability" oninput="updateVal('walkability',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="nature">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">🌲</span> Parks & nature</div>
+      <div class="val" id="val-nature">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-nature" oninput="updateVal('nature',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="character">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">✨</span> Character & vibe</div>
+      <div class="val" id="val-character">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-character" oninput="updateVal('character',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="commute">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">🚗</span> Easy commute</div>
+      <div class="val" id="val-commute">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-commute" oninput="updateVal('commute',this.value)">
+  </div>
+
+  <div class="slider-row" data-key="nightlife">
+    <div class="slider-label">
+      <div class="name"><span class="emoji">🍸</span> Food & nightlife</div>
+      <div class="val" id="val-nightlife">5</div>
+    </div>
+    <input type="range" min="0" max="10" value="5" id="s-nightlife" oninput="updateVal('nightlife',this.value)">
+  </div>
+
+  <button class="match-btn" onclick="runMatch()">Find My Match →</button>
+</div>
+
+<div class="results-section" id="results">
+  <h2>Your matches</h2>
+  <div id="hoods-list"></div>
+  <button class="shuffle-btn" onclick="runMatch()">↻ Recalculate</button>
+</div>
+
+<p class="tip">Slide the dials, hit match, see what fits.<br>Results update every time.</p>
+
+<script>
+  // 12 neighborhoods with scores across 7 dimensions
+  // schools, space, walkability, nature, character, commute, nightlife (each 0–10)
+  const HOODS = [
+    {
+      name: "Maplewood Heights",
+      emoji: "🍁",
+      scores: { schools:9, space:8, walkability:4, nature:7, character:5, commute:5, nightlife:3 },
+      vibe: "Quiet streets, big lots, top-rated schools. The kind of neighborhood where everyone waves."
+    },
+    {
+      name: "Harborview",
+      emoji: "⛵",
+      scores: { schools:6, space:5, walkability:8, nature:6, character:9, commute:7, nightlife:8 },
+      vibe: "Waterfront energy with boutique restaurants and a farmers market that actually slaps."
+    },
+    {
+      name: "Cedarwood Hills",
+      emoji: "🌲",
+      scores: { schools:7, space:9, walkability:3, nature:10, character:7, commute:3, nightlife:2 },
+      vibe: "Deep in the trees. Deer in the yard. Fifteen minutes from the nearest coffee shop — and worth it."
+    },
+    {
+      name: "The Corridor",
+      emoji: "🚇",
+      scores: { schools:5, space:3, walkability:10, nature:3, character:8, commute:10, nightlife:9 },
+      vibe: "Dense, connected, alive. You don't need a car here, and that's the whole point."
+    },
+    {
+      name: "Ferndale",
+      emoji: "🌿",
+      scores: { schools:8, space:7, walkability:6, nature:8, character:6, commute:6, nightlife:4 },
+      vibe: "The balanced pick. Great schools, walkable enough, trails nearby, decent commute."
+    },
+    {
+      name: "Old Beacon",
+      emoji: "🏛",
+      scores: { schools:6, space:6, walkability:7, nature:5, character:10, commute:6, nightlife:7 },
+      vibe: "Old houses with stories. Indie shops, murals, and neighbors who've been there 30 years."
+    },
+    {
+      name: "Summit Park",
+      emoji: "🌄",
+      scores: { schools:7, space:8, walkability:5, nature:9, character:7, commute:4, nightlife:3 },
+      vibe: "Every morning feels like a desktop background. Views, trails, and weekend hikes before noon."
+    },
+    {
+      name: "Crosstown",
+      emoji: "🏙",
+      scores: { schools:4, space:2, walkability:9, nature:2, character:7, commute:9, nightlife:10 },
+      vibe: "Never sleeps. Best ramen at 2am. You'll never need a car but you'll always need earplugs."
+    },
+    {
+      name: "Greystone",
+      emoji: "🪨",
+      scores: { schools:8, space:7, walkability:6, nature:6, character:8, commute:7, nightlife:6 },
+      vibe: "Solid all-arounder. The neighborhood that wins on every dimension without topping any."
+    },
+    {
+      name: "Lakeside Flats",
+      emoji: "🦆",
+      scores: { schools:6, space:7, walkability:7, nature:9, character:6, commute:5, nightlife:4 },
+      vibe: "Morning runs along the lake, coffee on the dock, kids everywhere. Relaxed and a little magical."
+    },
+    {
+      name: "Prospect Row",
+      emoji: "🏡",
+      scores: { schools:9, space:6, walkability:7, nature:5, character:7, commute:8, nightlife:5 },
+      vibe: "Close-in family friendly. Good school district, bikeable to downtown, block parties in summer."
+    },
+    {
+      name: "West End",
+      emoji: "🌊",
+      scores: { schools:7, space:8, walkability:6, nature:8, character:9, commute:5, nightlife:6 },
+      vibe: "Art studios, ocean air, mid-century homes. A neighborhood with a personality all its own."
+    }
+  ];
+
+  const KEYS = ['schools','space','walkability','nature','character','commute','nightlife'];
+  const LABELS = {
+    schools:'Schools', space:'Space & quiet', walkability:'Walkability',
+    nature:'Parks & nature', character:'Character', commute:'Commute', nightlife:'Food & nightlife'
+  };
+
+  const BAR_COLORS = {
+    schools:'#6c8aff', space:'#4ecdc4', walkability:'#ffd166',
+    nature:'#a8e063', character:'#ff7eb3', commute:'#f7a072', nightlife:'#c77dff'
+  };
+
+  function updateVal(key, val) {
+    document.getElementById('val-' + key).textContent = val;
+  }
+
+  function getWeights() {
+    const w = {};
+    KEYS.forEach(k => {
+      w[k] = parseInt(document.getElementById('s-' + k).value, 10);
+    });
+    return w;
+  }
+
+  function scoreHood(hood, weights) {
+    let total = 0, maxPossible = 0;
+    KEYS.forEach(k => {
+      total += hood.scores[k] * weights[k];
+      maxPossible += 10 * weights[k];
+    });
+    return maxPossible === 0 ? 0 : Math.round((total / maxPossible) * 100);
+  }
+
+  function badgeFor(rank) {
+    if (rank === 0) return { cls: 'gold', label: '🥇 Best fit' };
+    if (rank === 1) return { cls: 'silver', label: '🥈 Runner up' };
+    if (rank === 2) return { cls: 'bronze', label: '🥉 Solid pick' };
+    return { cls: 'rest', label: '' };
+  }
+
+  function runMatch() {
+    const weights = getWeights();
+    const ranked = HOODS.map(h => ({ ...h, match: scoreHood(h, weights) }))
+      .sort((a, b) => b.match - a.match);
+
+    const list = document.getElementById('hoods-list');
+    list.innerHTML = '';
+
+    ranked.forEach((h, i) => {
+      const badge = badgeFor(i);
+      const card = document.createElement('div');
+      card.className = 'hood-card' + (i === 0 ? ' top' : '');
+
+      const barsHTML = KEYS.filter(k => weights[k] > 0).map(k => {
+        const pct = (h.scores[k] / 10) * 100;
+        return `<div class="bar-row">
+          <div class="bar-label">${LABELS[k]}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${BAR_COLORS[k]}"></div></div>
+          <div class="bar-score">${h.scores[k]}</div>
+        </div>`;
+      }).join('');
+
+      const badgeHtml = badge.label
+        ? `<div class="hood-badge ${badge.cls}">${badge.label}</div>` : '';
+
+      card.innerHTML = `
+        <div class="hood-header">
+          <div class="hood-name">${h.emoji} ${h.name}</div>
+          ${badgeHtml}
+        </div>
+        <div class="hood-score">${h.match}<span>/100</span></div>
+        <div class="hood-bars">${barsHTML}</div>
+        <div class="hood-vibe">${h.vibe}</div>
+      `;
+      list.appendChild(card);
+    });
+
+    document.getElementById('results').className = 'results-section visible';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+
+</body>
+</html>
