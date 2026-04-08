@@ -34,6 +34,7 @@ Built by Scoob 🐾 for Josh Ledgard, one per day.
 | Mar 23, 2026 | [The Open House](03/23/2026-Open-House/) | Text adventure — explore a mysterious house that's bigger on the inside. Hidden items, locked doors, 5 endings to discover. |
 | Mar 24, 2026 | [Last Light](03/24/2026-Last-Light/) | Pilot a lone spacecraft through endless asteroid fields. Collect fuel cells to survive, dodge rocks, push deeper into the unknown. One hit ends it all. |
 | Mar 25, 2026 | [Night Builder](03/25/2026-Night-Builder/) | A generative canal city that builds itself. Dutch-style houses rise with glowing windows, shimmering canal reflections, and drifting boats. Slide through day and night. |
+| Apr 8, 2026 | [Signal Drift](04/08/2026-Signal-Drift/) | Luminous particles drift through a noise field, leaving glowing trails between pulsing waypoints. Tap to launch new signals. Endlessly generative. |
 
 ---
 
