@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Far Shore</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a1520;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #ui {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .ui-box {
+    background: rgba(8,18,28,0.85);
+    border: 1px solid rgba(100,180,220,0.2);
+    border-radius: 8px;
+    padding: 8px 14px;
+    color: #8ec8e0;
+    font-size: 13px;
+    line-height: 1.5;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .ui-box strong { color: #40d8f0; }
+  #compass {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #intro {
+    position: fixed;
+    inset: 0;
+    background: rgba(6,12,20,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .intro-box {
+    text-align: center;
+    color: #8ec8e0;
+    padding: 32px 28px;
+    max-width: 340px;
+  }
+  .intro-box h1 {
+    font-size: 28px;
+    color: #c8e8f4;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .intro-box .sub {
+    font-size: 13px;
+    color: #4a8098;
+    margin-bottom: 20px;
+  }
+  .intro-box p {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    color: #7ab0c8;
+  }
+  .intro-box button {
+    background: rgba(40,160,200,0.15);
+    border: 1px solid rgba(60,180,220,0.4);
+    color: #40d8f0;
+    font-size: 16px;
+    padding: 12px 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.05em;
+    min-height: 48px;
+    min-width: 140px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .intro-box button:hover, .intro-box button:active {
+    background: rgba(40,160,200,0.25);
+    border-color: rgba(60,200,240,0.6);
+  }
+  #victory {
+    position: fixed;
+    inset: 0;
+    background: rgba(6,12,20,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .victory-box {
+    text-align: center;
+    color: #8ec8e0;
+    padding: 32px 28px;
+    max-width: 340px;
+  }
+  .victory-box h2 {
+    font-size: 26px;
+    color: #c8e8f4;
+    margin-bottom: 8px;
+  }
+  .victory-box .emoji { font-size: 48px; margin-bottom: 12px; }
+  .victory-box p {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+    color: #7ab0c8;
+  }
+  .victory-box .stat {
+    font-size: 13px;
+    color: #4a8098;
+    margin-bottom: 20px;
+  }
+  .victory-box button {
+    background: rgba(40,160,200,0.15);
+    border: 1px solid rgba(60,180,220,0.4);
+    color: #40d8f0;
+    font-size: 16px;
+    padding: 12px 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.05em;
+    min-height: 48px;
+    min-width: 140px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .victory-box button:hover, .victory-box button:active {
+    background: rgba(40,160,200,0.25);
+    border-color: rgba(60,200,240,0.6);
+  }
+  #hint {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(100,180,220,0.5);
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 1s;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <div class="intro-box">
+    <h1>Far Shore</h1>
+    <div class="sub">A voyage into the unknown</div>
+    <p>Sail across uncharted waters. Discover hidden islands in the mist. Each voyage charts a new sea.</p>
+    <p style="font-size:13px; color:#4a8098;">Tap or click to set your heading.<br>Find all the islands to complete your voyage.</p>
+    <button id="startBtn">Set Sail</button>
+  </div>
+</div>
+
+<div id="victory">
+  <div class="victory-box">
+    <div class="emoji">🏝</div>
+    <h2>All Shores Found</h2>
+    <p id="victoryMsg">You charted every island in these waters.</p>
+    <div class="stat" id="victoryStat"></div>
+    <button id="againBtn">New Voyage</button>
+  </div>
+</div>
+
+<div id="ui">
+  <div class="ui-box" id="status">
+    <div>Islands: <strong id="found">0</strong> / <strong id="total">0</strong></div>
+  </div>
+  <div class="ui-box" id="logBox" style="max-width:160px; font-size:12px; color:#4a8098; display:none;"></div>
+</div>
+
+<canvas id="compass"></canvas>
+<div id="hint">tap anywhere to sail</div>
+<canvas id="c"></canvas>
+
+<script>
+// ── Utility ──
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Simple 2D noise
+function makeNoise(seed) {
+  const rng = mulberry32(seed);
+  const perm = [];
+  for (let i = 0; i < 512; i++) perm[i] = (rng() * 256) | 0;
+  function grad(hash, x, y) {
+    const h = hash & 3;
+    return (h === 0 ? x + y : h === 1 ? -x + y : h === 2 ? x - y : -x - y);
+  }
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function lerp(a, b, t) { return a + t * (b - a); }
+  return function(x, y) {
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+    x -= Math.floor(x); y -= Math.floor(y);
+    const u = fade(x), v = fade(y);
+    const A = perm[X] + Y, B = perm[X + 1] + Y;
+    return lerp(
+      lerp(grad(perm[A], x, y), grad(perm[B], x - 1, y), u),
+      lerp(grad(perm[A + 1], x, y - 1), grad(perm[B + 1], x - 1, y - 1), u),
+      v
+    ) * 0.5 + 0.5;
+  };
+}
+
+// ── Game State ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const compassCanvas = document.getElementById('compass');
+const compassCtx = compassCanvas.getContext('2d');
+
+let W, H, dpr;
+let worldSeed, noise1, noise2;
+const WORLD_SIZE = 3000;
+const REVEAL_RADIUS = 120;
+const ISLAND_COUNT = 7;
+const BOAT_SPEED = 1.8;
+
+let boat = { x: 0, y: 0, angle: 0, targetAngle: 0, speed: 0, wake: [] };
+let islands = [];
+let discovered = [];
+let fogGrid = null;
+const FOG_CELL = 8;
+let fogCols, fogRows;
+let gameStarted = false;
+let gameWon = false;
+let ticks = 0;
+let startTime = 0;
+let targetPos = null;
+let particles = [];
+let waveOffset = 0;
+let nearestUndiscovered = null;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  compassCanvas.width = 56 * dpr;
+  compassCanvas.height = 56 * dpr;
+  compassCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function initWorld() {
+  worldSeed = Date.now();
+  const rng = mulberry32(worldSeed);
+  noise1 = makeNoise(worldSeed);
+  noise2 = makeNoise(worldSeed + 999);
+
+  // Place islands
+  islands = [];
+  discovered = [];
+  const minDist = 350;
+  for (let i = 0; i < ISLAND_COUNT; i++) {
+    let tries = 0, x, y;
+    do {
+      const angle = rng() * Math.PI * 2;
+      const dist = 250 + rng() * (WORLD_SIZE * 0.4);
+      x = dist * Math.cos(angle);
+      y = dist * Math.sin(angle);
+      tries++;
+    } while (tries < 200 && islands.some(isl => Math.hypot(isl.x - x, isl.y - y) < minDist));
+
+    const type = (rng() * 5) | 0;
+    const size = 20 + rng() * 25;
+    const trees = 2 + (rng() * 6) | 0;
+    const hue = [140, 50, 30, 160, 90][(rng() * 5) | 0];
+    islands.push({ x, y, type, size, trees, hue, name: generateName(rng) });
+    discovered.push(false);
+  }
+
+  // Fog grid
+  fogCols = Math.ceil(WORLD_SIZE * 2 / FOG_CELL) + 2;
+  fogRows = Math.ceil(WORLD_SIZE * 2 / FOG_CELL) + 2;
+  fogGrid = new Uint8Array(fogCols * fogRows);
+
+  // Boat start
+  boat.x = 0;
+  boat.y = 0;
+  boat.angle = -Math.PI / 2;
+  boat.targetAngle = boat.angle;
+  boat.speed = 0;
+  boat.wake = [];
+  targetPos = null;
+  particles = [];
+  ticks = 0;
+  gameWon = false;
+  startTime = performance.now();
+
+  document.getElementById('total').textContent = ISLAND_COUNT;
+  document.getElementById('found').textContent = '0';
+  document.getElementById('logBox').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('hint').style.opacity = '1';
+}
+
+function generateName(rng) {
+  const prefixes = ['Amber', 'Coral', 'Drift', 'Echo', 'Fern', 'Glass', 'Heron', 'Ivory', 'Jade', 'Kelp', 'Lark', 'Mist', 'North', 'Opal', 'Pearl', 'Quill', 'Reed', 'Salt', 'Tide', 'Umber', 'Vine', 'Wren'];
+  const suffixes = [' Isle', ' Cay', ' Atoll', ' Rock', ' Point', ' Haven', ' Key', ' Reach', ' Landing', ' Shoal'];
+  return prefixes[(rng() * prefixes.length) | 0] + suffixes[(rng() * suffixes.length) | 0];
+}
+
+// ── Input ──
+function handleInput(cx, cy) {
+  if (!gameStarted || gameWon) return;
+  // Convert screen to world
+  const wx = cx - W / 2 + boat.x;
+  const wy = cy - H / 2 + boat.y;
+  targetPos = { x: wx, y: wy };
+  boat.speed = BOAT_SPEED;
+  document.getElementById('hint').style.opacity = '0';
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handleInput(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.buttons > 0) {
+    e.preventDefault();
+    handleInput(e.clientX, e.clientY);
+  }
+});
+
+// ── Rendering ──
+function getOceanColor(wx, wy, t) {
+  const n = noise1(wx * 0.003, wy * 0.003 + t * 0.0001);
+  const n2 = noise2(wx * 0.008 + t * 0.0003, wy * 0.008);
+  const deep = [10, 22, 40];
+  const mid = [15, 40, 65];
+  const light = [20, 55, 80];
+  const f = n * 0.7 + n2 * 0.3;
+  let r, g, b;
+  if (f < 0.5) {
+    const t2 = f * 2;
+    r = deep[0] + (mid[0] - deep[0]) * t2;
+    g = deep[1] + (mid[1] - deep[1]) * t2;
+    b = deep[2] + (mid[2] - deep[2]) * t2;
+  } else {
+    const t2 = (f - 0.5) * 2;
+    r = mid[0] + (light[0] - mid[0]) * t2;
+    g = mid[1] + (light[1] - mid[1]) * t2;
+    b = mid[2] + (light[2] - mid[2]) * t2;
+  }
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+function drawOcean(camX, camY) {
+  const step = 12;
+  const t = ticks;
+  for (let sy = 0; sy < H; sy += step) {
+    for (let sx = 0; sx < W; sx += step) {
+      const wx = sx + camX - W / 2;
+      const wy = sy + camY - H / 2;
+      ctx.fillStyle = getOceanColor(wx, wy, t);
+      ctx.fillRect(sx, sy, step, step);
+    }
+  }
+
+  // Wave sparkles
+  waveOffset += 0.02;
+  for (let i = 0; i < 30; i++) {
+    const hash = mulberry32(i * 7919 + (ticks / 80 | 0))();
+    const hash2 = mulberry32(i * 7919 + (ticks / 80 | 0) + 1)();
+    const wx = (hash * WORLD_SIZE * 2 - WORLD_SIZE);
+    const wy = (hash2 * WORLD_SIZE * 2 - WORLD_SIZE);
+    const sx = wx - camX + W / 2;
+    const sy = wy - camY + H / 2;
+    if (sx < -10 || sx > W + 10 || sy < -10 || sy > H + 10) continue;
+    const phase = (ticks * 0.03 + hash * 6.28) % 6.28;
+    const alpha = Math.max(0, Math.sin(phase)) * 0.15;
+    if (alpha > 0.02) {
+      ctx.fillStyle = `rgba(140,200,240,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawIsland(isl, sx, sy, isDiscovered) {
+  const s = isl.size;
+
+  // Water ring / shallow area
+  const grad = ctx.createRadialGradient(sx, sy, s * 0.6, sx, sy, s * 1.5);
+  grad.addColorStop(0, `hsla(${isl.hue + 160}, 50%, 35%, 0.3)`);
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(sx, sy, s * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beach
+  ctx.fillStyle = `hsl(${40 + isl.hue * 0.1}, 60%, 70%)`;
+  ctx.beginPath();
+  ctx.arc(sx, sy, s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Green interior
+  ctx.fillStyle = `hsl(${isl.hue}, 50%, 35%)`;
+  ctx.beginPath();
+  ctx.arc(sx, sy - 2, s * 0.75, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Trees
+  const rng = mulberry32(isl.x * 1000 + isl.y);
+  for (let t = 0; t < isl.trees; t++) {
+    const tx = sx + (rng() - 0.5) * s * 1.0;
+    const ty = sy + (rng() - 0.5) * s * 0.8 - 4;
+    const ts = 5 + rng() * 6;
+    // Trunk
+    ctx.fillStyle = `hsl(30, 40%, 30%)`;
+    ctx.fillRect(tx - 1, ty, 2, ts * 0.6);
+    // Canopy
+    ctx.fillStyle = `hsl(${isl.hue + (rng() - 0.5) * 20}, 55%, ${30 + rng() * 15}%)`;
+    ctx.beginPath();
+    ctx.arc(tx, ty - ts * 0.2, ts * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Name label if discovered
+  if (isDiscovered) {
+    ctx.fillStyle = 'rgba(200,230,240,0.85)';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(isl.name, sx, sy + s + 16);
+  }
+}
+
+function drawBoat(sx, sy) {
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(boat.angle + Math.PI / 2);
+
+  // Hull
+  ctx.fillStyle = '#d4c4a0';
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.lineTo(5, 6);
+  ctx.lineTo(3, 8);
+  ctx.lineTo(-3, 8);
+  ctx.lineTo(-5, 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sail
+  ctx.fillStyle = 'rgba(220,235,245,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.lineTo(6, 2);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Mast
+  ctx.strokeStyle = '#8a7a5a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -9);
+  ctx.lineTo(0, 4);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Glow
+  const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 20);
+  glow.addColorStop(0, 'rgba(255,240,180,0.1)');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 20, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawWake(camX, camY) {
+  if (boat.wake.length < 2) return;
+  ctx.strokeStyle = 'rgba(180,220,240,0.12)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < boat.wake.length; i++) {
+    const w = boat.wake[i];
+    const sx = w.x - camX + W / 2;
+    const sy = w.y - camY + H / 2;
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+}
+
+function drawFog(camX, camY) {
+  // Draw fog as overlay
+  const step = FOG_CELL;
+  const startCol = Math.floor((camX - W / 2 + WORLD_SIZE) / step);
+  const startRow = Math.floor((camY - H / 2 + WORLD_SIZE) / step);
+  const endCol = Math.ceil((camX + W / 2 + WORLD_SIZE) / step);
+  const endRow = Math.ceil((camY + H / 2 + WORLD_SIZE) / step);
+
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      if (col < 0 || col >= fogCols || row < 0 || row >= fogRows) continue;
+      const revealed = fogGrid[row * fogCols + col];
+      if (revealed >= 255) continue;
+
+      const wx = col * step - WORLD_SIZE;
+      const wy = row * step - WORLD_SIZE;
+      const sx = wx - camX + W / 2;
+      const sy = wy - camY + H / 2;
+
+      const alpha = 1 - revealed / 255;
+      if (alpha < 0.02) continue;
+      ctx.fillStyle = `rgba(8,16,26,${alpha * 0.92})`;
+      ctx.fillRect(sx, sy, step + 1, step + 1);
+    }
+  }
+}
+
+function revealFog() {
+  const cx = Math.floor((boat.x + WORLD_SIZE) / FOG_CELL);
+  const cy = Math.floor((boat.y + WORLD_SIZE) / FOG_CELL);
+  const r = Math.ceil(REVEAL_RADIUS / FOG_CELL);
+
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const col = cx + dx;
+      const row = cy + dy;
+      if (col < 0 || col >= fogCols || row < 0 || row >= fogRows) continue;
+      const dist = Math.sqrt(dx * dx + dy * dy) * FOG_CELL;
+      if (dist > REVEAL_RADIUS) continue;
+      const idx = row * fogCols + col;
+      const intensity = Math.max(0, 1 - dist / REVEAL_RADIUS);
+      const val = Math.min(255, fogGrid[idx] + intensity * 20);
+      fogGrid[idx] = val;
+    }
+  }
+}
+
+function drawCompass() {
+  const cw = 56, ch = 56;
+  compassCtx.clearRect(0, 0, cw, ch);
+
+  // Background
+  compassCtx.fillStyle = 'rgba(8,18,28,0.8)';
+  compassCtx.beginPath();
+  compassCtx.arc(cw / 2, ch / 2, 24, 0, Math.PI * 2);
+  compassCtx.fill();
+  compassCtx.strokeStyle = 'rgba(100,180,220,0.2)';
+  compassCtx.lineWidth = 1;
+  compassCtx.stroke();
+
+  // If there's an undiscovered island, point to nearest
+  if (nearestUndiscovered !== null) {
+    const isl = islands[nearestUndiscovered];
+    const angle = Math.atan2(isl.y - boat.y, isl.x - boat.x);
+    const dist = Math.hypot(isl.x - boat.x, isl.y - boat.y);
+
+    // Pulsing glow based on distance — closer = stronger
+    const pulse = 0.4 + 0.3 * Math.sin(ticks * 0.05);
+    const strength = Math.max(0.2, 1 - dist / 1200);
+
+    compassCtx.save();
+    compassCtx.translate(cw / 2, ch / 2);
+    compassCtx.rotate(angle);
+
+    // Arrow
+    compassCtx.fillStyle = `rgba(60,200,230,${pulse * strength})`;
+    compassCtx.beginPath();
+    compassCtx.moveTo(18, 0);
+    compassCtx.lineTo(6, -5);
+    compassCtx.lineTo(8, 0);
+    compassCtx.lineTo(6, 5);
+    compassCtx.closePath();
+    compassCtx.fill();
+
+    compassCtx.restore();
+
+    // Center dot
+    compassCtx.fillStyle = `rgba(60,200,230,${0.3 + 0.2 * strength})`;
+    compassCtx.beginPath();
+    compassCtx.arc(cw / 2, ch / 2, 3, 0, Math.PI * 2);
+    compassCtx.fill();
+  } else {
+    // All found — show check
+    compassCtx.fillStyle = 'rgba(100,220,140,0.6)';
+    compassCtx.font = '18px sans-serif';
+    compassCtx.textAlign = 'center';
+    compassCtx.textBaseline = 'middle';
+    compassCtx.fillText('✓', cw / 2, ch / 2);
+  }
+}
+
+function drawDirectionIndicator(camX, camY) {
+  // Subtle edge indicators for undiscovered islands off-screen
+  for (let i = 0; i < islands.length; i++) {
+    if (discovered[i]) continue;
+    const isl = islands[i];
+    const sx = isl.x - camX + W / 2;
+    const sy = isl.y - camY + H / 2;
+
+    // Skip if on screen
+    if (sx > -20 && sx < W + 20 && sy > -20 && sy < H + 20) continue;
+
+    // Edge indicator
+    const angle = Math.atan2(sy - H / 2, sx - W / 2);
+    const edgeX = W / 2 + Math.cos(angle) * (W / 2 - 20);
+    const edgeY = H / 2 + Math.sin(angle) * (H / 2 - 20);
+    const clampedX = Math.max(16, Math.min(W - 16, edgeX));
+    const clampedY = Math.max(16, Math.min(H - 16, edgeY));
+
+    const dist = Math.hypot(isl.x - boat.x, isl.y - boat.y);
+    const alpha = Math.max(0.1, Math.min(0.5, 400 / dist));
+    const pulse = 0.7 + 0.3 * Math.sin(ticks * 0.04 + i);
+
+    ctx.fillStyle = `rgba(60,200,230,${alpha * pulse})`;
+    ctx.beginPath();
+    ctx.save();
+    ctx.translate(clampedX, clampedY);
+    ctx.rotate(angle);
+    ctx.moveTo(6, 0);
+    ctx.lineTo(-3, -4);
+    ctx.lineTo(-3, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function spawnDiscoveryParticles(sx, sy) {
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.5 + Math.random() * 2;
+    particles.push({
+      x: sx, y: sy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 60 + Math.random() * 40,
+      maxLife: 60 + Math.random() * 40,
+      hue: 40 + Math.random() * 30,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy -= 0.02;
+    p.life--;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    const alpha = p.life / p.maxLife;
+    ctx.fillStyle = `hsla(${p.hue}, 80%, 70%, ${alpha * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ── Game Loop ──
+function update() {
+  if (!gameStarted || gameWon) return;
+  ticks++;
+
+  // Move boat toward target
+  if (targetPos) {
+    const dx = targetPos.x - boat.x;
+    const dy = targetPos.y - boat.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 5) {
+      boat.targetAngle = Math.atan2(dy, dx);
+      // Smooth rotation
+      let diff = boat.targetAngle - boat.angle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      boat.angle += diff * 0.06;
+
+      boat.x += Math.cos(boat.angle) * boat.speed;
+      boat.y += Math.sin(boat.angle) * boat.speed;
+
+      // Clamp to world
+      boat.x = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, boat.x));
+      boat.y = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, boat.y));
+    }
+  }
+
+  // Wake trail
+  if (ticks % 4 === 0 && boat.speed > 0 && targetPos) {
+    boat.wake.push({ x: boat.x, y: boat.y });
+    if (boat.wake.length > 120) boat.wake.shift();
+  }
+
+  // Reveal fog
+  revealFog();
+
+  // Check discoveries
+  let foundCount = 0;
+  nearestUndiscovered = null;
+  let nearestDist = Infinity;
+
+  for (let i = 0; i < islands.length; i++) {
+    if (discovered[i]) { foundCount++; continue; }
+    const dist = Math.hypot(islands[i].x - boat.x, islands[i].y - boat.y);
+
+    if (dist < islands[i].size + 30) {
+      discovered[i] = true;
+      foundCount++;
+      document.getElementById('found').textContent = foundCount;
+
+      // Show log
+      const logBox = document.getElementById('logBox');
+      logBox.style.display = 'block';
+      logBox.innerHTML = `<span style="color:#40d8f0">Discovered!</span><br>${islands[i].name}`;
+      setTimeout(() => { logBox.style.display = 'none'; }, 3000);
+
+      // Particles
+      const sx = islands[i].x - boat.x + W / 2;
+      const sy = islands[i].y - boat.y + H / 2;
+      spawnDiscoveryParticles(sx, sy);
+    }
+
+    if (!discovered[i] && dist < nearestDist) {
+      nearestDist = dist;
+      nearestUndiscovered = i;
+    }
+  }
+
+  document.getElementById('found').textContent = foundCount;
+
+  // Check win
+  if (foundCount === ISLAND_COUNT) {
+    gameWon = true;
+    const elapsed = ((performance.now() - startTime) / 1000) | 0;
+    const mins = (elapsed / 60) | 0;
+    const secs = elapsed % 60;
+    document.getElementById('victoryStat').textContent =
+      `${ISLAND_COUNT} islands charted in ${mins}m ${secs}s`;
+    document.getElementById('victory').style.display = 'flex';
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (!gameStarted) {
+    // Background for intro
+    ctx.fillStyle = '#0a1520';
+    ctx.fillRect(0, 0, W, H);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  const camX = boat.x;
+  const camY = boat.y;
+
+  drawOcean(camX, camY);
+  drawWake(camX, camY);
+
+  // Draw islands
+  for (let i = 0; i < islands.length; i++) {
+    const isl = islands[i];
+    const sx = isl.x - camX + W / 2;
+    const sy = isl.y - camY + H / 2;
+    if (sx < -100 || sx > W + 100 || sy < -100 || sy > H + 100) continue;
+    drawIsland(isl, sx, sy, discovered[i]);
+  }
+
+  // Boat
+  drawBoat(W / 2, H / 2);
+
+  // Discovery particles
+  updateParticles();
+
+  // Fog of war
+  drawFog(camX, camY);
+
+  // Direction indicators
+  drawDirectionIndicator(camX, camY);
+
+  // Compass
+  drawCompass();
+
+  // World boundary warning
+  const edgeDist = Math.min(
+    boat.x + WORLD_SIZE,
+    WORLD_SIZE - boat.x,
+    boat.y + WORLD_SIZE,
+    WORLD_SIZE - boat.y
+  );
+  if (edgeDist < 150) {
+    const alpha = (1 - edgeDist / 150) * 0.3;
+    ctx.fillStyle = `rgba(200,60,60,${alpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  update();
+  requestAnimationFrame(draw);
+}
+
+// ── Init ──
+resize();
+window.addEventListener('resize', resize);
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('intro').style.display = 'none';
+  gameStarted = true;
+  initWorld();
+});
+
+document.getElementById('againBtn').addEventListener('click', () => {
+  document.getElementById('victory').style.display = 'none';
+  initWorld();
+  gameStarted = true;
+});
+
+draw();
+</script>
+</body>
+</html>
