@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Viral Headline Lab</title>
+<style>
+  :root {
+    --bg: #0e0a1a;
+    --bg-2: #1a0f2e;
+    --ink: #f6f1ff;
+    --muted: #9a8fb8;
+    --hot: #ff3d8b;
+    --warm: #ffb84d;
+    --cool: #5dd6ff;
+    --good: #7cf0a8;
+    --line: rgba(255,255,255,0.10);
+    --card: rgba(255,255,255,0.04);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    background:
+      radial-gradient(900px 600px at 80% -10%, rgba(255,61,139,0.18), transparent 60%),
+      radial-gradient(700px 500px at -10% 30%, rgba(93,214,255,0.14), transparent 60%),
+      linear-gradient(180deg, var(--bg), var(--bg-2));
+    color: var(--ink);
+    min-height: 100svh;
+    line-height: 1.4;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 22px 18px 80px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--hot), var(--warm));
+    display: grid; place-items: center;
+    font-size: 20px;
+    box-shadow: 0 8px 24px rgba(255,61,139,0.35);
+  }
+  .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+  .tag { color: var(--muted); font-size: 12px; margin-left: 4px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    backdrop-filter: blur(10px);
+  }
+
+  .input-wrap { position: relative; }
+  textarea#headline {
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.35;
+    font-family: inherit;
+    padding: 14px 14px 36px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea#headline:focus {
+    border-color: rgba(255,61,139,0.55);
+    box-shadow: 0 0 0 4px rgba(255,61,139,0.12);
+  }
+  .charcount {
+    position: absolute;
+    right: 12px; bottom: 10px;
+    font-size: 11px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .btn {
+    border: 0;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    min-height: 48px;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    transition: transform .08s ease, filter .15s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--hot), var(--warm));
+    box-shadow: 0 6px 18px rgba(255,61,139,0.30);
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--line);
+  }
+  .btn-secondary:hover { filter: brightness(1.1); }
+
+  /* Score */
+  .score-wrap {
+    margin-top: 18px;
+    padding: 18px 16px 16px;
+    border-radius: 18px;
+    background:
+      radial-gradient(120% 100% at 50% -20%, rgba(255,61,139,0.18), transparent 60%),
+      rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    text-align: center;
+    position: relative;
+  }
+  .score-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .score-num {
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    background: linear-gradient(180deg, #fff, #d9c8ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-feature-settings: "tnum";
+    transition: transform .25s cubic-bezier(.2,1.6,.4,1);
+  }
+  .score-num.bump { transform: scale(1.06); }
+  .score-grade {
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .grade-cold { color: var(--cool); }
+  .grade-warm { color: var(--warm); }
+  .grade-hot  { color: var(--hot); }
+  .grade-fire { color: #ffe066; text-shadow: 0 0 14px rgba(255,224,102,0.55); }
+  .roast {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--ink);
+    opacity: 0.85;
+    min-height: 20px;
+  }
+
+  .meters {
+    margin-top: 16px;
+    display: grid;
+    gap: 10px;
+  }
+  .meter {
+    display: grid;
+    grid-template-columns: 92px 1fr 36px;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+  }
+  .meter-name { color: var(--muted); }
+  .bar {
+    height: 10px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+  }
+  .fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--cool), var(--hot));
+    transition: width .55s cubic-bezier(.2,.7,.2,1);
+  }
+  .meter-val {
+    text-align: right;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  .actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 13px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    min-height: 36px;
+    transition: background .15s;
+  }
+  .chip:active { background: rgba(255,255,255,0.12); }
+  .chip.primary {
+    background: linear-gradient(135deg, rgba(255,61,139,0.18), rgba(255,184,77,0.18));
+    border-color: rgba(255,61,139,0.35);
+  }
+
+  /* Saved hits */
+  .saved {
+    margin-top: 22px;
+  }
+  .saved-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .saved-title {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+  .clear-btn {
+    background: none; border: 0; color: var(--muted);
+    font-size: 12px; cursor: pointer; padding: 4px 6px;
+  }
+  .saved-list { display: grid; gap: 8px; }
+  .saved-item {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .saved-score {
+    font-weight: 800;
+    font-size: 18px;
+    text-align: center;
+    color: var(--warm);
+    font-variant-numeric: tabular-nums;
+  }
+  .saved-text { font-size: 14px; line-height: 1.3; }
+  .saved-del {
+    background: none; border: 0; color: var(--muted);
+    font-size: 18px; cursor: pointer; line-height: 1;
+    width: 28px; height: 28px; border-radius: 6px;
+  }
+  .saved-empty {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 14px 8px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+  }
+
+  footer {
+    margin-top: 26px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(20,12,32,0.95);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s, transform .25s;
+    z-index: 50;
+    backdrop-filter: blur(8px);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @media (max-width: 380px) {
+    .score-num { font-size: 60px; }
+    .meter { grid-template-columns: 80px 1fr 32px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">📈</div>
+      <div>
+        <div class="brand">Viral Headline Lab<span class="tag">v1.0</span></div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="input-wrap">
+        <textarea id="headline" placeholder="Type a headline, tweet, or slogan…
+Or tap Surprise Me 👇"></textarea>
+        <div class="charcount" id="charcount">0</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="surpriseBtn">✨ Surprise Me</button>
+        <button class="btn btn-secondary" id="scoreBtn">Score It</button>
+      </div>
+    </section>
+
+    <section class="score-wrap" id="scoreWrap">
+      <div class="score-label">Virality Score</div>
+      <div class="score-num" id="scoreNum">—</div>
+      <div class="score-grade" id="scoreGrade">awaiting input</div>
+      <div class="roast" id="roast">Drop a headline above and I'll tell you if it'll spread.</div>
+
+      <div class="meters" id="meters">
+        <div class="meter"><div class="meter-name">Curiosity</div><div class="bar"><div class="fill" data-key="curiosity"></div></div><div class="meter-val" data-val="curiosity">0</div></div>
+        <div class="meter"><div class="meter-name">Emotion</div><div class="bar"><div class="fill" data-key="emotion"></div></div><div class="meter-val" data-val="emotion">0</div></div>
+        <div class="meter"><div class="meter-name">Urgency</div><div class="bar"><div class="fill" data-key="urgency"></div></div><div class="meter-val" data-val="urgency">0</div></div>
+        <div class="meter"><div class="meter-name">Specificity</div><div class="bar"><div class="fill" data-key="specificity"></div></div><div class="meter-val" data-val="specificity">0</div></div>
+        <div class="meter"><div class="meter-name">Punch</div><div class="bar"><div class="fill" data-key="punch"></div></div><div class="meter-val" data-val="punch">0</div></div>
+      </div>
+
+      <div class="actions">
+        <button class="chip primary" id="remixBtn">🔀 Remix</button>
+        <button class="chip" id="saveBtn">⭐ Save</button>
+        <button class="chip" id="copyBtn">📋 Copy</button>
+      </div>
+    </section>
+
+    <section class="saved">
+      <div class="saved-head">
+        <div class="saved-title">Your Hit List</div>
+        <button class="clear-btn" id="clearBtn">clear</button>
+      </div>
+      <div class="saved-list" id="savedList"></div>
+    </section>
+
+    <footer>BUILT FOR FUN · NOT A REAL SCIENCE</footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ---------- Word banks ----------
+  const TEMPLATES = [
+    "{n} {things} That {verbed} My {noun} Forever",
+    "Why Everyone Is Quietly {verbing} Their {noun}",
+    "The {adj} Truth About {topic} Nobody Wants To Admit",
+    "I Tried {verbing} For {n} Days. Here's What Happened.",
+    "This {tiny} {object} Is {verbing} The Internet",
+    "Stop {verbing} Your {noun}. Do This Instead.",
+    "{n} Signs You're Secretly A {persona}",
+    "How A {persona} {verbed} {topic} In {n} Minutes",
+    "The {weird} Trick {personas} Use To {verb} {topic}",
+    "Nobody Talks About How {adj} {topic} Actually Is",
+    "{n}-Second Test That Reveals If You're A {persona}",
+    "What Happened When I Replaced My {noun} With A {object}",
+    "Read This Before You {verb} Another {noun}",
+    "{persona} Reveals The {adj} Reason {topic} Is Broken",
+    "{topic} Is Dead. {topic2} Killed It.",
+    "I Was Wrong About {topic}. Here's The Proof.",
+    "The {adj} Side Of {topic} You've Never Seen",
+    "{n} Words That Will Change How You {verb}",
+    "Inside The {adj} World Of {topic}",
+    "Plot Twist: Your {noun} Is The Problem"
+  ];
+
+  const N = ["3","5","7","9","11","12","17","27","100"];
+  const ADJ = ["weird","awkward","brutal","hidden","tiny","quiet","ridiculous","unhinged","savage","cozy","feral","strange","glorious","cursed","accidental","forbidden"];
+  const TINY = ["tiny","small","one-button","30-second","5-dollar","pocket-sized"];
+  const VERB = ["fix","rewire","upgrade","reset","rethink","decode","redesign","master","ruin","steal","unlock","supercharge"];
+  const VERBING = ["quitting","rewriting","ditching","fixing","selling","redesigning","skipping","timing","color-coding","journaling","unsubscribing","sleeping on","outsourcing","memeing"];
+  const VERBED = ["broke","fixed","saved","ruined","rewrote","upgraded","derailed","predicted","exposed","reset"];
+  const NOUN = ["morning","inbox","brain","budget","weekend","friend group","commute","calendar","wardrobe","feed","bedroom","habits"];
+  const NOUN2 = ["routine","strategy","setup","stack","approach","mindset"];
+  const OBJECT = ["spreadsheet","sticky note","timer","journal","app","ritual","playlist","postcard","notebook","photo"];
+  const TOPIC = ["productivity","dating","sleep","money","networking","focus","creativity","branding","marketing","writing","mornings","side projects","TikTok","email"];
+  const PERSONA = ["millionaire","monk","designer","CEO","copywriter","scientist","therapist","DJ","chef","ex-Googler","grandmother","Olympian"];
+  const PERSONAS = ["billionaires","therapists","designers","copywriters","ex-pros","insiders","top performers"];
+  const WEIRD = ["weird","forbidden","one-word","reverse","60-second","2-line","3-step"];
+  const THINGS = ["habits","tricks","emails","mistakes","ideas","tools","questions","apps","phrases","rules"];
+
+  const POWER_WORDS = [
+    "secret","truth","brutal","forbidden","instant","shocking","savage","ultimate",
+    "weird","actually","quietly","accidentally","ridiculous","hidden","unhinged",
+    "free","proven","insane","mind-blowing","never","finally","exposed","revealed",
+    "dangerous","wrong","right","fastest","slowest","worst","best","silent",
+    "tiny","huge","stop","start","kill","steal","fix","unlock","master","rewire",
+    "plot twist","nobody","everyone","you","your","i","me","my"
+  ];
+
+  const EMOTION_WORDS = [
+    "love","hate","fear","cry","laugh","shocked","angry","obsessed","jealous",
+    "embarrassing","awkward","gross","amazing","terrible","beautiful","ugly",
+    "wow","heartbreak","savage","cozy","cursed","feral","glorious","brutal",
+    "miss","need","want","desperate","lonely","happy","sad","mad"
+  ];
+
+  const URGENCY_WORDS = [
+    "now","today","tonight","instantly","immediately","before","stop","wait",
+    "right now","this week","this year","never","always","finally","still",
+    "in 30 seconds","in 5 minutes","in 24 hours","while you sleep","this morning"
+  ];
+
+  const CURIOSITY_HOOKS = [
+    "why","how","what","secret","reason","truth","trick","real","actually",
+    "nobody knows","what happened","here's why","you won't believe","plot twist",
+    "the one thing","quietly","behind","inside","exposed","revealed","leaked"
+  ];
+
+  const ROASTS_LOW = [
+    "Even your mom would scroll past this.",
+    "This headline is wearing cargo shorts.",
+    "Did a meeting agenda write this?",
+    "The algorithm just yawned.",
+    "Soft. Try again with feeling.",
+    "This is what 'corporate sad' sounds like.",
+    "I almost fell asleep mid-read.",
+    "Needs more caffeine and less LinkedIn."
+  ];
+  const ROASTS_MID = [
+    "Decent! But where's the spice?",
+    "Could go viral on a slow Tuesday.",
+    "Has potential. Add a number or a fight.",
+    "Mid-tier banger. Polish it.",
+    "Good bones, missing teeth.",
+    "Eligible for the second slide of a carousel."
+  ];
+  const ROASTS_HIGH = [
+    "Okay this slaps. Ship it.",
+    "Algorithm just texted you 'hey.'",
+    "Screenshots incoming.",
+    "Thread material. People will quote-tweet.",
+    "Saved-to-camera-roll energy.",
+    "This is going on a billboard."
+  ];
+  const ROASTS_FIRE = [
+    "🔥 Internet-breaking. Lawyer up.",
+    "🚨 Brand managers are sweating.",
+    "Pin it. Print it. Tattoo it.",
+    "This will outlive us all.",
+    "You just hijacked the timeline."
+  ];
+
+  // ---------- Helpers ----------
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  function generateHeadline() {
+    const tpl = pick(TEMPLATES);
+    return tpl
+      .replace(/{n}/g, () => pick(N))
+      .replace(/{adj}/g, () => pick(ADJ))
+      .replace(/{tiny}/g, () => pick(TINY))
+      .replace(/{verb}/g, () => pick(VERB))
+      .replace(/{verbing}/g, () => pick(VERBING))
+      .replace(/{verbed}/g, () => pick(VERBED))
+      .replace(/{noun2}/g, () => pick(NOUN2))
+      .replace(/{noun}/g, () => pick(NOUN))
+      .replace(/{object}/g, () => pick(OBJECT))
+      .replace(/{topic2}/g, () => pick(TOPIC))
+      .replace(/{topic}/g, () => pick(TOPIC))
+      .replace(/{persona}/g, () => pick(PERSONA))
+      .replace(/{personas}/g, () => pick(PERSONAS))
+      .replace(/{weird}/g, () => pick(WEIRD))
+      .replace(/{things}/g, () => pick(THINGS));
+  }
+
+  function countMatches(text, list) {
+    const lower = " " + text.toLowerCase() + " ";
+    let hits = 0;
+    for (const w of list) {
+      const needle = " " + w.toLowerCase() + " ";
+      // simple multi-occurrence via split
+      const parts = lower.split(needle);
+      hits += parts.length - 1;
+    }
+    return hits;
+  }
+
+  function scoreHeadline(text) {
+    const t = text.trim();
+    if (!t) return null;
+
+    const words = t.split(/\s+/).filter(Boolean);
+    const wc = words.length;
+    const hasNumber = /\d/.test(t);
+    const hasQ = /\?/.test(t);
+    const exclam = (t.match(/!/g) || []).length;
+    const hasYou = /\b(you|your|you're|you've)\b/i.test(t);
+    const hasI = /\b(i|i'm|i've|my|me)\b/i.test(t);
+    const allCapsWords = words.filter(w => w.length > 2 && w === w.toUpperCase() && /[A-Z]/.test(w)).length;
+
+    // Curiosity (0-100)
+    let curiosity = 0;
+    curiosity += countMatches(t, CURIOSITY_HOOKS) * 18;
+    if (hasQ) curiosity += 22;
+    if (/\b(why|how|what|when)\b/i.test(t)) curiosity += 14;
+    if (/secret|hidden|reason|truth|trick|nobody|inside|behind/i.test(t)) curiosity += 12;
+    curiosity = Math.min(100, curiosity);
+
+    // Emotion (0-100)
+    let emotion = 0;
+    emotion += countMatches(t, EMOTION_WORDS) * 16;
+    emotion += exclam * 14;
+    if (allCapsWords > 0) emotion += 10 * allCapsWords;
+    if (/love|hate|cry|laugh|wow|omg|brutal|savage|cursed/i.test(t)) emotion += 12;
+    emotion = Math.min(100, emotion);
+
+    // Urgency (0-100)
+    let urgency = 0;
+    urgency += countMatches(t, URGENCY_WORDS) * 18;
+    if (/\bstop\b|\bdon't\b|\bnever\b|\bbefore\b|\bnow\b|\btoday\b/i.test(t)) urgency += 18;
+    if (/in \d+ (seconds|minutes|hours|days|weeks)/i.test(t)) urgency += 22;
+    urgency = Math.min(100, urgency);
+
+    // Specificity (0-100)
+    let specificity = 0;
+    if (hasNumber) specificity += 32;
+    const numMatch = t.match(/\d+/g);
+    if (numMatch) specificity += Math.min(20, numMatch.length * 12);
+    if (/\$|%|\bdays?\b|\bhours?\b|\bminutes?\b|\bseconds?\b|\bweeks?\b|\byears?\b/i.test(t)) specificity += 18;
+    if (/\b(top|first|last|only|exactly)\b/i.test(t)) specificity += 12;
+    specificity = Math.min(100, specificity);
+
+    // Punch (length + power words + voice)
+    let punch = 0;
+    // ideal length ~ 8-14 words
+    if (wc >= 6 && wc <= 16) punch += 30;
+    else if (wc >= 4 && wc <= 22) punch += 18;
+    else punch += 6;
+    punch += Math.min(40, countMatches(t, POWER_WORDS) * 10);
+    if (hasYou) punch += 12;
+    if (hasI) punch += 8;
+    punch = Math.min(100, punch);
+
+    // Composite — weighted
+    const composite = Math.round(
+      curiosity * 0.22 +
+      emotion * 0.20 +
+      urgency * 0.16 +
+      specificity * 0.18 +
+      punch * 0.24
+    );
+
+    // Tiny boost for great combos
+    let bonus = 0;
+    if (curiosity > 60 && emotion > 50) bonus += 4;
+    if (hasNumber && hasYou) bonus += 3;
+    if (wc >= 7 && wc <= 13 && punch > 60) bonus += 3;
+
+    const total = Math.max(0, Math.min(100, composite + bonus));
+
+    return {
+      total,
+      curiosity: Math.round(curiosity),
+      emotion: Math.round(emotion),
+      urgency: Math.round(urgency),
+      specificity: Math.round(specificity),
+      punch: Math.round(punch)
+    };
+  }
+
+  function gradeFor(score) {
+    if (score >= 85) return { label: "🔥 internet-breaking", cls: "grade-fire", roasts: ROASTS_FIRE };
+    if (score >= 65) return { label: "🚀 ready to ship",     cls: "grade-hot",  roasts: ROASTS_HIGH };
+    if (score >= 40) return { label: "⚡ has potential",      cls: "grade-warm", roasts: ROASTS_MID };
+    return { label: "🥶 cold open",                            cls: "grade-cold", roasts: ROASTS_LOW };
+  }
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const headline = $("headline");
+  const scoreNum = $("scoreNum");
+  const scoreGrade = $("scoreGrade");
+  const roast = $("roast");
+  const charcount = $("charcount");
+  const toast = $("toast");
+  const savedList = $("savedList");
+
+  let lastScore = null;
+  let toastTimer = null;
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+  }
+
+  function animateNumber(el, from, to, duration = 600) {
+    const start = performance.now();
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = Math.round(from + (to - from) * eased);
+      el.textContent = v;
+      if (t < 1) requestAnimationFrame(frame);
+      else el.textContent = to;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function renderScore(scores) {
+    if (!scores) {
+      scoreNum.textContent = "—";
+      scoreGrade.textContent = "awaiting input";
+      scoreGrade.className = "score-grade";
+      roast.textContent = "Drop a headline above and I'll tell you if it'll spread.";
+      document.querySelectorAll(".fill").forEach(f => f.style.width = "0%");
+      document.querySelectorAll("[data-val]").forEach(v => v.textContent = "0");
+      lastScore = null;
+      return;
+    }
+    const prev = lastScore ? lastScore.total : 0;
+    animateNumber(scoreNum, prev, scores.total);
+    scoreNum.classList.add("bump");
+    setTimeout(() => scoreNum.classList.remove("bump"), 280);
+
+    const g = gradeFor(scores.total);
+    scoreGrade.textContent = g.label;
+    scoreGrade.className = "score-grade " + g.cls;
+    roast.textContent = pick(g.roasts);
+
+    ["curiosity","emotion","urgency","specificity","punch"].forEach(k => {
+      const fill = document.querySelector(`.fill[data-key="${k}"]`);
+      const val = document.querySelector(`[data-val="${k}"]`);
+      if (fill) fill.style.width = scores[k] + "%";
+      if (val) val.textContent = scores[k];
+    });
+
+    lastScore = scores;
+  }
+
+  function score() {
+    const text = headline.value;
+    const scores = scoreHeadline(text);
+    if (!scores) {
+      showToast("Type something first ✏️");
+      return;
+    }
+    renderScore(scores);
+  }
+
+  function updateChars() {
+    charcount.textContent = headline.value.length;
+  }
+
+  // ---------- Saved hits (localStorage) ----------
+  const KEY = "vhl-hits-v1";
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+  }
+  function persist(arr) {
+    try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch {}
+  }
+  function renderSaved() {
+    const items = loadSaved();
+    savedList.innerHTML = "";
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "saved-empty";
+      empty.textContent = "No saved hits yet. Hit ⭐ on one you love.";
+      savedList.appendChild(empty);
+      return;
+    }
+    items.forEach((it, i) => {
+      const row = document.createElement("div");
+      row.className = "saved-item";
+      row.innerHTML = `
+        <div class="saved-score">${it.score}</div>
+        <div class="saved-text"></div>
+        <button class="saved-del" aria-label="delete">×</button>
+      `;
+      row.querySelector(".saved-text").textContent = it.text;
+      row.querySelector(".saved-del").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const next = loadSaved();
+        next.splice(i, 1);
+        persist(next);
+        renderSaved();
+      });
+      row.addEventListener("click", () => {
+        headline.value = it.text;
+        updateChars();
+        score();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      savedList.appendChild(row);
+    });
+  }
+
+  // ---------- Wire up ----------
+  $("surpriseBtn").addEventListener("click", () => {
+    headline.value = generateHeadline();
+    updateChars();
+    score();
+  });
+
+  $("scoreBtn").addEventListener("click", score);
+
+  $("remixBtn").addEventListener("click", () => {
+    headline.value = generateHeadline();
+    updateChars();
+    score();
+  });
+
+  $("saveBtn").addEventListener("click", () => {
+    const text = headline.value.trim();
+    if (!text || !lastScore) {
+      showToast("Score it first ⚡");
+      return;
+    }
+    const items = loadSaved();
+    if (items.some(i => i.text === text)) {
+      showToast("Already saved ⭐");
+      return;
+    }
+    items.unshift({ text, score: lastScore.total, ts: Date.now() });
+    persist(items.slice(0, 30));
+    renderSaved();
+    showToast("Saved to your hit list ⭐");
+  });
+
+  $("copyBtn").addEventListener("click", async () => {
+    const text = headline.value.trim();
+    if (!text) { showToast("Nothing to copy"); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Copied 📋");
+    } catch {
+      // fallback: select textarea
+      headline.select();
+      try { document.execCommand("copy"); showToast("Copied 📋"); }
+      catch { showToast("Couldn't copy"); }
+    }
+  });
+
+  $("clearBtn").addEventListener("click", () => {
+    if (!loadSaved().length) return;
+    persist([]);
+    renderSaved();
+    showToast("Hit list cleared");
+  });
+
+  headline.addEventListener("input", updateChars);
+
+  // First-load demo: a generated headline + score so the page feels alive
+  headline.value = generateHeadline();
+  updateChars();
+  score();
+  renderSaved();
+})();
+</script>
+</body>
+</html>
