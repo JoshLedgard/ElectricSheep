@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sync — April 22, 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a12;
+    color: #e0e0ff;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+    overflow-x: hidden;
+  }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #a0a0ff;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .subtitle {
+    font-size: 0.75rem;
+    color: #5555aa;
+    letter-spacing: 0.1em;
+    margin-bottom: 28px;
+  }
+  .grid-wrap {
+    width: 100%;
+    max-width: 480px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.3s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .cell:active { transform: scale(0.92); }
+  .cell.off {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    color: #3a3a5a;
+  }
+  .cell.on {
+    border: 1px solid transparent;
+    color: #fff;
+    box-shadow: 0 0 12px var(--glow);
+  }
+  .cell.syncing {
+    animation: pulse 0.6s ease-in-out;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  .stats {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: #12122a;
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 8px 16px;
+    text-align: center;
+    min-width: 80px;
+  }
+  .stat-val {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #8080ff;
+    display: block;
+  }
+  .stat-label {
+    font-size: 0.65rem;
+    color: #5555aa;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .message {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #7070cc;
+    min-height: 1.4em;
+    margin-bottom: 16px;
+    letter-spacing: 0.03em;
+  }
+  .message.success { color: #70ffaa; }
+  .message.win { color: #ffdd70; font-size: 1rem; }
+  .controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #1e1e3a;
+    border: 1px solid #4040aa;
+    color: #a0a0ff;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: background 0.15s, box-shadow 0.15s;
+    min-height: 44px;
+    min-width: 80px;
+  }
+  button:hover, button:focus { background: #2a2a50; box-shadow: 0 0 8px #4040aa; outline: none; }
+  button:active { background: #3a3a60; }
+  button.primary {
+    background: #3030a0;
+    border-color: #6060ff;
+    color: #e0e0ff;
+  }
+  button.primary:hover { background: #4040b0; box-shadow: 0 0 12px #6060ff; }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #1a1a2e;
+    border-radius: 3px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4040ff, #80ffcc);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .combo-display {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #5555aa;
+    margin-bottom: 8px;
+    letter-spacing: 0.08em;
+    min-height: 1.2em;
+  }
+  .combo-display.active { color: #ffaa40; }
+  .streak-flash {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffdd70;
+    text-shadow: 0 0 30px #ffaa00;
+    pointer-events: none;
+    opacity: 0;
+    letter-spacing: 0.05em;
+    z-index: 100;
+  }
+  .streak-flash.show {
+    animation: flashIn 0.8s ease forwards;
+  }
+  @keyframes flashIn {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+    30% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    70% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  }
+</style>
+</head>
+<body>
+
+<h1>SYNC</h1>
+<p class="subtitle">get everything back online</p>
+
+<div class="grid-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+  <div class="combo-display" id="comboDisplay"></div>
+  <div class="grid" id="grid"></div>
+  <div class="stats">
+    <div class="stat"><span class="stat-val" id="synced">0</span><span class="stat-label">Synced</span></div>
+    <div class="stat"><span class="stat-val" id="score">0</span><span class="stat-label">Score</span></div>
+    <div class="stat"><span class="stat-val" id="timer">60</span><span class="stat-label">Seconds</span></div>
+  </div>
+  <div class="message" id="message">Tap a cell to start syncing →</div>
+  <div class="controls">
+    <button onclick="cascadeRandom()" id="cascadeBtn">⚡ Cascade</button>
+    <button class="primary" onclick="resetGame()" id="resetBtn">↺ Reset</button>
+  </div>
+</div>
+
+<div class="streak-flash" id="streakFlash"></div>
+
+<script>
+const COLS = 6;
+const ROWS = 6;
+const TOTAL = COLS * ROWS;
+
+const COLORS = [
+  { bg: '#1a3a6a', glow: '#3080ff', label: 'NET' },
+  { bg: '#3a1a5a', glow: '#a040ff', label: 'SVC' },
+  { bg: '#1a4a3a', glow: '#30d080', label: 'API' },
+  { bg: '#4a2a1a', glow: '#ff8030', label: 'JOB' },
+  { bg: '#3a3a1a', glow: '#dddd30', label: 'SYN' },
+  { bg: '#4a1a2a', glow: '#ff4080', label: 'APP' },
+];
+
+let state = {
+  cells: [],
+  score: 0,
+  synced: 0,
+  timeLeft: 60,
+  timerInterval: null,
+  started: false,
+  combo: 0,
+  comboTimer: null,
+  cascades: 2,
+  gameOver: false,
+};
+
+function init() {
+  state.cells = Array.from({ length: TOTAL }, (_, i) => ({
+    id: i,
+    on: false,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    neighbors: getNeighbors(i),
+  }));
+}
+
+function getNeighbors(i) {
+  const row = Math.floor(i / COLS);
+  const col = i % COLS;
+  const n = [];
+  if (row > 0) n.push(i - COLS);
+  if (row < ROWS - 1) n.push(i + COLS);
+  if (col > 0) n.push(i - 1);
+  if (col < COLS - 1) n.push(i + 1);
+  return n;
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  if (grid.children.length !== TOTAL) {
+    grid.innerHTML = '';
+    state.cells.forEach((cell, i) => {
+      const el = document.createElement('div');
+      el.className = 'cell off';
+      el.dataset.i = i;
+      el.addEventListener('click', () => tapCell(i));
+      grid.appendChild(el);
+    });
+  }
+  state.cells.forEach((cell, i) => {
+    const el = grid.children[i];
+    if (cell.on) {
+      el.className = 'cell on';
+      el.style.background = cell.color.bg;
+      el.style.setProperty('--glow', cell.color.glow);
+      el.style.borderColor = cell.color.glow + '80';
+      el.textContent = cell.color.label;
+    } else {
+      el.className = 'cell off';
+      el.style.background = '';
+      el.style.borderColor = '';
+      el.style.setProperty('--glow', '');
+      el.textContent = '';
+    }
+  });
+
+  document.getElementById('synced').textContent = state.synced;
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('timer').textContent = state.timeLeft;
+  document.getElementById('progress').style.width = (state.synced / TOTAL * 100) + '%';
+  document.getElementById('cascadeBtn').textContent = `⚡ Cascade (${state.cascades})`;
+  document.getElementById('cascadeBtn').disabled = state.cascades <= 0 || state.gameOver;
+}
+
+function tapCell(i) {
+  if (state.gameOver) return;
+  if (!state.started) startTimer();
+
+  const cell = state.cells[i];
+  if (cell.on) return; // already synced
+
+  syncCell(i, true);
+  render();
+}
+
+function syncCell(i, isManual) {
+  const cell = state.cells[i];
+  if (cell.on) return;
+  cell.on = true;
+  state.synced++;
+
+  // Score: base + combo bonus
+  const base = isManual ? 10 : 5;
+  if (isManual) {
+    state.combo++;
+    clearTimeout(state.comboTimer);
+    state.comboTimer = setTimeout(() => {
+      state.combo = 0;
+      updateComboDisplay();
+    }, 2000);
+  }
+  const bonus = state.combo > 1 ? state.combo : 1;
+  state.score += base * bonus;
+
+  // Flash cell
+  const grid = document.getElementById('grid');
+  const el = grid.children[i];
+  if (el) {
+    el.classList.add('syncing');
+    setTimeout(() => el.classList.remove('syncing'), 600);
+  }
+
+  updateComboDisplay();
+  checkWin();
+
+  // Cascade to neighbors if they share color
+  if (isManual) {
+    const sameColorNeighbors = cell.neighbors.filter(
+      n => !state.cells[n].on && state.cells[n].color.label === cell.color.label
+    );
+    if (sameColorNeighbors.length > 0) {
+      setTimeout(() => {
+        sameColorNeighbors.forEach(n => syncCell(n, false));
+        render();
+        if (sameColorNeighbors.length >= 2) showStreak(`+${sameColorNeighbors.length} CHAIN`);
+      }, 200);
+    }
+  }
+}
+
+function updateComboDisplay() {
+  const el = document.getElementById('comboDisplay');
+  if (state.combo > 1) {
+    el.textContent = `COMBO ×${state.combo}`;
+    el.className = 'combo-display active';
+  } else {
+    el.textContent = '';
+    el.className = 'combo-display';
+  }
+}
+
+function showStreak(text) {
+  const el = document.getElementById('streakFlash');
+  el.textContent = text;
+  el.className = 'streak-flash';
+  void el.offsetWidth;
+  el.className = 'streak-flash show';
+}
+
+function startTimer() {
+  state.started = true;
+  state.timerInterval = setInterval(() => {
+    state.timeLeft--;
+    render();
+    if (state.timeLeft <= 0) endGame();
+    else if (state.timeLeft <= 10) {
+      setMessage('⏱ Almost out of time!', '');
+    }
+  }, 1000);
+}
+
+function checkWin() {
+  if (state.synced === TOTAL) {
+    clearInterval(state.timerInterval);
+    state.gameOver = true;
+    const bonus = state.timeLeft * 5;
+    state.score += bonus;
+    render();
+    setMessage(`🎉 FULLY SYNCED! +${bonus} time bonus`, 'win');
+    showStreak('ALL SYNC!');
+  }
+}
+
+function endGame() {
+  clearInterval(state.timerInterval);
+  state.gameOver = true;
+  const pct = Math.round(state.synced / TOTAL * 100);
+  render();
+  if (pct >= 90) setMessage(`Almost! ${pct}% synced — so close`, 'success');
+  else if (pct >= 60) setMessage(`${pct}% synced — solid run`, '');
+  else setMessage(`${pct}% synced — try cascade next time`, '');
+}
+
+function setMessage(text, cls) {
+  const el = document.getElementById('message');
+  el.textContent = text;
+  el.className = 'message' + (cls ? ' ' + cls : '');
+}
+
+function cascadeRandom() {
+  if (state.cascades <= 0 || state.gameOver) return;
+  if (!state.started) startTimer();
+  state.cascades--;
+
+  // Find all off cells, pick one at random and sync it + all its off neighbors
+  const offCells = state.cells.filter(c => !c.on);
+  if (offCells.length === 0) return;
+  const target = offCells[Math.floor(Math.random() * offCells.length)];
+
+  syncCell(target.id, false);
+  target.neighbors.forEach(n => {
+    if (!state.cells[n].on) {
+      setTimeout(() => { syncCell(n, false); render(); }, 150);
+    }
+  });
+  showStreak('⚡ CASCADE');
+  setMessage('Cascade fired!', 'success');
+  render();
+}
+
+function resetGame() {
+  clearInterval(state.timerInterval);
+  clearTimeout(state.comboTimer);
+  state = {
+    cells: [],
+    score: 0,
+    synced: 0,
+    timeLeft: 60,
+    timerInterval: null,
+    started: false,
+    combo: 0,
+    comboTimer: null,
+    cascades: 2,
+    gameOver: false,
+  };
+  init();
+  setMessage('Tap a cell to start syncing →', '');
+  document.getElementById('comboDisplay').textContent = '';
+  render();
+}
+
+// Boot
+init();
+render();
+</script>
+</body>
+</html>
