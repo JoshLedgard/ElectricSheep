@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Drift</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #080c14;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      font-family: 'Helvetica Neue', sans-serif;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    #ui {
+      position: fixed;
+      bottom: 32px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      pointer-events: none;
+    }
+    #label {
+      color: rgba(255,255,255,0.18);
+      font-size: 13px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+    }
+    #hint {
+      color: rgba(255,255,255,0.10);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+    #bloom {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at center, rgba(100,180,255,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="bloom"></div>
+  <div id="ui">
+    <div id="label">Drift</div>
+    <div id="hint">tap to send a pulse</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const bloom = document.getElementById('bloom');
+
+    let W, H, nodes, dpr;
+
+    const NODE_COUNT = 38;
+    const CONNECT_DIST = 140;
+    const ENERGY_DECAY = 0.0018;
+    const PULSE_SPREAD = 0.55;
+    const PULSE_RADIUS = 180;
+
+    function resize() {
+      dpr = window.devicePixelRatio || 1;
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.scale(dpr, dpr);
+    }
+
+    function randRange(a, b) { return a + Math.random() * (b - a); }
+
+    function createNode(x, y) {
+      return {
+        x: x !== undefined ? x : randRange(W * 0.08, W * 0.92),
+        y: y !== undefined ? y : randRange(H * 0.08, H * 0.92),
+        vx: randRange(-0.25, 0.25),
+        vy: randRange(-0.25, 0.25),
+        energy: randRange(0.1, 0.4),
+        radius: randRange(3, 6),
+        hue: randRange(180, 240),
+        phase: randRange(0, Math.PI * 2),
+      };
+    }
+
+    function initNodes() {
+      nodes = [];
+      for (let i = 0; i < NODE_COUNT; i++) nodes.push(createNode());
+    }
+
+    function pulse(px, py) {
+      let affected = 0;
+      nodes.forEach(n => {
+        const dx = n.x - px, dy = n.y - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < PULSE_RADIUS) {
+          const boost = PULSE_SPREAD * (1 - dist / PULSE_RADIUS);
+          n.energy = Math.min(1, n.energy + boost);
+          affected++;
+        }
+      });
+      // Ripple bloom
+      bloom.style.opacity = '1';
+      setTimeout(() => { bloom.style.opacity = '0'; }, 400);
+    }
+
+    let ripples = [];
+    function addRipple(x, y) {
+      ripples.push({ x, y, r: 0, opacity: 0.8, maxR: PULSE_RADIUS });
+    }
+
+    let totalEnergy = 0;
+    let frame = 0;
+
+    function draw() {
+      frame++;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background gradient
+      const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H));
+      bg.addColorStop(0, 'rgba(8,14,28,1)');
+      bg.addColorStop(1, 'rgba(4,6,12,1)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Draw ripples
+      ripples = ripples.filter(r => r.opacity > 0.01);
+      ripples.forEach(r => {
+        r.r += 4;
+        r.opacity *= 0.93;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(120,200,255,${r.opacity * 0.3})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      // Update and draw connections
+      totalEnergy = 0;
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CONNECT_DIST) {
+            const proximity = 1 - dist / CONNECT_DIST;
+            const sharedEnergy = (a.energy + b.energy) * 0.5;
+            const alpha = proximity * sharedEnergy * 0.6;
+            if (alpha > 0.005) {
+              const hue = (a.hue + b.hue) / 2;
+              const grd = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+              grd.addColorStop(0, `hsla(${a.hue},80%,70%,${alpha})`);
+              grd.addColorStop(1, `hsla(${b.hue},80%,70%,${alpha})`);
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.strokeStyle = grd;
+              ctx.lineWidth = proximity * sharedEnergy * 2;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      // Update and draw nodes
+      nodes.forEach(n => {
+        // Decay
+        n.energy = Math.max(0.04, n.energy - ENERGY_DECAY);
+        totalEnergy += n.energy;
+
+        // Drift
+        n.x += n.vx;
+        n.y += n.vy;
+
+        // Gentle drift variation
+        n.vx += randRange(-0.008, 0.008);
+        n.vy += randRange(-0.008, 0.008);
+        n.vx = Math.max(-0.6, Math.min(0.6, n.vx));
+        n.vy = Math.max(-0.6, Math.min(0.6, n.vy));
+
+        // Bounce off walls (soft)
+        const margin = 40;
+        if (n.x < margin) n.vx += 0.05;
+        if (n.x > W - margin) n.vx -= 0.05;
+        if (n.y < margin) n.vy += 0.05;
+        if (n.y > H - margin) n.vy -= 0.05;
+
+        // Draw node
+        const pulse = Math.sin(frame * 0.03 + n.phase) * 0.2 + 0.8;
+        const r = n.radius * pulse * (0.5 + n.energy * 0.8);
+        const brightness = 45 + n.energy * 40;
+        const sat = 60 + n.energy * 30;
+
+        // Glow
+        if (n.energy > 0.2) {
+          const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 5);
+          glow.addColorStop(0, `hsla(${n.hue},${sat}%,${brightness}%,${n.energy * 0.3})`);
+          glow.addColorStop(1, `hsla(${n.hue},${sat}%,${brightness}%,0)`);
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r * 5, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+        }
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${n.hue},${sat}%,${brightness}%,${0.5 + n.energy * 0.5})`;
+        ctx.fill();
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    // Input handling
+    function handleInput(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      pulse(x, y);
+      addRipple(x, y);
+    }
+
+    canvas.addEventListener('click', e => handleInput(e.clientX, e.clientY));
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      Array.from(e.changedTouches).forEach(t => handleInput(t.clientX, t.clientY));
+    }, { passive: false });
+
+    // Init
+    resize();
+    initNodes();
+    draw();
+    window.addEventListener('resize', () => { resize(); });
+  </script>
+</body>
+</html>
