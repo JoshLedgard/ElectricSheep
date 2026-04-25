@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Focus Funnel</title>
+  <style>
+    :root {
+      --bg: #081019;
+      --panel: rgba(14, 25, 38, 0.92);
+      --panel-2: rgba(10, 18, 29, 0.9);
+      --line: rgba(140, 195, 255, 0.16);
+      --text: #e9f4ff;
+      --muted: #9fb5cb;
+      --cyan: #63e6ff;
+      --mint: #76f7c6;
+      --violet: #af95ff;
+      --amber: #ffd36b;
+      --rose: #ff8bb9;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(99, 230, 255, 0.16), transparent 32%),
+        radial-gradient(circle at 80% 10%, rgba(175, 149, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, #071019 0%, #0b1420 48%, #071019 100%);
+      min-height: 100vh;
+    }
+    .wrap {
+      width: min(1080px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(14px);
+    }
+    .hero {
+      padding: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -40px -60px auto;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(118, 247, 198, 0.18), transparent 62%);
+      pointer-events: none;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(99, 230, 255, 0.08);
+      color: var(--cyan);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2rem, 7vw, 3.6rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+    .subtitle {
+      max-width: 58ch;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+      margin: 0 0 18px;
+    }
+    .hero-grid, .workspace {
+      display: grid;
+      gap: 16px;
+    }
+    .hero-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stat {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
+    }
+    .stat strong { display: block; font-size: 24px; margin-bottom: 4px; }
+    .stat span { color: var(--muted); font-size: 13px; }
+    .workspace {
+      grid-template-columns: 1.1fr 0.9fr;
+      margin-top: 16px;
+      align-items: start;
+    }
+    .panel { padding: 18px; }
+    .panel h2 { margin: 0 0 8px; font-size: 20px; }
+    .panel p { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .chip, button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      min-height: 44px;
+      padding: 10px 14px;
+      font: inherit;
+    }
+    .chip {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.07);
+      cursor: pointer;
+    }
+    .chip:hover, button:hover { transform: translateY(-1px); }
+    .fields { display: grid; gap: 12px; }
+    label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+    input[type="text"], textarea {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 14px;
+      padding: 14px;
+      font: inherit;
+      min-height: 48px;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    .sliders { display: grid; gap: 10px; }
+    .slider-row {
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .slider-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+    .slider-head strong { font-size: 14px; }
+    .slider-head span { color: var(--muted); font-size: 13px; }
+    input[type="range"] { width: 100%; accent-color: var(--cyan); min-height: 32px; }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+    .primary { background: linear-gradient(135deg, var(--cyan), #7af0df); color: #07202a; font-weight: 700; cursor: pointer; }
+    .secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.09); cursor: pointer; }
+    .summary {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .summary-box {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .summary-box strong { display: block; margin-bottom: 6px; }
+    .lanes { display: grid; gap: 12px; }
+    .lane {
+      border-radius: 20px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+    }
+    .lane-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .lane h3 { margin: 0; font-size: 16px; }
+    .lane small { color: var(--muted); }
+    .cards { display: grid; gap: 10px; }
+    .card {
+      background: rgba(6, 12, 18, 0.8);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 12px;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .card-title { font-size: 15px; font-weight: 700; }
+    .badge {
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      white-space: nowrap;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .b-now { background: rgba(118,247,198,0.12); color: var(--mint); }
+    .b-next { background: rgba(99,230,255,0.12); color: var(--cyan); }
+    .b-drift { background: rgba(255,211,107,0.14); color: var(--amber); }
+    .metrics { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; }
+    .metric {
+      font-size: 12px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.04);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 10px 4px 0;
+    }
+    .footer-note { margin-top: 16px; color: var(--muted); font-size: 12px; text-align: center; }
+    @media (max-width: 860px) {
+      .workspace { grid-template-columns: 1fr; }
+      .hero-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">✨ Daily Surprise · April 25, 2026</div>
+      <h1>Focus Funnel</h1>
+      <p class="subtitle">A tiny one-thumb planning studio for turning a noisy pile of ideas into a clean next move. Seed the board with demo signals, add your own, and watch the funnel sort what deserves action now, what needs shaping next, and what can drift for later.</p>
+      <div class="hero-grid">
+        <div class="stat"><strong id="stat-count">0</strong><span>signals on deck</span></div>
+        <div class="stat"><strong id="stat-now">0</strong><span>ready to act now</span></div>
+        <div class="stat"><strong id="stat-energy">—</strong><span>recommended energy level</span></div>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="panel">
+        <h2>Shape a signal</h2>
+        <p>Give it a name, a few notes, then tune the sliders. High impact + urgency rises to the top; high noise pushes it back down.</p>
+        <div class="chips" id="presetChips"></div>
+        <div class="fields">
+          <label>
+            Signal title
+            <input id="title" type="text" placeholder="e.g. Tighten the Friday report" maxlength="60">
+          </label>
+          <label>
+            Notes
+            <textarea id="notes" placeholder="Why it matters, what feels blocked, or what the next move could be..."></textarea>
+          </label>
+          <div class="sliders" id="sliders"></div>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="addBtn">Add to funnel</button>
+          <button class="secondary" id="demoBtn">Load demo signals</button>
+          <button class="secondary" id="resetBtn">Clear board</button>
+        </div>
+        <div class="summary">
+          <div class="summary-box">
+            <strong>Today’s best move</strong>
+            <div id="bestMove">Load the demo set or add a signal to get started.</div>
+          </div>
+          <div class="summary-box">
+            <strong>How the funnel thinks</strong>
+            <div>Score = impact + urgency + clarity + energy − noise. The board is just opinionated enough to help you sort the pile.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Board</h2>
+        <p>Tap around, tune the sliders, and reshuffle as needed. Everything stays on this device with local storage.</p>
+        <div class="lanes">
+          <div class="lane">
+            <div class="lane-head"><div><h3>Act now</h3><small>high-confidence moves</small></div><strong id="count-now">0</strong></div>
+            <div class="cards" id="lane-now"></div>
+            <div class="empty" id="empty-now">Nothing in the fast lane yet.</div>
+          </div>
+          <div class="lane">
+            <div class="lane-head"><div><h3>Shape next</h3><small>worth refining soon</small></div><strong id="count-next">0</strong></div>
+            <div class="cards" id="lane-next"></div>
+            <div class="empty" id="empty-next">The middle lane is open.</div>
+          </div>
+          <div class="lane">
+            <div class="lane-head"><div><h3>Let drift</h3><small>low signal or low leverage</small></div><strong id="count-drift">0</strong></div>
+            <div class="cards" id="lane-drift"></div>
+            <div class="empty" id="empty-drift">No drift pile yet.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="footer-note">Made as a mobile-friendly daily surprise — no server, no tracking, just a cleaner next move.</div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'electric-sheep-focus-funnel-v1';
+    const presetSignals = [
+      { title: 'Tighten the Friday KPI story', notes: 'Make the summary easier to act on without losing the stable reporting backbone.', impact: 5, urgency: 4, clarity: 4, energy: 3, noise: 1 },
+      { title: 'Clean up a noisy backlog', notes: 'Trim duplicates, keep the useful threads, and make the next priorities obvious.', impact: 4, urgency: 3, clarity: 4, energy: 3, noise: 2 },
+      { title: 'Ship a small daily surprise fix', notes: 'Unblock the build path, simplify the automation, and restore confidence.', impact: 5, urgency: 5, clarity: 3, energy: 4, noise: 1 },
+      { title: 'Sketch a fresh launch idea', notes: 'A good idea, but maybe not for this exact moment.', impact: 3, urgency: 1, clarity: 2, energy: 2, noise: 3 }
+    ];
+    const chipLabels = ['Clear the deck', 'Find the signal', 'Make one next move', 'Protect the energy'];
+    const sliderDefs = [
+      ['impact', 'Impact'],
+      ['urgency', 'Urgency'],
+      ['clarity', 'Clarity'],
+      ['energy', 'Energy'],
+      ['noise', 'Noise']
+    ];
+    let items = [];
+
+    const el = (id) => document.getElementById(id);
+
+    function score(item) {
+      return item.impact + item.urgency + item.clarity + item.energy - item.noise;
+    }
+
+    function laneFor(item) {
+      const s = score(item);
+      if (s >= 13) return 'now';
+      if (s >= 9) return 'next';
+      return 'drift';
+    }
+
+    function energyLabel(avg) {
+      if (!items.length) return '—';
+      if (avg >= 4) return 'high';
+      if (avg >= 3) return 'steady';
+      return 'light';
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function load() {
+      try {
+        items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        items = [];
+      }
+    }
+
+    function metric(label, value) {
+      return `<span class="metric">${label}: ${value}</span>`;
+    }
+
+    function cardHtml(item, index) {
+      const lane = laneFor(item);
+      const badge = lane === 'now' ? 'b-now' : lane === 'next' ? 'b-next' : 'b-drift';
+      const badgeLabel = lane === 'now' ? 'Act now' : lane === 'next' ? 'Shape next' : 'Let drift';
+      return `
+        <article class="card">
+          <div class="card-top">
+            <div>
+              <div class="card-title">${item.title}</div>
+              <div style="color:var(--muted);font-size:13px;line-height:1.45;margin-top:5px;">${item.notes || 'No notes — just the shape of the signal.'}</div>
+            </div>
+            <span class="badge ${badge}">${badgeLabel}</span>
+          </div>
+          <div class="metrics">
+            ${metric('Score', score(item))}
+            ${metric('Impact', item.impact)}
+            ${metric('Urgency', item.urgency)}
+            ${metric('Noise', item.noise)}
+          </div>
+          <div class="button-row" style="margin-top:10px;">
+            <button class="secondary" onclick="bump(${index}, 1)">Boost</button>
+            <button class="secondary" onclick="bump(${index}, -1)">Cool off</button>
+            <button class="secondary" onclick="removeItem(${index})">Remove</button>
+          </div>
+        </article>`;
+    }
+
+    function render() {
+      const lanes = { now: [], next: [], drift: [] };
+      items.forEach((item, index) => lanes[laneFor(item)].push({ item, index }));
+      ['now', 'next', 'drift'].forEach((lane) => {
+        const host = el(`lane-${lane}`);
+        host.innerHTML = lanes[lane]
+          .sort((a, b) => score(b.item) - score(a.item))
+          .map(({ item, index }) => cardHtml(item, index)).join('');
+        el(`count-${lane}`).textContent = lanes[lane].length;
+        el(`empty-${lane}`).style.display = lanes[lane].length ? 'none' : 'block';
+      });
+
+      el('stat-count').textContent = items.length;
+      el('stat-now').textContent = lanes.now.length;
+      const avgEnergy = items.reduce((sum, item) => sum + item.energy, 0) / Math.max(items.length, 1);
+      el('stat-energy').textContent = energyLabel(avgEnergy);
+
+      if (!items.length) {
+        el('bestMove').textContent = 'Load the demo set or add a signal to get started.';
+      } else {
+        const top = [...items].sort((a, b) => score(b) - score(a))[0];
+        el('bestMove').textContent = `${top.title} looks like the cleanest next move right now.`;
+      }
+      save();
+    }
+
+    function addItem(data) {
+      items.unshift(data);
+      render();
+    }
+
+    function readForm() {
+      return {
+        title: el('title').value.trim() || 'Untitled signal',
+        notes: el('notes').value.trim(),
+        impact: Number(el('impact').value),
+        urgency: Number(el('urgency').value),
+        clarity: Number(el('clarity').value),
+        energy: Number(el('energy').value),
+        noise: Number(el('noise').value)
+      };
+    }
+
+    function resetForm() {
+      el('title').value = '';
+      el('notes').value = '';
+      sliderDefs.forEach(([key]) => {
+        el(key).value = key === 'noise' ? 2 : 3;
+        el(`${key}-value`).textContent = el(key).value;
+      });
+    }
+
+    window.bump = (index, delta) => {
+      const item = items[index];
+      item.impact = Math.max(1, Math.min(5, item.impact + (delta > 0 ? 1 : 0)));
+      item.urgency = Math.max(1, Math.min(5, item.urgency + (delta < 0 ? -1 : 0)));
+      item.noise = Math.max(1, Math.min(5, item.noise + (delta < 0 ? 1 : -1)));
+      render();
+    };
+
+    window.removeItem = (index) => {
+      items.splice(index, 1);
+      render();
+    };
+
+    function buildSlider([key, label]) {
+      return `
+        <div class="slider-row">
+          <div class="slider-head"><strong>${label}</strong><span id="${key}-value">${key === 'noise' ? 2 : 3}</span></div>
+          <input id="${key}" type="range" min="1" max="5" value="${key === 'noise' ? 2 : 3}">
+        </div>`;
+    }
+
+    el('sliders').innerHTML = sliderDefs.map(buildSlider).join('');
+    sliderDefs.forEach(([key]) => {
+      el(key).addEventListener('input', () => { el(`${key}-value`).textContent = el(key).value; });
+    });
+
+    el('presetChips').innerHTML = chipLabels.map(label => `<button class="chip" type="button">${label}</button>`).join('');
+    [...document.querySelectorAll('.chip')].forEach((chip, index) => {
+      chip.addEventListener('click', () => {
+        el('title').value = chip.textContent;
+        el('notes').value = [
+          'A quick cleanup pass with an obvious finish line.',
+          'Separate the useful signal from the surrounding noise.',
+          'Pick one move that creates momentum right away.',
+          'Keep the next step realistic for the energy you have.'
+        ][index];
+      });
+    });
+
+    el('addBtn').addEventListener('click', () => {
+      addItem(readForm());
+      resetForm();
+    });
+
+    el('demoBtn').addEventListener('click', () => {
+      items = presetSignals.map(item => ({ ...item }));
+      render();
+    });
+
+    el('resetBtn').addEventListener('click', () => {
+      items = [];
+      render();
+    });
+
+    load();
+    render();
+    resetForm();
+  </script>
+</body>
+</html>
