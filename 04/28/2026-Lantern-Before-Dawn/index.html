@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lantern Before Dawn</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --bg2: #122038;
+      --panel: rgba(9, 17, 30, 0.82);
+      --border: rgba(172, 213, 255, 0.14);
+      --text: #eef6ff;
+      --muted: #a3b7cf;
+      --gold: #ffd07a;
+      --cyan: #8ce7ff;
+      --rose: #ff9fd2;
+      --green: #95f2bd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(140,231,255,0.12), transparent 36%),
+        linear-gradient(180deg, var(--bg2), var(--bg));
+      min-height: 100vh;
+    }
+    .wrap {
+      width: min(100%, 920px);
+      margin: 0 auto;
+      padding: 14px 12px 28px;
+    }
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.28);
+      backdrop-filter: blur(8px);
+    }
+    .hero { padding: 18px; margin-bottom: 12px; }
+    .eyebrow {
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 8vw, 3.3rem);
+      line-height: .95;
+      letter-spacing: -.04em;
+    }
+    .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.45;
+      max-width: 42rem;
+    }
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .chip {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 12px;
+      min-height: 72px;
+    }
+    .chip strong { display:block; font-size:22px; margin-bottom:3px; }
+    .chip span { color: var(--muted); font-size: 12px; }
+    .panel { padding: 14px; }
+    .story {
+      min-height: 240px;
+      padding: 14px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .scene-title { font-size: 22px; margin: 0 0 10px; }
+    .scene-copy { color: var(--text); line-height: 1.6; font-size: 16px; }
+    .scene-copy p { margin: 0 0 12px; }
+    .scene-copy em { color: var(--gold); font-style: normal; }
+    .choices {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button {
+      width: 100%;
+      text-align: left;
+      min-height: 50px;
+      padding: 13px 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(140,231,255,0.16), rgba(140,231,255,0.05));
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+    }
+    button.alt {
+      background: linear-gradient(180deg, rgba(255,208,122,0.16), rgba(255,208,122,0.05));
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .notes, .inventory {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 12px;
+    }
+    .meta h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      letter-spacing: .03em;
+    }
+    ul { margin: 0; padding-left: 18px; color: var(--muted); }
+    li { margin-bottom: 7px; }
+    .footer {
+      margin-top: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .bar {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--gold), var(--cyan), var(--rose));
+      transition: width .25s ease;
+    }
+    @media (max-width: 700px) {
+      .hud, .meta { grid-template-columns: 1fr; }
+      .wrap { padding: 10px 10px 24px; }
+      .hero, .panel { border-radius: 20px; }
+      .scene-copy { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Pocket story</div>
+      <h1>Lantern Before Dawn</h1>
+      <p class="lede">A tiny one-thumb text adventure about preparing for a quiet departure. Gather what matters, choose your pace, and see what kind of light you carry into the morning.</p>
+      <div class="hud">
+        <div class="chip"><strong id="stepStat">1 / 7</strong><span>journey steps</span></div>
+        <div class="chip"><strong id="steadyStat">0</strong><span>steadiness</span></div>
+        <div class="chip"><strong id="curiousStat">0</strong><span>curiosity</span></div>
+        <div class="chip"><strong id="kindStat">0</strong><span>kindness</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="story">
+        <h2 class="scene-title" id="sceneTitle"></h2>
+        <div class="scene-copy" id="sceneCopy"></div>
+        <div class="bar"><div class="fill" id="progressFill"></div></div>
+        <div class="choices" id="choices"></div>
+      </div>
+
+      <div class="meta">
+        <div class="notes">
+          <h2>Journey notes</h2>
+          <ul id="journal"></ul>
+        </div>
+        <div class="inventory">
+          <h2>Satchel</h2>
+          <ul id="inventory"></ul>
+        </div>
+      </div>
+      <div class="footer">Short, replayable, and meant to feel like a deep breath before the day starts.</div>
+    </section>
+  </div>
+
+  <script>
+    const scenes = {
+      wake: {
+        title: 'A room with blue edges',
+        text: [
+          'You wake before the bells, in that soft hour when the room still belongs to the moon. On the chair by the door sits a satchel, half-packed. On the windowsill, a lantern with no flame waits like a question.',
+          'Outside, the harbor is hidden by fog. Somewhere beyond it, a small boat will leave at first light. You do not need to know exactly where it goes. Only that you meant to be ready.'
+        ],
+        choices: [
+          { label: 'Check the satchel first', next: 'satchel', effects: { steady: 1 }, note: 'You began with the practical things.' },
+          { label: 'Light the lantern first', next: 'lantern', effects: { curious: 1 }, note: 'You began with the question of what guides you.' }
+        ]
+      },
+      satchel: {
+        title: 'Packing by feel',
+        text: [
+          'Inside the satchel is room for three small things and one honest promise. A compass. A folded snack wrapped in paper. A blank notebook. A coil of bright thread. The weight matters less than the intention.'
+        ],
+        choices: [
+          { label: 'Take the compass and notebook', next: 'window', add: ['Compass', 'Notebook'], effects: { steady: 1, curious: 1 }, note: 'You packed direction and room to notice.' },
+          { label: 'Take the snack and bright thread', next: 'window', add: ['Snack', 'Bright thread'], effects: { kind: 1, steady: 1 }, note: 'You packed care and a way to mend.' },
+          { label: 'Take the notebook and bright thread', next: 'window', add: ['Notebook', 'Bright thread'], effects: { curious: 1, kind: 1 }, note: 'You packed wonder and repair.' }
+        ]
+      },
+      lantern: {
+        title: 'The lantern chooses a color',
+        text: [
+          'The lantern does not need oil. It wakes when you place a palm over the glass and decide what kind of morning you want. The flame can be amber for steadiness, silver for curiosity, or rose for gentleness.'
+        ],
+        choices: [
+          { label: 'Amber flame', next: 'window', add: ['Amber lantern'], effects: { steady: 2 }, note: 'You asked the morning to hold still for a moment.' },
+          { label: 'Silver flame', next: 'window', add: ['Silver lantern'], effects: { curious: 2 }, note: 'You asked the morning to reveal one more thing.' },
+          { label: 'Rose flame', next: 'window', add: ['Rose lantern'], effects: { kind: 2 }, note: 'You asked the morning to be soft where it could.' }
+        ]
+      },
+      window: {
+        title: 'A map made of weather',
+        text: [
+          'At the window, the fog shifts enough to show three possibilities: a dock lamp trembling near the water, a ridge trail above the harbor, and a bakery chimney sending one straight ribbon of smoke into the dark.',
+          'None is the destination. All are useful signs.'
+        ],
+        choices: [
+          { label: 'Follow the dock lamp', next: 'dock', effects: { steady: 1 }, note: 'You trusted the clearest marker.' },
+          { label: 'Climb toward the ridge trail', next: 'ridge', effects: { curious: 1 }, note: 'You chose the longer look.' },
+          { label: 'Stop by the bakery chimney', next: 'bakery', effects: { kind: 1 }, note: 'You chose warmth before motion.' }
+        ]
+      },
+      dock: {
+        title: 'Ropes and quiet water',
+        text: [
+          'At the dock, every knot looks like a decision someone already made. A ferryman nods at your satchel but says nothing. The boat is there, though it feels less like transport than invitation.'
+        ],
+        choices: [
+          { label: 'Ask which crossing is safest', next: 'crossing', effects: { steady: 2 }, note: 'You let caution be wisdom, not fear.' },
+          { label: 'Ask what travelers forget most often', next: 'crossing', effects: { curious: 2 }, note: 'You looked for the lesson hiding in habit.' }
+        ]
+      },
+      ridge: {
+        title: 'High enough to see patterns',
+        text: [
+          'From the ridge, the harbor becomes a handful of patient lights. You can see where the fog is thickest, where it thins, and where one road curves back on itself before finding the dock anyway.'
+        ],
+        choices: [
+          { label: 'Mark the safest path in your notebook', next: 'crossing', add: ['Sketched map'], effects: { steady: 1, curious: 1 }, note: 'You turned perspective into preparation.' },
+          { label: 'Leave a ribbon on the branch for the next traveler', next: 'crossing', effects: { kind: 2 }, note: 'You made the trail easier for someone else.' }
+        ]
+      },
+      bakery: {
+        title: 'Warmth, briefly borrowed',
+        text: [
+          'The baker is already awake. Without asking for payment, they hand you a still-warm roll and point toward the harbor with a flour-dusted wrist. "It helps to leave fed," they say, as if that explains everything.'
+        ],
+        choices: [
+          { label: 'Keep the roll for later', next: 'crossing', add: ['Warm roll'], effects: { steady: 1 }, note: 'You accepted fuel for the road.' },
+          { label: 'Split the roll and leave half on the counter for whoever rushes in next', next: 'crossing', add: ['Half roll'], effects: { kind: 2 }, note: 'You treated abundance like a relay, not a prize.' }
+        ]
+      },
+      crossing: {
+        title: 'The fog opens just enough',
+        text: [
+          'By the time you reach the boat, dawn has started outlining the world in silver. The ferryman touches the lantern, or the satchel, or the notebook—whatever you chose earliest—as if checking whether you brought the right kind of light.',
+          '"One last thing," they say. "What will you do if the weather changes halfway across?"'
+        ],
+        choices: [
+          { label: 'Adjust slowly and keep going', next: 'ending', effects: { steady: 1 }, note: 'You answered with patience.' },
+          { label: 'Look closer; weather always teaches something', next: 'ending', effects: { curious: 1 }, note: 'You answered with attention.' },
+          { label: 'Make sure no one crosses alone', next: 'ending', effects: { kind: 1 }, note: 'You answered with company.' }
+        ]
+      },
+      ending: {
+        title: 'First light',
+        ending: true,
+        text: []
+      }
+    };
+
+    const state = { step: 1, steady: 0, curious: 0, kind: 0, inventory: [], journal: [] };
+    const route = ['wake'];
+
+    const sceneTitle = document.getElementById('sceneTitle');
+    const sceneCopy = document.getElementById('sceneCopy');
+    const choicesEl = document.getElementById('choices');
+    const journalEl = document.getElementById('journal');
+    const inventoryEl = document.getElementById('inventory');
+    const stepStat = document.getElementById('stepStat');
+    const steadyStat = document.getElementById('steadyStat');
+    const curiousStat = document.getElementById('curiousStat');
+    const kindStat = document.getElementById('kindStat');
+    const progressFill = document.getElementById('progressFill');
+
+    function reset() {
+      state.step = 1; state.steady = 0; state.curious = 0; state.kind = 0;
+      state.inventory = []; state.journal = [];
+      route.length = 0; route.push('wake');
+      render('wake');
+    }
+
+    function endingText() {
+      const top = [
+        ['steady', state.steady, 'You arrive carrying a weatherproof kind of calm. The crossing is not easier exactly, but it feels navigable. When the boat pulls away, your lantern burns low and steady, and even the fog seems willing to cooperate.'],
+        ['curious', state.curious, 'You arrive carrying a bright, searching kind of hope. Out on the water you notice small openings before anyone else does, and each one becomes its own answer. The morning feels larger because you stayed open to it.'],
+        ['kind', state.kind, 'You arrive carrying a warmth that changes the whole deck. People stand a little closer without meaning to. By the time the harbor is gone behind you, the boat feels less like a vessel and more like a shared promise.']
+      ].sort((a,b)=>b[1]-a[1]);
+      const dominant = top[0][0];
+      let line = top[0][2];
+      if (top[0][1] === top[1][1]) {
+        line = 'You arrive carrying a balanced kind of light: practical enough to keep moving, gentle enough to share, curious enough to notice what the day is offering back.';
+      }
+      const epilogue = dominant === 'steady'
+        ? ' You do not need perfect certainty. You only need the next clear motion.'
+        : dominant === 'curious'
+        ? ' You do not need the full map. You only need the courage to keep discovering it.'
+        : ' You do not need to carry everything alone. You only need to keep making room.';
+      return [line + epilogue, 'If you want a different dawn, restart and choose another kind of light.'];
+    }
+
+    function apply(choice) {
+      if (choice.effects) {
+        state.steady += choice.effects.steady || 0;
+        state.curious += choice.effects.curious || 0;
+        state.kind += choice.effects.kind || 0;
+      }
+      if (choice.add) {
+        choice.add.forEach(item => { if (!state.inventory.includes(item)) state.inventory.push(item); });
+      }
+      if (choice.note) state.journal.push(choice.note);
+      state.step += 1;
+      route.push(choice.next);
+      render(choice.next);
+    }
+
+    function render(sceneKey) {
+      const scene = scenes[sceneKey];
+      sceneTitle.textContent = scene.title;
+      const paragraphs = scene.ending ? endingText() : scene.text;
+      sceneCopy.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+      choicesEl.innerHTML = '';
+
+      if (scene.ending) {
+        const replay = document.createElement('button');
+        replay.className = 'alt';
+        replay.textContent = 'Start another dawn';
+        replay.onclick = reset;
+        choicesEl.appendChild(replay);
+      } else {
+        scene.choices.forEach((choice, index) => {
+          const btn = document.createElement('button');
+          if (index % 2 === 1) btn.classList.add('alt');
+          btn.textContent = choice.label;
+          btn.onclick = () => apply(choice);
+          choicesEl.appendChild(btn);
+        });
+      }
+
+      journalEl.innerHTML = state.journal.length
+        ? state.journal.map(note => `<li>${note}</li>`).join('')
+        : '<li>Your choices will leave a little trail here.</li>';
+      inventoryEl.innerHTML = state.inventory.length
+        ? state.inventory.map(item => `<li>${item}</li>`).join('')
+        : '<li>Nothing packed yet.</li>';
+
+      stepStat.textContent = `${Math.min(state.step, 7)} / 7`;
+      steadyStat.textContent = state.steady;
+      curiousStat.textContent = state.curious;
+      kindStat.textContent = state.kind;
+      progressFill.style.width = `${Math.min(100, ((state.step - 1) / 6) * 100)}%`;
+    }
+
+    reset();
+  </script>
+</body>
+</html>
