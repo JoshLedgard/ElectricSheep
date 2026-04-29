@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor Night Shift</title>
+  <style>
+    :root {
+      --bg:#07111d;
+      --bg2:#0f2237;
+      --panel:rgba(10,19,31,.82);
+      --border:rgba(180,220,255,.14);
+      --text:#ecf7ff;
+      --muted:#9ab3c7;
+      --cyan:#7fe8ff;
+      --gold:#ffd580;
+      --green:#92f3b5;
+      --red:#ff8fa3;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      background:radial-gradient(circle at top, rgba(127,232,255,.12), transparent 34%), linear-gradient(180deg,var(--bg2),var(--bg));
+      min-height:100vh;
+    }
+    .wrap{width:min(100%,960px);margin:0 auto;padding:12px 10px 24px}
+    .hero,.panel{background:var(--panel);border:1px solid var(--border);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
+    .hero{padding:18px;margin-bottom:12px}
+    .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+    h1{margin:0 0 8px;font-size:clamp(2rem,8vw,3.4rem);line-height:.95;letter-spacing:-.04em}
+    .lede{margin:0;color:var(--muted);font-size:16px;line-height:1.45;max-width:44rem}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+    .stat{padding:12px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .stat strong{display:block;font-size:23px;margin-bottom:3px}
+    .stat span{font-size:12px;color:var(--muted)}
+    .panel{padding:14px}
+    canvas{width:100%;display:block;border-radius:18px;background:linear-gradient(180deg, rgba(10,25,41,.96), rgba(5,12,21,.98));touch-action:none}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    button{min-height:48px;border-radius:16px;border:1px solid rgba(255,255,255,.08);padding:12px 14px;color:var(--text);font-size:15px;font-weight:700;background:linear-gradient(180deg, rgba(127,232,255,.16), rgba(127,232,255,.05))}
+    button.alt{background:linear-gradient(180deg, rgba(255,213,128,.16), rgba(255,213,128,.05))}
+    .notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+    .note{min-height:96px;padding:12px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:14px;color:var(--muted);line-height:1.45}
+    .note strong{display:block;color:var(--text);margin-bottom:6px;font-size:15px}
+    .footer{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+    @media (max-width:720px){
+      .stats,.controls,.notes{grid-template-columns:1fr}
+      .hero,.panel{border-radius:20px}
+      .wrap{padding:10px 10px 22px}
+      .lede{font-size:15px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Thumb game</div>
+      <h1>Harbor Night Shift</h1>
+      <p class="lede">Guide incoming boats to the right docks before the harbor gets too crowded. Tap a boat, then tap a matching berth. Calm choices keep the water clear.</p>
+      <div class="stats">
+        <div class="stat"><strong id="scoreStat">0</strong><span>boats settled</span></div>
+        <div class="stat"><strong id="streakStat">0</strong><span>clean streak</span></div>
+        <div class="stat"><strong id="riskStat">0%</strong><span>harbor pressure</span></div>
+        <div class="stat"><strong id="bestStat">0</strong><span>best run</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <canvas id="game" width="920" height="760" aria-label="Harbor routing game"></canvas>
+      <div class="controls">
+        <button id="startBtn">Start shift</button>
+        <button id="resetBtn" class="alt">Reset harbor</button>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>How to play</strong>Tap an incoming boat to select it. Then tap a dock with the same symbol. Match quickly to keep the pressure low and build streaks.</div>
+        <div class="note"><strong>Small goal</strong>Settle 20 boats without letting pressure hit 100%. The pace slowly rises, so gentle accuracy beats frantic tapping.</div>
+      </div>
+      <div class="footer">A quiet little coordination game about arrivals, choices, and making room.</div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreStat = document.getElementById('scoreStat');
+    const streakStat = document.getElementById('streakStat');
+    const riskStat = document.getElementById('riskStat');
+    const bestStat = document.getElementById('bestStat');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0, height = 0;
+    const dockY = 118;
+    const laneStartY = 230;
+    const types = [
+      { key:'moon', icon:'☾', color:'#7fe8ff' },
+      { key:'star', icon:'✦', color:'#ffd580' },
+      { key:'leaf', icon:'❋', color:'#92f3b5' },
+      { key:'spark', icon:'✧', color:'#ff9fc4' }
+    ];
+
+    let docks = [];
+    let boats = [];
+    let selectedBoat = null;
+    let lastSpawn = 0;
+    let spawnEvery = 1650;
+    let pressure = 0;
+    let score = 0;
+    let streak = 0;
+    let best = Number(localStorage.getItem('harbor-night-shift-best') || 0);
+    let running = false;
+    let gameOver = false;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = Math.min(760, Math.max(520, window.innerHeight * 0.64));
+      canvas.style.height = height + 'px';
+      canvas.width = Math.floor(width * DPR);
+      canvas.height = Math.floor(height * DPR);
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      setupDocks();
+    }
+
+    function setupDocks() {
+      const pad = 16;
+      const gap = 10;
+      const dockW = (width - pad * 2 - gap * 3) / 4;
+      docks = types.map((type, i) => ({
+        ...type,
+        x: pad + i * (dockW + gap),
+        y: 18,
+        w: dockW,
+        h: 88,
+        pulse: 0
+      }));
+    }
+
+    function resetGame() {
+      boats = [];
+      selectedBoat = null;
+      pressure = 0;
+      score = 0;
+      streak = 0;
+      gameOver = false;
+      lastSpawn = 0;
+      spawnEvery = 1650;
+      updateHud();
+    }
+
+    function startGame() {
+      resetGame();
+      running = true;
+      spawnBoat();
+    }
+
+    function spawnBoat() {
+      const type = types[Math.floor(Math.random() * types.length)];
+      boats.push({
+        id: Math.random().toString(36).slice(2),
+        type: type.key,
+        icon: type.icon,
+        color: type.color,
+        x: 46 + Math.random() * Math.max(40, width - 92),
+        y: height + 40,
+        vx: (Math.random() - 0.5) * 0.16,
+        vy: - (0.23 + Math.random() * 0.13 + score * 0.003),
+        bob: Math.random() * Math.PI * 2,
+        size: 24,
+        selected: false
+      });
+      if (boats.length > 12) pressure += 7;
+    }
+
+    function updateHud() {
+      scoreStat.textContent = score;
+      streakStat.textContent = streak;
+      riskStat.textContent = Math.round(Math.min(100, pressure)) + '%';
+      bestStat.textContent = best;
+    }
+
+    function pointInRect(px, py, r) {
+      return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+    }
+
+    function pointInBoat(px, py, boat) {
+      return Math.hypot(px - boat.x, py - boat.y) <= boat.size + 10;
+    }
+
+    function localPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      const src = event.touches ? event.touches[0] : event;
+      return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+    }
+
+    function handleTap(event) {
+      const p = localPoint(event);
+      if (gameOver) {
+        startGame();
+        event.preventDefault();
+        return;
+      }
+
+      for (const dock of docks) {
+        if (pointInRect(p.x, p.y, dock)) {
+          if (selectedBoat) routeBoatToDock(selectedBoat, dock);
+          event.preventDefault();
+          return;
+        }
+      }
+
+      selectedBoat = null;
+      for (let i = boats.length - 1; i >= 0; i--) {
+        if (pointInBoat(p.x, p.y, boats[i])) {
+          selectedBoat = boats[i].id;
+          break;
+        }
+      }
+      event.preventDefault();
+    }
+
+    function routeBoatToDock(boatId, dock) {
+      const boat = boats.find(b => b.id === boatId);
+      if (!boat) return;
+      if (boat.type === dock.key) {
+        score += 1;
+        streak += 1;
+        pressure = Math.max(0, pressure - 7 - Math.min(5, streak * 0.3));
+        dock.pulse = 1;
+        boats = boats.filter(b => b.id !== boat.id);
+        if (score > best) {
+          best = score;
+          localStorage.setItem('harbor-night-shift-best', String(best));
+        }
+      } else {
+        streak = 0;
+        pressure += 12;
+        boat.vx += (dock.x + dock.w / 2 - boat.x) * 0.0025;
+        boat.vy -= 0.08;
+      }
+      selectedBoat = null;
+      updateHud();
+    }
+
+    function drawBackground(time) {
+      const g = ctx.createLinearGradient(0,0,0,height);
+      g.addColorStop(0,'rgba(10,25,41,.98)');
+      g.addColorStop(1,'rgba(4,9,17,.98)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,width,height);
+
+      for (let i = 0; i < 24; i++) {
+        const x = (i * 57.7) % width;
+        const y = 28 + (i % 7) * 26 + Math.sin(time * 0.001 + i) * 8;
+        ctx.fillStyle = `rgba(255,255,255,${0.12 + (i % 3) * 0.03})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.2 + (i % 3) * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = 'rgba(12,33,49,.9)';
+      ctx.fillRect(0, laneStartY - 16, width, height - laneStartY + 16);
+      for (let i = 0; i < 7; i++) {
+        ctx.strokeStyle = 'rgba(127,232,255,.05)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, laneStartY + i * 66);
+        ctx.lineTo(width, laneStartY + i * 66);
+        ctx.stroke();
+      }
+    }
+
+    function drawDocks() {
+      docks.forEach((dock) => {
+        dock.pulse *= 0.92;
+        ctx.fillStyle = 'rgba(255,255,255,.03)';
+        ctx.strokeStyle = dock.color;
+        ctx.lineWidth = 1.5 + dock.pulse * 3;
+        roundRect(dock.x, dock.y, dock.w, dock.h, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = dock.color;
+        ctx.font = '700 28px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(dock.icon, dock.x + dock.w / 2, dock.y + 38);
+        ctx.fillStyle = 'rgba(236,247,255,.92)';
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(dock.key.toUpperCase(), dock.x + dock.w / 2, dock.y + 66);
+      });
+    }
+
+    function drawBoat(boat) {
+      ctx.save();
+      ctx.translate(boat.x, boat.y + Math.sin(boat.bob) * 3.5);
+      ctx.fillStyle = 'rgba(255,255,255,.05)';
+      ctx.strokeStyle = boat.color;
+      ctx.lineWidth = selectedBoat === boat.id ? 3 : 1.5;
+
+      roundRect(-28, -16, 56, 32, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = boat.color;
+      ctx.font = '700 24px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(boat.icon, 0, 8);
+      if (selectedBoat === boat.id) {
+        ctx.strokeStyle = 'rgba(255,255,255,.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0,0,34,0,Math.PI*2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawOverlay() {
+      ctx.fillStyle = 'rgba(255,255,255,.88)';
+      ctx.font = '600 15px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('Tap a boat, then tap the matching dock.', 18, height - 18);
+
+      if (!running) {
+        centerCard('Harbor closed', 'Tap Start shift to begin routing boats into the right berths.');
+      }
+      if (gameOver) {
+        centerCard('Harbor overcrowded', `You settled ${score} boat${score === 1 ? '' : 's'}. Tap anywhere to try another shift.`);
+      }
+    }
+
+    function centerCard(title, text) {
+      const w = Math.min(width - 44, 380);
+      const h = 150;
+      const x = (width - w) / 2;
+      const y = (height - h) / 2;
+      ctx.fillStyle = 'rgba(7,16,27,.92)';
+      ctx.strokeStyle = 'rgba(255,255,255,.12)';
+      ctx.lineWidth = 1.5;
+      roundRect(x,y,w,h,22);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ecf7ff';
+      ctx.textAlign = 'center';
+      ctx.font = '700 24px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(title, width / 2, y + 46);
+      ctx.fillStyle = '#9ab3c7';
+      ctx.font = '500 15px -apple-system, BlinkMacSystemFont, sans-serif';
+      wrapText(text, width / 2, y + 78, w - 40, 22);
+    }
+
+    function wrapText(text, cx, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      let yy = y;
+      for (let n = 0; n < words.length; n++) {
+        const test = line + words[n] + ' ';
+        if (ctx.measureText(test).width > maxWidth && n > 0) {
+          ctx.fillText(line.trim(), cx, yy);
+          line = words[n] + ' ';
+          yy += lineHeight;
+        } else {
+          line = test;
+        }
+      }
+      if (line) ctx.fillText(line.trim(), cx, yy);
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function tick(time) {
+      drawBackground(time);
+      drawDocks();
+
+      if (running && !gameOver) {
+        if (!lastSpawn) lastSpawn = time;
+        if (time - lastSpawn > spawnEvery) {
+          spawnBoat();
+          lastSpawn = time;
+          spawnEvery = Math.max(780, spawnEvery - 14);
+        }
+        pressure += 0.012 + boats.length * 0.01;
+      }
+
+      boats.forEach((boat) => {
+        boat.x += boat.vx;
+        boat.y += boat.vy;
+        boat.bob += 0.06;
+        if (boat.x < 36 || boat.x > width - 36) boat.vx *= -1;
+      });
+
+      for (let i = boats.length - 1; i >= 0; i--) {
+        const boat = boats[i];
+        if (boat.y < dockY + 22) {
+          pressure += 16;
+          streak = 0;
+          boats.splice(i, 1);
+          updateHud();
+        }
+      }
+
+      boats.forEach(drawBoat);
+      pressure = Math.min(100, pressure);
+      if (pressure >= 100 && running) {
+        gameOver = true;
+        running = false;
+      }
+      updateHud();
+      drawOverlay();
+      requestAnimationFrame(tick);
+    }
+
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', () => { running = false; resetGame(); });
+    canvas.addEventListener('pointerdown', handleTap);
+    canvas.addEventListener('touchstart', handleTap, { passive: false });
+    window.addEventListener('resize', resize);
+
+    bestStat.textContent = best;
+    resize();
+    resetGame();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
