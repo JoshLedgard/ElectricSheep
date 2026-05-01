@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#070d10">
+<title>Signal Garden · May 1, 2026</title>
+<style>
+  :root {
+    --bg:        #070d10;
+    --bg-soft:   #0d171c;
+    --ink:       #e2efe6;
+    --ink-soft:  rgba(226,239,230,0.62);
+    --ink-faint: rgba(226,239,230,0.28);
+    --line:      rgba(226,239,230,0.10);
+    --line-warm: rgba(226,239,230,0.18);
+    --mint:      #7eecc8;
+    --lilac:     #c8a8ff;
+    --gold:      #f7d488;
+    --coral:     #ff9eb4;
+    --bloom-mix: rgba(126,236,200,0.18);
+    --vignette:  rgba(0,0,0,0.45);
+    --btn-bg:    rgba(226,239,230,0.04);
+    --btn-bd:    rgba(226,239,230,0.18);
+    --btn-bg-hi: rgba(126,236,200,0.10);
+    --btn-bd-hi: rgba(126,236,200,0.5);
+  }
+  body[data-mode="day"] {
+    --bg:        #f1ead7;
+    --bg-soft:   #e6dcc1;
+    --ink:       #233027;
+    --ink-soft:  rgba(35,48,39,0.66);
+    --ink-faint: rgba(35,48,39,0.34);
+    --line:      rgba(35,48,39,0.14);
+    --line-warm: rgba(35,48,39,0.24);
+    --mint:      #2c8665;
+    --lilac:     #8769bf;
+    --gold:      #b67a1d;
+    --coral:     #c75872;
+    --bloom-mix: rgba(44,134,101,0.10);
+    --vignette:  rgba(35,48,39,0.10);
+    --btn-bg:    rgba(35,48,39,0.04);
+    --btn-bd:    rgba(35,48,39,0.20);
+    --btn-bg-hi: rgba(44,134,101,0.10);
+    --btn-bd-hi: rgba(44,134,101,0.55);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Avenir Next', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    transition: background 0.6s ease, color 0.6s ease;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: radial-gradient(ellipse at 50% 130%, transparent 40%, var(--vignette) 100%);
+    pointer-events:none; z-index:0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 18px 16px 14px;
+    gap: 10px;
+  }
+
+  header { text-align: center; padding: 4px 4px 0; }
+  .eyebrow {
+    font-family: 'Menlo', 'SF Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .eyebrow .dot {
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+    vertical-align: 1px;
+    margin-right: 8px;
+  }
+  body[data-mode="day"] .eyebrow .dot { box-shadow: none; }
+
+  h1 {
+    font-family: 'Iowan Old Style', 'Hoefler Text', 'Palatino', 'Georgia', serif;
+    font-weight: 400;
+    font-size: clamp(28px, 8.5vw, 42px);
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    color: var(--ink);
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--mint);
+    font-weight: 400;
+  }
+  body[data-mode="day"] h1 em { color: var(--mint); }
+
+  .hint {
+    margin: 8px auto 0;
+    max-width: 32em;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    padding: 0 8px;
+  }
+  .hint b { color: var(--ink); font-weight: 500; }
+
+  .stage {
+    position: relative;
+    flex: 1;
+    min-height: 360px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 110%, var(--bloom-mix), transparent 70%),
+      linear-gradient(180deg, var(--bg-soft), var(--bg) 80%);
+    transition: background 0.6s ease, border-color 0.6s ease;
+    touch-action: none;
+  }
+  body[data-mode="day"] .stage {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 100%, var(--bloom-mix), transparent 70%),
+      linear-gradient(180deg, #f7f0dd, #ebe1c7 90%);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  .stage::after {
+    content:'';
+    position:absolute; left:0; right:0; bottom:0;
+    height: 18%;
+    pointer-events:none;
+    background: linear-gradient(180deg, transparent, var(--bg) 92%);
+    opacity: 0.6;
+  }
+
+  .corner {
+    position: absolute;
+    top: 12px;
+    font-family: 'Menlo', 'SF Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .corner.tl { left: 14px; }
+  .corner.tr { right: 14px; text-align: right; }
+
+  .status {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 4px 2px 0;
+  }
+  .status .cell {
+    border-top: 1px solid var(--line-warm);
+    padding: 8px 4px 2px;
+    text-align: center;
+  }
+  .status .label {
+    font-family: 'Menlo', 'SF Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .status .num {
+    font-family: 'Iowan Old Style', 'Hoefler Text', 'Palatino', 'Georgia', serif;
+    font-size: 22px;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-top: 2px;
+    font-feature-settings: "tnum";
+  }
+  .status .num.signal { color: var(--mint); }
+  .status .num.link   { color: var(--lilac); }
+  .status .num.ready  { color: var(--gold); }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .controls button {
+    appearance: none;
+    border: 1px solid var(--btn-bd);
+    background: var(--btn-bg);
+    color: var(--ink);
+    font-family: 'Menlo', 'SF Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 14px 6px;
+    min-height: 48px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.08s ease;
+  }
+  .controls button:active { transform: translateY(1px) scale(0.98); }
+  .controls button .ico {
+    display:block;
+    font-family: 'Iowan Old Style', 'Hoefler Text', 'Palatino', 'Georgia', serif;
+    font-style: italic;
+    font-size: 16px;
+    letter-spacing: 0;
+    text-transform: none;
+    margin-bottom: 4px;
+    color: var(--mint);
+  }
+  .controls button[data-action="breeze"] .ico { color: var(--lilac); }
+  .controls button[data-action="mode"]   .ico { color: var(--gold); }
+  .controls button[data-action="reset"]  .ico { color: var(--coral); }
+  .controls button:hover:not(:active) {
+    background: var(--btn-bg-hi);
+    border-color: var(--btn-bd-hi);
+  }
+
+  .colophon {
+    text-align: center;
+    font-family: 'Menlo', 'SF Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 2px 0 4px;
+  }
+
+  @keyframes pip {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+  }
+  .pip {
+    display:inline-block;
+    width:5px; height:5px; border-radius:50%;
+    background: var(--gold);
+    box-shadow: 0 0 6px var(--gold);
+    margin-right: 6px;
+    animation: pip 2s ease-in-out infinite;
+    vertical-align: 2px;
+  }
+  body[data-mode="day"] .pip { box-shadow: none; }
+
+  @media (max-width: 380px) {
+    .app { padding: 14px 12px 10px; }
+    .hint { font-size: 13px; }
+    .controls button { font-size: 10px; padding: 12px 4px; }
+  }
+  @media (min-height: 760px) {
+    .stage { min-height: 420px; }
+  }
+</style>
+</head>
+<body data-mode="night">
+
+<div class="app">
+  <header>
+    <div class="eyebrow"><span class="dot"></span>Daily Surprise · 01 · 05 · 26</div>
+    <h1>Signal <em>Garden</em></h1>
+    <p class="hint">Tap the field to plant a <b>signal</b>. As they bloom they reach toward neighbors and exchange tiny handoffs. Three handoffs and a plant turns <b>ready</b>.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="corner tl" id="cornerL">field 01</div>
+    <div class="corner tr" id="cornerR">night</div>
+    <canvas id="garden"></canvas>
+  </div>
+
+  <div class="status" aria-live="polite">
+    <div class="cell">
+      <div class="label">Signals</div>
+      <div class="num signal" id="cntPlants">0</div>
+    </div>
+    <div class="cell">
+      <div class="label">Handoffs</div>
+      <div class="num link" id="cntLinks">0</div>
+    </div>
+    <div class="cell">
+      <div class="label">Ready</div>
+      <div class="num ready"><span class="pip" id="readyPip" style="display:none"></span><span id="readyN">0</span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button data-action="plant" type="button"><span class="ico">+</span>Plant</button>
+    <button data-action="breeze" type="button"><span class="ico">∿</span>Breeze</button>
+    <button data-action="mode"   type="button"><span class="ico" id="modeIco">☼</span><span id="modeLbl">Day</span></button>
+    <button data-action="reset"  type="button"><span class="ico">↺</span>Reset</button>
+  </div>
+
+  <div class="colophon">Self-contained · No network · Tap, plant, breathe</div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const cv = document.getElementById('garden');
+  const stage = document.getElementById('stage');
+  const ctx = cv.getContext('2d', { alpha: true });
+  let dpr = Math.min(2, window.devicePixelRatio || 1);
+  let W = 0, H = 0;
+  const body = document.body;
+
+  const state = {
+    plants: [],
+    links: [],
+    pollen: [],
+    motes: [],
+    gusts: [],
+    breezePower: 0,
+    breezeTarget: 0,
+    mode: 'night',
+    time: 0,
+    lastT: performance.now(),
+  };
+
+  const TAU = Math.PI * 2;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+  const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx*dx + dy*dy; };
+  const easeOut = (t) => 1 - Math.pow(1 - t, 2.4);
+  const hueColor = (h, s, l, a = 1) => `hsla(${h}, ${s}%, ${l}%, ${a})`;
+
+  const HUES = [
+    { h: 158, s: 78, l: 70 }, // mint
+    { h: 184, s: 70, l: 70 }, // aqua
+    { h: 268, s: 70, l: 78 }, // lilac
+    { h: 346, s: 78, l: 76 }, // rose
+    { h:  42, s: 84, l: 72 }, // gold
+    { h: 100, s: 60, l: 72 }, // lime
+  ];
+  const pickHue = () => HUES[Math.floor(Math.random() * HUES.length)];
+
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = stage.getBoundingClientRect();
+    W = Math.max(280, Math.floor(rect.width));
+    H = Math.max(320, Math.floor(rect.height));
+    cv.width  = Math.floor(W * dpr);
+    cv.height = Math.floor(H * dpr);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function spawnPlant(x, y) {
+    if (state.plants.length >= 64) return;
+    const p = {
+      x, y,
+      hMax: rand(70, 120) * Math.min(1, H / 520),
+      maturity: 0,
+      age: 0,
+      hue: pickHue(),
+      swayPhase: Math.random() * TAU,
+      swayFreq: rand(0.4, 0.85),
+      petals: 5 + Math.floor(Math.random() * 4),
+      bloom: rand(5, 8.5),
+      curl: rand(-0.18, 0.18),
+      links: 0,
+      ready: false,
+      readyAt: 0,
+    };
+    state.plants.push(p);
+  }
+
+  function getStemTop(p, t) {
+    const sway = Math.sin(t * p.swayFreq + p.swayPhase) * 3
+               + state.breezePower * 24
+               + p.curl * p.maturity * 26;
+    return { x: p.x + sway, y: p.y - p.hMax * easeOut(p.maturity) };
+  }
+
+  function tryLink() {
+    const mature = state.plants.filter(p => p.maturity > 0.85 && p.links < 3);
+    if (mature.length < 2) return;
+    const a = mature[Math.floor(Math.random() * mature.length)];
+    let best = null, bestD = Infinity;
+    const radius2 = 220 * 220;
+    for (const b of state.plants) {
+      if (b === a || b.maturity < 0.85 || b.links >= 3) continue;
+      if (linkExists(a, b)) continue;
+      const d = dist2(a.x, a.y, b.x, b.y);
+      if (d < bestD && d < radius2) { bestD = d; best = b; }
+    }
+    if (!best) return;
+    state.links.push({
+      a, b: best,
+      life: 0,
+      pulses: [{ p: 0, d: 1 }],
+      cd: rand(2, 4),
+    });
+    a.links++; best.links++;
+    if (a.links >= 3) markReady(a);
+    if (best.links >= 3) markReady(best);
+  }
+
+  function linkExists(a, b) {
+    for (const l of state.links) {
+      if ((l.a === a && l.b === b) || (l.a === b && l.b === a)) return true;
+    }
+    return false;
+  }
+
+  function markReady(p) {
+    if (p.ready) return;
+    p.ready = true;
+    p.readyAt = state.time;
+    const t = getStemTop(p, state.time);
+    for (let i = 0; i < 18; i++) {
+      const ang = Math.random() * TAU;
+      const sp = rand(20, 60);
+      state.pollen.push({
+        x: t.x, y: t.y,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 12,
+        life: 0, maxLife: rand(1.0, 2.2),
+        h: { h: 42, s: 90, l: 76 },
+        size: rand(1.4, 2.6),
+      });
+    }
+  }
+
+  function sweepBreeze() {
+    state.breezeTarget = clamp(state.breezeTarget + 0.6, 0, 1);
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    state.gusts.push({
+      x: dir > 0 ? -40 : W + 40,
+      w: rand(80, 160),
+      dir,
+      life: 0,
+      maxLife: rand(1.6, 2.4),
+    });
+    for (const p of state.plants) {
+      if (p.maturity < 0.4) continue;
+      const t = getStemTop(p, state.time);
+      const n = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) {
+        state.pollen.push({
+          x: t.x + rand(-3, 3), y: t.y + rand(-3, 3),
+          vx: dir * rand(15, 50) + rand(-8, 8),
+          vy: rand(-15, 5),
+          life: 0, maxLife: rand(1.4, 2.6),
+          h: p.hue,
+          size: rand(1.0, 2.0),
+        });
+      }
+    }
+  }
+
+  function spawnMote() {
+    state.motes.push({
+      x: rand(-10, W + 10),
+      y: rand(20, H - 30),
+      vx: rand(-6, 6),
+      vy: rand(-4, 4),
+      life: 0,
+      maxLife: rand(8, 16),
+      h: rand(0, 1) > 0.6 ? { h: 42, s: 60, l: 70 } : { h: 184, s: 60, l: 80 },
+      size: rand(0.6, 1.6),
+    });
+  }
+
+  function update(dt) {
+    state.time += dt;
+
+    state.breezeTarget *= Math.pow(0.5, dt / 1.6);
+    state.breezePower += (state.breezeTarget - state.breezePower) * Math.min(1, dt * 3);
+
+    for (const p of state.plants) {
+      p.age += dt;
+      const grow = clamp(p.age / 2.6, 0, 1);
+      p.maturity += (grow - p.maturity) * Math.min(1, dt * 1.4);
+    }
+
+    if (Math.random() < dt * 0.7 && state.plants.length >= 2) tryLink();
+
+    for (const l of state.links) {
+      l.life = Math.min(1, l.life + dt * 0.9);
+      l.cd -= dt;
+      if (l.cd <= 0) {
+        l.pulses.push({ p: 0, d: Math.random() > 0.5 ? 1 : -1 });
+        l.cd = rand(2.4, 4.5);
+      }
+      for (let i = l.pulses.length - 1; i >= 0; i--) {
+        const ps = l.pulses[i];
+        ps.p += ps.d * dt * 0.55;
+        if (ps.p > 1.05 || ps.p < -0.05) l.pulses.splice(i, 1);
+      }
+    }
+
+    if (state.motes.length < 22 && Math.random() < dt * 1.4) spawnMote();
+    for (let i = state.motes.length - 1; i >= 0; i--) {
+      const m = state.motes[i];
+      m.life += dt;
+      m.x += m.vx * dt + state.breezePower * 60 * dt;
+      m.y += m.vy * dt + Math.sin(state.time * 0.6 + m.x * 0.01) * 4 * dt;
+      if (m.life > m.maxLife || m.x < -30 || m.x > W + 30) state.motes.splice(i, 1);
+    }
+
+    for (let i = state.pollen.length - 1; i >= 0; i--) {
+      const q = state.pollen[i];
+      q.life += dt;
+      q.x += q.vx * dt + state.breezePower * 80 * dt;
+      q.y += q.vy * dt;
+      q.vy += 12 * dt;
+      q.vx *= 0.985;
+      if (q.life > q.maxLife || q.y > H + 10) state.pollen.splice(i, 1);
+    }
+
+    for (let i = state.gusts.length - 1; i >= 0; i--) {
+      const g = state.gusts[i];
+      g.life += dt;
+      g.x += g.dir * (W + 80) / g.maxLife * dt;
+      if (g.life > g.maxLife) state.gusts.splice(i, 1);
+    }
+  }
+
+  function drawBg() {
+    ctx.clearRect(0, 0, W, H);
+
+    const glow = ctx.createRadialGradient(W * 0.5, H * 1.05, 20, W * 0.5, H * 1.1, H * 0.9);
+    if (state.mode === 'night') {
+      glow.addColorStop(0, 'rgba(126,236,200,0.10)');
+      glow.addColorStop(0.55, 'rgba(126,236,200,0.025)');
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+    } else {
+      glow.addColorStop(0, 'rgba(44,134,101,0.10)');
+      glow.addColorStop(0.6, 'rgba(44,134,101,0.02)');
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+    }
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.strokeStyle = state.mode === 'night'
+      ? 'rgba(126,236,200,0.22)'
+      : 'rgba(35,48,39,0.32)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const yBase = H - 22;
+    for (let x = 0; x <= W; x += 6) {
+      const y = yBase + Math.sin(x * 0.018 + state.time * 0.3) * 0.8;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = state.mode === 'night' ? 'rgba(226,239,230,0.15)' : 'rgba(35,48,39,0.20)';
+    for (let x = 30; x < W; x += 60) {
+      ctx.beginPath();
+      ctx.arc(x, yBase + 9, 1.2, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawGusts() {
+    for (const g of state.gusts) {
+      const a = Math.sin((g.life / g.maxLife) * Math.PI) * 0.18;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = state.mode === 'night' ? 'rgba(200,168,255,1)' : 'rgba(139,109,191,1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const yy = H * (0.18 + i * 0.13) + Math.sin(state.time * 1.4 + i) * 5;
+        const xs = g.x - g.dir * (g.w * 0.9);
+        const xe = g.x;
+        ctx.moveTo(xs, yy);
+        ctx.bezierCurveTo(
+          xs + (xe - xs) * 0.3, yy - 8 * (i % 2 ? 1 : -1),
+          xs + (xe - xs) * 0.7, yy + 8 * (i % 2 ? 1 : -1),
+          xe, yy
+        );
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawMotes() {
+    for (const m of state.motes) {
+      const t = clamp(m.life / m.maxLife, 0, 1);
+      const a = Math.sin(t * Math.PI) * 0.6;
+      if (state.mode === 'night') {
+        ctx.fillStyle = hueColor(m.h.h, m.h.s, m.h.l, a);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.size + 1.2, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = hueColor(m.h.h, m.h.s, Math.min(95, m.h.l + 8), a * 0.9);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.size * 0.55, 0, TAU);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = hueColor(m.h.h, m.h.s, Math.max(30, m.h.l - 30), a * 0.6);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.size * 0.85, 0, TAU);
+        ctx.fill();
+      }
+    }
+  }
+
+  function bezier1(a, b, c, t) {
+    const u = 1 - t;
+    return u * u * a + 2 * u * t * b + t * t * c;
+  }
+
+  function drawLinks() {
+    for (const l of state.links) {
+      const ta = getStemTop(l.a, state.time);
+      const tb = getStemTop(l.b, state.time);
+      const mx = (ta.x + tb.x) / 2;
+      const my = (ta.y + tb.y) / 2 - 24 - Math.abs(ta.x - tb.x) * 0.06;
+      const a = clamp(l.life, 0, 1);
+
+      ctx.save();
+      const grad = ctx.createLinearGradient(ta.x, ta.y, tb.x, tb.y);
+      const ah = l.a.hue, bh = l.b.hue;
+      if (state.mode === 'night') {
+        grad.addColorStop(0, hueColor(ah.h, ah.s, ah.l, 0.6 * a));
+        grad.addColorStop(1, hueColor(bh.h, bh.s, bh.l, 0.6 * a));
+      } else {
+        grad.addColorStop(0, hueColor(ah.h, ah.s, Math.max(35, ah.l - 30), 0.55 * a));
+        grad.addColorStop(1, hueColor(bh.h, bh.s, Math.max(35, bh.l - 30), 0.55 * a));
+      }
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(ta.x, ta.y);
+      ctx.quadraticCurveTo(mx, my, tb.x, tb.y);
+      ctx.stroke();
+      ctx.restore();
+
+      for (const ps of l.pulses) {
+        const t = ps.p;
+        const px = bezier1(ta.x, mx, tb.x, t);
+        const py = bezier1(ta.y, my, tb.y, t);
+        const hue = ps.d > 0 ? l.b.hue : l.a.hue;
+        if (state.mode === 'night') {
+          const r = 6 + Math.sin(state.time * 6 + l.a.x) * 1.5;
+          const halo = ctx.createRadialGradient(px, py, 0, px, py, r);
+          halo.addColorStop(0, hueColor(hue.h, hue.s, 88, 0.85));
+          halo.addColorStop(1, hueColor(hue.h, hue.s, 60, 0));
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(px, py, r, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(px, py, 1.6, 0, TAU);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = hueColor(hue.h, hue.s, Math.max(30, hue.l - 30), 0.95);
+          ctx.beginPath();
+          ctx.arc(px, py, 2.3, 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  function drawLeaf(x, y, p, dir) {
+    const m = p.maturity;
+    const len = 12 * m;
+    const wid = 5 * m;
+    const ang = dir * (0.6 + Math.sin(state.time * 0.7 + p.swayPhase) * 0.06)
+              + state.breezePower * dir * 0.4;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang - Math.PI / 2);
+    if (state.mode === 'night') {
+      ctx.fillStyle = 'rgba(126,236,200,0.55)';
+      ctx.strokeStyle = 'rgba(126,236,200,0.85)';
+    } else {
+      ctx.fillStyle = 'rgba(44,134,101,0.55)';
+      ctx.strokeStyle = 'rgba(35,68,52,0.85)';
+    }
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(wid, -len * 0.4, wid, -len * 0.85, 0, -len);
+    ctx.bezierCurveTo(-wid, -len * 0.85, -wid, -len * 0.4, 0, 0);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBloom(x, y, p) {
+    const m = p.maturity;
+    const r = p.bloom * easeOut(m);
+    if (r < 0.5) return;
+    const h = p.hue;
+
+    if (state.mode === 'night') {
+      const halo = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+      halo.addColorStop(0, hueColor(h.h, h.s, h.l, 0.55));
+      halo.addColorStop(0.4, hueColor(h.h, h.s, h.l, 0.18));
+      halo.addColorStop(1, hueColor(h.h, h.s, h.l, 0));
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 4, 0, TAU);
+      ctx.fill();
+    }
+
+    const n = p.petals;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(state.time * 0.15 + p.swayPhase);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      const px = Math.cos(a) * r * 0.85;
+      const py = Math.sin(a) * r * 0.85;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(a);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.9);
+      if (state.mode === 'night') {
+        grad.addColorStop(0, hueColor(h.h, h.s, Math.min(95, h.l + 12), 0.95));
+        grad.addColorStop(1, hueColor(h.h, h.s, h.l, 0));
+      } else {
+        grad.addColorStop(0, hueColor(h.h, h.s, Math.max(30, h.l - 22), 0.95));
+        grad.addColorStop(1, hueColor(h.h, h.s, Math.max(30, h.l - 22), 0));
+      }
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 0.95, r * 0.55, 0, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    ctx.fillStyle = state.mode === 'night'
+      ? hueColor(h.h, h.s, 96, 1)
+      : hueColor(h.h, Math.min(80, h.s), Math.max(35, h.l - 30), 1);
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.36, 0, TAU);
+    ctx.fill();
+  }
+
+  function drawPlant(p) {
+    const m = p.maturity;
+    if (m < 0.001) return;
+    const t = state.time;
+    const top = getStemTop(p, t);
+
+    const baseX = p.x;
+    const baseY = p.y;
+    const midX = lerp(baseX, top.x, 0.5)
+               + Math.sin(t * p.swayFreq * 0.7 + p.swayPhase) * 4
+               + state.breezePower * 18 * m;
+    const midY = lerp(baseY, top.y, 0.5);
+
+    if (m > 0.4) {
+      drawLeaf(midX, midY, p, +1);
+      if (m > 0.65) drawLeaf(lerp(baseX, midX, 0.6), lerp(baseY, midY, 0.6), p, -1);
+    }
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 1.6;
+    if (state.mode === 'night') {
+      const stemGrad = ctx.createLinearGradient(baseX, baseY, top.x, top.y);
+      stemGrad.addColorStop(0, 'rgba(126,236,200,0.35)');
+      stemGrad.addColorStop(1, 'rgba(126,236,200,0.85)');
+      ctx.strokeStyle = stemGrad;
+    } else {
+      ctx.strokeStyle = 'rgba(35,68,52,0.85)';
+    }
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.quadraticCurveTo(midX, midY, top.x, top.y);
+    ctx.stroke();
+    ctx.restore();
+
+    drawBloom(top.x, top.y, p);
+
+    if (p.ready) {
+      ctx.save();
+      if (state.mode === 'night') {
+        const g = ctx.createRadialGradient(top.x, top.y, p.bloom * 0.6, top.x, top.y, p.bloom * 4);
+        g.addColorStop(0, 'rgba(247,212,136,0)');
+        g.addColorStop(0.55, 'rgba(247,212,136,0.32)');
+        g.addColorStop(1, 'rgba(247,212,136,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(top.x, top.y, p.bloom * 4, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(247,212,136,0.85)';
+      } else {
+        ctx.strokeStyle = 'rgba(182,122,29,0.85)';
+      }
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(top.x, top.y, p.bloom + 4 + Math.sin(t * 2.4 + p.swayPhase) * 1.2, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawPollen() {
+    for (const q of state.pollen) {
+      const t = clamp(q.life / q.maxLife, 0, 1);
+      const a = Math.sin(t * Math.PI) * 0.95;
+      const h = q.h;
+      if (state.mode === 'night') {
+        ctx.fillStyle = hueColor(h.h, h.s, Math.min(96, h.l + 14), a);
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, q.size + 1, 0, TAU);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = hueColor(h.h, h.s, Math.max(30, h.l - 28), a * 0.85);
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, q.size * 0.95, 0, TAU);
+        ctx.fill();
+      }
+    }
+  }
+
+  function draw() {
+    drawBg();
+    drawGusts();
+    drawMotes();
+    drawLinks();
+    const sorted = state.plants.slice().sort((a, b) => a.y - b.y);
+    for (const p of sorted) drawPlant(p);
+    drawPollen();
+  }
+
+  function tick(now) {
+    let dt = (now - state.lastT) / 1000;
+    state.lastT = now;
+    if (dt > 0.1) dt = 0.1;
+    update(dt);
+    draw();
+    updateStatus();
+    requestAnimationFrame(tick);
+  }
+
+  function updateStatus() {
+    const plants = state.plants.length;
+    const links = state.links.length;
+    const ready = state.plants.reduce((n, p) => n + (p.ready ? 1 : 0), 0);
+    document.getElementById('cntPlants').textContent = plants;
+    document.getElementById('cntLinks').textContent = links;
+    document.getElementById('readyN').textContent = ready;
+    document.getElementById('readyPip').style.display = ready > 0 ? 'inline-block' : 'none';
+    document.getElementById('cornerL').textContent =
+      'field 01 · ' + plants.toString().padStart(2, '0') + ' signals';
+    document.getElementById('cornerR').textContent =
+      state.mode + (state.breezePower > 0.05 ? ' · breeze' : '');
+  }
+
+  function pointToCanvas(ev) {
+    const rect = cv.getBoundingClientRect();
+    const t = ev.touches ? ev.touches[0] : ev;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+
+  function onTap(ev) {
+    ev.preventDefault();
+    const pt = pointToCanvas(ev);
+    if (pt.x < 4 || pt.x > W - 4 || pt.y > H - 8) return;
+    const baseY = clamp(pt.y + rand(8, 28), 60, H - 18);
+    const baseX = clamp(pt.x + rand(-4, 4), 8, W - 8);
+    spawnPlant(baseX, baseY);
+  }
+
+  cv.addEventListener('pointerdown', onTap);
+  cv.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+
+  document.querySelectorAll('.controls button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = btn.dataset.action;
+      if (a === 'plant') {
+        const x = rand(W * 0.1, W * 0.9);
+        const y = rand(H * 0.55, H - 30);
+        spawnPlant(x, y);
+      } else if (a === 'breeze') {
+        sweepBreeze();
+      } else if (a === 'mode') {
+        state.mode = state.mode === 'night' ? 'day' : 'night';
+        body.dataset.mode = state.mode;
+        document.getElementById('modeLbl').textContent = state.mode === 'night' ? 'Day' : 'Night';
+        document.getElementById('modeIco').textContent = state.mode === 'night' ? '☼' : '☾';
+      } else if (a === 'reset') {
+        state.plants.length = 0;
+        state.links.length = 0;
+        state.pollen.length = 0;
+        state.gusts.length = 0;
+        state.motes.length = 0;
+        state.breezePower = 0;
+        state.breezeTarget = 0;
+      }
+    });
+  });
+
+  function seedDemo() {
+    const n = 4;
+    for (let i = 0; i < n; i++) {
+      const x = (W * (i + 1)) / (n + 1) + rand(-12, 12);
+      const y = H - rand(30, 70);
+      spawnPlant(x, y);
+    }
+    for (const p of state.plants) {
+      p.age = rand(0.6, 1.4);
+      p.maturity = clamp(p.age / 2.6, 0, 0.6);
+    }
+  }
+
+  function boot() {
+    resize();
+    seedDemo();
+    state.lastT = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  let resizeTO = null;
+  window.addEventListener('resize', () => {
+    if (resizeTO) clearTimeout(resizeTO);
+    resizeTO = setTimeout(resize, 80);
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
