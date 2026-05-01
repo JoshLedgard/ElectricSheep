@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Launch Ritual Lab</title>
+<style>
+  :root{
+    --bg:#071019; --panel:#101b27; --panel2:#142435; --ink:#eaf7ff; --muted:#9fb7c8;
+    --line:rgba(255,255,255,.12); --a:#67e8f9; --b:#f0abfc; --c:#bef264; --warn:#fbbf24;
+    --shadow:0 18px 60px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% 0%,#17385b 0,#071019 42%,#05070d 100%);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45;overflow-x:hidden}
+  body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(to bottom,black,transparent 72%);pointer-events:none}
+  .wrap{width:100%;max-width:820px;margin:0 auto;padding:22px 14px 34px;position:relative}
+  header{padding:22px 4px 10px;text-align:center}.eyebrow{letter-spacing:.18em;text-transform:uppercase;color:var(--a);font-size:12px;font-weight:800}h1{font-size:clamp(2rem,10vw,4rem);line-height:.96;margin:10px 0 12px;letter-spacing:-.06em}.sub{max-width:610px;margin:0 auto;color:var(--muted);font-size:16px}
+  .lab{display:grid;grid-template-columns:1fr;gap:14px;margin-top:18px}.card{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.035));border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.pad{padding:18px}h2{font-size:18px;margin:0 0 12px}.small{font-size:13px;color:var(--muted)}
+  .meters{display:grid;gap:14px}.meter label{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:15px;font-weight:750;margin-bottom:8px}.meter b{color:var(--a);font-variant-numeric:tabular-nums}.meter input{width:100%;min-height:44px;accent-color:var(--a)}
+  .dashboard{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tile{background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:18px;padding:13px;min-height:74px}.tile .num{font-size:28px;font-weight:900;letter-spacing:-.04em}.tile .cap{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.status{margin-top:12px;border-radius:18px;background:#06121b;border:1px solid var(--line);padding:14px}.bar{height:14px;background:#081a28;border-radius:99px;overflow:hidden;border:1px solid var(--line)}.fill{height:100%;width:0%;background:linear-gradient(90deg,var(--a),var(--b),var(--c));border-radius:99px;transition:width .35s ease}.verdict{margin-top:10px;font-weight:800}
+  .checks{display:grid;gap:9px}.check{min-height:48px;display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);background:rgba(0,0,0,.16);border-radius:16px;cursor:pointer;user-select:none}.check input{width:22px;height:22px;accent-color:var(--c);flex:0 0 auto}.check span{font-size:15px}.check.done{border-color:rgba(190,242,100,.45);background:rgba(190,242,100,.08)}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}button{min-height:48px;border:0;border-radius:16px;padding:12px 14px;font-weight:850;font-size:15px;color:#061019;background:var(--a);box-shadow:0 8px 24px rgba(103,232,249,.18);touch-action:manipulation}button.secondary{background:#1f3347;color:var(--ink);border:1px solid var(--line);box-shadow:none}button:active{transform:translateY(1px)}
+  .launchpad{position:relative;min-height:310px;background:radial-gradient(circle at 50% 35%,rgba(103,232,249,.18),transparent 42%),linear-gradient(#0e1b29,#071019);display:grid;place-items:center;overflow:hidden}.rocket{font-size:74px;filter:drop-shadow(0 18px 18px rgba(0,0,0,.4));transform:translateY(24px);transition:transform .7s cubic-bezier(.2,1.3,.4,1)}.rocket.go{transform:translateY(-54px) rotate(-8deg) scale(1.08)}.ring{position:absolute;width:220px;height:220px;border:1px dashed rgba(255,255,255,.18);border-radius:50%;animation:spin 24s linear infinite}.ring.two{width:160px;height:160px;animation-duration:14s;animation-direction:reverse}.spark{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--a);opacity:.85;animation:float 5s ease-in-out infinite}.s1{left:18%;top:32%}.s2{right:17%;top:23%;background:var(--b);animation-delay:-1.5s}.s3{left:24%;bottom:22%;background:var(--c);animation-delay:-2.8s}@keyframes spin{to{transform:rotate(360deg)}}@keyframes float{50%{transform:translateY(-18px) scale(1.4);opacity:.45}}
+  .capsule{padding:16px;border-top:1px solid var(--line);background:rgba(0,0,0,.18)}.capsule h2{display:flex;align-items:center;gap:8px}.pill{display:inline-flex;align-items:center;min-height:32px;padding:5px 10px;border-radius:99px;background:rgba(103,232,249,.12);border:1px solid rgba(103,232,249,.25);color:var(--a);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.message{font-size:17px;margin:10px 0 0;color:#f8fdff}.mini{margin-top:9px;color:var(--muted);font-size:14px}.confetti{position:absolute;inset:0;pointer-events:none}.bit{position:absolute;width:9px;height:16px;border-radius:3px;animation:drop 1.4s ease-out forwards}@keyframes drop{0%{transform:translateY(-20px) rotate(0);opacity:1}100%{transform:translateY(330px) rotate(320deg);opacity:0}}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:16px;padding:0 10px} @media (min-width:760px){.lab{grid-template-columns:1.05fr .95fr}.launchcard{grid-row:span 2}.actions{grid-template-columns:1fr 1fr}.pad{padding:20px}.dashboard{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">tiny tool for finishing</div>
+    <h1>Launch Ritual Lab</h1>
+    <p class="sub">Tune the shape of a small project, tap through a pre-flight ritual, then generate a launch card you can actually follow.</p>
+  </header>
+  <main class="lab">
+    <section class="card">
+      <div class="pad">
+        <h2>1. Set the launch conditions</h2>
+        <div class="meters">
+          <div class="meter"><label for="scope">Scope <b id="scopeOut">50</b></label><input id="scope" type="range" min="0" max="100" value="46"></div>
+          <div class="meter"><label for="spark">Spark <b id="sparkOut">50</b></label><input id="spark" type="range" min="0" max="100" value="72"></div>
+          <div class="meter"><label for="calm">Calm <b id="calmOut">50</b></label><input id="calm" type="range" min="0" max="100" value="61"></div>
+        </div>
+        <div class="status">
+          <div class="bar"><div class="fill" id="fill"></div></div>
+          <div class="verdict" id="verdict">Calculating launch weather…</div>
+          <div class="small" id="hint">Small enough to finish, bright enough to care, calm enough to ship.</div>
+        </div>
+      </div>
+    </section>
+    <section class="card launchcard">
+      <div class="launchpad" aria-label="Animated launch pad">
+        <div class="confetti" id="confetti"></div><div class="ring"></div><div class="ring two"></div>
+        <div class="spark s1"></div><div class="spark s2"></div><div class="spark s3"></div><div class="rocket" id="rocket">🚀</div>
+      </div>
+      <div class="capsule">
+        <h2><span class="pill" id="mode">steady</span> Launch card</h2>
+        <p class="message" id="message">Pick your settings, complete the checks, and press Launch to receive a tiny finished-project ritual.</p>
+        <p class="mini" id="mini">No accounts. No server. Just a pocket-sized readiness machine.</p>
+      </div>
+    </section>
+    <section class="card">
+      <div class="pad">
+        <h2>2. Pre-flight checklist</h2>
+        <div class="checks" id="checks">
+          <label class="check"><input type="checkbox"><span>Name the smallest complete version.</span></label>
+          <label class="check"><input type="checkbox"><span>Remove one nonessential flourish.</span></label>
+          <label class="check"><input type="checkbox"><span>Test it with fresh eyes for one minute.</span></label>
+          <label class="check"><input type="checkbox"><span>Leave a clear “open me” instruction.</span></label>
+        </div>
+        <div class="actions">
+          <button id="launch">Launch</button>
+          <button class="secondary" id="reset">Reset</button>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="pad">
+        <h2>Readiness dashboard</h2>
+        <div class="dashboard">
+          <div class="tile"><div class="num" id="score">0</div><div class="cap">score</div></div>
+          <div class="tile"><div class="num" id="checksNum">0/4</div><div class="cap">checks</div></div>
+          <div class="tile"><div class="num" id="timeBox">18m</div><div class="cap">first step</div></div>
+          <div class="tile"><div class="num" id="emoji">🌤️</div><div class="cap">weather</div></div>
+        </div>
+        <p class="small" style="margin-bottom:0">Tip: the best score is not maximum everything. It rewards small scope, real enthusiasm, and enough quiet to finish.</p>
+      </div>
+    </section>
+  </main>
+  <footer>Built as a self-contained May Day launch ritual. Works offline after the page loads.</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const sliders=['scope','spark','calm'].map($); const checks=[...document.querySelectorAll('.check input')];
+const lines={
+  tiny:['Ship the pebble, not the mountain. Make one clean thing and let it be enough.','Your best move is a crisp little version with a visible finish line.','Choose the doorway, not the whole house. A useful start is a real launch.'],
+  bold:['There is enough spark here for a bright experiment. Give it a name and press go.','Make the first version memorable in one place, then stop before the glitter takes over.','This wants a playful launch: one surprising detail, one simple path, done.'],
+  calm:['The weather is kind. Move slowly, verify once, and release without fuss.','Quiet confidence wins today: trim, test, tell people how to open it.','A steady launch beats an elaborate almost. Keep the ritual gentle.'],
+  storm:['The idea is loud. Lower the scope until the signal becomes friendly again.','Too many engines are firing. Pick one promise and protect it.','Delay the grand version; launch the useful version that can survive today.']
+};
+function val(id){return Number($(id).value)}
+function checked(){return checks.filter(c=>c.checked).length}
+function calc(){
+  const scope=val('scope'), spark=val('spark'), calm=val('calm'), done=checked();
+  $('scopeOut').textContent=scope; $('sparkOut').textContent=spark; $('calmOut').textContent=calm;
+  const scopeScore=100-Math.abs(scope-38)*1.25;
+  const raw=Math.max(0,Math.min(100,(scopeScore*.34)+(spark*.28)+(calm*.24)+(done*10)));
+  const score=Math.round(raw); $('score').textContent=score; $('checksNum').textContent=done+'/4'; $('fill').style.width=score+'%';
+  $('timeBox').textContent = scope<35?'9m':scope<60?'18m':'27m';
+  let mode='steady', emoji='🌤️', verdict='Good launch weather';
+  if(scope>72 && calm<45){mode='storm'; emoji='🌪️'; verdict='Stormy: shrink the promise';}
+  else if(spark>78 && scope<62){mode='bold'; emoji='✨'; verdict='Bright: one flourish allowed';}
+  else if(calm>74){mode='calm'; emoji='🌙'; verdict='Calm: verify and release';}
+  else if(scope<38){mode='tiny'; emoji='🌱'; verdict='Tiny: highly shippable';}
+  $('mode').textContent=mode; $('emoji').textContent=emoji; $('verdict').textContent=verdict;
+  $('hint').textContent = score>84?'Ready enough. The next move is smaller than your hesitation.':score>62?'Close. Complete the checklist or trim the scope a little.':'Not ready yet. Reduce scope, raise calm, or finish the checks.';
+  document.querySelectorAll('.check').forEach(l=>l.classList.toggle('done',l.querySelector('input').checked));
+  return {score,mode,scope,spark,calm,done};
+}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function confetti(){const box=$('confetti'); box.innerHTML=''; const colors=['#67e8f9','#f0abfc','#bef264','#fbbf24','#fb7185']; for(let i=0;i<34;i++){const b=document.createElement('i'); b.className='bit'; b.style.left=Math.random()*100+'%'; b.style.top=(-20-Math.random()*80)+'px'; b.style.background=pick(colors); b.style.animationDelay=(Math.random()*.35)+'s'; box.appendChild(b)} setTimeout(()=>box.innerHTML='',1800)}
+function launch(){const s=calc(); $('rocket').classList.remove('go'); void $('rocket').offsetWidth; $('rocket').classList.add('go'); confetti(); const bank=s.score<60?lines.storm:lines[s.mode]; $('message').textContent=pick(bank); $('mini').textContent=`Launch recipe: ${s.done}/4 checks complete · ${s.scope<50?'keep it small':'trim one edge'} · ${s.spark>65?'preserve the spark':'add one delightful detail'} · ${s.calm>60?'ship calmly':'take one quiet breath first'}.`;}
+sliders.forEach(x=>x.addEventListener('input',calc)); checks.forEach(c=>c.addEventListener('change',calc));
+$('launch').addEventListener('click',launch); $('reset').addEventListener('click',()=>{ $('scope').value=46; $('spark').value=72; $('calm').value=61; checks.forEach(c=>c.checked=false); $('rocket').classList.remove('go'); $('message').textContent='Pick your settings, complete the checks, and press Launch to receive a tiny finished-project ritual.'; $('mini').textContent='No accounts. No server. Just a pocket-sized readiness machine.'; calc(); });
+calc();
+</script>
+</body>
+</html>
