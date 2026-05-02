@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#06121a">
+<title>Tiny Systems Observatory</title>
+<style>
+  :root {
+    --bg: #06121a;
+    --bg2: #0a1c28;
+    --panel: rgba(14, 30, 42, 0.85);
+    --border: rgba(120, 200, 220, 0.18);
+    --border-bright: rgba(0, 220, 235, 0.55);
+    --text: #b8d8e6;
+    --text-dim: #5a7a8a;
+    --text-bright: #e6f6ff;
+    --accent: #00dceb;
+    --accent2: #f59ed8;
+    --accent3: #ffd680;
+    --good: #6cf3a8;
+    --warn: #f59ed8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: radial-gradient(ellipse 120% 80% at 50% -10%, #112638 0%, var(--bg) 55%, #03080d 100%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    line-height: 1.45;
+    overscroll-behavior: none;
+    overflow-x: hidden;
+  }
+  body {
+    padding: 16px 14px 32px;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    padding: 12px 4px 18px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 5vw, 1.9rem);
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  h1 span { color: var(--accent); }
+  .lede {
+    font-size: 13px;
+    color: var(--text-dim);
+    max-width: 340px;
+    margin: 0 auto;
+  }
+
+  .observatory {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(0, 50, 70, 0.45), rgba(2, 10, 18, 0.95) 75%),
+      var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 30px 60px -30px rgba(0,0,0,0.7);
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: manipulation;
+  }
+  .corner-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+  .corner-tag.right {
+    left: auto;
+    right: 12px;
+    color: var(--accent);
+  }
+  .corner-tag .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    margin-right: 6px;
+    animation: blink 1.6s infinite;
+    vertical-align: 1px;
+  }
+  @keyframes blink { 0%, 60% { opacity: 1; } 70%, 100% { opacity: 0.25; } }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin: 14px 0 6px;
+  }
+  .readout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .readout-label {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .readout-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-bright);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .readout-bar {
+    margin-top: 8px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .readout-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.25s ease, background 0.3s;
+    border-radius: 2px;
+  }
+  .readout.good .readout-fill { background: linear-gradient(90deg, var(--good), var(--accent)); }
+  .readout.good .readout-value { color: var(--good); }
+
+  .controls {
+    margin-top: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 14px 10px;
+  }
+  .control {
+    margin-bottom: 14px;
+  }
+  .control:last-child { margin-bottom: 4px; }
+  .control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .control-name {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .control-num {
+    font-size: 12px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .control-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 44px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, rgba(0,220,235,0.5), rgba(245,158,216,0.5));
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #006c78);
+    border: 2px solid #062028;
+    margin-top: -12px;
+    box-shadow: 0 0 12px rgba(0,220,235,0.45);
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, rgba(0,220,235,0.5), rgba(245,158,216,0.5));
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, var(--accent) 60%, #006c78);
+    border: 2px solid #062028;
+    box-shadow: 0 0 12px rgba(0,220,235,0.45);
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  button {
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(0, 220, 235, 0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0, 220, 235, 0.35);
+    border-radius: 10px;
+    padding: 14px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    min-height: 48px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  button:hover { background: rgba(0, 220, 235, 0.16); border-color: var(--border-bright); }
+  button:active { transform: scale(0.98); }
+  button.secondary {
+    color: var(--text-dim);
+    background: transparent;
+    border-color: var(--border);
+  }
+  button.secondary:hover { color: var(--text); border-color: var(--border-bright); }
+
+  .badges {
+    margin-top: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .badges-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .badges-title {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .badges-count {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+  .badges-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .badge {
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    background: rgba(255,255,255,0.02);
+    color: var(--text-dim);
+    opacity: 0.4;
+    transition: all 0.4s;
+    position: relative;
+    cursor: help;
+  }
+  .badge.earned {
+    opacity: 1;
+    background: rgba(0,220,235,0.08);
+    border-color: var(--border-bright);
+    box-shadow: 0 0 14px rgba(0,220,235,0.2);
+    color: var(--accent);
+  }
+  .badge.earned.gold {
+    background: rgba(255, 214, 128, 0.1);
+    border-color: rgba(255, 214, 128, 0.5);
+    box-shadow: 0 0 14px rgba(255, 214, 128, 0.25);
+    color: var(--accent3);
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(10, 28, 40, 0.95);
+    color: var(--text-bright);
+    border: 1px solid var(--border-bright);
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 100;
+    text-align: center;
+    max-width: 280px;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast .toast-emoji { font-size: 18px; margin-right: 6px; vertical-align: -2px; }
+
+  footer {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  @media (min-width: 480px) {
+    body { padding: 22px 18px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">⌬ Daily Surprise · May 2</div>
+  <h1>Tiny Systems <span>Observatory</span></h1>
+  <p class="lede">Tune three small dials. Watch a noisy little system settle into a quiet, aligned constellation.</p>
+</header>
+
+<div class="observatory">
+  <canvas id="cv"></canvas>
+  <div class="corner-tag"><span class="dot"></span>OBS-02</div>
+  <div class="corner-tag right" id="phase">SCANNING</div>
+</div>
+
+<div class="readouts">
+  <div class="readout" id="r-signal">
+    <div class="readout-label">Signal</div>
+    <div class="readout-value" id="v-signal">0%</div>
+    <div class="readout-bar"><div class="readout-fill" id="f-signal"></div></div>
+  </div>
+  <div class="readout" id="r-sync">
+    <div class="readout-label">Sync</div>
+    <div class="readout-value" id="v-sync">0%</div>
+    <div class="readout-bar"><div class="readout-fill" id="f-sync"></div></div>
+  </div>
+  <div class="readout" id="r-calm">
+    <div class="readout-label">Calm</div>
+    <div class="readout-value" id="v-calm">0%</div>
+    <div class="readout-bar"><div class="readout-fill" id="f-calm"></div></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="control">
+    <div class="control-row">
+      <span class="control-name">Coherence</span>
+      <span class="control-num" id="n-coh">0.30</span>
+    </div>
+    <input type="range" id="coherence" min="0" max="100" value="30" aria-label="Coherence">
+    <div class="control-hint">How tightly nodes pull toward shared orbits.</div>
+  </div>
+  <div class="control">
+    <div class="control-row">
+      <span class="control-name">Cadence</span>
+      <span class="control-num" id="n-cad">0.40</span>
+    </div>
+    <input type="range" id="cadence" min="0" max="100" value="40" aria-label="Cadence">
+    <div class="control-hint">The speed of each tiny pulse.</div>
+  </div>
+  <div class="control">
+    <div class="control-row">
+      <span class="control-name">Sensitivity</span>
+      <span class="control-num" id="n-sen">0.50</span>
+    </div>
+    <input type="range" id="sensitivity" min="0" max="100" value="50" aria-label="Sensitivity">
+    <div class="control-hint">How strongly nearby nodes listen to each other.</div>
+  </div>
+
+  <div class="actions">
+    <button id="btn-rand">Randomize</button>
+    <button id="btn-reset" class="secondary">Reset</button>
+  </div>
+</div>
+
+<div class="badges">
+  <div class="badges-head">
+    <span class="badges-title">Observatory Log</span>
+    <span class="badges-count" id="badge-count">0 / 5</span>
+  </div>
+  <div class="badges-grid" id="badges">
+    <div class="badge" data-id="first" title="First Signal — get any reading above 30%">✦</div>
+    <div class="badge" data-id="forming" title="Constellation Forming — sync above 50%">✺</div>
+    <div class="badge" data-id="aligned" title="Aligned — sync above 85%">✧</div>
+    <div class="badge" data-id="calm" title="Stillwater — calm above 85%">◯</div>
+    <div class="badge" data-id="online" title="Observatory Online — all three above 80%">⌬</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer>Built for one quiet morning · all in a single file</footer>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0;
+
+  function resize() {
+    const rect = cv.getBoundingClientRect();
+    W = Math.max(1, rect.width);
+    H = Math.max(1, rect.height);
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // params
+  const P = { coherence: 0.30, cadence: 0.40, sensitivity: 0.50 };
+
+  // nodes
+  const N_COUNT = 22;
+  const nodes = [];
+  function spawnNodes(scatter = true) {
+    nodes.length = 0;
+    for (let i = 0; i < N_COUNT; i++) {
+      const angle = (i / N_COUNT) * Math.PI * 2 + Math.random() * 0.4;
+      const radius = scatter ? Math.random() * 0.5 + 0.05 : 0.35;
+      nodes.push({
+        x: 0.5 + Math.cos(angle) * radius,
+        y: 0.5 + Math.sin(angle) * radius,
+        vx: (Math.random() - 0.5) * 0.004,
+        vy: (Math.random() - 0.5) * 0.004,
+        phase: Math.random() * Math.PI * 2,
+        targetAngle: angle,
+        baseRadius: 0.28 + (i % 3) * 0.05,
+        hue: 175 + Math.random() * 40 - 20,
+        size: 1 + Math.random() * 1.6
+      });
+    }
+  }
+
+  // metrics smoothed
+  let signal = 0, sync = 0, calm = 0;
+  let signalTarget = 0, syncTarget = 0, calmTarget = 0;
+
+  // badges
+  const badgeIds = ['first', 'forming', 'aligned', 'calm', 'online'];
+  const badgeLabels = {
+    first: ['First Signal', '✦'],
+    forming: ['Constellation Forming', '✺'],
+    aligned: ['Aligned', '✧'],
+    calm: ['Stillwater', '◯'],
+    online: ['Observatory Online', '⌬']
+  };
+  const earned = new Set();
+  function awardBadge(id) {
+    if (earned.has(id)) return;
+    earned.add(id);
+    const el = document.querySelector(`.badge[data-id="${id}"]`);
+    if (el) {
+      el.classList.add('earned');
+      if (id === 'online') el.classList.add('gold');
+    }
+    document.getElementById('badge-count').textContent = `${earned.size} / 5`;
+    const [name, glyph] = badgeLabels[id];
+    showToast(`${glyph} ${name}`);
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<span class="toast-emoji">✓</span>${msg}`;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // wire controls
+  const slCoh = document.getElementById('coherence');
+  const slCad = document.getElementById('cadence');
+  const slSen = document.getElementById('sensitivity');
+  function readSliders() {
+    P.coherence = +slCoh.value / 100;
+    P.cadence = +slCad.value / 100;
+    P.sensitivity = +slSen.value / 100;
+    document.getElementById('n-coh').textContent = P.coherence.toFixed(2);
+    document.getElementById('n-cad').textContent = P.cadence.toFixed(2);
+    document.getElementById('n-sen').textContent = P.sensitivity.toFixed(2);
+  }
+  ['input', 'change'].forEach(ev => {
+    slCoh.addEventListener(ev, readSliders);
+    slCad.addEventListener(ev, readSliders);
+    slSen.addEventListener(ev, readSliders);
+  });
+
+  document.getElementById('btn-rand').addEventListener('click', () => {
+    slCoh.value = Math.floor(Math.random() * 100);
+    slCad.value = Math.floor(Math.random() * 100);
+    slSen.value = Math.floor(Math.random() * 100);
+    readSliders();
+    spawnNodes(true);
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    slCoh.value = 30;
+    slCad.value = 40;
+    slSen.value = 50;
+    readSliders();
+    spawnNodes(true);
+  });
+
+  // tap on canvas: nudge nodes
+  cv.addEventListener('pointerdown', (e) => {
+    const rect = cv.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    nodes.forEach(n => {
+      const dx = px - n.x, dy = py - n.y;
+      const d2 = dx*dx + dy*dy + 0.0001;
+      const k = 0.012 / d2;
+      n.vx -= dx * Math.min(0.08, k);
+      n.vy -= dy * Math.min(0.08, k);
+    });
+  });
+
+  // simulation step
+  let t = 0;
+  function step(dt) {
+    const cad = 0.4 + P.cadence * 2.4;
+    t += dt * cad;
+
+    const cohK = P.coherence * 0.012;
+    const senK = P.sensitivity * 0.0014;
+    const dampBase = 0.992 - P.coherence * 0.012;
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      // pull toward orbital target
+      const ang = n.targetAngle + t * 0.18 * (1 + (i % 3) * 0.05);
+      const tx = 0.5 + Math.cos(ang) * n.baseRadius;
+      const ty = 0.5 + Math.sin(ang) * n.baseRadius;
+      n.vx += (tx - n.x) * cohK;
+      n.vy += (ty - n.y) * cohK;
+
+      // sensitivity: gentle pull to neighbors mean position
+      let mx = 0, my = 0, c = 0;
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        const o = nodes[j];
+        const dx = o.x - n.x, dy = o.y - n.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < 0.04) {
+          mx += o.x; my += o.y; c++;
+        }
+      }
+      if (c > 0) {
+        n.vx += ((mx / c) - n.x) * senK;
+        n.vy += ((my / c) - n.y) * senK;
+      }
+
+      // tiny noise
+      const noiseAmt = 0.0008 * (1.4 - P.coherence);
+      n.vx += (Math.random() - 0.5) * noiseAmt;
+      n.vy += (Math.random() - 0.5) * noiseAmt;
+
+      // damping
+      n.vx *= dampBase;
+      n.vy *= dampBase;
+
+      n.x += n.vx;
+      n.y += n.vy;
+
+      // soft bounds
+      if (n.x < 0.05) { n.x = 0.05; n.vx = Math.abs(n.vx) * 0.4; }
+      if (n.x > 0.95) { n.x = 0.95; n.vx = -Math.abs(n.vx) * 0.4; }
+      if (n.y < 0.05) { n.y = 0.05; n.vy = Math.abs(n.vy) * 0.4; }
+      if (n.y > 0.95) { n.y = 0.95; n.vy = -Math.abs(n.vy) * 0.4; }
+
+      // phase
+      n.phase += dt * cad * 2.2;
+    }
+
+    // measure metrics
+    // signal: average pulse amplitude based on cadence
+    signalTarget = Math.min(1, 0.2 + P.cadence * 0.6 + P.sensitivity * 0.25);
+
+    // sync: how aligned are positions to orbital targets
+    let syncSum = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      const ang = n.targetAngle + t * 0.18 * (1 + (i % 3) * 0.05);
+      const tx = 0.5 + Math.cos(ang) * n.baseRadius;
+      const ty = 0.5 + Math.sin(ang) * n.baseRadius;
+      const d = Math.hypot(tx - n.x, ty - n.y);
+      syncSum += Math.max(0, 1 - d * 5);
+    }
+    syncTarget = syncSum / nodes.length;
+
+    // calm: low velocity = high calm
+    let velSum = 0;
+    for (const n of nodes) velSum += Math.hypot(n.vx, n.vy);
+    const avgVel = velSum / nodes.length;
+    calmTarget = Math.max(0, Math.min(1, 1 - avgVel * 80));
+
+    // smooth
+    signal += (signalTarget - signal) * 0.12;
+    sync += (syncTarget - sync) * 0.08;
+    calm += (calmTarget - calm) * 0.08;
+  }
+
+  function pct(x) { return Math.round(Math.max(0, Math.min(1, x)) * 100); }
+
+  function updateReadouts() {
+    const sg = pct(signal), sy = pct(sync), cl = pct(calm);
+    document.getElementById('v-signal').textContent = sg + '%';
+    document.getElementById('v-sync').textContent = sy + '%';
+    document.getElementById('v-calm').textContent = cl + '%';
+    document.getElementById('f-signal').style.width = sg + '%';
+    document.getElementById('f-sync').style.width = sy + '%';
+    document.getElementById('f-calm').style.width = cl + '%';
+
+    document.getElementById('r-signal').classList.toggle('good', sg >= 70);
+    document.getElementById('r-sync').classList.toggle('good', sy >= 70);
+    document.getElementById('r-calm').classList.toggle('good', cl >= 70);
+
+    // phase tag
+    const phase = document.getElementById('phase');
+    if (sy > 0.85 && cl > 0.7) phase.textContent = 'ALIGNED';
+    else if (sy > 0.5) phase.textContent = 'FORMING';
+    else if (sg > 0.3) phase.textContent = 'TRACKING';
+    else phase.textContent = 'SCANNING';
+
+    // badges
+    if (sg > 0.3 || sy > 0.3 || cl > 0.3) awardBadge('first');
+    if (sy > 0.5) awardBadge('forming');
+    if (sy > 0.85) awardBadge('aligned');
+    if (cl > 0.85) awardBadge('calm');
+    if (sg > 0.8 && sy > 0.8 && cl > 0.8) awardBadge('online');
+  }
+
+  // draw
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // soft inner glow
+    const cx = W * 0.5, cy = H * 0.5;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.6);
+    grad.addColorStop(0, 'rgba(0, 60, 80, 0.28)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // orbit guide rings (faint)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(120, 200, 220, 0.06)';
+    for (let r = 0.18; r < 0.5; r += 0.08) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * Math.min(W, H), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // crosshairs
+    ctx.strokeStyle = 'rgba(120, 200, 220, 0.08)';
+    ctx.beginPath();
+    ctx.moveTo(cx, H * 0.08); ctx.lineTo(cx, H * 0.92);
+    ctx.moveTo(W * 0.08, cy); ctx.lineTo(W * 0.92, cy);
+    ctx.stroke();
+
+    // connections
+    const linkRange = 0.08 + P.sensitivity * 0.12;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < linkRange) {
+          const alpha = (1 - d / linkRange) * (0.2 + sync * 0.55);
+          ctx.strokeStyle = `rgba(0, 220, 235, ${alpha.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(a.x * W, a.y * H);
+          ctx.lineTo(b.x * W, b.y * H);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // nodes
+    for (const n of nodes) {
+      const px = n.x * W;
+      const py = n.y * H;
+      const pulse = 0.5 + 0.5 * Math.sin(n.phase);
+      const r = (1.6 + n.size * 1.2) * (0.8 + pulse * 0.6);
+      const glow = 8 + 12 * pulse * (0.4 + sync * 0.7);
+
+      // glow
+      const g = ctx.createRadialGradient(px, py, 0, px, py, glow);
+      const hue = n.hue;
+      g.addColorStop(0, `hsla(${hue}, 90%, 70%, ${(0.5 + sync * 0.4).toFixed(2)})`);
+      g.addColorStop(1, `hsla(${hue}, 90%, 50%, 0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, glow, 0, Math.PI * 2);
+      ctx.fill();
+
+      // core
+      ctx.fillStyle = `hsla(${hue}, 95%, 85%, 0.95)`;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    step(dt);
+    draw();
+    updateReadouts();
+    requestAnimationFrame(loop);
+  }
+
+  // init
+  function init() {
+    resize();
+    spawnNodes(true);
+    readSliders();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    resize();
+  });
+  // observe canvas size after layout
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(cv);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
