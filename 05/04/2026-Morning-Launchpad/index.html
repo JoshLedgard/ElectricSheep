@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1f">
+<title>Morning Launchpad</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg-0: #06091a;
+    --bg-1: #0e1430;
+    --bg-2: #1a1f50;
+    --ink: #e7ecff;
+    --ink-dim: #8a93c2;
+    --ink-soft: #5a6499;
+    --line: rgba(140,160,220,0.16);
+    --line-bright: rgba(160,200,255,0.45);
+    --warm: #ffb86b;
+    --hot: #ff7e5f;
+    --pink: #ff6ab0;
+    --cool: #6ee7ff;
+    --mint: #8af0c2;
+    --violet: #b793ff;
+    --gold: #ffd86b;
+  }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse 120% 80% at 50% 110%, #2a2160 0%, #120a30 35%, #06091a 80%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    line-height: 1.45;
+  }
+
+  /* Twinkling starfield */
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .star {
+    position: absolute; width: 2px; height: 2px; border-radius: 50%;
+    background: #fff; opacity: 0.6;
+    box-shadow: 0 0 4px rgba(255,255,255,0.7);
+    animation: twinkle 3.5s ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.8); }
+    50% { opacity: 0.9; transform: scale(1.2); }
+  }
+
+  /* Dawn glow at horizon */
+  .horizon {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 50vh;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse 80% 90% at 50% 110%,
+      rgba(255,180,120,0.18) 0%,
+      rgba(255,120,180,0.10) 30%,
+      transparent 70%);
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 540px; margin: 0 auto;
+    padding: 28px 18px 40px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+
+  /* Header */
+  header { text-align: center; }
+  .kicker {
+    font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 8vw, 38px);
+    font-weight: 800; letter-spacing: -0.025em;
+    background: linear-gradient(110deg, #ffd86b 0%, #ff6ab0 45%, #6ee7ff 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+  .tagline {
+    font-size: 14px; color: var(--ink-dim);
+    max-width: 360px; margin: 0 auto;
+  }
+
+  /* Dashboard */
+  .dash {
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 18px 18px 16px;
+    background: linear-gradient(180deg, rgba(20,28,60,0.7), rgba(10,14,36,0.7));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative; overflow: hidden;
+  }
+  .dash::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% 0%, rgba(255,160,90,0.10), transparent 50%);
+    pointer-events: none;
+  }
+  .dash-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; position: relative; z-index: 1;
+  }
+
+  .scene {
+    width: 96px; height: 96px; flex-shrink: 0;
+    position: relative;
+  }
+  .scene svg { width: 100%; height: 100%; overflow: visible; }
+  .pad-glow {
+    transform-origin: center bottom;
+    transition: opacity 0.4s ease;
+  }
+  .rocket-group {
+    transform-origin: 50px 70px;
+    transition: transform 0.6s cubic-bezier(.4,1.7,.5,1);
+  }
+  .flame { opacity: 0; transform-origin: 50px 70px; }
+
+  .meta { flex: 1; min-width: 0; }
+  .meta-label {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 6px;
+  }
+  .meta-status {
+    font-size: 17px; font-weight: 700;
+    color: var(--ink); letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    min-height: 22px;
+  }
+
+  /* Charge bar */
+  .charge {
+    height: 10px; border-radius: 6px; overflow: hidden;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    position: relative;
+  }
+  .charge-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--warm), var(--pink) 50%, var(--cool));
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    border-radius: 6px;
+    box-shadow: 0 0 14px rgba(255,140,180,0.5);
+    position: relative;
+  }
+  .charge-fill::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    animation: shimmer 2.4s linear infinite;
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .charge-meta {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--ink-soft);
+    margin-top: 6px; letter-spacing: 0.04em;
+  }
+
+  /* Cards */
+  .cards-label {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4px;
+  }
+  .cards-label-text {
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .cards-counter { font-size: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .card {
+    appearance: none; -webkit-appearance: none; border: none; font: inherit;
+    cursor: pointer; text-align: left;
+    background: linear-gradient(160deg, rgba(28,36,72,0.55), rgba(14,20,46,0.55));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px 14px 13px;
+    color: var(--ink);
+    min-height: 100px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+    transition: transform 0.18s ease, border-color 0.25s ease, background 0.3s ease;
+  }
+  .card:active { transform: scale(0.97); }
+  .card .icon {
+    font-size: 24px; line-height: 1;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    transition: all 0.3s ease;
+  }
+  .card .name {
+    font-size: 14px; font-weight: 700;
+    color: var(--ink); letter-spacing: -0.01em;
+    margin-top: 8px;
+  }
+  .card .hint {
+    font-size: 11px; color: var(--ink-soft);
+    margin-top: 2px; letter-spacing: 0.01em;
+  }
+  .card .check {
+    position: absolute; top: 12px; right: 12px;
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1.5px solid var(--line-bright);
+    display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 13px; font-weight: 700;
+    transition: all 0.3s ease;
+  }
+
+  .card.on {
+    background: linear-gradient(160deg, rgba(120,90,200,0.35), rgba(40,80,180,0.25));
+    border-color: rgba(180,200,255,0.55);
+    box-shadow: 0 6px 22px rgba(120,140,255,0.18), inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .card.on .icon {
+    background: linear-gradient(135deg, var(--warm), var(--pink));
+    border-color: transparent;
+    box-shadow: 0 4px 18px rgba(255,130,170,0.4);
+    transform: scale(1.05);
+  }
+  .card.on .check {
+    background: linear-gradient(135deg, var(--mint), var(--cool));
+    border-color: transparent;
+    color: #0a1130;
+  }
+
+  .card .pulse {
+    position: absolute; inset: 0; pointer-events: none;
+    border-radius: 18px; opacity: 0;
+  }
+  .card.flash .pulse {
+    animation: card-pulse 0.6s ease-out;
+  }
+  @keyframes card-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,200,120,0.7) inset; opacity: 1; }
+    100% { box-shadow: 0 0 0 30px rgba(255,200,120,0) inset; opacity: 0; }
+  }
+
+  /* Buttons row */
+  .actions {
+    display: flex; gap: 10px; padding: 0 2px;
+  }
+  .btn {
+    flex: 1;
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--ink);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 13px 16px;
+    min-height: 46px;
+    letter-spacing: 0.01em;
+    transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:hover { border-color: var(--line-bright); background: rgba(255,255,255,0.07); }
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(255,140,90,0.25), rgba(255,100,180,0.25));
+    border-color: rgba(255,170,200,0.5);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, rgba(255,140,90,0.35), rgba(255,100,180,0.35));
+  }
+
+  /* Liftoff overlay */
+  .overlay {
+    position: fixed; inset: 0; pointer-events: none;
+    z-index: 50; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255,210,140,0.25), transparent 60%);
+    transition: opacity 0.6s ease;
+  }
+  .overlay.show { opacity: 1; }
+
+  .liftoff-card {
+    position: fixed; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    background: linear-gradient(160deg, rgba(40,28,80,0.94), rgba(15,10,40,0.94));
+    border: 1px solid rgba(255,200,140,0.4);
+    border-radius: 22px;
+    padding: 22px 26px;
+    text-align: center;
+    z-index: 60;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.6s cubic-bezier(.4,1.7,.5,1);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 60px rgba(255,180,120,0.2);
+    max-width: 320px; width: calc(100% - 40px);
+  }
+  .liftoff-card.show {
+    opacity: 1; pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .liftoff-emoji { font-size: 48px; margin-bottom: 8px; line-height: 1; }
+  .liftoff-title {
+    font-size: 22px; font-weight: 800; letter-spacing: -0.015em;
+    background: linear-gradient(110deg, var(--gold), var(--pink), var(--cool));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .liftoff-msg { font-size: 14px; color: var(--ink-dim); margin-bottom: 16px; }
+  .liftoff-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--warm), var(--pink));
+    color: #1a0830;
+    border: none;
+    font: inherit; font-weight: 700; font-size: 13px;
+    padding: 11px 22px;
+    border-radius: 12px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .liftoff-btn:active { transform: scale(0.97); }
+
+  /* Confetti */
+  .confetti {
+    position: fixed; top: -20px; width: 8px; height: 14px;
+    z-index: 55; pointer-events: none; border-radius: 2px;
+    will-change: transform;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+    padding: 8px 0 4px;
+    letter-spacing: 0.06em;
+  }
+
+  @media (min-width: 480px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+    .card { min-height: 110px; }
+    .scene { width: 110px; height: 110px; }
+  }
+  @media (max-width: 360px) {
+    .card { padding: 12px; min-height: 92px; }
+    .card .icon { width: 32px; height: 32px; font-size: 21px; }
+    .card .name { font-size: 13px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars" aria-hidden="true"></div>
+<div class="horizon" aria-hidden="true"></div>
+
+<main class="app">
+  <header>
+    <div class="kicker">Pre-flight · 06:00</div>
+    <h1>Morning Launchpad</h1>
+    <p class="tagline">Tap a few small steps. Charge the dashboard. Launch the day.</p>
+  </header>
+
+  <section class="dash" aria-label="Launch dashboard">
+    <div class="dash-row">
+      <div class="scene" aria-hidden="true">
+        <svg viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="padGlow" cx="50%" cy="100%" r="60%">
+              <stop offset="0%" stop-color="#ffb86b" stop-opacity="0.9"/>
+              <stop offset="60%" stop-color="#ff6ab0" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#ff6ab0" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="rocketBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#cdd7ff"/>
+            </linearGradient>
+            <linearGradient id="rocketStripe" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff6ab0"/>
+              <stop offset="100%" stop-color="#ffb86b"/>
+            </linearGradient>
+            <linearGradient id="flameGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fff4c2"/>
+              <stop offset="40%" stop-color="#ffd86b"/>
+              <stop offset="100%" stop-color="#ff6ab0" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Pad glow -->
+          <ellipse class="pad-glow" id="padGlow" cx="50" cy="86" rx="36" ry="10" fill="url(#padGlow)" opacity="0.15"/>
+
+          <!-- Pad -->
+          <rect x="22" y="82" width="56" height="4" rx="2" fill="#3a4275"/>
+          <rect x="34" y="86" width="32" height="3" rx="1.5" fill="#1f2547"/>
+
+          <!-- Flame -->
+          <path class="flame" id="flame" d="M44 70 Q50 95 56 70 Q53 78 50 78 Q47 78 44 70 Z" fill="url(#flameGrad)"/>
+
+          <!-- Rocket -->
+          <g class="rocket-group" id="rocket">
+            <!-- Fins -->
+            <path d="M38 64 L34 76 L42 72 Z" fill="#7a85b8"/>
+            <path d="M62 64 L66 76 L58 72 Z" fill="#7a85b8"/>
+            <!-- Body -->
+            <path d="M42 36 Q42 28 50 24 Q58 28 58 36 L58 72 L42 72 Z" fill="url(#rocketBody)"/>
+            <!-- Nose tip -->
+            <path d="M44 32 Q50 22 56 32 Q50 26 44 32 Z" fill="#ffd86b"/>
+            <!-- Stripe -->
+            <rect x="42" y="50" width="16" height="6" fill="url(#rocketStripe)"/>
+            <!-- Window -->
+            <circle cx="50" cy="44" r="4" fill="#0a1130"/>
+            <circle cx="50" cy="44" r="3" fill="#6ee7ff" opacity="0.85"/>
+            <circle cx="49" cy="43" r="1" fill="#fff" opacity="0.9"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="meta">
+        <div class="meta-label">Status</div>
+        <div class="meta-status" id="status">Standing by</div>
+        <div class="charge"><div class="charge-fill" id="fill"></div></div>
+        <div class="charge-meta">
+          <span id="readout">0% charged</span>
+          <span id="countdown">T-minus 6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cards-label">
+    <span class="cards-label-text">Pre-flight checklist</span>
+    <span class="cards-counter" id="counter">0 / 6</span>
+  </div>
+
+  <section class="grid" id="grid" aria-label="Launch checklist"></section>
+
+  <div class="actions">
+    <button class="btn" id="shuffle" type="button">↻ Shuffle Ritual</button>
+    <button class="btn btn-primary" id="reset" type="button">Reset</button>
+  </div>
+
+  <footer>Made for a calm, deliberate start.</footer>
+</main>
+
+<div class="overlay" id="overlay" aria-hidden="true"></div>
+<div class="liftoff-card" id="liftoff" role="dialog" aria-live="polite" aria-hidden="true">
+  <div class="liftoff-emoji" id="liftoffEmoji">🚀</div>
+  <div class="liftoff-title" id="liftoffTitle">Liftoff!</div>
+  <div class="liftoff-msg" id="liftoffMsg">All systems calm. Go make a great day.</div>
+  <button class="liftoff-btn" id="liftoffBtn" type="button">Land back home</button>
+</div>
+
+<script>
+(() => {
+  // ---- Star field ----
+  const starsEl = document.getElementById('stars');
+  const STAR_COUNT = 60;
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 70 + '%';
+    s.style.animationDelay = (Math.random() * 3.5).toFixed(2) + 's';
+    s.style.opacity = (0.2 + Math.random() * 0.6).toFixed(2);
+    const size = 1 + Math.random() * 2;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    starsEl.appendChild(s);
+  }
+
+  // ---- Ritual library ----
+  const RITUALS = [
+    [
+      { id: 'hydrate', icon: '💧', name: 'Hydrate', hint: 'A tall glass of water' },
+      { id: 'stretch', icon: '🤸', name: 'Stretch',  hint: 'Loosen the shoulders' },
+      { id: 'focus',   icon: '🎯', name: 'Focus',    hint: 'Pick today’s one thing' },
+      { id: 'tidy',    icon: '🧹', name: 'Tidy',     hint: 'Clear one small surface' },
+      { id: 'breathe', icon: '🌬️', name: 'Breathe',  hint: 'Four slow, even breaths' },
+      { id: 'begin',   icon: '✨', name: 'Begin',    hint: 'Step toward the day' }
+    ],
+    [
+      { id: 'sun',     icon: '☀️', name: 'Daylight', hint: 'Open a curtain or step out' },
+      { id: 'sip',     icon: '☕', name: 'Sip',      hint: 'Warm drink, slow sips' },
+      { id: 'walk',    icon: '🚶', name: 'Move',     hint: 'A short loop around' },
+      { id: 'note',    icon: '📓', name: 'Capture',  hint: 'One thought on paper' },
+      { id: 'smile',   icon: '🙂', name: 'Smile',    hint: 'A small one counts' },
+      { id: 'launch',  icon: '🚀', name: 'Lift off', hint: 'Begin with intention' }
+    ],
+    [
+      { id: 'water',   icon: '💧', name: 'Water',    hint: 'Refill the bottle' },
+      { id: 'music',   icon: '🎧', name: 'Music',    hint: 'A song you love' },
+      { id: 'plant',   icon: '🌿', name: 'Plant',    hint: 'A glance at something green' },
+      { id: 'read',    icon: '📖', name: 'Read',     hint: 'One page, any page' },
+      { id: 'air',     icon: '🌬️', name: 'Air',      hint: 'Crack a window open' },
+      { id: 'go',      icon: '🚀', name: 'Go',       hint: 'Take the first step' }
+    ]
+  ];
+
+  let rituals = RITUALS[0].slice();
+  let active = new Set();
+  let launched = false;
+
+  const grid = document.getElementById('grid');
+  const fill = document.getElementById('fill');
+  const status = document.getElementById('status');
+  const readout = document.getElementById('readout');
+  const countdown = document.getElementById('countdown');
+  const counter = document.getElementById('counter');
+  const rocket = document.getElementById('rocket');
+  const flame = document.getElementById('flame');
+  const padGlow = document.getElementById('padGlow');
+  const overlay = document.getElementById('overlay');
+  const liftoff = document.getElementById('liftoff');
+  const liftoffBtn = document.getElementById('liftoffBtn');
+  const liftoffEmoji = document.getElementById('liftoffEmoji');
+  const liftoffMsg = document.getElementById('liftoffMsg');
+
+  const STATUSES = [
+    'Standing by',
+    'Warming up',
+    'Systems waking',
+    'Aligning trajectory',
+    'Bay doors open',
+    'Final checks',
+    'Cleared for launch'
+  ];
+
+  const LAUNCH_LINES = [
+    { e: '🚀', m: 'All systems calm. Go make a great day.' },
+    { e: '🌅', m: 'Engines lit. The day is yours to fly.' },
+    { e: '⭐', m: 'Steady, ready, and in motion. Onward.' },
+    { e: '🎈', m: 'Lift off, gently. Carry this calm with you.' },
+    { e: '🛰️', m: 'Orbit achieved. Settle in for a smooth ride.' }
+  ];
+
+  function renderCards() {
+    grid.innerHTML = '';
+    rituals.forEach((r, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'card' + (active.has(r.id) ? ' on' : '');
+      btn.dataset.id = r.id;
+      btn.setAttribute('aria-pressed', active.has(r.id) ? 'true' : 'false');
+      btn.setAttribute('aria-label', r.name + '. ' + r.hint);
+      btn.innerHTML = `
+        <div class="check" aria-hidden="true">${active.has(r.id) ? '✓' : ''}</div>
+        <div class="icon" aria-hidden="true">${r.icon}</div>
+        <div>
+          <div class="name">${r.name}</div>
+          <div class="hint">${r.hint}</div>
+        </div>
+        <span class="pulse" aria-hidden="true"></span>`;
+      btn.addEventListener('click', () => toggle(r.id, btn));
+      grid.appendChild(btn);
+    });
+  }
+
+  function toggle(id, btn) {
+    if (launched) return;
+    if (active.has(id)) {
+      active.delete(id);
+      btn.classList.remove('on');
+      btn.querySelector('.check').textContent = '';
+      btn.setAttribute('aria-pressed', 'false');
+    } else {
+      active.add(id);
+      btn.classList.add('on', 'flash');
+      btn.querySelector('.check').textContent = '✓';
+      btn.setAttribute('aria-pressed', 'true');
+      setTimeout(() => btn.classList.remove('flash'), 650);
+    }
+    update();
+    if (active.size === rituals.length) {
+      setTimeout(launch, 520);
+    }
+  }
+
+  function update() {
+    const total = rituals.length;
+    const n = active.size;
+    const pct = Math.round((n / total) * 100);
+    fill.style.width = pct + '%';
+    readout.textContent = pct + '% charged';
+    counter.textContent = n + ' / ' + total;
+    countdown.textContent = n === total ? 'T-0 · cleared' : ('T-minus ' + (total - n));
+    const idx = Math.min(STATUSES.length - 1, Math.floor((n / total) * (STATUSES.length - 1)));
+    status.textContent = STATUSES[idx];
+    padGlow.style.opacity = (0.15 + (n / total) * 0.75).toFixed(2);
+  }
+
+  function launch() {
+    if (launched) return;
+    launched = true;
+    status.textContent = 'Lift off';
+    countdown.textContent = 'In flight';
+
+    flame.style.transition = 'opacity 0.3s ease';
+    flame.style.opacity = '1';
+    flame.animate(
+      [
+        { transform: 'scaleY(0.6)' },
+        { transform: 'scaleY(1.2)' },
+        { transform: 'scaleY(0.85)' },
+        { transform: 'scaleY(1.1)' }
+      ],
+      { duration: 600, iterations: 4 }
+    );
+
+    rocket.animate(
+      [
+        { transform: 'translateY(0) rotate(0deg)' },
+        { transform: 'translateY(-2px) rotate(-0.6deg)', offset: 0.18 },
+        { transform: 'translateY(-3px) rotate(0.6deg)', offset: 0.34 },
+        { transform: 'translateY(-90px) rotate(0deg)' }
+      ],
+      { duration: 2200, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }
+    );
+
+    setTimeout(spawnConfetti, 400);
+    setTimeout(showLiftoffCard, 1500);
+    overlay.classList.add('show');
+  }
+
+  function spawnConfetti() {
+    const colors = ['#ffd86b', '#ff6ab0', '#6ee7ff', '#8af0c2', '#b793ff', '#ffb86b'];
+    const count = 60;
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.background = colors[i % colors.length];
+      c.style.left = (Math.random() * 100) + '%';
+      c.style.top = '-20px';
+      c.style.opacity = (0.7 + Math.random() * 0.3).toFixed(2);
+      const w = 4 + Math.random() * 8;
+      const h = 8 + Math.random() * 12;
+      c.style.width = w + 'px';
+      c.style.height = h + 'px';
+      c.style.borderRadius = (Math.random() < 0.4 ? '50%' : '2px');
+      document.body.appendChild(c);
+      const dx = (Math.random() - 0.5) * 240;
+      const dy = window.innerHeight + 80;
+      const rot = (Math.random() - 0.5) * 720;
+      const dur = 2200 + Math.random() * 1800;
+      c.animate(
+        [
+          { transform: 'translate(0,0) rotate(0deg)' },
+          { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)` }
+        ],
+        { duration: dur, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' }
+      ).onfinish = () => c.remove();
+    }
+  }
+
+  function showLiftoffCard() {
+    const line = LAUNCH_LINES[Math.floor(Math.random() * LAUNCH_LINES.length)];
+    liftoffEmoji.textContent = line.e;
+    liftoffMsg.textContent = line.m;
+    liftoff.classList.add('show');
+    liftoff.setAttribute('aria-hidden', 'false');
+  }
+
+  function reset() {
+    launched = false;
+    active.clear();
+    overlay.classList.remove('show');
+    liftoff.classList.remove('show');
+    liftoff.setAttribute('aria-hidden', 'true');
+    flame.style.opacity = '0';
+    rocket.getAnimations().forEach(a => a.cancel());
+    rocket.style.transform = 'translateY(0)';
+    document.querySelectorAll('.confetti').forEach(c => c.remove());
+    renderCards();
+    update();
+  }
+
+  function shuffle() {
+    let next;
+    do {
+      next = RITUALS[Math.floor(Math.random() * RITUALS.length)];
+    } while (next === rituals && RITUALS.length > 1);
+    rituals = next.slice();
+    reset();
+  }
+
+  document.getElementById('reset').addEventListener('click', reset);
+  document.getElementById('shuffle').addEventListener('click', shuffle);
+  liftoffBtn.addEventListener('click', reset);
+
+  renderCards();
+  update();
+})();
+</script>
+
+</body>
+</html>
