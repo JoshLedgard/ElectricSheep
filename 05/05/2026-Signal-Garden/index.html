@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#050a14">
+<title>Signal Garden · May 5, 2026</title>
+<style>
+  :root{
+    --bg:#050a14;
+    --bg2:#08111e;
+    --ink:#cfeaf5;
+    --dim:#5b7d92;
+    --line:rgba(120,200,220,0.18);
+    --accent:#7eecc8;
+    --warm:#ffb37a;
+    --cool:#7ec8ff;
+    --soft:#d8a0ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  body{
+    background:radial-gradient(ellipse 80% 60% at 50% 0%, #0b1828 0%, var(--bg) 70%);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Segoe UI,system-ui,sans-serif;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:manipulation;
+    display:flex;flex-direction:column;
+    height:100dvh;
+  }
+  header{
+    padding:14px 18px 10px;
+    border-bottom:1px solid var(--line);
+    text-align:center;
+    background:linear-gradient(180deg,rgba(10,18,30,0.6),rgba(10,18,30,0));
+  }
+  .eyebrow{
+    font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);
+  }
+  h1{
+    font-size:20px;font-weight:600;letter-spacing:-0.01em;margin-top:4px;
+    color:var(--ink);
+  }
+  h1 span{color:var(--accent)}
+  .hint{
+    font-size:12px;color:var(--dim);margin-top:4px;line-height:1.45;
+  }
+
+  .stage{
+    flex:1;position:relative;overflow:hidden;
+    background:
+      radial-gradient(ellipse 60% 40% at 30% 20%, rgba(126,236,200,0.06), transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(126,200,255,0.05), transparent 70%),
+      var(--bg);
+  }
+  canvas{
+    position:absolute;inset:0;width:100%;height:100%;display:block;
+  }
+
+  .badge{
+    position:absolute;top:12px;left:12px;
+    background:rgba(8,16,28,0.7);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px 10px;
+    font-size:11px;letter-spacing:.06em;
+    color:var(--ink);
+    line-height:1.3;
+    pointer-events:none;
+  }
+  .badge .row{display:flex;gap:10px;align-items:baseline}
+  .badge b{color:var(--accent);font-weight:600}
+  .badge .sub{color:var(--dim);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+
+  .toast{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:rgba(8,16,28,0.85);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 22px;
+    text-align:center;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .35s ease;
+    max-width:80%;
+  }
+  .toast.show{opacity:1}
+  .toast .t{font-size:15px;color:var(--accent);letter-spacing:.04em;font-weight:600}
+  .toast .s{font-size:12px;color:var(--dim);margin-top:4px}
+
+  .controls{
+    border-top:1px solid var(--line);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,rgba(8,16,28,0.85),rgba(8,16,28,0.55));
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .seeds{
+    display:flex;gap:8px;justify-content:center;
+  }
+  .seed{
+    flex:1;min-width:0;height:48px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:rgba(10,20,32,0.6);
+    color:var(--ink);
+    font-size:13px;letter-spacing:.04em;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    cursor:pointer;
+    transition:border-color .2s, background .2s, transform .1s;
+    -webkit-appearance:none;appearance:none;
+    font-family:inherit;
+  }
+  .seed:active{transform:scale(0.97)}
+  .seed.active{
+    border-color:rgba(126,236,200,0.6);
+    background:rgba(126,236,200,0.08);
+  }
+  .seed .dot{
+    width:10px;height:10px;border-radius:50%;
+    box-shadow:0 0 10px currentColor;
+  }
+  .seed.cool .dot{background:var(--cool);color:var(--cool)}
+  .seed.warm .dot{background:var(--warm);color:var(--warm)}
+  .seed.soft .dot{background:var(--soft);color:var(--soft)}
+
+  .row2{
+    display:flex;gap:8px;
+  }
+  .btn{
+    flex:1;height:44px;
+    border:1px solid var(--line);
+    background:rgba(10,20,32,0.5);
+    border-radius:10px;
+    color:var(--dim);
+    font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;
+    cursor:pointer;
+    -webkit-appearance:none;appearance:none;
+    font-family:inherit;
+    transition:color .2s, border-color .2s;
+  }
+  .btn:active{color:var(--ink);border-color:var(--accent)}
+  .btn.ghost{flex:0 0 auto;padding:0 14px}
+
+  @media (min-width:560px){
+    h1{font-size:22px}
+    .controls{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+    .seed{height:52px;font-size:14px}
+    .btn{height:46px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">May 5, 2026</div>
+  <h1>Signal <span>Garden</span></h1>
+  <p class="hint">Tap the dark to plant a signal. Watch their pulses overlap and bloom.</p>
+</header>
+
+<div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="badge">
+    <div class="row"><b id="planted">0</b><span class="sub">planted</span></div>
+    <div class="row"><b id="blooms">0</b><span class="sub">blooms</span></div>
+    <div class="row"><b id="phase">seed</b><span class="sub">phase</span></div>
+  </div>
+  <div class="toast" id="toast"><div class="t" id="toastT"></div><div class="s" id="toastS"></div></div>
+</div>
+
+<div class="controls">
+  <div class="seeds" role="group" aria-label="Seed type">
+    <button class="seed cool active" data-seed="cool" aria-pressed="true"><span class="dot"></span>Cool</button>
+    <button class="seed warm"        data-seed="warm" aria-pressed="false"><span class="dot"></span>Warm</button>
+    <button class="seed soft"        data-seed="soft" aria-pressed="false"><span class="dot"></span>Soft</button>
+  </div>
+  <div class="row2">
+    <button class="btn" id="seedRandom">Surprise Me</button>
+    <button class="btn ghost" id="reset">Reset</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const stage = document.getElementById('stage');
+  const plantedEl = document.getElementById('planted');
+  const bloomsEl  = document.getElementById('blooms');
+  const phaseEl   = document.getElementById('phase');
+  const toast     = document.getElementById('toast');
+  const toastT    = document.getElementById('toastT');
+  const toastS    = document.getElementById('toastS');
+
+  let DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0;
+
+  const SEED_TYPES = {
+    cool: { hue: 200, hue2: 175, period: 2.6, label:'Cool' },
+    warm: { hue:  28, hue2:  10, period: 3.4, label:'Warm' },
+    soft: { hue: 290, hue2: 320, period: 3.0, label:'Soft' }
+  };
+  let activeSeed = 'cool';
+
+  const seeds = [];   // {x,y,type,t0,phase}
+  const blooms = [];  // intersection sparks {x,y,t0,hue}
+  let bloomCount = 0;
+  const MAX_SEEDS = 14;
+
+  const milestones = [
+    { n: 1,  t: 'First signal',     s: 'Watch its pulse expand.' },
+    { n: 3,  t: 'A trio',           s: 'Their rings start to meet.' },
+    { n: 6,  t: 'Garden hums',      s: 'The pattern is finding itself.' },
+    { n: 10, t: 'Bloomed',          s: 'You’ve grown a calm grid of light.' },
+    { n: 14, t: 'Saturated',        s: 'No more soil — let it breathe.' }
+  ];
+  let nextMilestoneIdx = 0;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const r = stage.getBoundingClientRect();
+    W = Math.floor(r.width);
+    H = Math.floor(r.height);
+    canvas.width  = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 50));
+  resize();
+
+  // ---- Background field (subtle starfield) ----
+  const stars = [];
+  for (let i = 0; i < 70; i++) {
+    stars.push({
+      x: Math.random(), y: Math.random(),
+      r: Math.random() * 0.9 + 0.2,
+      tw: Math.random() * Math.PI * 2,
+      sp: 0.3 + Math.random() * 0.6
+    });
+  }
+
+  function showToast(t, s) {
+    toastT.textContent = t;
+    toastS.textContent = s;
+    toast.classList.add('show');
+    clearTimeout(showToast._h);
+    showToast._h = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function setPhase(label){ phaseEl.textContent = label; }
+  function updateCounters(){
+    plantedEl.textContent = seeds.length;
+    bloomsEl.textContent  = bloomCount;
+    if (seeds.length === 0) setPhase('seed');
+    else if (seeds.length < 3) setPhase('sprout');
+    else if (seeds.length < 6) setPhase('chord');
+    else if (seeds.length < 10) setPhase('hum');
+    else if (seeds.length < 14) setPhase('bloom');
+    else setPhase('full');
+  }
+
+  function checkMilestones(){
+    while (nextMilestoneIdx < milestones.length &&
+           seeds.length >= milestones[nextMilestoneIdx].n) {
+      const m = milestones[nextMilestoneIdx];
+      showToast(m.t, m.s);
+      nextMilestoneIdx++;
+    }
+  }
+
+  function plantAt(x, y){
+    if (seeds.length >= MAX_SEEDS) {
+      showToast('Garden is full', 'Reset to start a new one.');
+      return false;
+    }
+    seeds.push({
+      x, y,
+      type: activeSeed,
+      t0: performance.now() / 1000,
+      // small organic offset so stems differ
+      sway: Math.random() * Math.PI * 2,
+      seedR: 4 + Math.random() * 2.5
+    });
+    updateCounters();
+    checkMilestones();
+    return true;
+  }
+
+  // Tap-to-plant on canvas
+  function pointFromEvent(e){
+    const r = canvas.getBoundingClientRect();
+    const p = (e.touches && e.touches[0]) || e.changedTouches?.[0] || e;
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  }
+  let suppress = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (suppress) return;
+    const p = pointFromEvent(e);
+    if (p.x < 12 || p.y < 12 || p.x > W - 12 || p.y > H - 12) return;
+    plantAt(p.x, p.y);
+    e.preventDefault();
+  });
+
+  // Seed type selector
+  document.querySelectorAll('.seed').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.seed').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      activeSeed = btn.dataset.seed;
+    });
+  });
+
+  // Surprise Me — plant a few random seeds in pleasant spots
+  document.getElementById('seedRandom').addEventListener('click', () => {
+    suppress = true;
+    const types = Object.keys(SEED_TYPES);
+    const count = Math.min(3, MAX_SEEDS - seeds.length);
+    for (let i = 0; i < count; i++) {
+      activeSeed = types[Math.floor(Math.random() * types.length)];
+      const x = W * (0.18 + Math.random() * 0.64);
+      const y = H * (0.18 + Math.random() * 0.64);
+      plantAt(x, y);
+    }
+    // restore selected button visually
+    const stillActive = document.querySelector('.seed.active')?.dataset.seed || 'cool';
+    activeSeed = stillActive;
+    setTimeout(() => { suppress = false; }, 50);
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    seeds.length = 0;
+    blooms.length = 0;
+    bloomCount = 0;
+    nextMilestoneIdx = 0;
+    updateCounters();
+    showToast('Cleared', 'Plant a fresh signal.');
+  });
+
+  updateCounters();
+
+  // ---- Drawing ----
+  let last = performance.now() / 1000;
+
+  function ringRadius(seed, now, k) {
+    const T = SEED_TYPES[seed.type].period;
+    const phase = ((now - seed.t0) / T + k) % 1;
+    const maxR = Math.min(W, H) * 0.55;
+    return { r: phase * maxR, alpha: (1 - phase) * 0.9, phase };
+  }
+
+  function drawStarfield(now){
+    for (const s of stars) {
+      const x = s.x * W;
+      const y = s.y * H;
+      const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(now * s.sp + s.tw));
+      ctx.beginPath();
+      ctx.arc(x, y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180,220,240,${0.10 * tw})`;
+      ctx.fill();
+    }
+  }
+
+  function drawSeed(seed, now){
+    const meta = SEED_TYPES[seed.type];
+    const t = now - seed.t0;
+    const wob = Math.sin(t * 1.5 + seed.sway) * 1.2;
+    const r = seed.seedR + wob * 0.2;
+
+    // glow
+    const glow = ctx.createRadialGradient(seed.x, seed.y, 0, seed.x, seed.y, r * 6);
+    glow.addColorStop(0,   `hsla(${meta.hue}, 90%, 70%, 0.55)`);
+    glow.addColorStop(0.5, `hsla(${meta.hue2}, 90%, 60%, 0.22)`);
+    glow.addColorStop(1,   `hsla(${meta.hue2}, 90%, 60%, 0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(seed.x, seed.y, r * 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // core
+    ctx.beginPath();
+    ctx.arc(seed.x, seed.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${meta.hue}, 95%, 78%)`;
+    ctx.fill();
+
+    // soft petals (4 small dots) when seed is older — feels like it has bloomed
+    const age = Math.min(1, t / 2.0);
+    if (age > 0.1) {
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + seed.sway + t * 0.3;
+        const pr = (r + 4) * age;
+        const px = seed.x + Math.cos(a) * pr;
+        const py = seed.y + Math.sin(a) * pr;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.6 + age * 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${meta.hue2}, 90%, 75%, ${0.55 * age})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawRings(now){
+    // Three offset rings per seed for a layered pulse feel
+    for (const seed of seeds) {
+      const meta = SEED_TYPES[seed.type];
+      for (let k = 0; k < 3; k++) {
+        const { r, alpha } = ringRadius(seed, now, k / 3);
+        if (r < 4) continue;
+        ctx.beginPath();
+        ctx.arc(seed.x, seed.y, r, 0, Math.PI * 2);
+        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = `hsla(${meta.hue}, 80%, 65%, ${alpha * 0.65})`;
+        ctx.stroke();
+
+        // inner faint band
+        ctx.beginPath();
+        ctx.arc(seed.x, seed.y, Math.max(0, r - 1.5), 0, Math.PI * 2);
+        ctx.lineWidth = 0.6;
+        ctx.strokeStyle = `hsla(${meta.hue2}, 90%, 70%, ${alpha * 0.35})`;
+        ctx.stroke();
+      }
+    }
+  }
+
+  function findBlooms(now){
+    // Sample current outermost ring of each seed and check pairs that are tangent.
+    // When |dist - (r1 + r2)| < tol OR |dist - |r1 - r2|| < tol, the rings touch
+    // and we drop a bloom along the tangent point.
+    const tol = 4;
+    for (let i = 0; i < seeds.length; i++) {
+      const A = seeds[i];
+      const ra = ringRadius(A, now, 0).r;
+      if (ra < 8) continue;
+      for (let j = i + 1; j < seeds.length; j++) {
+        const B = seeds[j];
+        const rb = ringRadius(B, now, 0).r;
+        if (rb < 8) continue;
+        const dx = B.x - A.x, dy = B.y - A.y;
+        const d  = Math.hypot(dx, dy);
+        if (d < 6) continue;
+
+        let touched = null;
+        if (Math.abs(d - (ra + rb)) < tol)        touched = 'outer';
+        else if (Math.abs(d - Math.abs(ra - rb)) < tol) touched = 'inner';
+        if (!touched) continue;
+
+        // throttle — don't add too many blooms for the same pair in one cycle
+        const key = i + '-' + j + '-' + touched;
+        const lastT = bloomThrottle[key] || 0;
+        if (now - lastT < 0.4) continue;
+        bloomThrottle[key] = now;
+
+        // bloom at midpoint along line, weighted by radii
+        const t = touched === 'outer'
+          ? ra / (ra + rb)
+          : (ra > rb ? rb / Math.max(ra, 0.001) : -rb / Math.max(ra, 0.001));
+        let bx, by;
+        if (touched === 'outer') {
+          bx = A.x + dx * (ra / d);
+          by = A.y + dy * (ra / d);
+        } else {
+          // inner tangent: along same direction beyond smaller circle
+          const sign = ra >= rb ? 1 : -1;
+          bx = A.x + dx * (ra / d) * sign;
+          by = A.y + dy * (ra / d) * sign;
+        }
+
+        const hue = (SEED_TYPES[A.type].hue + SEED_TYPES[B.type].hue) / 2;
+        blooms.push({ x: bx, y: by, t0: now, hue });
+        bloomCount++;
+      }
+    }
+    bloomsEl.textContent = bloomCount;
+  }
+  const bloomThrottle = {};
+
+  function drawBlooms(now){
+    for (let i = blooms.length - 1; i >= 0; i--) {
+      const b = blooms[i];
+      const age = now - b.t0;
+      if (age > 1.6) { blooms.splice(i, 1); continue; }
+      const k = age / 1.6;
+      const r = 2 + k * 18;
+      const a = (1 - k) * 0.85;
+
+      // glow
+      const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r * 2.4);
+      g.addColorStop(0,   `hsla(${b.hue}, 100%, 80%, ${a * 0.7})`);
+      g.addColorStop(0.6, `hsla(${b.hue}, 100%, 65%, ${a * 0.25})`);
+      g.addColorStop(1,   `hsla(${b.hue}, 100%, 65%, 0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // spark
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, Math.max(0, 2 - k * 1.2), 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${b.hue}, 100%, 88%, ${a})`;
+      ctx.fill();
+    }
+  }
+
+  function drawCompletionAura(now){
+    if (seeds.length < 10) return;
+    const k = Math.min(1, (seeds.length - 9) / 5);
+    const cx = W / 2, cy = H / 2;
+    const radius = Math.min(W, H) * (0.48 + 0.04 * Math.sin(now * 0.6));
+    const g = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+    g.addColorStop(0, `rgba(126,236,200,0)`);
+    g.addColorStop(0.7, `rgba(126,236,200,${0.04 * k})`);
+    g.addColorStop(1, `rgba(126,236,200,0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function frame(){
+    const now = performance.now() / 1000;
+    last = now;
+
+    // soft trail-clear
+    ctx.fillStyle = 'rgba(5,10,20,0.28)';
+    ctx.fillRect(0, 0, W, H);
+
+    drawStarfield(now);
+    drawCompletionAura(now);
+    drawRings(now);
+    findBlooms(now);
+    drawBlooms(now);
+    for (const seed of seeds) drawSeed(seed, now);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // Onboarding nudge
+  setTimeout(() => {
+    if (seeds.length === 0) showToast('Tap the dark', 'Each tap plants a pulsing signal.');
+  }, 600);
+})();
+</script>
+
+</body>
+</html>
