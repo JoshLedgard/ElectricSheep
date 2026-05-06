@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1624">
+<title>Compass of Tiny Currents · May 6, 2026</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --ink:#f1e7d1;
+    --ink-dim:rgba(241,231,209,0.72);
+    --ink-faint:rgba(241,231,209,0.42);
+    --ink-ghost:rgba(241,231,209,0.16);
+    --page:#0d1624;
+    --page-2:#16243b;
+    --page-3:#1f3354;
+    --clarity:#a8c8d8;
+    --spark:#e3b366;
+    --rest:#b59cc8;
+    --momentum:#98b89e;
+    --gold:#d4a64f;
+    --display:"Iowan Old Style","Apple Garamond","Baskerville","Hoefler Text","Big Caslon",Georgia,serif;
+  }
+
+  html,body{min-height:100%}
+  body{
+    background:
+      radial-gradient(ellipse at 75% -10%, rgba(31,51,84,0.7) 0%, transparent 55%),
+      radial-gradient(ellipse at 15% 110%, rgba(22,36,59,0.85) 0%, transparent 60%),
+      var(--page);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:var(--display);
+    font-size:17px;
+    line-height:1.55;
+    min-height:100vh;
+    min-height:100svh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:0.06;
+    z-index:50;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    padding: max(env(safe-area-inset-top,0px),18px) 22px max(env(safe-area-inset-bottom,0px),22px);
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  /* Masthead */
+  .masthead{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .compass{
+    width:46px;
+    height:46px;
+    flex-shrink:0;
+    filter: drop-shadow(0 0 12px rgba(212,166,79,0.18));
+  }
+  .compass-rotor{
+    transform-origin:50% 50%;
+    animation:turn 90s linear infinite;
+  }
+  @keyframes turn{to{transform:rotate(360deg)}}
+  .masthead h1{
+    font-size:25px;
+    line-height:1.05;
+    letter-spacing:0.005em;
+    font-weight:400;
+    font-style:italic;
+    color:var(--ink);
+  }
+  .dateline{
+    font-size:11px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-top:5px;
+    font-style:normal;
+  }
+
+  /* Map */
+  .map{
+    position:relative;
+    width:100%;
+    aspect-ratio: 360 / 215;
+    border-radius:12px;
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse at 50% 100%, rgba(168,200,216,0.05), transparent 60%),
+      linear-gradient(180deg, rgba(31,51,84,0.4), rgba(13,22,36,0.55));
+    border:1px solid rgba(241,231,209,0.09);
+    box-shadow:
+      inset 0 0 50px rgba(13,22,36,0.55),
+      inset 0 1px 0 rgba(241,231,209,0.04),
+      0 4px 28px rgba(0,0,0,0.4);
+  }
+  .map svg{width:100%;height:100%;display:block}
+
+  .current-line{
+    fill:none;
+    stroke:rgba(168,200,216,0.18);
+    stroke-width:0.55;
+    stroke-dasharray:1 4;
+    animation:drift 14s linear infinite;
+  }
+  .current-line.b{stroke:rgba(228,179,102,0.13);animation-duration:18s}
+  .current-line.c{stroke:rgba(181,156,200,0.13);animation-duration:22s}
+  @keyframes drift{to{stroke-dashoffset:-60}}
+
+  #trail{
+    fill:none;
+    stroke:rgba(212,166,79,0.55);
+    stroke-width:0.55;
+    stroke-dasharray:1.5 2.5;
+    transition:d 1s ease;
+  }
+
+  .island circle.body{
+    fill:var(--page-2);
+    stroke:var(--ink-ghost);
+    stroke-width:0.8;
+    transition: stroke 0.6s, fill 0.6s, stroke-width 0.6s;
+  }
+  .island circle.glow{
+    fill:none;
+    stroke:transparent;
+    stroke-width:1;
+  }
+  .island.visited circle.body{
+    fill:var(--page-3);
+    stroke:rgba(212,166,79,0.65);
+  }
+  .island.current circle.body{
+    stroke:var(--ink);
+    stroke-width:1.1;
+  }
+  .island.current circle.glow{
+    stroke:rgba(241,231,209,0.5);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{r:8;stroke-opacity:0.5}
+    50%{r:12;stroke-opacity:0}
+  }
+  .island text{
+    fill:var(--ink-faint);
+    font-size:7.2px;
+    font-family:var(--display);
+    font-style:italic;
+    text-anchor:middle;
+    letter-spacing:0.04em;
+    transition:fill 0.6s;
+  }
+  .island.visited text{fill:var(--ink-dim)}
+  .island.current text{fill:var(--ink)}
+
+  .lighthouse circle.body{stroke:rgba(212,166,79,0.7)}
+  .lighthouse .lamp{fill:var(--gold)}
+  .lighthouse text{fill:rgba(212,166,79,0.85)}
+  .lighthouse.lit .lamp{filter:drop-shadow(0 0 6px var(--gold))}
+  .lighthouse.lit circle.body{stroke:var(--gold);stroke-width:1.2}
+
+  .boat{
+    transition: transform 1.4s cubic-bezier(0.55,0.05,0.45,1);
+  }
+  .boat-bob{
+    animation: bob 3.2s ease-in-out infinite;
+    transform-origin:0 0;
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0) rotate(-1.5deg)}
+    50%{transform:translateY(-0.8px) rotate(1.5deg)}
+  }
+  .boat .hull{fill:var(--ink)}
+  .boat .sail{fill:var(--gold)}
+  .boat .mast{stroke:var(--ink);stroke-width:0.4}
+
+  /* Currents meter */
+  .meter{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:7px;
+  }
+  .meter-cell{
+    padding:9px 6px 8px;
+    border-radius:9px;
+    text-align:center;
+    background:rgba(241,231,209,0.035);
+    border:1px solid rgba(241,231,209,0.07);
+    transition: background 0.5s, border-color 0.5s, transform 0.3s;
+  }
+  .meter-cell.has{
+    background:rgba(241,231,209,0.06);
+    border-color:rgba(241,231,209,0.14);
+  }
+  .meter-cell.bump{transform:translateY(-2px)}
+  .meter-cell .count{
+    font-size:21px;
+    font-style:italic;
+    line-height:1;
+    color:var(--ink-faint);
+    transition:color 0.5s;
+    font-feature-settings:"lnum";
+  }
+  .meter-cell.has .count{color:var(--c)}
+  .meter-cell .label{
+    font-size:9px;
+    margin-top:5px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    transition:color 0.5s;
+  }
+  .meter-cell.has .label{color:var(--ink-dim)}
+  .meter-cell[data-c="clarity"]{--c:var(--clarity)}
+  .meter-cell[data-c="spark"]{--c:var(--spark)}
+  .meter-cell[data-c="rest"]{--c:var(--rest)}
+  .meter-cell[data-c="momentum"]{--c:var(--momentum)}
+
+  /* Scene */
+  .scene{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    padding:2px 2px 4px;
+    min-height:200px;
+  }
+  .scene > *{
+    opacity:0;
+    transform:translateY(6px);
+    animation: rise 0.6s ease-out forwards;
+  }
+  .scene > *:nth-child(1){animation-delay:0.05s}
+  .scene > *:nth-child(2){animation-delay:0.18s}
+  .scene > *:nth-child(3){animation-delay:0.32s}
+  .scene > *:nth-child(4){animation-delay:0.45s}
+  .scene > *:nth-child(5){animation-delay:0.58s}
+  .scene > *:nth-child(6){animation-delay:0.7s}
+  @keyframes rise{
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  .place{
+    font-size:11px;
+    letter-spacing:0.24em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .place .num{color:var(--ink-dim)}
+
+  .prose{
+    font-size:17px;
+    line-height:1.55;
+    color:var(--ink-dim);
+    font-style:italic;
+  }
+  .prose em{font-style:normal;color:var(--ink)}
+  .prose.note{
+    font-size:13.5px;
+    font-style:normal;
+    color:var(--ink-faint);
+    letter-spacing:0.02em;
+  }
+
+  .choices{
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+    margin-top:2px;
+  }
+  .choice{
+    display:flex;
+    align-items:center;
+    gap:13px;
+    width:100%;
+    min-height:56px;
+    padding:14px 16px;
+    background:rgba(241,231,209,0.035);
+    border:1px solid rgba(241,231,209,0.12);
+    border-radius:11px;
+    color:var(--ink);
+    font-family:var(--display);
+    font-size:16px;
+    line-height:1.35;
+    text-align:left;
+    cursor:pointer;
+    transition: background 0.25s, border-color 0.25s, transform 0.25s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .choice:active{transform:scale(0.99);background:rgba(241,231,209,0.07)}
+  @media (hover:hover){
+    .choice:hover{
+      border-color:rgba(212,166,79,0.5);
+      background:rgba(212,166,79,0.06);
+    }
+  }
+  .choice .dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    flex-shrink:0;
+    box-shadow:0 0 8px currentColor;
+  }
+  .choice[data-c="clarity"] .dot{background:var(--clarity);color:var(--clarity)}
+  .choice[data-c="spark"] .dot{background:var(--spark);color:var(--spark)}
+  .choice[data-c="rest"] .dot{background:var(--rest);color:var(--rest)}
+  .choice[data-c="momentum"] .dot{background:var(--momentum);color:var(--momentum)}
+  .choice .text{flex:1}
+
+  /* Buttons */
+  .start-btn{
+    margin-top:6px;
+    align-self:flex-start;
+    padding:12px 26px;
+    min-height:48px;
+    background:var(--gold);
+    color:var(--page);
+    border:none;
+    border-radius:999px;
+    font-family:var(--display);
+    font-size:16px;
+    font-style:italic;
+    letter-spacing:0.04em;
+    cursor:pointer;
+    transition: transform 0.25s, box-shadow 0.25s;
+    -webkit-tap-highlight-color:transparent;
+    box-shadow:0 4px 22px rgba(212,166,79,0.22);
+  }
+  .start-btn:active{transform:scale(0.98)}
+  @media (hover:hover){
+    .start-btn:hover{box-shadow:0 6px 30px rgba(212,166,79,0.4)}
+  }
+
+  .restart{
+    margin-top:6px;
+    align-self:flex-start;
+    padding:11px 22px;
+    min-height:44px;
+    background:transparent;
+    color:var(--ink-dim);
+    border:1px solid var(--ink-faint);
+    border-radius:999px;
+    font-family:var(--display);
+    font-size:13px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition: color 0.25s, border-color 0.25s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .restart:active{color:var(--ink);border-color:var(--ink)}
+
+  /* Constellation */
+  .constellation{
+    width:100%;
+    aspect-ratio: 360 / 200;
+    border-radius:10px;
+    background: radial-gradient(ellipse at 50% 100%, rgba(212,166,79,0.05), transparent 70%);
+    overflow:hidden;
+    margin: 2px 0;
+  }
+  .constellation svg{width:100%;height:100%;display:block}
+  .star{animation: twinkle 3s ease-in-out infinite}
+  @keyframes twinkle{
+    0%,100%{opacity:0.95}
+    50%{opacity:0.45}
+  }
+  .const-line{
+    fill:none;
+    stroke-width:0.5;
+    stroke-dasharray:160;
+    stroke-dashoffset:160;
+    animation: draw 3.6s ease-out forwards;
+  }
+  @keyframes draw{
+    to{stroke-dashoffset:0}
+  }
+
+  @media (max-width:360px){
+    .app{padding-left:16px;padding-right:16px}
+    .meter-cell .count{font-size:18px}
+    .meter-cell .label{font-size:8.5px;letter-spacing:0.14em}
+    .masthead h1{font-size:23px}
+  }
+</style>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead">
+      <svg class="compass" viewBox="0 0 46 46" aria-hidden="true">
+        <circle cx="23" cy="23" r="21" fill="none" stroke="rgba(241,231,209,0.22)" stroke-width="0.7"/>
+        <circle cx="23" cy="23" r="14" fill="none" stroke="rgba(241,231,209,0.12)" stroke-width="0.5"/>
+        <g class="compass-rotor">
+          <path d="M23 4 L25 23 L23 42 L21 23 Z" fill="rgba(241,231,209,0.7)"/>
+          <path d="M4 23 L23 25 L42 23 L23 21 Z" fill="rgba(212,166,79,0.65)"/>
+        </g>
+        <circle cx="23" cy="23" r="1.6" fill="#d4a64f"/>
+      </svg>
+      <div>
+        <h1>Compass of Tiny Currents</h1>
+        <p class="dateline">May 6 · 2026</p>
+      </div>
+    </header>
+
+    <div class="map" aria-hidden="true">
+      <svg viewBox="0 0 360 215" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <radialGradient id="lampHalo" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#d4a64f" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#d4a64f" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- ambient currents -->
+        <g>
+          <path class="current-line" d="M -10 55 Q 70 35, 150 60 T 370 45"/>
+          <path class="current-line b" d="M -10 105 Q 90 125, 195 105 T 370 125"/>
+          <path class="current-line c" d="M -10 165 Q 110 145, 235 175 T 370 155"/>
+          <path class="current-line" d="M -10 195 Q 130 200, 250 190 T 370 200" style="animation-duration:26s"/>
+        </g>
+
+        <!-- traveled trail -->
+        <path id="trail" d=""/>
+
+        <!-- islands -->
+        <g id="islands"></g>
+
+        <!-- boat -->
+        <g class="boat" id="boat" transform="translate(20,180)">
+          <g class="boat-bob">
+            <line class="mast" x1="0" y1="-9" x2="0" y2="0"/>
+            <path class="sail" d="M 0 -9 L 0 -1 L 7 -1 Z"/>
+            <path class="hull" d="M -7 0 L 7 0 L 5 3.5 L -5 3.5 Z"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="meter" id="meter">
+      <div class="meter-cell" data-c="clarity"><div class="count" id="c-clarity">0</div><div class="label">Clarity</div></div>
+      <div class="meter-cell" data-c="spark"><div class="count" id="c-spark">0</div><div class="label">Spark</div></div>
+      <div class="meter-cell" data-c="rest"><div class="count" id="c-rest">0</div><div class="label">Rest</div></div>
+      <div class="meter-cell" data-c="momentum"><div class="count" id="c-momentum">0</div><div class="label">Momentum</div></div>
+    </div>
+
+    <section class="scene" id="scene"></section>
+  </main>
+
+<script>
+(function(){
+  "use strict";
+
+  const ISLANDS = [
+    {
+      id: 'mist',
+      name: 'Mist Hollow',
+      x: 60, y: 70,
+      prose: "A bay where the fog lies low and patient. Small sounds carry far here — a rope tapping wood, a gull thinking out loud.",
+      choices: [
+        { text: "Wait for the fog to thin on its own.", c: 'rest' },
+        { text: "Row gently into it, oars muffled.", c: 'momentum' },
+        { text: "Listen for whatever is hiding inside it.", c: 'clarity' }
+      ]
+    },
+    {
+      id: 'hum',
+      name: 'The Hum Reef',
+      x: 138, y: 130,
+      prose: "A low, steady note rises from the rocks, almost a machine, almost alive. Something here is keeping itself company.",
+      choices: [
+        { text: "Hum back to it, a third above.", c: 'spark' },
+        { text: "Anchor and let the note hold you.", c: 'rest' },
+        { text: "Trace the sound to its quiet source.", c: 'clarity' }
+      ]
+    },
+    {
+      id: 'bell',
+      name: 'Bell Buoy',
+      x: 215, y: 60,
+      prose: "A bell rings without rhythm, knocked by a current you cannot see. It is calling no one in particular, and that is its work.",
+      choices: [
+        { text: "Steady the bell with a careful hand.", c: 'rest' },
+        { text: "Match its strikes with your oars.", c: 'momentum' },
+        { text: "Add a small second tone of your own.", c: 'spark' }
+      ]
+    },
+    {
+      id: 'eddy',
+      name: 'Quiet Eddy',
+      x: 175, y: 175,
+      prose: "Your boat begins to spin, slowly, in a circle no wider than a dinner plate. The water has decided you are part of its slow thought.",
+      choices: [
+        { text: "Lean into the spin and let it carry you.", c: 'rest' },
+        { text: "Push out with one strong oar.", c: 'momentum' },
+        { text: "Notice what passes you on each turn.", c: 'clarity' }
+      ]
+    },
+    {
+      id: 'pier',
+      name: 'Old Pier',
+      x: 280, y: 145,
+      prose: "Half a wooden pier reaches into the bay. The far end is submerged where someone forgot to keep building. Moss has taken the railings kindly.",
+      choices: [
+        { text: "Climb up and walk to its quiet edge.", c: 'clarity' },
+        { text: "Tie off and let the pier hold you.", c: 'rest' },
+        { text: "Push off again, with a small wave.", c: 'momentum' }
+      ]
+    }
+  ];
+
+  const LIGHTHOUSE = { id: 'lighthouse', x: 320, y: 50, name: 'Lighthouse' };
+  const START = { x: 22, y: 188 };
+
+  const CURRENT_COLORS = {
+    clarity: '#a8c8d8',
+    spark: '#e3b366',
+    rest: '#b59cc8',
+    momentum: '#98b89e'
+  };
+
+  const CLOSINGS = {
+    clarity: "You arrive seeing things just slightly more plainly than before.",
+    spark: "You arrive small and bright, with one new note in your pocket.",
+    rest: "You arrive unhurried, the way the lighthouse asked you to.",
+    momentum: "You arrive still moving, oars warm, ready for whatever comes next.",
+    even: "You arrive carrying a little of everything — the sky shows it back to you."
+  };
+
+  let state = null;
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function $(id){ return document.getElementById(id); }
+
+  function reset(){
+    state = {
+      order: shuffle(ISLANDS),
+      idx: -1,
+      currents: { clarity: 0, spark: 0, rest: 0, momentum: 0 },
+      visited: [],
+      trail: [{ x: START.x, y: START.y }]
+    };
+    renderMap();
+    updateMeter();
+    moveBoat(START.x, START.y);
+    showIntro();
+  }
+
+  function renderMap(){
+    const g = $('islands');
+    let html = '';
+    ISLANDS.forEach((isl) => {
+      const visited = state.visited.includes(isl.id);
+      const cur = state.idx >= 0 && state.order[state.idx] && state.order[state.idx].id === isl.id;
+      const cls = 'island' + (visited ? ' visited' : '') + (cur ? ' current' : '');
+      const labelY = isl.y - 11;
+      html += '<g class="' + cls + '">'
+        + '<circle class="glow" cx="' + isl.x + '" cy="' + isl.y + '" r="8"/>'
+        + '<circle class="body" cx="' + isl.x + '" cy="' + isl.y + '" r="5.5"/>'
+        + '<text x="' + isl.x + '" y="' + labelY + '">' + isl.name + '</text>'
+        + '</g>';
+    });
+    const lhVisited = state.visited.includes('lighthouse');
+    html += '<g class="island lighthouse' + (lhVisited ? ' visited lit' : '') + '">'
+      + '<circle class="body" cx="' + LIGHTHOUSE.x + '" cy="' + LIGHTHOUSE.y + '" r="5"/>'
+      + '<circle class="lamp" cx="' + LIGHTHOUSE.x + '" cy="' + LIGHTHOUSE.y + '" r="1.6"/>'
+      + '<text x="' + LIGHTHOUSE.x + '" y="' + (LIGHTHOUSE.y - 11) + '">Lighthouse</text>'
+      + '</g>';
+    g.innerHTML = html;
+
+    const trail = $('trail');
+    const d = state.trail.map((p, i) => (i ? 'L' : 'M') + ' ' + p.x + ' ' + p.y).join(' ');
+    trail.setAttribute('d', d);
+  }
+
+  function moveBoat(x, y){
+    const b = $('boat');
+    b.setAttribute('transform', 'translate(' + x + ',' + y + ')');
+  }
+
+  function updateMeter(bumpKey){
+    Object.keys(state.currents).forEach((k) => {
+      const cell = document.querySelector('.meter-cell[data-c="' + k + '"]');
+      const cnt = $('c-' + k);
+      const v = state.currents[k];
+      cnt.textContent = v;
+      cell.classList.toggle('has', v > 0);
+      if (k === bumpKey){
+        cell.classList.add('bump');
+        setTimeout(() => cell.classList.remove('bump'), 380);
+      }
+    });
+  }
+
+  function refreshScene(html){
+    const scene = $('scene');
+    scene.innerHTML = html;
+    // restart animations
+    scene.classList.remove('scene');
+    void scene.offsetWidth;
+    scene.classList.add('scene');
+  }
+
+  function showIntro(){
+    refreshScene(
+      '<div class="place">A small voyage</div>'
+      + '<p class="prose">A scattered archipelago waits in the early dark, neither lost nor found. Five islands offer five small choices. Each choice gathers a current — and when the lighthouse calls, the currents become a sky.</p>'
+      + '<p class="prose note">Two or three minutes. One thumb. No wrong way.</p>'
+      + '<button class="start-btn" id="start-btn" type="button">Cast off →</button>'
+    );
+    $('start-btn').addEventListener('click', advance);
+  }
+
+  function advance(){
+    state.idx += 1;
+    if (state.idx >= state.order.length){
+      showLighthouse();
+      return;
+    }
+    const isl = state.order[state.idx];
+    state.trail.push({ x: isl.x, y: isl.y });
+    renderMap();
+    moveBoat(isl.x, isl.y);
+    showIsland(isl);
+  }
+
+  function showIsland(isl){
+    const total = state.order.length;
+    const num = state.idx + 1;
+    const choicesHtml = isl.choices.map((ch, i) =>
+      '<button class="choice" data-c="' + ch.c + '" data-i="' + i + '" type="button">'
+        + '<span class="dot" aria-hidden="true"></span>'
+        + '<span class="text">' + ch.text + '</span>'
+      + '</button>'
+    ).join('');
+    refreshScene(
+      '<div class="place"><span class="num">' + num + ' of ' + total + '</span> · ' + isl.name + '</div>'
+      + '<p class="prose">' + isl.prose + '</p>'
+      + '<div class="choices">' + choicesHtml + '</div>'
+    );
+    document.querySelectorAll('.choice').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const c = btn.dataset.c;
+        state.currents[c] += 1;
+        state.visited.push(isl.id);
+        updateMeter(c);
+        renderMap();
+        // small pause to let the meter bump land
+        setTimeout(advance, 450);
+      });
+    });
+  }
+
+  function showLighthouse(){
+    state.trail.push({ x: LIGHTHOUSE.x, y: LIGHTHOUSE.y });
+    state.visited.push('lighthouse');
+    renderMap();
+    moveBoat(LIGHTHOUSE.x, LIGHTHOUSE.y);
+
+    const sorted = Object.entries(state.currents).sort((a, b) => b[1] - a[1]);
+    const top = sorted[0][1];
+    const tied = sorted.filter(e => e[1] === top).length;
+    const dominant = tied > 1 ? 'even' : sorted[0][0];
+    const closing = CLOSINGS[dominant];
+
+    const constellation = buildConstellation();
+
+    refreshScene(
+      '<div class="place">The Lighthouse</div>'
+      + '<p class="prose">The lamp is already lit. As you tie off, your collected currents lift quietly from the boat and string themselves across the dark, point to point — a small, private sky.</p>'
+      + '<div class="constellation" aria-hidden="true">' + constellation + '</div>'
+      + '<p class="prose"><em>' + closing + '</em></p>'
+      + '<button class="restart" id="restart-btn" type="button">Cast off again</button>'
+    );
+    $('restart-btn').addEventListener('click', reset);
+  }
+
+  function buildConstellation(){
+    const W = 360, H = 200;
+    const order = ['clarity', 'spark', 'rest', 'momentum'];
+    // four soft anchor points, deliberately uneven
+    const anchors = {
+      clarity:  { x: 80,  y: 70 },
+      spark:    { x: 270, y: 55 },
+      rest:     { x: 95,  y: 150 },
+      momentum: { x: 285, y: 140 }
+    };
+    let stars = '';
+    let lines = '';
+
+    order.forEach((c) => {
+      const n = state.currents[c];
+      if (n === 0) return;
+      const a = anchors[c];
+      const color = CURRENT_COLORS[c];
+      const pts = [];
+      // distribute n points around anchor on a slightly rotated arc
+      const baseAngle = Math.random() * Math.PI * 2;
+      for (let i = 0; i < n; i++){
+        const theta = baseAngle + (i / Math.max(n, 1)) * Math.PI * 1.4;
+        const r = 14 + i * 5 + Math.random() * 3;
+        const x = a.x + Math.cos(theta) * r;
+        const y = a.y + Math.sin(theta) * r;
+        pts.push({ x, y });
+        stars += '<circle class="star" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (1.4 + Math.random() * 0.8).toFixed(2) + '" '
+          + 'style="fill:' + color + ';animation-delay:' + (i * 0.35).toFixed(2) + 's"/>';
+      }
+      if (pts.length > 1){
+        const d = pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+        lines += '<path class="const-line" d="' + d + '" style="stroke:' + color + ';opacity:0.45;animation-delay:' + (0.6 + Math.random() * 0.5).toFixed(2) + 's"/>';
+      }
+    });
+
+    // a few faint background stars for atmosphere
+    let dust = '';
+    for (let i = 0; i < 18; i++){
+      const x = 18 + Math.random() * (W - 36);
+      const y = 14 + Math.random() * (H - 60);
+      const r = 0.5 + Math.random() * 0.6;
+      const o = 0.18 + Math.random() * 0.25;
+      dust += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r.toFixed(2) + '" fill="#f1e7d1" opacity="' + o.toFixed(2) + '"/>';
+    }
+
+    // lighthouse beacon at bottom
+    const beacon =
+      '<g>'
+      + '<rect x="178" y="178" width="4" height="16" fill="#1f3354" stroke="#d4a64f" stroke-width="0.4"/>'
+      + '<circle cx="180" cy="176" r="2.4" fill="#d4a64f"/>'
+      + '<circle cx="180" cy="176" r="6" fill="none" stroke="#d4a64f" stroke-width="0.4" opacity="0.45"/>'
+      + '<circle cx="180" cy="176" r="12" fill="none" stroke="#d4a64f" stroke-width="0.3" opacity="0.22"/>'
+      + '</g>';
+
+    return '<svg viewBox="0 0 360 200" preserveAspectRatio="xMidYMid meet">'
+      + dust + lines + stars + beacon
+      + '</svg>';
+  }
+
+  reset();
+})();
+</script>
+</body>
+</html>
