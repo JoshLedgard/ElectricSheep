@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a1426">
+<title>Relay Orchard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 110%, rgba(255,170,90,0.16), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(80,120,200,0.18), transparent 60%),
+      linear-gradient(180deg, #050a18 0%, #0a1428 45%, #1a1230 90%, #2a1828 100%);
+    background-attachment: fixed;
+    color: #cdd8ec;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    line-height: 1.45;
+    padding: 16px 12px 28px;
+  }
+  .wrap {
+    max-width: 460px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: #6a7d9a;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #e8efff;
+    margin-top: 4px;
+  }
+  h1 .accent {
+    background: linear-gradient(90deg, #ffc78a, #ff8b5e 60%, #f56b9a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 14px 0 10px;
+  }
+  .stat {
+    background: rgba(20,28,46,0.6);
+    border: 1px solid rgba(120,150,200,0.12);
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .stat .label {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #6a7d9a;
+  }
+  .stat .value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f4ff;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat.warn .value { color: #ffb486; }
+  .stat.glow .value {
+    background: linear-gradient(90deg, #ffd49a, #ff8b5e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .progress {
+    height: 4px;
+    background: rgba(120,150,200,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0 14px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffc78a, #ff8b5e);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px rgba(255,160,100,0.5);
+  }
+
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(10,16,32,0.7), rgba(20,15,38,0.7));
+    border: 1px solid rgba(120,150,200,0.14);
+    box-shadow: 0 12px 50px rgba(0,0,0,0.35), inset 0 0 60px rgba(255,170,90,0.04);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 22px;
+    background: linear-gradient(180deg, rgba(8,12,24,0.82), rgba(20,15,38,0.92));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-align: center;
+    z-index: 5;
+    transition: opacity 0.25s;
+  }
+  .overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .overlay .title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f4f7ff;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .overlay .title .accent {
+    background: linear-gradient(90deg, #ffc78a, #ff8b5e 60%, #f56b9a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .overlay .body {
+    font-size: 14px;
+    color: #b0bdd5;
+    max-width: 320px;
+    margin-bottom: 16px;
+  }
+  .overlay .body p { margin-bottom: 10px; }
+  .overlay .body strong { color: #ffd49a; font-weight: 600; }
+
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 8px 0 16px;
+    font-size: 12px;
+    color: #94a4c1;
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend i {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6a90c0;
+  }
+  .legend i.spawn { background: linear-gradient(135deg, #5a7aa0, #2c3a52); }
+  .legend i.collect { background: radial-gradient(circle, #ffe3a8, #ff8b5e); box-shadow: 0 0 6px rgba(255,170,90,0.6); }
+  .legend i.packet { background: radial-gradient(circle, #fff1c0, #ff9f5a); box-shadow: 0 0 6px rgba(255,180,110,0.7); }
+
+  button {
+    font: inherit;
+    appearance: none;
+    border: 0;
+    background: linear-gradient(135deg, #ffc78a, #ff8b5e);
+    color: #2a1810;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    padding: 12px 24px;
+    min-height: 48px;
+    min-width: 180px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 6px 18px rgba(255,140,90,0.3);
+  }
+  button:active { transform: translateY(1px); box-shadow: 0 4px 10px rgba(255,140,90,0.2); }
+  button.ghost {
+    background: transparent;
+    color: #94a4c1;
+    box-shadow: none;
+    border: 1px solid rgba(120,150,200,0.2);
+    font-weight: 500;
+  }
+
+  .tip {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #7a8aa6;
+    line-height: 1.5;
+    padding: 0 8px;
+  }
+  .tip .kbd {
+    display: inline-block;
+    padding: 1px 7px;
+    background: rgba(120,150,200,0.12);
+    border: 1px solid rgba(120,150,200,0.2);
+    border-radius: 4px;
+    font-size: 11px;
+    color: #b0bdd5;
+    font-family: -apple-system, monospace;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #4a5670;
+    margin-top: 18px;
+    letter-spacing: 0.05em;
+  }
+
+  @media (min-width: 480px) {
+    body { padding: 24px 16px 32px; }
+    h1 { font-size: 26px; }
+    .stat .value { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">May 7 · Daily Surprise</div>
+    <h1>Relay <span class="accent">Orchard</span></h1>
+  </header>
+
+  <div class="hud" aria-live="polite">
+    <div class="stat">
+      <div class="label">Wave</div>
+      <div class="value" id="hudWave">—</div>
+    </div>
+    <div class="stat" id="hudPacketsBox">
+      <div class="label">Caught</div>
+      <div class="value" id="hudPackets">0 / 0</div>
+    </div>
+    <div class="stat glow">
+      <div class="label">Sunrise</div>
+      <div class="value" id="hudSunrise">0%</div>
+    </div>
+  </div>
+  <div class="progress" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div class="canvas-wrap">
+    <canvas id="c" aria-label="Relay orchard playfield"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="title">Restore the <span class="accent">sunrise</span></div>
+      <div class="body">
+        <p>Tap a <strong>relay tree</strong> to rotate its branches. Route the glowing packets from the cloud at the top down to the sun.</p>
+        <p>Three calm waves. Catch most packets to advance.</p>
+      </div>
+      <button id="startBtn">Begin Wave 1</button>
+    </div>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="spawn"></i> spawner</span>
+    <span><i class="packet"></i> packet</span>
+    <span><i class="collect"></i> sun collector</span>
+  </div>
+
+  <p class="tip">
+    Tap any tree to rotate its branches by 90°.
+    Empty plots can't carry packets — plan a path through the planted trees.
+  </p>
+
+  <footer>self-contained · runs offline · 2026</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const COLS = 4;
+  const ROWS = 5;
+  const TOP = 0, RIGHT = 1, BOTTOM = 2, LEFT = 3;
+  const sideDx = [0, 1, 0, -1];
+  const sideDy = [-1, 0, 1, 0];
+
+  const WAVES = [
+    {
+      name: 'Wave 1',
+      packets: 4,
+      interval: 2200,
+      speed: 1.1,
+      passThreshold: 0.7,
+      spawner: 0,
+      collector: { col: 3, row: 3 },
+      pipes: [
+        { col: 0, row: 0, type: 'I', sol: 0 },
+        { col: 0, row: 1, type: 'I', sol: 0 },
+        { col: 0, row: 2, type: 'L', sol: 0 },
+        { col: 1, row: 2, type: 'I', sol: 1 },
+        { col: 2, row: 2, type: 'I', sol: 1 },
+        { col: 3, row: 2, type: 'L', sol: 2 },
+      ],
+    },
+    {
+      name: 'Wave 2',
+      packets: 5,
+      interval: 1800,
+      speed: 1.25,
+      passThreshold: 0.7,
+      spawner: 1,
+      collector: { col: 2, row: 4 },
+      pipes: [
+        { col: 1, row: 0, type: 'I', sol: 0 },
+        { col: 1, row: 1, type: 'L', sol: 3 },
+        { col: 0, row: 1, type: 'L', sol: 1 },
+        { col: 0, row: 2, type: 'L', sol: 0 },
+        { col: 1, row: 2, type: 'I', sol: 1 },
+        { col: 2, row: 2, type: 'L', sol: 2 },
+        { col: 2, row: 3, type: 'I', sol: 0 },
+      ],
+    },
+    {
+      name: 'Wave 3',
+      packets: 7,
+      interval: 1500,
+      speed: 1.45,
+      passThreshold: 0.7,
+      spawner: 0,
+      collector: { col: 3, row: 3 },
+      pipes: [
+        { col: 0, row: 0, type: 'L', sol: 0 },
+        { col: 1, row: 0, type: 'L', sol: 2 },
+        { col: 1, row: 1, type: 'L', sol: 3 },
+        { col: 0, row: 1, type: 'L', sol: 1 },
+        { col: 0, row: 2, type: 'L', sol: 0 },
+        { col: 1, row: 2, type: 'I', sol: 1 },
+        { col: 2, row: 2, type: 'L', sol: 3 },
+        { col: 2, row: 1, type: 'L', sol: 1 },
+        { col: 3, row: 1, type: 'L', sol: 2 },
+        { col: 3, row: 2, type: 'I', sol: 0 },
+      ],
+    },
+  ];
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const progressBar = document.getElementById('progressBar');
+  const hudWave = document.getElementById('hudWave');
+  const hudPackets = document.getElementById('hudPackets');
+  const hudPacketsBox = document.getElementById('hudPacketsBox');
+  const hudSunrise = document.getElementById('hudSunrise');
+
+  let dpr = 1;
+  let cellSize = 80;
+  let CW = 320;
+  let CH = 400;
+
+  let grid = [];
+  let spawnerCol = 0;
+  let collectorCell = { col: 3, row: 3 };
+  let packets = [];
+  let sparks = [];
+  let sunMotes = [];
+  let waveIndex = 0;
+  let waveCfg = null;
+  let toSpawn = 0;
+  let waveCollected = 0;
+  let waveLost = 0;
+  let waveTotal = 0;
+  let totalCollected = 0;
+  let totalPossible = WAVES.reduce((s, w) => s + w.packets, 0);
+  let lastSpawn = 0;
+  let waveStart = 0;
+  let state = 'menu';
+  let prevTime = performance.now();
+  let timeNow = prevTime;
+  let collectorPulse = 0;
+  let sunriseFlourish = 0;
+
+  function getPorts(type, rot) {
+    if (type === 'L') return [rot, (rot + 1) & 3];
+    return (rot & 1) === 0 ? [TOP, BOTTOM] : [RIGHT, LEFT];
+  }
+  function otherPort(type, rot, entry) {
+    const [a, b] = getPorts(type, rot);
+    if (a === entry) return b;
+    if (b === entry) return a;
+    return -1;
+  }
+  function oppositeSide(s) { return (s + 2) & 3; }
+
+  function setupWave(idx) {
+    waveCfg = WAVES[idx];
+    grid = [];
+    for (let r = 0; r < ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < COLS; c++) row.push(null);
+      grid.push(row);
+    }
+    for (const p of waveCfg.pipes) {
+      const offset = 1 + Math.floor(Math.random() * 3);
+      const startRot = (p.sol + offset) & 3;
+      grid[p.row][p.col] = {
+        col: p.col,
+        row: p.row,
+        type: p.type,
+        rot: startRot,
+        animRot: startRot,
+        animFrom: startRot,
+        targetRot: startRot,
+        rotateProgress: 1,
+        bounce: 0,
+        sol: p.sol,
+        traffic: 0,
+      };
+    }
+    spawnerCol = waveCfg.spawner;
+    collectorCell = waveCfg.collector;
+    packets = [];
+    sparks = [];
+    toSpawn = waveCfg.packets;
+    waveTotal = waveCfg.packets;
+    waveCollected = 0;
+    waveLost = 0;
+    waveStart = performance.now();
+    lastSpawn = waveStart - waveCfg.interval * 0.4;
+    updateHUD();
+  }
+
+  function fit() {
+    const wrap = canvas.parentElement;
+    const maxW = Math.min(wrap.clientWidth, 460);
+    const maxH = Math.min(window.innerHeight - 320, 600);
+    const aspect = COLS / ROWS;
+    let w = maxW;
+    let h = w / aspect;
+    if (h > maxH) {
+      h = maxH;
+      w = h * aspect;
+    }
+    cellSize = Math.floor(w / COLS);
+    CW = cellSize * COLS;
+    CH = cellSize * ROWS;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = CW * dpr;
+    canvas.height = CH * dpr;
+    canvas.style.width = CW + 'px';
+    canvas.style.height = CH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function cellRect(col, row) {
+    return { x: col * cellSize, y: row * cellSize, w: cellSize, h: cellSize };
+  }
+  function portPos(col, row, side) {
+    const r = cellRect(col, row);
+    if (side === TOP) return { x: r.x + r.w / 2, y: r.y };
+    if (side === RIGHT) return { x: r.x + r.w, y: r.y + r.h / 2 };
+    if (side === BOTTOM) return { x: r.x + r.w / 2, y: r.y + r.h };
+    return { x: r.x, y: r.y + r.h / 2 };
+  }
+
+  function spawnerPos() {
+    const r = cellRect(spawnerCol, 0);
+    return { x: r.x + r.w / 2, y: r.y - cellSize * 0.12 };
+  }
+
+  function collectorPos() {
+    const r = cellRect(collectorCell.col, collectorCell.row);
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  }
+
+  function spawnPacket() {
+    const target = grid[0] && grid[0][spawnerCol];
+    if (!target) return;
+    packets.push({
+      col: spawnerCol,
+      row: 0,
+      entry: TOP,
+      progress: 0,
+      x: portPos(spawnerCol, 0, TOP).x,
+      y: portPos(spawnerCol, 0, TOP).y - cellSize * 0.4,
+      enteringFromSpawner: true,
+      enterT: 0,
+      alive: true,
+      lostFlash: 0,
+      trail: [],
+      hue: 30 + Math.random() * 18,
+    });
+  }
+
+  function tryCollectOrAdvance(packet, exitSide) {
+    const next = { col: packet.col + sideDx[exitSide], row: packet.row + sideDy[exitSide] };
+    if (next.col === collectorCell.col && next.row === collectorCell.row) {
+      packet.alive = false;
+      packet.collected = true;
+      waveCollected++;
+      totalCollected++;
+      collectorPulse = 1;
+      const cp = collectorPos();
+      for (let i = 0; i < 16; i++) {
+        sparks.push({
+          x: cp.x, y: cp.y,
+          vx: (Math.random() - 0.5) * 3,
+          vy: (Math.random() - 0.5) * 3 - 0.6,
+          life: 1, hue: packet.hue, size: 2 + Math.random() * 2,
+        });
+      }
+      for (let i = 0; i < 6; i++) {
+        sunMotes.push({
+          x: cp.x + (Math.random() - 0.5) * cellSize * 0.4,
+          y: cp.y + (Math.random() - 0.5) * cellSize * 0.4,
+          life: 1.2, size: 1.5 + Math.random() * 2,
+          hue: packet.hue,
+        });
+      }
+      updateHUD();
+      return;
+    }
+    if (next.col < 0 || next.col >= COLS || next.row < 0 || next.row >= ROWS) {
+      losePacket(packet);
+      return;
+    }
+    const cell = grid[next.row][next.col];
+    if (!cell) {
+      losePacket(packet);
+      return;
+    }
+    packet.col = next.col;
+    packet.row = next.row;
+    packet.entry = oppositeSide(exitSide);
+    packet.progress = 0;
+    packet.exitSide = otherPort(cell.type, cell.rot, packet.entry);
+    if (packet.exitSide < 0) {
+      losePacket(packet);
+      return;
+    }
+    cell.traffic = 1;
+  }
+
+  function losePacket(packet) {
+    if (!packet.alive) return;
+    packet.alive = false;
+    packet.lostFlash = 1;
+    waveLost++;
+    for (let i = 0; i < 8; i++) {
+      sparks.push({
+        x: packet.x, y: packet.y,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2 + 0.3,
+        life: 0.6, hue: 0, size: 1.5 + Math.random() * 1.5,
+        dim: true,
+      });
+    }
+    updateHUD();
+  }
+
+  function rotateCell(cell) {
+    if (!cell) return;
+    cell.animFrom = cell.animRot;
+    cell.rot = (cell.rot + 1) & 3;
+    cell.targetRot = cell.rot;
+    cell.rotateProgress = 0;
+    cell.bounce = 1;
+  }
+
+  function handleTap(clientX, clientY) {
+    if (state !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x >= CW || y >= CH) return;
+    const col = Math.floor(x / cellSize);
+    const row = Math.floor(y / cellSize);
+    if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return;
+    const cell = grid[row][col];
+    if (cell) {
+      rotateCell(cell);
+    }
+  }
+
+  function update(dt) {
+    if (state === 'playing' && toSpawn > 0 && timeNow - lastSpawn >= waveCfg.interval) {
+      spawnPacket();
+      toSpawn--;
+      lastSpawn = timeNow;
+    }
+
+    for (const row of grid) {
+      for (const cell of row) {
+        if (!cell) continue;
+        if (cell.rotateProgress < 1) {
+          cell.rotateProgress = Math.min(1, cell.rotateProgress + dt * 7);
+          const t = easeOut(cell.rotateProgress);
+          const from = cell.animFrom;
+          let diff = cell.rot - from;
+          while (diff > 2) diff -= 4;
+          while (diff < -2) diff += 4;
+          cell.animRot = from + diff * t;
+          if (cell.rotateProgress >= 1) cell.animRot = cell.rot;
+        }
+        if (cell.bounce > 0) cell.bounce = Math.max(0, cell.bounce - dt * 3);
+        if (cell.traffic > 0) cell.traffic = Math.max(0, cell.traffic - dt * 0.8);
+      }
+    }
+
+    for (const packet of packets) {
+      if (!packet.alive) continue;
+      if (packet.enteringFromSpawner) {
+        packet.enterT = Math.min(1, packet.enterT + dt * 2.4);
+        const target = portPos(packet.col, packet.row, TOP);
+        const start = spawnerPos();
+        packet.x = lerp(start.x, target.x, packet.enterT);
+        packet.y = lerp(start.y, target.y, packet.enterT);
+        if (packet.enterT >= 1) {
+          packet.enteringFromSpawner = false;
+          const cell = grid[packet.row][packet.col];
+          if (!cell) { losePacket(packet); continue; }
+          const exit = otherPort(cell.type, cell.rot, packet.entry);
+          if (exit < 0) { losePacket(packet); continue; }
+          packet.exitSide = exit;
+          packet.progress = 0;
+          cell.traffic = 1;
+        }
+      } else {
+        const cell = grid[packet.row][packet.col];
+        if (!cell) { losePacket(packet); continue; }
+        const exit = otherPort(cell.type, cell.rot, packet.entry);
+        if (exit < 0) { losePacket(packet); continue; }
+        if (exit !== packet.exitSide) {
+          packet.exitSide = exit;
+        }
+        packet.progress += dt * waveCfg.speed;
+        const pos = packetPathPos(cell, packet.entry, packet.exitSide, packet.progress);
+        packet.x = pos.x;
+        packet.y = pos.y;
+        if (packet.progress >= 1) {
+          tryCollectOrAdvance(packet, packet.exitSide);
+        }
+      }
+      packet.trail.push({ x: packet.x, y: packet.y, life: 1 });
+      if (packet.trail.length > 10) packet.trail.shift();
+      for (const t of packet.trail) t.life -= dt * 1.6;
+    }
+    packets = packets.filter(p => p.alive || (p.lostFlash && p.lostFlash > 0));
+    for (const p of packets) {
+      if (p.lostFlash) p.lostFlash = Math.max(0, p.lostFlash - dt * 2);
+    }
+
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.x += s.vx;
+      s.y += s.vy;
+      s.vy += 0.05;
+      s.life -= dt * 1.4;
+      if (s.life <= 0) sparks.splice(i, 1);
+    }
+    for (let i = sunMotes.length - 1; i >= 0; i--) {
+      const m = sunMotes[i];
+      m.life -= dt * 0.8;
+      if (m.life <= 0) sunMotes.splice(i, 1);
+    }
+
+    if (collectorPulse > 0) collectorPulse = Math.max(0, collectorPulse - dt * 1.4);
+    if (sunriseFlourish > 0 && sunriseFlourish < 1) {
+      sunriseFlourish = Math.min(1, sunriseFlourish + dt * 0.6);
+    }
+
+    if (state === 'playing' && toSpawn === 0 && packets.length === 0) {
+      finishWave();
+    }
+  }
+
+  function packetPathPos(cell, entry, exit, progress) {
+    const r = cellRect(cell.col, cell.row);
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    const a = portPos(cell.col, cell.row, entry);
+    const b = portPos(cell.col, cell.row, exit);
+    if (cell.type === 'I') {
+      return { x: lerp(a.x, b.x, progress), y: lerp(a.y, b.y, progress) };
+    }
+    const t = progress;
+    const mt = 1 - t;
+    const x = mt * mt * a.x + 2 * mt * t * cx + t * t * b.x;
+    const y = mt * mt * a.y + 2 * mt * t * cy + t * t * b.y;
+    return { x, y };
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+  function finishWave() {
+    state = 'wave-end';
+    const ratio = waveCollected / waveTotal;
+    const passed = ratio >= waveCfg.passThreshold;
+    if (passed && waveIndex >= WAVES.length - 1) {
+      sunriseFlourish = 0.001;
+      showOverlay({
+        title: 'Sunrise <span class="accent">restored</span>',
+        body: `<p>You routed <strong>${totalCollected}</strong> of <strong>${totalPossible}</strong> packets through the orchard.</p><p>The relay is humming again.</p>`,
+        btn: 'Replay',
+        action: () => beginGame(),
+      });
+    } else if (passed) {
+      const next = WAVES[waveIndex + 1];
+      showOverlay({
+        title: `${waveCfg.name} <span class="accent">cleared</span>`,
+        body: `<p>Caught <strong>${waveCollected}</strong> / ${waveTotal}.</p><p>Next: <strong>${next.name}</strong> — ${next.packets} packets, faster.</p>`,
+        btn: `Begin ${next.name}`,
+        action: () => { waveIndex++; beginWave(); },
+      });
+    } else {
+      showOverlay({
+        title: `${waveCfg.name} <span class="accent">stalled</span>`,
+        body: `<p>Caught only <strong>${waveCollected}</strong> / ${waveTotal}. Need at least ${Math.ceil(waveTotal * waveCfg.passThreshold)} to advance.</p><p>Trees re-shuffled. Try again — you've got this.</p>`,
+        btn: `Retry ${waveCfg.name}`,
+        action: () => beginWave(),
+      });
+    }
+  }
+
+  function showOverlay({ title, body, btn, action }) {
+    overlay.innerHTML = `
+      <div class="title">${title}</div>
+      <div class="body">${body}</div>
+      <button id="overlayBtn">${btn}</button>
+    `;
+    overlay.classList.remove('hidden');
+    document.getElementById('overlayBtn').addEventListener('click', action, { once: true });
+  }
+
+  function hideOverlay() {
+    overlay.classList.add('hidden');
+  }
+
+  function beginGame() {
+    waveIndex = 0;
+    totalCollected = 0;
+    sunriseFlourish = 0;
+    beginWave();
+  }
+  function beginWave() {
+    setupWave(waveIndex);
+    state = 'playing';
+    hideOverlay();
+  }
+
+  function updateHUD() {
+    if (waveCfg) {
+      hudWave.textContent = `${waveIndex + 1} / ${WAVES.length}`;
+      hudPackets.textContent = `${waveCollected} / ${waveTotal}`;
+      hudPacketsBox.classList.toggle('warn', waveLost > 0 && waveLost > waveTotal * 0.3);
+    }
+    const sun = totalPossible ? Math.round((totalCollected / totalPossible) * 100) : 0;
+    hudSunrise.textContent = sun + '%';
+    progressBar.style.width = sun + '%';
+  }
+
+  function drawBackground() {
+    ctx.fillStyle = 'rgba(8,12,24,0)';
+    ctx.clearRect(0, 0, CW, CH);
+
+    const sun = totalPossible ? totalCollected / totalPossible : 0;
+    const cp = collectorPos();
+    const radius = Math.max(CW, CH) * (0.5 + sun * 0.6);
+    const sky = ctx.createRadialGradient(cp.x, cp.y, 0, cp.x, cp.y, radius);
+    const warmth = sun;
+    sky.addColorStop(0, `rgba(${100 + 120 * warmth}, ${70 + 60 * warmth}, ${110 - 40 * warmth}, ${0.18 + warmth * 0.32})`);
+    sky.addColorStop(0.6, `rgba(40, 30, 80, ${0.06 + warmth * 0.08})`);
+    sky.addColorStop(1, 'rgba(8, 10, 24, 0)');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, CW, CH);
+
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    for (let r = 1; r < ROWS; r++) {
+      ctx.beginPath();
+      ctx.moveTo(0, r * cellSize);
+      ctx.lineTo(CW, r * cellSize);
+      ctx.strokeStyle = 'rgba(120,150,200,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    for (let c = 1; c < COLS; c++) {
+      ctx.beginPath();
+      ctx.moveTo(c * cellSize, 0);
+      ctx.lineTo(c * cellSize, CH);
+      ctx.strokeStyle = 'rgba(120,150,200,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = grid[r][c];
+        const rect = cellRect(c, r);
+        const cx = rect.x + rect.w / 2;
+        const cy = rect.y + rect.h / 2;
+        if (!cell && !(c === collectorCell.col && r === collectorCell.row)) {
+          ctx.fillStyle = 'rgba(40,55,80,0.18)';
+          const dot = cellSize * 0.06;
+          ctx.beginPath();
+          ctx.arc(cx, cy, dot, 0, Math.PI * 2);
+          ctx.fill();
+          for (let i = 0; i < 4; i++) {
+            const ang = (i / 4) * Math.PI * 2 + 0.5;
+            const dx = cx + Math.cos(ang) * cellSize * 0.18;
+            const dy = cy + Math.sin(ang) * cellSize * 0.18;
+            ctx.fillStyle = 'rgba(60,75,100,0.14)';
+            ctx.beginPath();
+            ctx.arc(dx, dy, dot * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+  }
+
+  function drawSpawner() {
+    const sp = spawnerPos();
+    const r = cellSize * 0.32;
+    const grd = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, r);
+    grd.addColorStop(0, 'rgba(80,110,160,0.65)');
+    grd.addColorStop(1, 'rgba(40,55,90,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    const pulse = 0.5 + 0.5 * Math.sin(timeNow * 0.003);
+    ctx.fillStyle = `rgba(150,180,220,${0.4 + pulse * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, cellSize * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(140,170,210,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    const top = portPos(spawnerCol, 0, TOP);
+    ctx.beginPath();
+    ctx.moveTo(sp.x, sp.y + cellSize * 0.12);
+    ctx.lineTo(top.x, top.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawCollector() {
+    const cp = collectorPos();
+    const sun = totalPossible ? totalCollected / totalPossible : 0;
+    const baseR = cellSize * 0.32;
+    const pulseR = baseR * (1 + collectorPulse * 0.25);
+
+    const haloR = cellSize * (0.55 + sun * 0.25);
+    const halo = ctx.createRadialGradient(cp.x, cp.y, 0, cp.x, cp.y, haloR);
+    halo.addColorStop(0, `rgba(255,210,140,${0.3 + sun * 0.3})`);
+    halo.addColorStop(0.5, `rgba(255,150,100,${0.15 + sun * 0.2})`);
+    halo.addColorStop(1, 'rgba(255,120,80,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, haloR, 0, Math.PI * 2);
+    ctx.fill();
+
+    const sunGrd = ctx.createRadialGradient(cp.x, cp.y, 0, cp.x, cp.y, pulseR);
+    sunGrd.addColorStop(0, 'rgba(255,245,210,1)');
+    sunGrd.addColorStop(0.5, 'rgba(255,180,110,0.95)');
+    sunGrd.addColorStop(1, 'rgba(255,120,80,0.4)');
+    ctx.fillStyle = sunGrd;
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, pulseR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cp.x, cp.y);
+    ctx.rotate(timeNow * 0.0004);
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      const len = pulseR * (0.45 + 0.2 * Math.sin(timeNow * 0.003 + i));
+      ctx.strokeStyle = `rgba(255,210,150,${0.3 + sun * 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pulseR * 0.95, 0);
+      ctx.lineTo(pulseR * 0.95 + len, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    for (const m of sunMotes) {
+      ctx.fillStyle = `rgba(255,220,150,${m.life * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawCell(cell) {
+    const r = cellRect(cell.col, cell.row);
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    const inset = cellSize * 0.08;
+    const traffic = cell.traffic;
+
+    const tileBg = ctx.createRadialGradient(cx, cy - cellSize * 0.12, 0, cx, cy, cellSize * 0.42);
+    tileBg.addColorStop(0, 'rgba(40,55,90,0.55)');
+    tileBg.addColorStop(1, 'rgba(15,22,40,0.65)');
+    ctx.fillStyle = tileBg;
+    roundRect(ctx, r.x + inset, r.y + inset, r.w - inset * 2, r.h - inset * 2, cellSize * 0.13);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(120,160,210,${0.18 + traffic * 0.5})`;
+    ctx.lineWidth = 1;
+    roundRect(ctx, r.x + inset, r.y + inset, r.w - inset * 2, r.h - inset * 2, cellSize * 0.13);
+    ctx.stroke();
+
+    const animRot = cell.animRot;
+    const half = cellSize / 2;
+    const portXY = (sideF) => {
+      const ang = sideF * Math.PI / 2;
+      return { x: cx + Math.sin(ang) * half, y: cy - Math.cos(ang) * half };
+    };
+    if (cell.type === 'L') {
+      const a = portXY(animRot);
+      const b = portXY(animRot + 1);
+      drawBranch(a.x, a.y, cx, cy, b.x, b.y, traffic, true);
+    } else {
+      const a = portXY(animRot);
+      const b = portXY(animRot + 2);
+      drawBranch(a.x, a.y, cx, cy, b.x, b.y, traffic, false);
+    }
+
+    const trunkR = cellSize * 0.085;
+    const trunkGrd = ctx.createRadialGradient(cx, cy, 0, cx, cy, trunkR * 1.4);
+    trunkGrd.addColorStop(0, `rgba(255,235,200,${0.85 + traffic * 0.15})`);
+    trunkGrd.addColorStop(0.6, `rgba(160,180,220,${0.5 + traffic * 0.3})`);
+    trunkGrd.addColorStop(1, 'rgba(60,80,120,0)');
+    ctx.fillStyle = trunkGrd;
+    ctx.beginPath();
+    ctx.arc(cx, cy, trunkR * (1 + cell.bounce * 0.3), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,250,235,0.9)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, trunkR * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawBranch(ax, ay, cx, cy, bx, by, traffic, curved) {
+    const glow = 0.3 + traffic * 0.7;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.strokeStyle = `rgba(60,90,140,${0.5 + traffic * 0.3})`;
+    ctx.lineWidth = cellSize * 0.13;
+    drawPath(ax, ay, cx, cy, bx, by, curved);
+
+    ctx.strokeStyle = `rgba(140,180,230,${0.45 + glow * 0.3})`;
+    ctx.lineWidth = cellSize * 0.07;
+    drawPath(ax, ay, cx, cy, bx, by, curved);
+
+    ctx.strokeStyle = `rgba(220,240,255,${0.5 + glow * 0.5})`;
+    ctx.lineWidth = cellSize * 0.025;
+    drawPath(ax, ay, cx, cy, bx, by, curved);
+
+    drawLeaves(ax, ay, cx, cy, bx, by, curved, traffic);
+  }
+  function drawPath(ax, ay, cx, cy, bx, by, curved) {
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    if (curved) {
+      ctx.quadraticCurveTo(cx, cy, bx, by);
+    } else {
+      ctx.lineTo(bx, by);
+    }
+    ctx.stroke();
+  }
+
+  function drawLeaves(ax, ay, cx, cy, bx, by, curved, traffic) {
+    const samples = 4;
+    for (let i = 1; i < samples; i++) {
+      const t = i / samples;
+      let px, py;
+      if (curved) {
+        const mt = 1 - t;
+        px = mt * mt * ax + 2 * mt * t * cx + t * t * bx;
+        py = mt * mt * ay + 2 * mt * t * cy + t * t * by;
+      } else {
+        px = lerp(ax, bx, t);
+        py = lerp(ay, by, t);
+      }
+      const offX = (px - cx) * 0.12;
+      const offY = (py - cy) * 0.12;
+      ctx.fillStyle = `rgba(180,210,240,${0.3 + traffic * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(px + offX, py + offY, cellSize * 0.025, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawPackets() {
+    for (const p of packets) {
+      for (let i = 0; i < p.trail.length; i++) {
+        const t = p.trail[i];
+        if (t.life <= 0) continue;
+        ctx.fillStyle = `hsla(${p.hue}, 95%, 70%, ${t.life * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, cellSize * 0.05 * t.life, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (!p.alive) continue;
+      const r = cellSize * 0.075;
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.5);
+      glow.addColorStop(0, `hsla(${p.hue}, 100%, 85%, 1)`);
+      glow.addColorStop(0.4, `hsla(${p.hue}, 100%, 65%, 0.6)`);
+      glow.addColorStop(1, `hsla(${p.hue}, 100%, 50%, 0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `hsla(${p.hue}, 100%, 92%, 1)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawSparks() {
+    for (const s of sparks) {
+      const a = Math.max(0, s.life);
+      ctx.fillStyle = s.dim
+        ? `rgba(140,160,180,${a * 0.6})`
+        : `hsla(${s.hue}, 95%, 70%, ${a})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size * a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y);
+    c.quadraticCurveTo(x + w, y, x + w, y + r);
+    c.lineTo(x + w, y + h - r);
+    c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    c.lineTo(x + r, y + h);
+    c.quadraticCurveTo(x, y + h, x, y + h - r);
+    c.lineTo(x, y + r);
+    c.quadraticCurveTo(x, y, x + r, y);
+    c.closePath();
+  }
+
+  function render() {
+    drawBackground();
+    drawSpawner();
+    drawCollector();
+    for (const row of grid) {
+      for (const cell of row) {
+        if (cell) drawCell(cell);
+      }
+    }
+    drawPackets();
+    drawSparks();
+  }
+
+  function loop(now) {
+    timeNow = now;
+    const dt = Math.min(0.05, (now - prevTime) / 1000);
+    prevTime = now;
+    if (state === 'playing' || state === 'wave-end') {
+      update(dt);
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    handleTap(e.clientX, e.clientY);
+  });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  startBtn.addEventListener('click', () => {
+    beginGame();
+  }, { once: false });
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', () => setTimeout(fit, 50));
+
+  fit();
+  setupWave(0);
+  state = 'menu';
+  updateHUD();
+  hudWave.textContent = `1 / ${WAVES.length}`;
+  hudPackets.textContent = `0 / ${WAVES[0].packets}`;
+  requestAnimationFrame((t) => { prevTime = t; loop(t); });
+})();
+</script>
+</body>
+</html>
