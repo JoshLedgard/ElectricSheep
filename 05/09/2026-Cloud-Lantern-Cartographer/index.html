@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a1226">
+<title>Cloud Lantern Cartographer</title>
+<style>
+  :root {
+    --bg-top:    #060916;
+    --bg-mid:    #0c1530;
+    --bg-bot:    #1a1638;
+    --ink:       #f6e6c3;
+    --ink-dim:   #a6a3c8;
+    --ink-soft:  #6a6a8c;
+    --warm:      #ffd28a;
+    --warm-2:    #ffb463;
+    --line:      rgba(255,210,138,0.35);
+    --panel:     rgba(10, 14, 30, 0.72);
+    --panel-edge:rgba(255,210,138,0.18);
+    --btn-bg:    rgba(20, 24, 46, 0.85);
+    --btn-edge:  rgba(255,210,138,0.22);
+    --btn-bg-hi: rgba(60, 50, 90, 0.85);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: var(--bg-top);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  body {
+    background:
+      radial-gradient(1200px 800px at 25% 10%, rgba(140,120,220,0.25), transparent 60%),
+      radial-gradient(900px 700px at 80% 90%, rgba(120,80,160,0.20), transparent 60%),
+      linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bot) 100%);
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* ===== Header ===== */
+  header {
+    flex: 0 0 auto;
+    padding: 14px 16px 8px;
+    text-align: center;
+    position: relative;
+    z-index: 4;
+  }
+  .kicker {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 2px;
+  }
+  .route-name {
+    font-size: clamp(18px, 4.6vw, 24px);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    line-height: 1.2;
+    min-height: 1.2em;
+    text-shadow: 0 0 18px rgba(255,210,138,0.18);
+  }
+  .meta {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+  }
+
+  /* ===== Canvas / Map ===== */
+  .stage {
+    flex: 1 1 auto;
+    position: relative;
+    margin: 8px 12px 8px;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,210,138,0.05), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(180,120,220,0.08), transparent 50%),
+      linear-gradient(160deg, #0a1024 0%, #15163a 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,210,138,0.08),
+      inset 0 -40px 80px rgba(0,0,0,0.45),
+      0 12px 40px rgba(0,0,0,0.4);
+  }
+  .stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--ink-soft);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-align: center;
+    padding: 0 32px;
+    opacity: 1;
+    transition: opacity 0.6s ease;
+  }
+  .hint.hidden { opacity: 0; }
+  .hint span {
+    display: inline-block;
+    padding: 10px 16px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* ===== Toolbar ===== */
+  .bar {
+    flex: 0 0 auto;
+    padding: 6px 12px 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    z-index: 4;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--btn-edge);
+    background: var(--btn-bg);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 12px 6px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    line-height: 1.2;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .btn .ico {
+    width: 22px; height: 22px;
+    display: block;
+    color: var(--warm);
+    opacity: 0.92;
+  }
+  .btn:active { transform: scale(0.96); background: var(--btn-bg-hi); }
+  .btn:hover { border-color: rgba(255,210,138,0.45); }
+  .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .btn.ok {
+    color: var(--warm);
+    border-color: rgba(255,210,138,0.55);
+    background: linear-gradient(180deg, rgba(70,50,90,0.6), rgba(30,30,60,0.85));
+  }
+
+  /* ===== Toast / Postcard ===== */
+  .toast {
+    position: absolute;
+    left: 50%; bottom: 86px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    color: var(--ink);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 10px 14px;
+    border-radius: 999px;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== Postcard modal ===== */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 18, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 24px;
+  }
+  .modal.show { display: flex; }
+  .card {
+    width: 100%;
+    max-width: 360px;
+    background: linear-gradient(160deg, #1a1c3a 0%, #0e1126 100%);
+    border: 1px solid var(--panel-edge);
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    color: var(--ink);
+    position: relative;
+    text-align: center;
+  }
+  .card .stamp {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--warm);
+    opacity: 0.85;
+  }
+  .card h2 {
+    font-size: 22px;
+    margin: 6px 0 10px;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  .card p {
+    margin: 4px 0;
+    font-size: 13px;
+    color: var(--ink-dim);
+    letter-spacing: 0.03em;
+  }
+  .card .preview {
+    margin: 14px auto 14px;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    background: #060916;
+    border: 1px solid rgba(255,210,138,0.12);
+    overflow: hidden;
+    position: relative;
+  }
+  .card .preview canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .card .row {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .card .row .btn { flex: 1; }
+  .card .close {
+    position: absolute;
+    top: 8px; right: 10px;
+    background: transparent;
+    border: 0;
+    color: var(--ink-soft);
+    font-size: 20px;
+    line-height: 1;
+    width: 28px; height: 28px;
+    cursor: pointer;
+  }
+
+  /* ===== Subtle drift cloud layer (purely decorative) ===== */
+  .drift {
+    position: absolute;
+    pointer-events: none;
+    inset: 0;
+    overflow: hidden;
+    opacity: 0.45;
+  }
+  .drift::before, .drift::after {
+    content: '';
+    position: absolute;
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255,210,138,0.06), transparent 70%);
+    filter: blur(20px);
+    animation: floatA 28s ease-in-out infinite alternate;
+  }
+  .drift::after {
+    background: radial-gradient(closest-side, rgba(180,140,220,0.08), transparent 70%);
+    animation: floatB 36s ease-in-out infinite alternate;
+    left: 40%; top: 30%;
+  }
+  @keyframes floatA {
+    0%   { transform: translate(-15%, -10%) scale(1.0); }
+    100% { transform: translate(10%, 20%)   scale(1.2); }
+  }
+  @keyframes floatB {
+    0%   { transform: translate(15%, 0%)   scale(1.0); }
+    100% { transform: translate(-10%, 25%) scale(1.15); }
+  }
+
+  /* Tiny screens */
+  @media (max-height: 620px) {
+    header { padding: 10px 16px 4px; }
+    .stage { margin: 6px 10px; }
+    .bar   { padding: 4px 10px 10px; }
+    .btn   { min-height: 48px; padding: 8px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">cloud lantern cartographer</div>
+  <div class="route-name" id="routeName">An Empty Sky, Waiting</div>
+  <div class="meta"><span id="lanternCount">0</span> lanterns · tap the sky to begin</div>
+</header>
+
+<div class="stage" id="stage">
+  <div class="drift"></div>
+  <canvas id="map"></canvas>
+  <div class="hint" id="hint"><span>tap to place a lantern · drag to move · double-tap to remove</span></div>
+</div>
+
+<nav class="bar">
+  <button class="btn" id="bRandom" aria-label="Scatter lanterns">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="1.3"/>
+      <circle cx="18" cy="7" r="1.3"/>
+      <circle cx="9" cy="14" r="1.3"/>
+      <circle cx="17" cy="17" r="1.3"/>
+      <circle cx="5" cy="18" r="1.3"/>
+    </svg>
+    Scatter
+  </button>
+  <button class="btn" id="bRename" aria-label="Rename route">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 12a8 8 0 0 1 14-5.3"/>
+      <path d="M20 12a8 8 0 0 1-14 5.3"/>
+      <polyline points="18 3 18 7 14 7"/>
+      <polyline points="6 21 6 17 10 17"/>
+    </svg>
+    Rename
+  </button>
+  <button class="btn" id="bClear" aria-label="Clear sky">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 7h14"/>
+      <path d="M9 7v-2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+      <path d="M7 7l1 12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2l1-12"/>
+    </svg>
+    Clear
+  </button>
+  <button class="btn ok" id="bCard" aria-label="Open postcard">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="6" width="18" height="13" rx="2"/>
+      <path d="M3 9l9 5 9-5"/>
+    </svg>
+    Postcard
+  </button>
+</nav>
+
+<div class="toast" id="toast">copied</div>
+
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="card" role="dialog" aria-label="Postcard">
+    <button class="close" id="closeModal" aria-label="Close">×</button>
+    <div class="stamp">postcard</div>
+    <h2 id="cardTitle">An Empty Sky, Waiting</h2>
+    <p id="cardSub">0 lanterns · drawn 2026-05-09</p>
+    <div class="preview"><canvas id="cardCanvas"></canvas></div>
+    <p id="cardLine">— a small chart of nowhere in particular</p>
+    <div class="row">
+      <button class="btn" id="bCopy" aria-label="Copy card text">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="11" height="11" rx="2"/>
+          <path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+        </svg>
+        Copy text
+      </button>
+      <button class="btn" id="bSave" aria-label="Download SVG">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4v12"/>
+          <polyline points="6 12 12 18 18 12"/>
+          <path d="M5 20h14"/>
+        </svg>
+        Save SVG
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  //  State
+  // ============================================================
+  /** @type {{x:number, y:number, hue:number, size:number, jitter:number, born:number}[]} */
+  const lanterns = [];
+  let routeName = 'An Empty Sky, Waiting';
+  let routeLine = '— a small chart of nowhere in particular';
+  let nameSeed  = Math.floor(Math.random() * 1e9);
+
+  const stage = document.getElementById('stage');
+  const cvs   = document.getElementById('map');
+  const ctx   = cvs.getContext('2d');
+  const cardCvs = document.getElementById('cardCanvas');
+  const cardCtx = cardCvs.getContext('2d');
+
+  const hintEl  = document.getElementById('hint');
+  const nameEl  = document.getElementById('routeName');
+  const countEl = document.getElementById('lanternCount');
+  const toastEl = document.getElementById('toast');
+  const modalEl = document.getElementById('modal');
+
+  let DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.5));
+  let W = 0, H = 0;
+
+  // ============================================================
+  //  Decorative starfield (regenerated on resize)
+  // ============================================================
+  /** @type {{x:number,y:number,r:number,a:number,t:number}[]} */
+  let stars = [];
+  function regenStars() {
+    stars = [];
+    const count = Math.round((W * H) / 9000);
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.1 + 0.2,
+        a: Math.random() * 0.5 + 0.15,
+        t: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  // ============================================================
+  //  Naming dictionary (deterministic from seed + count)
+  // ============================================================
+  // Privacy-safe poetic word lists, no real names, no PII.
+  const NAME_TEMPLATES = [
+    "The {adj} {noun} of {place}",
+    "{place}, by Lantern",
+    "Where the {noun} {verb}",
+    "A {adj} {noun} for {time}",
+    "The {noun} that Walks {direction}",
+    "{adj} Path Above the {place2}",
+    "{noun} of the {adj} {time}",
+    "Notes from the {place}",
+    "The {time} {noun}",
+    "Small {noun}, Held {direction}",
+  ];
+  const ADJ = [
+    "quiet", "slow", "drifting", "patient", "soft", "lantern-lit",
+    "half-remembered", "tender", "low", "moonish", "kind",
+    "almost-paper", "slight", "cloudbound", "warm", "open"
+  ];
+  const NOUN = [
+    "path", "ribbon", "chart", "thread", "harbor", "garden",
+    "echo", "ferry", "watch", "atlas", "map", "circuit",
+    "current", "constellation", "compass", "lullaby"
+  ];
+  const NOUN2 = [
+    "lantern", "river", "field", "rooftop", "cove", "alley",
+    "harbor", "garden", "bell", "sky", "porch", "clearing"
+  ];
+  const VERB = [
+    "drifts", "settles", "softens", "bends", "lingers",
+    "remembers", "returns", "thins", "hums", "leans"
+  ];
+  const PLACE = [
+    "the slow north", "the river bend", "the second porch",
+    "an open window", "the low harbor", "the back garden",
+    "the soft hill", "the tin roof", "the long alley",
+    "the empty pier", "the late kitchen"
+  ];
+  const PLACE2 = [
+    "river", "harbor", "rooftops", "garden", "field",
+    "bay", "lane", "marsh", "cove", "alley"
+  ];
+  const TIME = [
+    "tuesday", "evening", "late hour", "small morning",
+    "blue minute", "long winter", "first thaw", "wet april",
+    "second dusk", "patient hour"
+  ];
+  const DIRECTION = [
+    "north", "east", "westward", "homeward", "inland",
+    "skyward", "lightly", "slowly", "with care"
+  ];
+  const LINES = [
+    "— a small chart drawn by hand",
+    "— routed through the quiet between things",
+    "— suitable for one careful walk",
+    "— folded once, kept in a pocket",
+    "— a paper map for an unhurried hour",
+    "— please return when the lanterns dim",
+    "— with love from somewhere mostly cloudy",
+    "— traced from memory, mostly accurate",
+    "— good for moonlit detours",
+    "— a way home, but the long way"
+  ];
+
+  // Mulberry32 PRNG for deterministic names from a seed
+  function rngFrom(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t |= 0; t = (t + 0x6D2B79F5) | 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+
+  function buildName(seed, count) {
+    if (count === 0) return { name: 'An Empty Sky, Waiting', line: '— a small chart of nowhere in particular' };
+    const rng = rngFrom(seed ^ (count * 2654435761));
+    const tpl = pick(rng, NAME_TEMPLATES);
+    const filled = tpl
+      .replace('{adj}',       pick(rng, ADJ))
+      .replace('{noun}',      pick(rng, NOUN))
+      .replace('{noun2}',     pick(rng, NOUN2))
+      .replace('{verb}',      pick(rng, VERB))
+      .replace('{place}',     pick(rng, PLACE))
+      .replace('{place2}',    pick(rng, PLACE2))
+      .replace('{time}',      pick(rng, TIME))
+      .replace('{direction}', pick(rng, DIRECTION));
+    const titled = filled.replace(/\b([a-z])/g, (m, c, i) => {
+      // Title-case each word but keep small joining words lowercase
+      const small = ['the','of','by','at','for','and','to','a','an','in','on','with','from','that','where'];
+      const word = filled.slice(i).split(/[^a-zA-Z]/)[0];
+      if (i === 0) return c.toUpperCase();
+      if (small.includes(word.toLowerCase())) return c;
+      return c.toUpperCase();
+    });
+    return { name: titled, line: pick(rng, LINES) };
+  }
+
+  // ============================================================
+  //  Resize / DPR handling
+  // ============================================================
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    W = Math.max(1, Math.floor(r.width));
+    H = Math.max(1, Math.floor(r.height));
+    cvs.width  = Math.floor(W * DPR);
+    cvs.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    regenStars();
+  }
+  window.addEventListener('resize', () => { resize(); });
+
+  // ============================================================
+  //  Lantern model
+  // ============================================================
+  function addLantern(x, y) {
+    const hueBase = 36 + (Math.random() - 0.5) * 24; // warm
+    lanterns.push({
+      x, y,
+      hue: hueBase,
+      size: 8 + Math.random() * 5,
+      jitter: Math.random() * Math.PI * 2,
+      born: performance.now(),
+    });
+    refreshName();
+    if (lanterns.length === 1) hintEl.classList.add('hidden');
+    countEl.textContent = String(lanterns.length);
+  }
+
+  function removeLantern(idx) {
+    lanterns.splice(idx, 1);
+    refreshName();
+    countEl.textContent = String(lanterns.length);
+    if (lanterns.length === 0) hintEl.classList.remove('hidden');
+  }
+
+  function nearestLanternIndex(x, y, maxDist) {
+    let best = -1, bestD = maxDist * maxDist;
+    for (let i = 0; i < lanterns.length; i++) {
+      const dx = lanterns[i].x - x, dy = lanterns[i].y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD) { bestD = d2; best = i; }
+    }
+    return best;
+  }
+
+  function refreshName() {
+    const r = buildName(nameSeed, lanterns.length);
+    routeName = r.name;
+    routeLine = r.line;
+    nameEl.textContent = routeName;
+  }
+
+  // ============================================================
+  //  Pointer interaction (tap / drag / double-tap)
+  // ============================================================
+  let pointer = null; // { id, sx, sy, lx, ly, dragIdx, downAt, moved }
+  let lastTapAt = 0;
+  let lastTapPos = { x: 0, y: 0 };
+
+  function getCanvasPos(ev) {
+    const r = cvs.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  }
+
+  cvs.addEventListener('pointerdown', (ev) => {
+    if (pointer) return;
+    cvs.setPointerCapture(ev.pointerId);
+    const p = getCanvasPos(ev);
+    const idx = nearestLanternIndex(p.x, p.y, 28);
+    pointer = {
+      id: ev.pointerId,
+      sx: p.x, sy: p.y,
+      lx: p.x, ly: p.y,
+      dragIdx: idx,
+      downAt: performance.now(),
+      moved: false,
+    };
+  });
+
+  cvs.addEventListener('pointermove', (ev) => {
+    if (!pointer || ev.pointerId !== pointer.id) return;
+    const p = getCanvasPos(ev);
+    const dx = p.x - pointer.sx, dy = p.y - pointer.sy;
+    if (Math.hypot(dx, dy) > 4) pointer.moved = true;
+    pointer.lx = p.x; pointer.ly = p.y;
+    if (pointer.dragIdx >= 0 && pointer.moved) {
+      const L = lanterns[pointer.dragIdx];
+      L.x = Math.max(8, Math.min(W - 8, p.x));
+      L.y = Math.max(8, Math.min(H - 8, p.y));
+    }
+  });
+
+  cvs.addEventListener('pointerup', (ev) => {
+    if (!pointer || ev.pointerId !== pointer.id) return;
+    const p = pointer;
+    pointer = null;
+    if (p.moved && p.dragIdx >= 0) return; // dragged: nothing else
+    const now = performance.now();
+    const isDoubleTap = (now - lastTapAt < 320) &&
+      Math.hypot(p.lx - lastTapPos.x, p.ly - lastTapPos.y) < 36;
+    if (isDoubleTap) {
+      const idx = nearestLanternIndex(p.lx, p.ly, 32);
+      if (idx >= 0) removeLantern(idx);
+      lastTapAt = 0;
+      return;
+    }
+    lastTapAt = now;
+    lastTapPos = { x: p.lx, y: p.ly };
+    if (p.dragIdx === -1) {
+      // place new lantern
+      if (lanterns.length < 32) addLantern(p.lx, p.ly);
+    }
+  });
+
+  cvs.addEventListener('pointercancel', () => { pointer = null; });
+
+  // ============================================================
+  //  Buttons
+  // ============================================================
+  document.getElementById('bClear').addEventListener('click', () => {
+    if (lanterns.length === 0) return;
+    lanterns.length = 0;
+    countEl.textContent = '0';
+    refreshName();
+    hintEl.classList.remove('hidden');
+  });
+
+  document.getElementById('bRandom').addEventListener('click', () => {
+    lanterns.length = 0;
+    const n = 5 + Math.floor(Math.random() * 5); // 5..9
+    const cx = W / 2, cy = H / 2;
+    const baseAngle = Math.random() * Math.PI * 2;
+    const baseR = Math.min(W, H) * 0.32;
+    for (let i = 0; i < n; i++) {
+      // wandering polyline rather than a tight circle
+      const t = i / Math.max(1, n - 1);
+      const a = baseAngle + t * Math.PI * 1.4 + (Math.random() - 0.5) * 0.6;
+      const rr = baseR * (0.6 + Math.random() * 0.7);
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr * 0.85;
+      addLantern(
+        Math.max(20, Math.min(W - 20, x)),
+        Math.max(20, Math.min(H - 20, y))
+      );
+    }
+    hintEl.classList.add('hidden');
+  });
+
+  document.getElementById('bRename').addEventListener('click', () => {
+    nameSeed = Math.floor(Math.random() * 1e9);
+    refreshName();
+  });
+
+  const cardTitle = document.getElementById('cardTitle');
+  const cardSub   = document.getElementById('cardSub');
+  const cardLine  = document.getElementById('cardLine');
+
+  function openCard() {
+    const today = '2026-05-09';
+    cardTitle.textContent = routeName;
+    cardSub.textContent   = `${lanterns.length} lantern${lanterns.length === 1 ? '' : 's'} · drawn ${today}`;
+    cardLine.textContent  = routeLine;
+    drawCardPreview();
+    modalEl.classList.add('show');
+    modalEl.setAttribute('aria-hidden', 'false');
+  }
+  function closeCard() {
+    modalEl.classList.remove('show');
+    modalEl.setAttribute('aria-hidden', 'true');
+  }
+  document.getElementById('bCard').addEventListener('click', openCard);
+  document.getElementById('closeModal').addEventListener('click', closeCard);
+  modalEl.addEventListener('click', (ev) => {
+    if (ev.target === modalEl) closeCard();
+  });
+
+  // ============================================================
+  //  Postcard preview rendering
+  // ============================================================
+  function drawCardPreview() {
+    const r = cardCvs.getBoundingClientRect();
+    cardCvs.width  = Math.floor(r.width  * DPR);
+    cardCvs.height = Math.floor(r.height * DPR);
+    cardCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawSceneTo(cardCtx, r.width, r.height, /*decor*/ false);
+  }
+
+  // ============================================================
+  //  Copy postcard text
+  // ============================================================
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1400);
+  }
+
+  function postcardText() {
+    const today = '2026-05-09';
+    return [
+      'Cloud Lantern Cartographer',
+      '',
+      `“${routeName}”`,
+      `${lanterns.length} lantern${lanterns.length === 1 ? '' : 's'} · drawn ${today}`,
+      routeLine,
+    ].join('\n');
+  }
+
+  document.getElementById('bCopy').addEventListener('click', async () => {
+    const text = postcardText();
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch (_) { /* fall through */ }
+    if (!ok) {
+      // fallback: temp textarea
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (_) { ok = false; }
+    }
+    showToast(ok ? 'card copied' : 'copy failed');
+  });
+
+  // ============================================================
+  //  Save SVG (offline blob download)
+  // ============================================================
+  document.getElementById('bSave').addEventListener('click', () => {
+    const svg = buildSVG();
+    try {
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = routeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'lantern-route';
+      a.download = `lantern-${slug}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast('saved svg');
+    } catch (_) {
+      showToast('save failed');
+    }
+  });
+
+  function buildSVG() {
+    const w = 600, h = 450;
+    // map our canvas coords to SVG coords
+    const pad = 28;
+    const rW = Math.max(1, W), rH = Math.max(1, H);
+    const sx = (w - pad * 2) / rW;
+    const sy = (h - pad * 2) / rH;
+    const s  = Math.min(sx, sy);
+    const offX = (w - rW * s) / 2;
+    const offY = (h - rH * s) / 2;
+    const points = lanterns.map(L => ({
+      x: offX + L.x * s,
+      y: offY + L.y * s
+    }));
+    let path = '';
+    if (points.length >= 2) {
+      path += `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
+      for (let i = 1; i < points.length; i++) {
+        const p0 = points[i - 1], p1 = points[i];
+        const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+        path += `Q ${p0.x.toFixed(1)} ${p0.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)} `;
+      }
+      const last = points[points.length - 1];
+      path += `T ${last.x.toFixed(1)} ${last.y.toFixed(1)} `;
+    }
+    const dots = points.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#ffd28a" stroke="#fff4d8" stroke-width="0.6"/>`).join('');
+    const escName = String(routeName).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    return [
+      `<?xml version="1.0" encoding="UTF-8"?>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`,
+      `<defs>`,
+      `<linearGradient id="g" x1="0" y1="0" x2="0" y2="1">`,
+      `<stop offset="0" stop-color="#0a1024"/>`,
+      `<stop offset="1" stop-color="#15163a"/>`,
+      `</linearGradient>`,
+      `<radialGradient id="lh" cx="0.5" cy="0.5" r="0.5">`,
+      `<stop offset="0" stop-color="#ffd28a" stop-opacity="0.7"/>`,
+      `<stop offset="1" stop-color="#ffd28a" stop-opacity="0"/>`,
+      `</radialGradient>`,
+      `</defs>`,
+      `<rect width="100%" height="100%" fill="url(#g)"/>`,
+      `<g opacity="0.9">${path ? `<path d="${path}" stroke="rgba(255,210,138,0.55)" stroke-width="1.2" fill="none" stroke-linecap="round"/>` : ''}</g>`,
+      `<g>${dots}</g>`,
+      `<g font-family="Helvetica, Arial, sans-serif" fill="#f6e6c3">`,
+      `<text x="${pad}" y="${h - 18}" font-size="16">${escName}</text>`,
+      `<text x="${pad}" y="${h - 36}" font-size="10" letter-spacing="3" fill="#ffd28a" opacity="0.8">CLOUD LANTERN CARTOGRAPHER · 2026-05-09</text>`,
+      `</g>`,
+      `</svg>`
+    ].join('');
+  }
+
+  // ============================================================
+  //  Drawing
+  // ============================================================
+  function drawSceneTo(c, w, h, decor) {
+    // background gradient
+    const bg = c.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0a1024');
+    bg.addColorStop(1, '#15163a');
+    c.fillStyle = bg;
+    c.fillRect(0, 0, w, h);
+
+    // decorative starfield + soft glow (only on main canvas where we have it)
+    if (decor && stars.length) {
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        const tw = 0.6 + 0.4 * Math.sin(s.t);
+        c.globalAlpha = s.a * tw;
+        c.fillStyle = '#dfe8ff';
+        c.fillRect(s.x - s.r * 0.5, s.y - s.r * 0.5, s.r, s.r);
+      }
+      c.globalAlpha = 1;
+    } else {
+      // draw a few preview stars in the postcard
+      const seed = (lanterns.length + 7) * 9301;
+      const rng = rngFrom(seed);
+      for (let i = 0; i < 40; i++) {
+        c.globalAlpha = 0.18 + rng() * 0.4;
+        c.fillStyle = '#dfe8ff';
+        const sx = rng() * w, sy = rng() * h, sr = rng() * 1.2 + 0.3;
+        c.fillRect(sx - sr * 0.5, sy - sr * 0.5, sr, sr);
+      }
+      c.globalAlpha = 1;
+    }
+
+    // route line — quadratic-smooth polyline through lantern centers
+    if (lanterns.length >= 2) {
+      const scaleX = w / Math.max(1, W);
+      const scaleY = h / Math.max(1, H);
+      // for postcard, scale to fit padded region, otherwise draw 1:1
+      let mapX, mapY;
+      if (decor) {
+        mapX = (x) => x;
+        mapY = (y) => y;
+      } else {
+        const pad = 14;
+        const sx = (w - pad * 2) / Math.max(1, W);
+        const sy = (h - pad * 2) / Math.max(1, H);
+        const s  = Math.min(sx, sy);
+        const offX = (w - W * s) / 2;
+        const offY = (h - H * s) / 2;
+        mapX = (x) => offX + x * s;
+        mapY = (y) => offY + y * s;
+      }
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      // soft underglow
+      c.strokeStyle = 'rgba(255,210,138,0.18)';
+      c.lineWidth = decor ? 6 : 5;
+      strokePath(c, lanterns, mapX, mapY);
+      // crisp line
+      c.strokeStyle = 'rgba(255,210,138,0.65)';
+      c.lineWidth = decor ? 1.4 : 1.2;
+      strokePath(c, lanterns, mapX, mapY);
+    }
+
+    // lanterns
+    {
+      const pad = 14;
+      const sxF = (w - pad * 2) / Math.max(1, W);
+      const syF = (h - pad * 2) / Math.max(1, H);
+      const s   = decor ? 1 : Math.min(sxF, syF);
+      const offX = decor ? 0 : (w - W * s) / 2;
+      const offY = decor ? 0 : (h - H * s) / 2;
+      for (let i = 0; i < lanterns.length; i++) {
+        const L = lanterns[i];
+        const x = offX + L.x * s;
+        const y = offY + L.y * s;
+        const sz = (L.size || 10) * (decor ? 1 : Math.max(0.6, s));
+        // halo
+        const grd = c.createRadialGradient(x, y, 0, x, y, sz * 4);
+        grd.addColorStop(0,    'rgba(255,220,160,0.55)');
+        grd.addColorStop(0.35, 'rgba(255,180,99,0.20)');
+        grd.addColorStop(1,    'rgba(255,180,99,0)');
+        c.fillStyle = grd;
+        c.beginPath();
+        c.arc(x, y, sz * 4, 0, Math.PI * 2);
+        c.fill();
+        // body
+        c.fillStyle = '#fff4d8';
+        c.beginPath();
+        c.arc(x, y, Math.max(2, sz * 0.42), 0, Math.PI * 2);
+        c.fill();
+        // ring
+        c.strokeStyle = 'rgba(255,210,138,0.85)';
+        c.lineWidth = 1.1;
+        c.beginPath();
+        c.arc(x, y, Math.max(2.5, sz * 0.55), 0, Math.PI * 2);
+        c.stroke();
+      }
+    }
+  }
+
+  function strokePath(c, pts, mapX, mapY) {
+    if (pts.length < 2) return;
+    c.beginPath();
+    c.moveTo(mapX(pts[0].x), mapY(pts[0].y));
+    for (let i = 1; i < pts.length - 1; i++) {
+      const cx = (pts[i].x + pts[i + 1].x) / 2;
+      const cy = (pts[i].y + pts[i + 1].y) / 2;
+      c.quadraticCurveTo(mapX(pts[i].x), mapY(pts[i].y), mapX(cx), mapY(cy));
+    }
+    const last = pts[pts.length - 1];
+    c.lineTo(mapX(last.x), mapY(last.y));
+    c.stroke();
+  }
+
+  // ============================================================
+  //  Animation loop
+  // ============================================================
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    // gentle starfield twinkle
+    for (let i = 0; i < stars.length; i++) stars[i].t += dt * (0.6 + (i % 5) * 0.05);
+    // gentle lantern jitter
+    for (let i = 0; i < lanterns.length; i++) lanterns[i].jitter += dt * 0.8;
+
+    drawSceneTo(ctx, W, H, /*decor*/ true);
+    requestAnimationFrame(tick);
+  }
+
+  // ============================================================
+  //  Init
+  // ============================================================
+  function init() {
+    resize();
+    refreshName();
+    requestAnimationFrame(tick);
+  }
+  // Wait one frame so layout is ready
+  requestAnimationFrame(init);
+
+  // Hide hint after first interaction even if click isn't on canvas
+  document.addEventListener('keydown', () => hintEl.classList.add('hidden'), { once: true });
+})();
+</script>
+</body>
+</html>
