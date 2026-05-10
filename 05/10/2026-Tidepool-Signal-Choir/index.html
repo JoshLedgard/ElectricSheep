@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#06121a">
+<title>Tidepool Signal Choir</title>
+<style>
+  :root {
+    --bg-deep: #06121a;
+    --bg-mid: #0a2430;
+    --bg-shore: #103642;
+    --foam: #e6f6f5;
+    --stone-warm: #f4d59a;
+    --stone-cool: #9ad7d2;
+    --shell-pink: #ffb8b0;
+    --kelp: #5a8a6e;
+    --ink: #d6ecef;
+    --ink-dim: #6e96a0;
+    --pulse: #6dd6ff;
+    --pulse-warm: #ffd28a;
+    --pulse-rose: #ff9bb8;
+    --card-bg: rgba(8,18,24,0.92);
+    --card-border: rgba(120,200,210,0.25);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    flex: 0 0 auto;
+    padding: max(env(safe-area-inset-top), 14px) 16px 8px;
+    text-align: center;
+    position: relative;
+    z-index: 4;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+    color: var(--foam);
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+
+  /* ===== Stage ===== */
+  .stage {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+
+  /* ===== Choir card ===== */
+  .card {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    width: min(92%, 420px);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px 14px 10px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 3;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.4);
+  }
+  .card-label {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 4px;
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--foam);
+    line-height: 1.25;
+    letter-spacing: 0.005em;
+  }
+  .card-line {
+    font-size: 12.5px;
+    color: var(--ink);
+    opacity: 0.78;
+    margin-top: 5px;
+    line-height: 1.4;
+    font-style: italic;
+  }
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 9px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .card-meta .voices b {
+    color: var(--foam);
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  /* ===== Controls ===== */
+  .controls {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px max(env(safe-area-inset-bottom), 12px);
+    z-index: 4;
+  }
+  button {
+    flex: 1 1 auto;
+    min-height: 48px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(180,220,225,0.15);
+    border-radius: 12px;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 0 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  button:hover { background: rgba(140,210,220,0.08); border-color: rgba(180,220,225,0.3); }
+  button:active { transform: scale(0.97); }
+  button:focus-visible {
+    outline: 2px solid var(--pulse);
+    outline-offset: 2px;
+  }
+  button .glyph {
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    left: 50%;
+    top: 18%;
+    transform: translate(-50%, -8px);
+    background: rgba(20,40,46,0.95);
+    color: var(--foam);
+    padding: 9px 16px;
+    border-radius: 24px;
+    border: 1px solid var(--card-border);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ===== Sheet (Postcard) ===== */
+  .sheet {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,10,14,0.78);
+    z-index: 20;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .sheet.open { display: flex; }
+  .sheet-card {
+    width: min(96%, 460px);
+    margin-bottom: max(env(safe-area-inset-bottom), 14px);
+    background: linear-gradient(160deg, #0c2630, #09171f 70%);
+    border: 1px solid var(--card-border);
+    border-radius: 18px 18px 14px 14px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+    transform: translateY(20px);
+    animation: rise 0.32s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  @keyframes rise { to { transform: translateY(0); } }
+  .sheet-eyebrow {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .sheet-title {
+    font-size: 22px;
+    color: var(--foam);
+    margin-top: 6px;
+    line-height: 1.2;
+  }
+  .sheet-body {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px dashed rgba(180,220,225,0.2);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.18);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
+  .sheet-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .sheet-actions button { min-height: 44px; }
+
+  /* ===== Reduced motion ===== */
+  @media (prefers-reduced-motion: reduce) {
+    .sheet-card { animation: none; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header" role="banner">
+  <div class="eyebrow">Daily Surprise · May 10, 2026</div>
+  <h1>Tidepool Signal Choir</h1>
+  <div class="hint" id="hint">Tap a stone or shell to add a voice</div>
+</div>
+
+<div class="stage" id="stage" role="application" aria-label="Tidepool with tappable stones and shells">
+  <canvas id="sea" aria-hidden="true"></canvas>
+  <canvas id="ripples" aria-hidden="true"></canvas>
+  <canvas id="stones" aria-label="Voices"></canvas>
+
+  <div class="card" id="card" aria-live="polite" aria-atomic="true">
+    <div class="card-label">Tonight's choir</div>
+    <div class="card-title" id="choirName">A Quiet Tidepool, Listening</div>
+    <div class="card-line" id="choirLine">No voices yet — tap a stone to begin.</div>
+    <div class="card-meta">
+      <span class="voices"><b id="voiceCount">0</b>voices</span>
+      <span id="rhythmTag">silent</span>
+    </div>
+  </div>
+</div>
+
+<div class="controls" role="toolbar" aria-label="Choir controls">
+  <button id="btnHush" aria-label="Hush all voices">
+    <span class="glyph" aria-hidden="true">◌</span><span>Hush</span>
+  </button>
+  <button id="btnDawn" aria-label="Dawn — gentle random voices">
+    <span class="glyph" aria-hidden="true">☼</span><span>Dawn</span>
+  </button>
+  <button id="btnPostcard" aria-label="Open postcard with shareable text">
+    <span class="glyph" aria-hidden="true">✉</span><span>Postcard</span>
+  </button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet-card">
+    <div class="sheet-eyebrow">Postcard from the tidepool</div>
+    <div class="sheet-title" id="sheetTitle">—</div>
+    <div class="sheet-body" id="sheetBody">—</div>
+    <div class="sheet-actions">
+      <button id="btnCopy" aria-label="Copy postcard text">Copy text</button>
+      <button id="btnClose" aria-label="Close postcard">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===== Canvas setup =====
+  const stage = document.getElementById("stage");
+  const seaCv = document.getElementById("sea");
+  const ripCv = document.getElementById("ripples");
+  const stoneCv = document.getElementById("stones");
+  const seaCtx = seaCv.getContext("2d");
+  const ripCtx = ripCv.getContext("2d");
+  const stoneCtx = stoneCv.getContext("2d");
+
+  let W = 0, H = 0, DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    W = Math.max(1, Math.floor(r.width));
+    H = Math.max(1, Math.floor(r.height));
+    for (const cv of [seaCv, ripCv, stoneCv]) {
+      cv.width = Math.floor(W * DPR);
+      cv.height = Math.floor(H * DPR);
+      cv.style.width = W + "px";
+      cv.style.height = H + "px";
+      cv.getContext("2d").setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    layoutVoices();
+    drawSea();
+    drawStones();
+  }
+
+  // ===== Reduced motion =====
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ===== Voice definitions =====
+  // 7 voices: 4 stones, 3 shells. Each has an intrinsic period (in ms) creating a polyrhythm.
+  // Periods chosen as gentle, not-quite-aligning intervals (LCM is long → endless evolution).
+  const voiceDefs = [
+    { id: 0, kind: "stone",  label: "Big tide stone",   period: 4200, hue: 198, warm: false, name: "Tide stone" },
+    { id: 1, kind: "shell",  label: "Pearl shell",      period: 3100, hue: 38,  warm: true,  name: "Pearl shell" },
+    { id: 2, kind: "stone",  label: "Mossy boulder",    period: 5600, hue: 168, warm: false, name: "Mossy stone" },
+    { id: 3, kind: "shell",  label: "Coral whorl",      period: 2400, hue: 348, warm: true,  name: "Coral whorl" },
+    { id: 4, kind: "stone",  label: "Granite knuckle",  period: 6500, hue: 215, warm: false, name: "Granite knuckle" },
+    { id: 5, kind: "shell",  label: "Limpet cap",       period: 3700, hue: 56,  warm: true,  name: "Limpet cap" },
+    { id: 6, kind: "stone",  label: "River pebble",     period: 4900, hue: 178, warm: false, name: "River pebble" }
+  ];
+
+  // Voice runtime state
+  const voices = voiceDefs.map(v => ({
+    ...v,
+    active: false,
+    x: 0, y: 0, r: 0,
+    seed: Math.random() * 1000,
+    activatedAt: 0,
+    lastPulseAt: 0,
+    bob: Math.random() * Math.PI * 2
+  }));
+
+  // ===== Layout =====
+  // Arrange voices around an oval tidepool, scaled to viewport.
+  function layoutVoices() {
+    const cx = W / 2;
+    // Leave room above for header (already outside canvas) and below for the card.
+    const cardHeight = 120;
+    const usableTop = 18;
+    const usableBottom = H - cardHeight - 12;
+    const cy = (usableTop + usableBottom) / 2;
+    const radiusX = Math.min(W * 0.40, 220);
+    const radiusY = Math.min((usableBottom - usableTop) * 0.36, 170);
+    const stoneR = Math.max(28, Math.min(40, Math.min(W, H) * 0.072));
+    // Distribute around an ellipse, starting at top
+    const N = voices.length;
+    for (let i = 0; i < N; i++) {
+      const t = (-Math.PI / 2) + (i / N) * Math.PI * 2;
+      voices[i].x = cx + Math.cos(t) * radiusX;
+      voices[i].y = cy + Math.sin(t) * radiusY;
+      // Shells slightly smaller than stones
+      voices[i].r = voices[i].kind === "shell" ? stoneR * 0.78 : stoneR;
+    }
+    pool.cx = cx;
+    pool.cy = cy;
+    pool.rx = radiusX + stoneR * 1.1;
+    pool.ry = radiusY + stoneR * 1.1;
+  }
+
+  const pool = { cx: 0, cy: 0, rx: 0, ry: 0 };
+
+  // ===== Draw the tidepool background (static) =====
+  function drawSea() {
+    seaCtx.clearRect(0, 0, W, H);
+    // Deep gradient
+    const bg = seaCtx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#06121a");
+    bg.addColorStop(1, "#0a1f28");
+    seaCtx.fillStyle = bg;
+    seaCtx.fillRect(0, 0, W, H);
+
+    // Distant kelp/sand strokes (soft horizontal bands)
+    seaCtx.save();
+    seaCtx.globalAlpha = 0.18;
+    for (let i = 0; i < 6; i++) {
+      const y = (H * (0.18 + i * 0.13)) | 0;
+      const grad = seaCtx.createLinearGradient(0, y, W, y);
+      grad.addColorStop(0, "rgba(40,80,90,0)");
+      grad.addColorStop(0.5, "rgba(80,140,150,0.35)");
+      grad.addColorStop(1, "rgba(40,80,90,0)");
+      seaCtx.fillStyle = grad;
+      seaCtx.fillRect(0, y, W, 1);
+    }
+    seaCtx.restore();
+
+    // Pool: soft aquamarine ellipse
+    const pg = seaCtx.createRadialGradient(pool.cx, pool.cy, 4, pool.cx, pool.cy, Math.max(pool.rx, pool.ry));
+    pg.addColorStop(0, "rgba(60,160,170,0.45)");
+    pg.addColorStop(0.5, "rgba(30,90,110,0.30)");
+    pg.addColorStop(1, "rgba(10,30,40,0.0)");
+    seaCtx.fillStyle = pg;
+    seaCtx.beginPath();
+    seaCtx.ellipse(pool.cx, pool.cy, pool.rx * 1.15, pool.ry * 1.15, 0, 0, Math.PI * 2);
+    seaCtx.fill();
+
+    // Soft pool rim
+    seaCtx.save();
+    seaCtx.strokeStyle = "rgba(160,220,225,0.10)";
+    seaCtx.lineWidth = 1.5;
+    seaCtx.beginPath();
+    seaCtx.ellipse(pool.cx, pool.cy, pool.rx, pool.ry, 0, 0, Math.PI * 2);
+    seaCtx.stroke();
+    seaCtx.restore();
+
+    // Speckled sand dots (deterministic)
+    seaCtx.save();
+    let s = 12345;
+    function rnd() { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }
+    seaCtx.fillStyle = "rgba(180,210,215,0.18)";
+    for (let i = 0; i < 90; i++) {
+      const a = rnd() * Math.PI * 2;
+      const rr = Math.sqrt(rnd()) * Math.min(pool.rx, pool.ry) * 0.92;
+      const x = pool.cx + Math.cos(a) * rr * (pool.rx / Math.min(pool.rx, pool.ry));
+      const y = pool.cy + Math.sin(a) * rr * (pool.ry / Math.min(pool.rx, pool.ry));
+      const dot = rnd() * 1.2 + 0.3;
+      seaCtx.beginPath();
+      seaCtx.arc(x, y, dot, 0, Math.PI * 2);
+      seaCtx.fill();
+    }
+    seaCtx.restore();
+  }
+
+  // ===== Draw stones / shells layer =====
+  function drawStones(timeMs = 0) {
+    stoneCtx.clearRect(0, 0, W, H);
+
+    for (const v of voices) {
+      const bobY = reduceMotion ? 0 : Math.sin((timeMs * 0.001) + v.bob) * 1.2;
+      const x = v.x;
+      const y = v.y + bobY;
+      const r = v.r;
+
+      // Glow when active
+      if (v.active) {
+        const phase = ((timeMs - v.activatedAt) % v.period) / v.period; // 0..1
+        const glowAmp = 0.55 + 0.45 * Math.sin(phase * Math.PI * 2);
+        const gg = stoneCtx.createRadialGradient(x, y, r * 0.4, x, y, r * 2.1);
+        gg.addColorStop(0, `hsla(${v.hue}, 80%, 70%, ${0.32 * glowAmp})`);
+        gg.addColorStop(1, `hsla(${v.hue}, 80%, 70%, 0)`);
+        stoneCtx.fillStyle = gg;
+        stoneCtx.beginPath();
+        stoneCtx.arc(x, y, r * 2.1, 0, Math.PI * 2);
+        stoneCtx.fill();
+      }
+
+      // Body
+      if (v.kind === "stone") {
+        // Rounded stone with subtle highlight
+        const grad = stoneCtx.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.1, x, y, r);
+        if (v.active) {
+          grad.addColorStop(0, `hsl(${v.hue}, 50%, 78%)`);
+          grad.addColorStop(0.55, `hsl(${v.hue}, 35%, 45%)`);
+          grad.addColorStop(1, `hsl(${v.hue}, 30%, 22%)`);
+        } else {
+          grad.addColorStop(0, "hsl(200, 8%, 56%)");
+          grad.addColorStop(0.6, "hsl(200, 10%, 32%)");
+          grad.addColorStop(1, "hsl(200, 14%, 16%)");
+        }
+        stoneCtx.fillStyle = grad;
+        // Slightly irregular ellipse based on id
+        const sx = 1 + ((v.id * 13) % 7) * 0.012;
+        const sy = 1 - ((v.id * 11) % 5) * 0.018;
+        stoneCtx.beginPath();
+        stoneCtx.ellipse(x, y, r * sx, r * sy, ((v.id * 7) % 4) * 0.18, 0, Math.PI * 2);
+        stoneCtx.fill();
+        // Rim line
+        stoneCtx.strokeStyle = v.active
+          ? `hsla(${v.hue}, 70%, 80%, 0.6)`
+          : "rgba(180,210,215,0.16)";
+        stoneCtx.lineWidth = 1;
+        stoneCtx.stroke();
+      } else {
+        // Shell: scallop-like fan with inner ridges
+        const baseHue = v.hue;
+        const grad = stoneCtx.createRadialGradient(x - r * 0.35, y - r * 0.5, r * 0.1, x, y, r);
+        if (v.active) {
+          grad.addColorStop(0, `hsl(${baseHue}, 75%, 88%)`);
+          grad.addColorStop(0.6, `hsl(${baseHue}, 55%, 60%)`);
+          grad.addColorStop(1, `hsl(${baseHue}, 40%, 32%)`);
+        } else {
+          grad.addColorStop(0, "hsl(20, 12%, 78%)");
+          grad.addColorStop(0.6, "hsl(20, 14%, 50%)");
+          grad.addColorStop(1, "hsl(20, 16%, 26%)");
+        }
+        stoneCtx.fillStyle = grad;
+        stoneCtx.beginPath();
+        stoneCtx.ellipse(x, y, r * 1.05, r * 0.92, 0, 0, Math.PI * 2);
+        stoneCtx.fill();
+        // Ridges
+        stoneCtx.save();
+        stoneCtx.strokeStyle = v.active
+          ? `hsla(${baseHue}, 60%, 96%, 0.55)`
+          : "rgba(220,225,225,0.18)";
+        stoneCtx.lineWidth = 1;
+        stoneCtx.beginPath();
+        const ridges = 7;
+        for (let i = 0; i < ridges; i++) {
+          const a = (-Math.PI / 2) + (i / (ridges - 1) - 0.5) * Math.PI * 0.85;
+          stoneCtx.moveTo(x, y + r * 0.6);
+          stoneCtx.lineTo(x + Math.cos(a) * r * 0.95, y + Math.sin(a) * r * 0.85);
+        }
+        stoneCtx.stroke();
+        stoneCtx.restore();
+      }
+
+      // Active dot center
+      if (v.active) {
+        stoneCtx.beginPath();
+        stoneCtx.fillStyle = `hsla(${v.hue}, 90%, 92%, 0.9)`;
+        stoneCtx.arc(x, y, Math.max(2.5, r * 0.13), 0, Math.PI * 2);
+        stoneCtx.fill();
+      }
+    }
+  }
+
+  // ===== Ripples =====
+  // Each pulse is a ring expanding from a voice center. We render them on a
+  // dedicated canvas with a slow fade ("fade-rect" trick) so trails persist softly.
+  const ripples = []; // { x, y, born, hue, warm, life, maxR }
+
+  function spawnRipple(v, atMs) {
+    const maxR = Math.min(W, H) * 0.7;
+    ripples.push({
+      x: v.x,
+      y: v.y,
+      born: atMs,
+      hue: v.hue,
+      warm: v.warm,
+      life: 2400,
+      maxR
+    });
+    if (ripples.length > 80) ripples.splice(0, ripples.length - 80);
+  }
+
+  function drawRipples(timeMs) {
+    // Soft fade prior frame
+    ripCtx.save();
+    ripCtx.globalCompositeOperation = "destination-out";
+    ripCtx.fillStyle = reduceMotion ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.10)";
+    ripCtx.fillRect(0, 0, W, H);
+    ripCtx.restore();
+
+    ripCtx.save();
+    ripCtx.globalCompositeOperation = "lighter";
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const rp = ripples[i];
+      const t = (timeMs - rp.born) / rp.life; // 0..1
+      if (t >= 1) { ripples.splice(i, 1); continue; }
+      const ease = 1 - Math.pow(1 - t, 2.4);
+      const radius = rp.maxR * ease;
+      const alpha = (1 - t) * 0.55;
+      const lineW = (1 - t) * 3.8 + 0.7;
+      // Outer ring
+      ripCtx.beginPath();
+      ripCtx.lineWidth = lineW;
+      ripCtx.strokeStyle = `hsla(${rp.hue}, 85%, 70%, ${alpha})`;
+      ripCtx.arc(rp.x, rp.y, radius, 0, Math.PI * 2);
+      ripCtx.stroke();
+      // Inner softer ring
+      ripCtx.beginPath();
+      ripCtx.lineWidth = Math.max(0.4, lineW * 0.4);
+      ripCtx.strokeStyle = `hsla(${rp.hue}, 90%, 88%, ${alpha * 0.55})`;
+      ripCtx.arc(rp.x, rp.y, Math.max(0, radius - lineW * 1.2), 0, Math.PI * 2);
+      ripCtx.stroke();
+    }
+    ripCtx.restore();
+  }
+
+  // ===== Animation loop =====
+  let lastFrame = performance.now();
+
+  function frame(now) {
+    const dt = now - lastFrame;
+    lastFrame = now;
+
+    // Spawn ripples for active voices on each period boundary
+    for (const v of voices) {
+      if (!v.active) continue;
+      const elapsed = now - v.activatedAt;
+      const period = v.period;
+      // First pulse should fire shortly after activation; align to period
+      const k = Math.floor(elapsed / period);
+      const lastK = v.lastPulseAt;
+      if (k > lastK) {
+        spawnRipple(v, v.activatedAt + k * period);
+        v.lastPulseAt = k;
+      }
+    }
+
+    drawRipples(now);
+    drawStones(now);
+    requestAnimationFrame(frame);
+  }
+
+  // ===== Hit testing =====
+  function hitTest(x, y) {
+    // Iterate in reverse so latest-drawn wins (visually topmost)
+    for (let i = voices.length - 1; i >= 0; i--) {
+      const v = voices[i];
+      const dx = x - v.x, dy = y - v.y;
+      // Slightly larger hit radius for thumbs
+      const hit = v.r * 1.25;
+      if (dx * dx + dy * dy <= hit * hit) return v;
+    }
+    return null;
+  }
+
+  // ===== Toggle voice =====
+  function toggleVoice(v) {
+    const now = performance.now();
+    if (v.active) {
+      v.active = false;
+    } else {
+      v.active = true;
+      // Stagger activation slightly so multiple taps don't lock-step
+      v.activatedAt = now + (Math.random() * 220);
+      v.lastPulseAt = -1;
+      // Immediate visible kickoff: spawn a ripple right away, then period rules.
+      spawnRipple(v, now);
+      v.lastPulseAt = 0;
+      v.activatedAt = now; // Align so next pulse arrives one period later
+    }
+    updateChoir();
+  }
+
+  // ===== Pointer handling =====
+  // We listen on the topmost stones canvas (the others are aria-hidden).
+  let pointerDownAt = null;
+  let pointerStart = null;
+
+  stoneCv.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const rect = stoneCv.getBoundingClientRect();
+    pointerDownAt = performance.now();
+    pointerStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, { passive: false });
+
+  stoneCv.addEventListener("pointerup", (e) => {
+    if (!pointerStart) return;
+    const rect = stoneCv.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const dx = x - pointerStart.x, dy = y - pointerStart.y;
+    const moved = Math.sqrt(dx * dx + dy * dy);
+    const dt = performance.now() - pointerDownAt;
+    if (moved < 14 && dt < 700) {
+      const v = hitTest(x, y);
+      if (v) toggleVoice(v);
+    }
+    pointerDownAt = null;
+    pointerStart = null;
+  });
+
+  stoneCv.addEventListener("pointercancel", () => {
+    pointerDownAt = null;
+    pointerStart = null;
+  });
+
+  // Keyboard accessibility: number keys 1..7 toggle voices.
+  window.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "BUTTON") return;
+    const n = parseInt(e.key, 10);
+    if (!isNaN(n) && n >= 1 && n <= voices.length) {
+      toggleVoice(voices[n - 1]);
+    } else if (e.key.toLowerCase() === "h") {
+      hushAll();
+    } else if (e.key.toLowerCase() === "d") {
+      dawn();
+    }
+  });
+
+  // ===== Choir naming =====
+  // Deterministic name from active voice signature.
+  const NAME_OPENERS = [
+    "A Quiet", "A Slow", "A Half-Heard", "A Pocket", "A Patient",
+    "A Long", "A Folded", "A Borrowed", "A Soft", "A Distant"
+  ];
+  const NAME_NOUNS = [
+    "Tide Letter", "Reef Hymn", "Pool of Bells", "Pearl Round",
+    "Coral Vespers", "Saltwater Carol", "Shoreline Lullaby",
+    "Driftnote", "Lantern Tide", "Anemone Song", "Kelp Round",
+    "Sandglass Round"
+  ];
+  const NAME_TAILS = [
+    "for Two Stones", "in Three Voices", "for the Slow Hour",
+    "Before the Turning", "After the Last Gull", "for No One in Particular",
+    "in Borrowed Light", "Toward Morning", "Held in a Cupped Hand",
+    "Beneath a Quiet Moon"
+  ];
+  const LINES_BY_COUNT = {
+    0: ["The pool is glassy. Nothing has begun yet.", "Pebbles waiting to remember their notes."],
+    1: ["A single voice — a heartbeat, found.", "One ring widens. The pool listens carefully.", "Just one. Already enough."],
+    2: ["Two rings cross. Where they meet, the water brightens.", "A duet older than the tide.", "Two voices, leaning toward each other."],
+    3: ["Three rounds, layered like wet leaves.", "A small chorus of overlapping breath.", "Three voices weave a long, slow knot."],
+    4: ["A modest gathering — patient, polyrhythmic.", "Four voices keep their own time and never quite collide.", "The pool has filled with rings inside rings."],
+    5: ["Almost full now. Light pulses everywhere at once.", "A near-choir; the surface forgets where it began.", "Five rounds wash through each other like tides."],
+    6: ["Nearly the whole reef. The surface is a quiet brightness.", "Six rings — a small cathedral of overlapping waters."],
+    7: ["The whole tidepool, singing. Every rhythm in conversation.", "All seven voices — the pool keeps their secret time.", "A full round: tide, shell, and stone in one breath."]
+  };
+
+  function pick(arr, k) { return arr[((k % arr.length) + arr.length) % arr.length]; }
+
+  function signatureFromActive() {
+    let s = 0;
+    voices.forEach((v, i) => { if (v.active) s |= (1 << i); });
+    return s;
+  }
+
+  function makeName(sig, count) {
+    if (sig === 0) return "A Quiet Tidepool, Listening";
+    // Mix bits into a small hash
+    let h = sig;
+    h = (h ^ (h << 5)) >>> 0;
+    h = (h * 2654435761) >>> 0;
+    const open = pick(NAME_OPENERS, h);
+    const noun = pick(NAME_NOUNS, h >> 3);
+    const tail = pick(NAME_TAILS, h >> 7);
+    return `${open} ${noun} ${tail}`;
+  }
+
+  function makeLine(count, sig) {
+    const arr = LINES_BY_COUNT[count] || LINES_BY_COUNT[0];
+    let h = sig + count * 17;
+    h = (h ^ (h << 4)) >>> 0;
+    return pick(arr, h);
+  }
+
+  function rhythmTag(count) {
+    if (count === 0) return "silent";
+    if (count === 1) return "monad";
+    if (count === 2) return "duet";
+    if (count === 3) return "trio";
+    if (count <= 5) return "polyrhythm";
+    return "full choir";
+  }
+
+  function updateChoir() {
+    const active = voices.filter(v => v.active);
+    const count = active.length;
+    const sig = signatureFromActive();
+    const name = makeName(sig, count);
+    const line = makeLine(count, sig);
+    document.getElementById("choirName").textContent = name;
+    document.getElementById("choirLine").textContent = line;
+    document.getElementById("voiceCount").textContent = String(count);
+    document.getElementById("rhythmTag").textContent = rhythmTag(count);
+  }
+
+  // ===== Buttons =====
+  const toastEl = document.getElementById("toast");
+  let toastTimer = 0;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1400);
+  }
+
+  function hushAll() {
+    let any = false;
+    for (const v of voices) {
+      if (v.active) { v.active = false; any = true; }
+    }
+    if (any) {
+      // Soft fade existing ripples by clearing borns to past
+      for (const r of ripples) r.life = Math.min(r.life, 700);
+      toast("hushed");
+    }
+    updateChoir();
+  }
+
+  function dawn() {
+    // Activate a gentle 2–4 random voices, deactivate others
+    const target = 2 + Math.floor(Math.random() * 3); // 2..4
+    const order = voices.slice().sort(() => Math.random() - 0.5);
+    voices.forEach(v => v.active = false);
+    for (let i = 0; i < target; i++) {
+      const v = order[i];
+      v.active = true;
+      v.activatedAt = performance.now() + i * 220;
+      v.lastPulseAt = -1;
+    }
+    toast(target === 1 ? "one voice" : `${target} voices`);
+    updateChoir();
+  }
+
+  document.getElementById("btnHush").addEventListener("click", hushAll);
+  document.getElementById("btnDawn").addEventListener("click", dawn);
+
+  // ===== Postcard =====
+  const sheet = document.getElementById("sheet");
+  const sheetTitle = document.getElementById("sheetTitle");
+  const sheetBody = document.getElementById("sheetBody");
+  const btnCopy = document.getElementById("btnCopy");
+  const btnClose = document.getElementById("btnClose");
+  const btnPostcard = document.getElementById("btnPostcard");
+
+  function buildPostcardText() {
+    const active = voices.filter(v => v.active);
+    const name = document.getElementById("choirName").textContent;
+    const line = document.getElementById("choirLine").textContent;
+    const dateStr = "May 10, 2026";
+    const voiceLines = active.length
+      ? active.map(v => `· ${v.name} — every ${(v.period / 1000).toFixed(1)}s`).join("\n")
+      : "· (no voices — the pool is glass)";
+    return `Tidepool Signal Choir · ${dateStr}
+
+${name}
+${line}
+
+Voices:
+${voiceLines}
+
+— sent from a small offline tidepool`;
+  }
+
+  function openSheet() {
+    const active = voices.filter(v => v.active);
+    sheetTitle.textContent = document.getElementById("choirName").textContent;
+    sheetBody.textContent = buildPostcardText();
+    sheet.classList.add("open");
+    btnClose.focus();
+  }
+  function closeSheet() {
+    sheet.classList.remove("open");
+    btnPostcard.focus();
+  }
+
+  btnPostcard.addEventListener("click", openSheet);
+  btnClose.addEventListener("click", closeSheet);
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && sheet.classList.contains("open")) closeSheet();
+  });
+
+  btnCopy.addEventListener("click", async () => {
+    const txt = buildPostcardText();
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(txt);
+        ok = true;
+      }
+    } catch (e) { ok = false; }
+    if (!ok) {
+      // Fallback: select the body so user can copy manually
+      const range = document.createRange();
+      range.selectNodeContents(sheetBody);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      try { document.execCommand("copy"); ok = true; } catch (e) {}
+      sel.removeAllRanges();
+    }
+    toast(ok ? "copied" : "select & copy");
+  });
+
+  // ===== Init =====
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
+  resize();
+  updateChoir();
+  requestAnimationFrame((t) => { lastFrame = t; frame(t); });
+
+  // First-run nudge: gently dim hint after first tap
+  let firstTap = true;
+  stoneCv.addEventListener("pointerdown", () => {
+    if (firstTap) {
+      firstTap = false;
+      const h = document.getElementById("hint");
+      if (h) {
+        h.style.transition = "opacity 0.6s";
+        h.style.opacity = "0.4";
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
