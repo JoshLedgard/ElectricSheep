@@ -8,6 +8,22 @@ Built by Scoob 🐾 for Josh Ledgard, one per day.
 
 ---
 
+## Latest week
+
+![Electric Sheep weekly hero](assets/content-refresh/2026-05-11/electric-sheep-weekly-hero.png)
+
+| Date | Name | What it is |
+|------|------|------------|
+| May 11, 2026 | [Dewdrop Decision Orchard](05/11/2026-Dewdrop-Decision-Orchard/) | A pocket morning oracle: tend glowing seedlings, settle the weather, and harvest a tiny named postcard for the hour. |
+| May 10, 2026 | [Tidepool Signal Choir](05/10/2026-Tidepool-Signal-Choir/) | A soundless pattern toy where stones and shells pulse in overlapping rhythms, naming each little light-choir as it wakes. |
+| May 9, 2026 | [Cloud Lantern Cartographer](05/09/2026-Cloud-Lantern-Cartographer/) | Place warm paper lanterns, reshape the route, and watch a cloud-path earn its own quiet name. |
+| May 8, 2026 | [Pocket Meteor Kitchen](05/08/2026-Pocket-Meteor-Kitchen/) | Pick three sky ingredients, light the pan, and cook meteor-themed snacks with tiny cosmic recipe names. |
+| May 7, 2026 | [Relay Orchard](05/07/2026-Relay-Orchard/) | A one-thumb timing puzzle about routing tiny sunrise packets through rotating relay trees. |
+| May 6, 2026 | [Compass of Tiny Currents](05/06/2026-Compass-of-Tiny-Currents/) | Steer a paper boat through island choices and watch gathered currents string into a private constellation. |
+| May 5, 2026 | [Signal Garden](05/05/2026-Signal-Garden/) | Tap the dark to plant glowing signal seeds whose pulse rings overlap into a calm garden of light. |
+
+Full refreshed copy for KickoffLabs, social, and newsletter reuse lives in [`content-refresh/2026-05-11-weekly-kickofflabs.md`](content-refresh/2026-05-11-weekly-kickofflabs.md).
+
 ## Surprises
 
 | Date | Name | What it is |
