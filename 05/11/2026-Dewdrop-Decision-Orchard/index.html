@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1822">
+<title>Dewdrop Decision Orchard</title>
+<style>
+  :root {
+    --bg-0: #0a1018;
+    --bg-1: #0d1822;
+    --bg-2: #122230;
+    --ink: #d9e8ee;
+    --ink-soft: #93b0bd;
+    --ink-dim: #5a7886;
+    --grass: #1f3a2c;
+    --grass-glow: #3b8a64;
+    --dew: #b6e6ff;
+    --dew-warm: #ffe7b2;
+    --warm: #ffb469;
+    --misty: #c6d8e2;
+    --rain: #8fc6e6;
+    --breeze: #f0b7d4;
+    --rule: rgba(180,210,225,0.10);
+    --rule-hot: rgba(180,210,225,0.24);
+    --shadow: 0 14px 40px rgba(0,0,0,0.35);
+    --r-1: 10px;
+    --r-2: 18px;
+    --r-3: 26px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-0);
+    color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.5;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background:
+      radial-gradient(ellipse 100% 60% at 50% -10%, rgba(80,140,180,0.18), transparent 60%),
+      radial-gradient(ellipse 80% 50% at 50% 110%, rgba(40,80,60,0.35), transparent 65%),
+      linear-gradient(to bottom, var(--bg-0), var(--bg-1) 50%, var(--bg-2));
+    transition: background 1.2s ease;
+  }
+
+  /* Weather backgrounds */
+  body[data-weather="firstlight"] {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -8%, rgba(255,180,105,0.22), transparent 65%),
+      radial-gradient(ellipse 80% 50% at 50% 110%, rgba(40,80,60,0.40), transparent 65%),
+      linear-gradient(to bottom, #1a1612, #131a1f 55%, #0e1922);
+  }
+  body[data-weather="mist"] {
+    background:
+      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(198,216,226,0.18), transparent 65%),
+      radial-gradient(ellipse 80% 50% at 50% 110%, rgba(50,80,80,0.35), transparent 65%),
+      linear-gradient(to bottom, #161d22, #131c22 55%, #0d1820);
+  }
+  body[data-weather="rain"] {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% -10%, rgba(143,198,230,0.18), transparent 65%),
+      radial-gradient(ellipse 80% 50% at 50% 110%, rgba(40,70,90,0.40), transparent 65%),
+      linear-gradient(to bottom, #0c1620, #0c1822 55%, #0a1620);
+  }
+  body[data-weather="breeze"] {
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -8%, rgba(240,183,212,0.16), transparent 65%),
+      radial-gradient(ellipse 80% 50% at 50% 110%, rgba(60,90,80,0.35), transparent 65%),
+      linear-gradient(to bottom, #161821, #121a22 55%, #0d1822);
+  }
+
+  /* Header */
+  header {
+    padding: 24px 22px 8px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(1.4rem, 5.5vw, 1.8rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .hint {
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    max-width: 30ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Weather strip */
+  .weather {
+    margin: 14px 16px 4px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-2);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .weather:hover, .weather:focus-visible {
+    border-color: var(--rule-hot);
+    background: rgba(255,255,255,0.04);
+    outline: none;
+  }
+  .weather-icon {
+    width: 44px; height: 44px;
+    flex-shrink: 0;
+  }
+  .weather-meta { flex: 1; text-align: left; min-width: 0; }
+  .weather-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: 0.01em;
+  }
+  .weather-sub {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .weather-roll {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    border: 1px solid var(--rule);
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .weather-roll:hover, .weather-roll:focus-visible {
+    color: var(--ink);
+    border-color: var(--rule-hot);
+    outline: none;
+  }
+
+  /* Stage */
+  main {
+    flex: 1 1 auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 16px 8px;
+    min-height: 0;
+  }
+
+  .orchard {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1.05;
+    max-width: 460px;
+    max-height: 56svh;
+    margin: 0 auto;
+  }
+  .orchard svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  /* Sprouts */
+  .sprout {
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(.2,.7,.2,1);
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+  .sprout:focus-visible { outline: none; }
+  .sprout:focus-visible .sprout-halo {
+    stroke: var(--ink);
+    stroke-opacity: 0.9;
+    stroke-dasharray: 4 4;
+  }
+  .sprout-halo {
+    fill: transparent;
+    stroke: var(--rule);
+    stroke-width: 1.2;
+    transition: stroke 0.3s, stroke-opacity 0.3s;
+  }
+  .sprout-stem {
+    stroke: var(--grass);
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+    transition: stroke 0.5s;
+  }
+  .sprout-leaf {
+    fill: var(--grass);
+    transition: fill 0.5s, transform 0.6s cubic-bezier(.2,.7,.2,1);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .sprout-label {
+    fill: var(--ink-dim);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-anchor: middle;
+    transition: fill 0.4s;
+    pointer-events: none;
+    font-family: inherit;
+  }
+  .sprout-bulb {
+    transition: opacity 0.5s, transform 0.6s cubic-bezier(.2,.7,.2,1);
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .sprout.awake .sprout-stem { stroke: var(--grass-glow); }
+  .sprout.awake .sprout-leaf { fill: var(--grass-glow); }
+  .sprout.awake .sprout-label { fill: var(--ink); }
+  .sprout.awake .sprout-halo { stroke: var(--rule-hot); }
+  .sprout.awake .sprout-bulb { opacity: 1; }
+  .sprout.awake { transform: translateY(-2px); }
+
+  /* Dew animation */
+  .dew {
+    fill: var(--dew);
+    filter: drop-shadow(0 0 4px var(--dew));
+    opacity: 0;
+  }
+  body[data-weather="firstlight"] .dew { fill: var(--dew-warm); filter: drop-shadow(0 0 4px var(--dew-warm)); }
+  body[data-weather="mist"] .dew { fill: #d9eaf0; filter: drop-shadow(0 0 5px #d9eaf0); }
+  body[data-weather="rain"] .dew { fill: #b3d8ee; filter: drop-shadow(0 0 4px #b3d8ee); }
+  body[data-weather="breeze"] .dew { fill: #ffd6e8; filter: drop-shadow(0 0 4px #ffd6e8); }
+
+  .dew-path {
+    fill: none;
+    stroke: var(--dew);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-dasharray: 3 5;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  body[data-weather="firstlight"] .dew-path { stroke: var(--dew-warm); }
+  body[data-weather="mist"] .dew-path { stroke: #cfe1ea; }
+  body[data-weather="rain"] .dew-path { stroke: #a0c8e0; }
+  body[data-weather="breeze"] .dew-path { stroke: #f4c8de; }
+  .dew-path.active { opacity: 0.55; animation: dash 9s linear infinite; }
+
+  @keyframes dash {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -240; }
+  }
+
+  /* Sprout bulb glow when awake */
+  .sprout.awake .sprout-bulb circle { animation: pulse 4.4s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+  }
+
+  /* Weather overlay particles */
+  .weather-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .wp {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--ink-soft);
+    opacity: 0.18;
+    transition: opacity 0.6s;
+  }
+  body[data-weather="rain"] .wp {
+    width: 1.5px; height: 9px; border-radius: 1px;
+    background: var(--rain);
+    animation: drop 1.6s linear infinite;
+  }
+  body[data-weather="mist"] .wp {
+    width: 80px; height: 80px;
+    background: radial-gradient(circle, rgba(220,232,238,0.20), transparent 70%);
+    animation: drift 16s linear infinite;
+  }
+  body[data-weather="breeze"] .wp {
+    width: 4px; height: 4px;
+    background: var(--breeze);
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(45deg);
+    animation: blow 7s linear infinite;
+  }
+  body[data-weather="firstlight"] .wp {
+    width: 60px; height: 60px;
+    background: radial-gradient(circle, rgba(255,200,140,0.20), transparent 70%);
+    animation: bloom 9s ease-in-out infinite;
+  }
+
+  @keyframes drop {
+    from { transform: translateY(-30px); opacity: 0; }
+    20%  { opacity: 0.55; }
+    to   { transform: translateY(110%); opacity: 0; }
+  }
+  @keyframes drift {
+    from { transform: translate(-30%, 0); opacity: 0; }
+    50%  { opacity: 0.45; }
+    to   { transform: translate(60%, -10%); opacity: 0; }
+  }
+  @keyframes blow {
+    from { transform: translate(-30px, 0) rotate(45deg); opacity: 0; }
+    20%  { opacity: 0.65; }
+    to   { transform: translate(110%, 30px) rotate(45deg); opacity: 0; }
+  }
+  @keyframes bloom {
+    0%, 100% { transform: translateY(0); opacity: 0; }
+    50%      { transform: translateY(-10px); opacity: 0.55; }
+  }
+
+  /* Controls */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px 16px 18px;
+    flex-shrink: 0;
+  }
+  .controls button {
+    appearance: none;
+    border: 1px solid var(--rule);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 13px 14px;
+    border-radius: var(--r-1);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  }
+  .controls button:active { transform: translateY(1px); }
+  .controls button:hover, .controls button:focus-visible {
+    border-color: var(--rule-hot);
+    background: rgba(255,255,255,0.06);
+    outline: none;
+  }
+  .controls .primary {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, rgba(180,220,200,0.10), rgba(180,220,200,0.04));
+    border-color: rgba(180,220,200,0.30);
+    color: #e6f3eb;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .controls .primary:hover, .controls .primary:focus-visible {
+    border-color: rgba(180,220,200,0.55);
+    background: linear-gradient(180deg, rgba(180,220,200,0.16), rgba(180,220,200,0.06));
+  }
+  .controls .primary[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+  /* Postcard modal */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,14,20,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 20;
+    animation: fade 0.3s ease;
+  }
+  .scrim.open { display: flex; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    background: linear-gradient(180deg, #131e26, #0e1820);
+    border: 1px solid var(--rule-hot);
+    border-radius: var(--r-3);
+    padding: 28px 24px 22px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    animation: rise 0.5s cubic-bezier(.2,.7,.2,1);
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .card-mark {
+    font-size: 10px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+  }
+  .card-body {
+    margin-top: 16px;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    white-space: pre-line;
+  }
+  .card-meta {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .card-meta span { white-space: nowrap; }
+  .card-actions {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+  }
+  .card-actions button {
+    flex: 1;
+    appearance: none;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 12.5px;
+    padding: 11px 12px;
+    border-radius: var(--r-1);
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .card-actions button:hover, .card-actions button:focus-visible {
+    border-color: var(--rule-hot);
+    background: rgba(255,255,255,0.05);
+    outline: none;
+  }
+  .copied {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--grass-glow);
+    color: #0a1018;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+  }
+  .copied.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001s !important;
+    }
+    .dew-path.active { opacity: 0.4; }
+  }
+
+  /* Larger screens */
+  @media (min-width: 760px) {
+    body { background-size: cover; }
+    .orchard { max-width: 520px; max-height: 60svh; }
+    .controls { max-width: 520px; margin: 0 auto; }
+    .weather { max-width: 520px; margin-left: auto; margin-right: auto; }
+  }
+</style>
+</head>
+<body data-weather="firstlight">
+
+<header>
+  <div class="eyebrow">Daily surprise · May 11</div>
+  <h1>Dewdrop Decision Orchard</h1>
+  <p class="hint">Tend three seedlings, let the weather settle, then harvest the morning.</p>
+</header>
+
+<button class="weather" id="weather" aria-label="Weather. Tap to reroll." type="button">
+  <svg class="weather-icon" id="weather-icon" viewBox="0 0 64 64" aria-hidden="true">
+    <!-- filled by JS -->
+  </svg>
+  <div class="weather-meta">
+    <div class="weather-name" id="weather-name">First Light</div>
+    <div class="weather-sub" id="weather-sub">A slow amber sky.</div>
+  </div>
+  <span class="weather-roll">reroll</span>
+</button>
+
+<main>
+  <div class="orchard">
+    <div class="weather-particles" id="particles" aria-hidden="true"></div>
+    <svg viewBox="0 0 360 380" aria-label="Orchard with three seedlings" role="img">
+      <!-- Ground line -->
+      <path d="M 20 320 Q 180 305 340 320" stroke="rgba(150,180,170,0.12)" stroke-width="1" fill="none"/>
+
+      <!-- Dew paths between sprouts (drawn first so sprouts overlay) -->
+      <g id="dew-paths">
+        <path id="path-AB" class="dew-path" d="M 80 245 Q 180 180 280 245"/>
+        <path id="path-BC" class="dew-path" d="M 280 245 Q 230 320 180 320"/>
+        <path id="path-AC" class="dew-path" d="M 80 245 Q 130 320 180 320"/>
+      </g>
+
+      <!-- Sprout A: Lantern Sprig (top-left) -->
+      <g class="sprout" id="sprout-A" data-key="A" tabindex="0" role="switch" aria-checked="false" aria-label="Lantern Sprig, asleep">
+        <circle class="sprout-halo" cx="80" cy="245" r="52"/>
+        <!-- pot -->
+        <path d="M 65 270 L 95 270 L 92 290 L 68 290 Z" fill="#241a14" stroke="rgba(180,140,100,0.25)" stroke-width="1"/>
+        <!-- stem -->
+        <path class="sprout-stem" d="M 80 270 C 78 250, 84 235, 80 215"/>
+        <!-- leaves -->
+        <path class="sprout-leaf" d="M 80 240 C 64 232, 60 218, 70 214 C 75 226, 78 235, 80 240 Z"/>
+        <path class="sprout-leaf" d="M 80 226 C 96 220, 100 206, 90 202 C 85 214, 82 222, 80 226 Z"/>
+        <!-- lantern bulb -->
+        <g class="sprout-bulb">
+          <circle cx="80" cy="208" r="11" fill="rgba(255,210,140,0.85)" filter="url(#glow-A)"/>
+          <circle cx="80" cy="208" r="5" fill="#fff5dd"/>
+          <path d="M 80 197 L 80 191" stroke="rgba(255,210,140,0.7)" stroke-width="1.4" stroke-linecap="round"/>
+        </g>
+        <text class="sprout-label" x="80" y="306">Lantern</text>
+      </g>
+
+      <!-- Sprout B: Wander Vine (top-right) -->
+      <g class="sprout" id="sprout-B" data-key="B" tabindex="0" role="switch" aria-checked="false" aria-label="Wander Vine, asleep">
+        <circle class="sprout-halo" cx="280" cy="245" r="52"/>
+        <path d="M 265 270 L 295 270 L 292 290 L 268 290 Z" fill="#241a14" stroke="rgba(180,140,100,0.25)" stroke-width="1"/>
+        <path class="sprout-stem" d="M 280 270 C 286 252, 274 234, 282 218 C 290 208, 274 200, 282 192"/>
+        <path class="sprout-leaf" d="M 282 250 C 296 244, 302 232, 292 226 C 287 236, 284 244, 282 250 Z"/>
+        <path class="sprout-leaf" d="M 280 222 C 266 214, 262 200, 272 196 C 277 208, 280 218, 280 222 Z"/>
+        <g class="sprout-bulb">
+          <circle cx="282" cy="186" r="9" fill="rgba(180,230,200,0.85)" filter="url(#glow-B)"/>
+          <circle cx="282" cy="186" r="4" fill="#e8fff0"/>
+        </g>
+        <text class="sprout-label" x="280" y="306">Vine</text>
+      </g>
+
+      <!-- Sprout C: Echo Bell (bottom-center) -->
+      <g class="sprout" id="sprout-C" data-key="C" tabindex="0" role="switch" aria-checked="false" aria-label="Echo Bell, asleep">
+        <circle class="sprout-halo" cx="180" cy="320" r="52" transform="translate(0,-30)"/>
+        <path d="M 165 315 L 195 315 L 192 335 L 168 335 Z" fill="#241a14" stroke="rgba(180,140,100,0.25)" stroke-width="1"/>
+        <path class="sprout-stem" d="M 180 315 C 182 295, 176 280, 180 262"/>
+        <path class="sprout-leaf" d="M 180 295 C 164 287, 160 273, 170 269 C 175 281, 178 290, 180 295 Z"/>
+        <path class="sprout-leaf" d="M 180 280 C 196 274, 200 260, 190 256 C 185 268, 182 276, 180 280 Z"/>
+        <g class="sprout-bulb">
+          <path d="M 170 256 Q 180 240 190 256 Q 185 264 180 264 Q 175 264 170 256 Z" fill="rgba(200,200,255,0.85)" filter="url(#glow-C)"/>
+          <circle cx="180" cy="266" r="2.4" fill="#fff"/>
+        </g>
+        <text class="sprout-label" x="180" y="354">Bell</text>
+      </g>
+
+      <!-- Filters for soft glow -->
+      <defs>
+        <filter id="glow-A" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-B" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-C" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Dewdrops layer (drawn last so they crawl over paths) -->
+      <g id="dewdrops"></g>
+    </svg>
+  </div>
+</main>
+
+<div class="controls">
+  <button id="btn-hush" type="button">Hush all</button>
+  <button id="btn-tend" type="button">Tend all</button>
+  <button id="btn-harvest" class="primary" type="button">Harvest the morning</button>
+</div>
+
+<!-- Postcard scrim -->
+<div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-labelledby="card-title" aria-hidden="true">
+  <div class="card">
+    <div class="copied" id="copied">copied</div>
+    <div class="card-mark">Morning postcard</div>
+    <div class="card-title" id="card-title">—</div>
+    <div class="card-body" id="card-body">—</div>
+    <div class="card-meta" id="card-meta">—</div>
+    <div class="card-actions">
+      <button id="card-copy" type="button">Copy text</button>
+      <button id="card-close" type="button">Tuck away</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ----- State -----
+  const SPROUTS = [
+    { key: 'A', name: 'Lantern',  long: 'Lantern Sprig',  bit: 4, sense: 'attention' },
+    { key: 'B', name: 'Vine',     long: 'Wander Vine',    bit: 2, sense: 'motion'    },
+    { key: 'C', name: 'Bell',     long: 'Echo Bell',      bit: 1, sense: 'listening' }
+  ];
+
+  const WEATHERS = [
+    { key: 'firstlight', name: 'First Light', sub: 'A slow amber sky.',  index: 0 },
+    { key: 'mist',       name: 'Cool Mist',   sub: 'The orchard is quiet and silvered.', index: 1 },
+    { key: 'rain',       name: 'Quiet Rain',  sub: 'Steady drops, generous ground.', index: 2 },
+    { key: 'breeze',     name: 'Soft Breeze', sub: 'Petals and small intentions drift.', index: 3 }
+  ];
+
+  const state = {
+    awake: { A: false, B: false, C: false },
+    weather: WEATHERS[0]
+  };
+
+  // ----- Outcome generation (deterministic) -----
+  // Title is composed of one of three opening words for the sprout mask,
+  // followed by a closing noun chosen by weather. 8 masks * 4 weathers = 32 outcomes.
+
+  const TITLE_OPEN = {
+    0: ['The Quiet',     'A Held',      'A Patient'],     // none
+    1: ['A Listening',   'A Soft',      'An Echo'],       // C only
+    2: ['A Wandering',   'A Curious',   'A Threading'],   // B only
+    3: ['A Drifting',    'A Curling',   'An Outer'],      // B+C
+    4: ['A Lantern',     'A Watchful',  'A Tended'],      // A only
+    5: ['A Bright',      'A Warm',      'A Glowing'],     // A+C
+    6: ['A Mapped',      'A Stepping',  'A Sunward'],     // A+B
+    7: ['The Whole',     'A Full',      'A Tended']       // A+B+C
+  };
+
+  const TITLE_CLOSE = {
+    firstlight: ['Hour',    'Beginning', 'Sunrise',  'Threshold'],
+    mist:       ['Hush',    'Page',      'Pocket',   'Stillness'],
+    rain:       ['Refill',  'Refrain',   'Garden',   'Patience'],
+    breeze:     ['Drift',   'Errand',    'Walkabout','Window']
+  };
+
+  // Body lines: indexed by mask, then weather. Three short lines per entry.
+  // No real names, no addresses, nothing private.
+  const BODIES = {
+    0: { // none awake
+      firstlight: 'Nothing pressed yet. Let the day arrive in its own clothes. A short walk could be the whole project.',
+      mist:       'A morning for unhurried tea. The orchard is not asking anything of you. Hold the small.',
+      rain:       'The ground is doing the work. Read one slow chapter. Don’t pick the seedlings up to check.',
+      breeze:     'Open one window before answering anything. The air will sort some of it for you.'
+    },
+    1: { // Bell only — listening
+      firstlight: 'A morning to hear before deciding. Reply to the kindest message first. Carry a sentence you didn’t expect.',
+      mist:       'Listen the long way around. The thing under the thing wants saying. Wait for the slow voice.',
+      rain:       'The world is louder than it sounds. Make space for one small confession on the page.',
+      breeze:     'Catch the lighter notes today. Trust the laugh, follow the half-thought, leave a door open.'
+    },
+    2: { // Vine only — motion
+      firstlight: 'Step before strategy. A short loop outside redraws the whole map. Bring a pocket of nothing-to-prove.',
+      mist:       'A walk through the soft edges. The next move is shorter than you think. Choose the longer street home.',
+      rain:       'Boots and a pace. The body wants the puzzle solved with feet, not numbers.',
+      breeze:     'Follow whichever errand floats first. The route will earn the day. Don’t hurry the wandering.'
+    },
+    3: { // Vine + Bell
+      firstlight: 'A walk-and-talk hour. Move with someone, or just with the thought you keep dodging. Let the path tell you when.',
+      mist:       'Drift and listen at once. The quiet route is offering something. Notice what the air keeps repeating.',
+      rain:       'Step out under cover, ear open. Eavesdrop on your own quieter thoughts.',
+      breeze:     'A loose loop, a half-overheard line. The day will hand you a sentence if you stay in motion.'
+    },
+    4: { // Lantern only — attention
+      firstlight: 'One bright task, lit cleanly. Trim it to a single hour and a single page. Don’t braid it with anything.',
+      mist:       'Tend one small flame. Close the other tabs the way you’d close a kind door.',
+      rain:       'A long pour of attention on one good thing. The rain isn’t asking you to multitask.',
+      breeze:     'Choose the one thing you can carry. Set the rest down without explaining.'
+    },
+    5: { // Lantern + Bell
+      firstlight: 'A bright, listening hour. Tackle the email that needs a real ear, not a clever reply. Keep the lamp low.',
+      mist:       'Focused and soft. Read the long message all the way through, then answer in one breath.',
+      rain:       'Sit close to one careful thing. The right reply is half-listening, half-lit.',
+      breeze:     'A tended conversation. Let the answer come in two passes: hear it, then write it.'
+    },
+    6: { // Lantern + Vine
+      firstlight: 'Bring the bright task outside. Walk the problem until it cools. Decide on the return leg.',
+      mist:       'A mapped morning. Three small stops, one small purpose. The path is the plan.',
+      rain:       'Errands with intent. Each stop is a tiny decision. Let momentum do the heavy lifting.',
+      breeze:     'A sunward walk with a folder in hand. Bring the question along, set it down at the second corner.'
+    },
+    7: { // All three
+      firstlight: 'A full morning is offering itself. One bright task, one short walk, one honest conversation. In any order.',
+      mist:       'A whole-orchard hour. Tend, wander, listen — none of it has to be efficient to be right.',
+      rain:       'The full ritual. Slow start, real walk, true reply. Let the day be unhurried and complete.',
+      breeze:     'A tended, moving, listening kind of morning. The plan is having all three at once. Carry it lightly.'
+    }
+  };
+
+  // ----- Helpers -----
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+  function mask() {
+    return (state.awake.A ? 4 : 0) | (state.awake.B ? 2 : 0) | (state.awake.C ? 1 : 0);
+  }
+
+  function activeNames() {
+    return SPROUTS.filter(s => state.awake[s.key]).map(s => s.long);
+  }
+
+  function deterministicPick(arr, seed) {
+    // tiny deterministic hash
+    let h = 2166136261 >>> 0;
+    const str = String(seed);
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return arr[(h >>> 0) % arr.length];
+  }
+
+  function outcomeFor(m, w) {
+    const opens = TITLE_OPEN[m];
+    const closes = TITLE_CLOSE[w.key];
+    const open  = deterministicPick(opens,  'open-'  + m + '-' + w.key);
+    const close = deterministicPick(closes, 'close-' + m + '-' + w.key);
+    const title = open + ' ' + close;
+    const body = BODIES[m][w.key];
+    return { title, body };
+  }
+
+  // ----- Weather icon rendering -----
+  function renderWeatherIcon() {
+    const svg = $('#weather-icon');
+    const w = state.weather.key;
+    let inner = '';
+    if (w === 'firstlight') {
+      inner = `
+        <circle cx="32" cy="40" r="14" fill="#ffb469" opacity="0.85"/>
+        <path d="M 8 50 Q 32 38 56 50" stroke="rgba(255,200,140,0.5)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <g stroke="#ffd9a8" stroke-width="2" stroke-linecap="round">
+          <line x1="32" y1="14" x2="32" y2="20"/>
+          <line x1="14" y1="22" x2="18" y2="26"/>
+          <line x1="50" y1="22" x2="46" y2="26"/>
+        </g>`;
+    } else if (w === 'mist') {
+      inner = `
+        <path d="M 10 24 L 50 24" stroke="#c6d8e2" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+        <path d="M 14 32 L 54 32" stroke="#c6d8e2" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+        <path d="M 8 40 L 46 40"  stroke="#c6d8e2" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+        <path d="M 18 48 L 52 48" stroke="#c6d8e2" stroke-width="3" stroke-linecap="round" opacity="0.5"/>`;
+    } else if (w === 'rain') {
+      inner = `
+        <path d="M 14 26 Q 18 16 28 18 Q 38 12 44 22 Q 54 22 50 32 L 14 32 Q 8 30 14 26 Z" fill="rgba(180,205,220,0.6)"/>
+        <line x1="20" y1="38" x2="17" y2="48" stroke="#8fc6e6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="30" y1="38" x2="27" y2="50" stroke="#8fc6e6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="40" y1="38" x2="37" y2="48" stroke="#8fc6e6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="48" y1="40" x2="45" y2="50" stroke="#8fc6e6" stroke-width="2" stroke-linecap="round"/>`;
+    } else { // breeze
+      inner = `
+        <path d="M 8 22 Q 22 18 32 22 Q 44 22 42 30 Q 38 28 32 28 L 8 28 Z" fill="none" stroke="#f0b7d4" stroke-width="2" stroke-linecap="round"/>
+        <path d="M 10 36 Q 26 32 38 36 Q 52 36 50 44 Q 44 42 38 42 L 10 42 Z" fill="none" stroke="#f0b7d4" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="50" cy="18" r="2.2" fill="#f0b7d4"/>
+        <circle cx="20" cy="50" r="1.8" fill="#f0b7d4"/>`;
+    }
+    svg.innerHTML = inner;
+  }
+
+  // ----- Particles -----
+  function renderParticles() {
+    const wrap = $('#particles');
+    wrap.innerHTML = '';
+    const w = state.weather.key;
+    let n = 0;
+    if (w === 'rain')   n = 30;
+    if (w === 'mist')   n = 5;
+    if (w === 'breeze') n = 12;
+    if (w === 'firstlight') n = 6;
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.className = 'wp';
+      d.style.left  = (Math.random() * 100) + '%';
+      d.style.top   = (Math.random() * 100) + '%';
+      d.style.animationDelay = (-Math.random() * 8) + 's';
+      d.style.animationDuration = (3 + Math.random() * 6) + 's';
+      wrap.appendChild(d);
+    }
+  }
+
+  // ----- Dew paths + crawling dewdrops -----
+  function renderDewPaths() {
+    const a = state.awake;
+    const ab = a.A && a.B;
+    const bc = a.B && a.C;
+    const ac = a.A && a.C;
+    $('#path-AB').classList.toggle('active', ab);
+    $('#path-BC').classList.toggle('active', bc);
+    $('#path-AC').classList.toggle('active', ac);
+  }
+
+  // Dewdrop animation along active paths
+  let dewdrops = [];
+  function rebuildDewdrops() {
+    const layer = $('#dewdrops');
+    layer.innerHTML = '';
+    dewdrops = [];
+    const pairs = [
+      { key: 'AB', path: $('#path-AB'), on: state.awake.A && state.awake.B },
+      { key: 'BC', path: $('#path-BC'), on: state.awake.B && state.awake.C },
+      { key: 'AC', path: $('#path-AC'), on: state.awake.A && state.awake.C }
+    ];
+    pairs.forEach(p => {
+      if (!p.on) return;
+      // two crawling drops per pair, offset
+      for (let i = 0; i < 2; i++) {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('r', '2.4');
+        c.setAttribute('cx', '0');
+        c.setAttribute('cy', '0');
+        c.classList.add('dew');
+        c.style.opacity = '0.9';
+        layer.appendChild(c);
+        dewdrops.push({ el: c, path: p.path, t: i * 0.5, speed: 0.00018 + Math.random()*0.00006 });
+      }
+    });
+  }
+
+  let lastTs = 0;
+  function tick(ts) {
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(48, ts - lastTs);
+    lastTs = ts;
+    dewdrops.forEach(d => {
+      d.t += d.speed * dt;
+      if (d.t > 1) d.t -= 1;
+      if (d.path && d.path.getTotalLength) {
+        const len = d.path.getTotalLength();
+        const pt = d.path.getPointAtLength(d.t * len);
+        d.el.setAttribute('cx', pt.x);
+        d.el.setAttribute('cy', pt.y);
+      }
+    });
+    requestAnimationFrame(tick);
+  }
+
+  // ----- Sprout toggling -----
+  function setSprout(key, on) {
+    state.awake[key] = on;
+    const g = document.getElementById('sprout-' + key);
+    g.classList.toggle('awake', on);
+    g.setAttribute('aria-checked', on ? 'true' : 'false');
+    const s = SPROUTS.find(x => x.key === key);
+    g.setAttribute('aria-label', s.long + ', ' + (on ? 'awake' : 'asleep'));
+    renderDewPaths();
+    rebuildDewdrops();
+    updateHarvestButton();
+  }
+
+  function toggleSprout(key) {
+    setSprout(key, !state.awake[key]);
+  }
+
+  // ----- Weather control -----
+  function setWeather(idx) {
+    state.weather = WEATHERS[((idx % WEATHERS.length) + WEATHERS.length) % WEATHERS.length];
+    document.body.dataset.weather = state.weather.key;
+    $('#weather-name').textContent = state.weather.name;
+    $('#weather-sub').textContent = state.weather.sub;
+    renderWeatherIcon();
+    renderParticles();
+  }
+
+  function rerollWeather() {
+    // cycle next weather rather than random — feels less jarring
+    const cur = WEATHERS.findIndex(w => w.key === state.weather.key);
+    setWeather(cur + 1);
+  }
+
+  // ----- Harvest button state -----
+  function updateHarvestButton() {
+    // Harvest is always available (the empty-orchard outcome is itself a card)
+    $('#btn-harvest').disabled = false;
+  }
+
+  // ----- Postcard -----
+  let lastCard = null;
+
+  function harvest() {
+    const m = mask();
+    const out = outcomeFor(m, state.weather);
+    const active = activeNames();
+    const meta = [
+      state.weather.name,
+      active.length ? active.join(' + ') : 'no sprouts awake'
+    ];
+    lastCard = {
+      title: out.title,
+      body: out.body,
+      weather: state.weather.name,
+      sprouts: meta[1],
+      date: 'May 11, 2026'
+    };
+    $('#card-title').textContent = out.title;
+    $('#card-body').textContent = out.body;
+    $('#card-meta').innerHTML = meta.map(s => '<span>' + s + '</span>').join('');
+    openScrim();
+  }
+
+  function openScrim() {
+    const s = $('#scrim');
+    s.classList.add('open');
+    s.setAttribute('aria-hidden', 'false');
+    setTimeout(() => $('#card-close').focus(), 50);
+  }
+  function closeScrim() {
+    const s = $('#scrim');
+    s.classList.remove('open');
+    s.setAttribute('aria-hidden', 'true');
+  }
+
+  function copyCard() {
+    if (!lastCard) return;
+    const lines = [
+      'Dewdrop Decision Orchard — ' + lastCard.date,
+      '',
+      lastCard.title,
+      '',
+      lastCard.body,
+      '',
+      lastCard.weather + ' · ' + lastCard.sprouts
+    ];
+    const text = lines.join('\n');
+    const onOK = () => {
+      const c = $('#copied');
+      c.classList.add('show');
+      setTimeout(() => c.classList.remove('show'), 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onOK).catch(() => fallbackCopy(text, onOK));
+    } else {
+      fallbackCopy(text, onOK);
+    }
+  }
+  function fallbackCopy(text, cb) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); cb && cb(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  // ----- Wiring -----
+  function wire() {
+    SPROUTS.forEach(s => {
+      const el = document.getElementById('sprout-' + s.key);
+      el.addEventListener('click', () => toggleSprout(s.key));
+      el.addEventListener('keydown', e => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          toggleSprout(s.key);
+        }
+      });
+    });
+    $('#weather').addEventListener('click', rerollWeather);
+    $('#btn-hush').addEventListener('click', () => {
+      SPROUTS.forEach(s => setSprout(s.key, false));
+    });
+    $('#btn-tend').addEventListener('click', () => {
+      SPROUTS.forEach(s => setSprout(s.key, true));
+    });
+    $('#btn-harvest').addEventListener('click', harvest);
+    $('#card-close').addEventListener('click', closeScrim);
+    $('#card-copy').addEventListener('click', copyCard);
+    $('#scrim').addEventListener('click', e => {
+      if (e.target === $('#scrim')) closeScrim();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeScrim();
+      if (e.target && (e.target.tagName === 'BUTTON' || e.target.closest('.sprout'))) return;
+      if (e.key === '1') toggleSprout('A');
+      if (e.key === '2') toggleSprout('B');
+      if (e.key === '3') toggleSprout('C');
+      if (e.key && e.key.toLowerCase() === 'w') rerollWeather();
+      if (e.key && e.key.toLowerCase() === 'h') harvest();
+    });
+  }
+
+  // ----- Init -----
+  setWeather(0);
+  renderDewPaths();
+  rebuildDewdrops();
+  updateHarvestButton();
+  wire();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
