@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#e9dfc6" />
+<title>Morning Compass Cartographer · May 13, 2026</title>
+<style>
+  :root {
+    --paper: #efe4c8;
+    --paper-deep: #e2d3ad;
+    --paper-edge: #c8b585;
+    --ink: #2a2117;
+    --ink-soft: #6b5a44;
+    --ink-faint: rgba(42,33,23,0.18);
+    --rose: #8c2a1f;
+    --rose-soft: #c66a3d;
+    --teal: #2a6f6a;
+    --gold: #b88a2e;
+    --shadow: rgba(60,40,15,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(255,240,200,0.5), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 80% 100%, rgba(180,140,80,0.18), transparent 65%),
+      var(--paper);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    line-height: 1.4;
+    padding: 14px 14px calc(env(safe-area-inset-bottom) + 22px);
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  /* paper grain */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(120,90,40,0.04) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(120,90,40,0.03) 0 1px, transparent 1px 4px);
+    mix-blend-mode: multiply;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    text-align: center;
+    margin: 6px 0 14px;
+    z-index: 1;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 6.4vw, 1.9rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-style: italic;
+    color: var(--ink);
+  }
+  .tagline {
+    margin-top: 6px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.45;
+  }
+
+  .map-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+      inset 0 0 0 1px rgba(120,80,30,0.25),
+      inset 0 0 40px rgba(150,110,50,0.22),
+      0 8px 24px var(--shadow);
+    background: var(--paper-deep);
+    z-index: 1;
+    touch-action: none;
+  }
+  .map-wrap::after {
+    /* deckled edge vignette */
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(120,80,30,0.18) 100%);
+    pointer-events: none;
+  }
+  svg.map {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    user-select: none;
+  }
+
+  /* armed-state indicator on body wrap */
+  .map-wrap[data-armed="true"] svg.map {
+    cursor: crosshair;
+  }
+  .map-wrap[data-armed="true"]::before {
+    content: "tap the map to drop a landmark";
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(42,33,23,0.78);
+    color: #f3e8c8;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 999px;
+    z-index: 3;
+    pointer-events: none;
+    animation: nudge 1.6s ease-in-out infinite;
+  }
+  @keyframes nudge {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.95; }
+    50%      { transform: translateX(-50%) translateY(-2px); opacity: 0.75; }
+  }
+
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin: 12px 0 10px;
+    z-index: 1;
+    position: relative;
+  }
+  .stamp {
+    appearance: none;
+    border: 1px solid var(--ink-faint);
+    background: rgba(255,250,232,0.55);
+    border-radius: 12px;
+    padding: 10px 4px 8px;
+    min-height: 60px;
+    color: var(--ink);
+    font: inherit;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .stamp svg { width: 22px; height: 22px; }
+  .stamp:active { transform: scale(0.96); }
+  .stamp[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+  .stamp[aria-pressed="true"] svg path,
+  .stamp[aria-pressed="true"] svg circle,
+  .stamp[aria-pressed="true"] svg polyline { stroke: var(--paper); }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 8px;
+    margin: 4px 0 12px;
+    z-index: 1;
+    position: relative;
+  }
+  button.act {
+    appearance: none;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    font: inherit;
+    font-weight: 600;
+    font-style: italic;
+    font-size: 14px;
+    padding: 12px 8px;
+    border-radius: 10px;
+    min-height: 46px;
+    cursor: pointer;
+    transition: transform 120ms ease, opacity 120ms ease;
+  }
+  button.act.secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+  button.act:active { transform: scale(0.97); }
+  button.act:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .postcard {
+    position: relative;
+    margin-top: 6px;
+    padding: 18px 18px 16px;
+    border-radius: 12px;
+    background:
+      repeating-linear-gradient(135deg, rgba(180,140,80,0.05) 0 4px, transparent 4px 8px),
+      #f7ecd0;
+    border: 1px dashed rgba(80,60,20,0.45);
+    box-shadow: 0 6px 18px var(--shadow);
+    z-index: 1;
+  }
+  .stamp-corner {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 44px; height: 50px;
+    border: 1px dashed rgba(80,60,20,0.5);
+    border-radius: 4px;
+    display: grid; place-items: center;
+    background: rgba(255,250,232,0.6);
+    font-size: 20px;
+    color: var(--rose);
+    transform: rotate(2deg);
+  }
+  .postcard h2 {
+    font-style: italic;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    padding-right: 56px;
+    line-height: 1.2;
+  }
+  .postcard .route-line {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    padding-right: 56px;
+  }
+  .postcard p.body {
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .postcard .sig {
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border-top: 1px solid rgba(80,60,20,0.18);
+    padding-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .copy-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--ink-faint);
+    color: var(--ink);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    min-height: 32px;
+  }
+  .copy-btn:active { transform: scale(0.97); }
+  .copy-btn.copied {
+    background: var(--teal);
+    color: #f7ecd0;
+    border-color: var(--teal);
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin: 10px 0 4px;
+    z-index: 1;
+    position: relative;
+    line-height: 1.45;
+    font-style: italic;
+  }
+
+  /* compass dial inside the SVG handled with SVG; spinner overlay */
+  .compass-readout {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: rgba(255,250,232,0.7);
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .count-readout {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: rgba(255,250,232,0.7);
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  footer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    z-index: 1;
+    position: relative;
+    opacity: 0.8;
+  }
+
+  /* route fade-in */
+  .route-path {
+    stroke-dasharray: 1200;
+    stroke-dashoffset: 1200;
+    transition: stroke-dashoffset 1400ms ease;
+  }
+  .route-path.drawn { stroke-dashoffset: 0; }
+
+  /* landmark pop-in */
+  @keyframes pop {
+    0%   { transform: scale(0); opacity: 0; }
+    65%  { transform: scale(1.18); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .lm { transform-box: fill-box; transform-origin: center; animation: pop 360ms cubic-bezier(0.2, 1.4, 0.5, 1); }
+
+  @media (max-width: 360px) {
+    .stamp { font-size: 9.5px; min-height: 56px; }
+    .stamp svg { width: 20px; height: 20px; }
+    h1 { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Daily Surprise · May 13, 2026</div>
+    <h1>Morning Compass Cartographer</h1>
+    <p class="tagline">Drop a few small landmarks on the morning, spin the compass, and chart a fresh-start path home.</p>
+  </header>
+
+  <div class="map-wrap" id="mapWrap" data-armed="false">
+    <svg class="map" id="map" viewBox="0 0 400 400" aria-label="Abstract morning map">
+      <defs>
+        <radialGradient id="paperGrad" cx="50%" cy="40%" r="70%">
+          <stop offset="0%"  stop-color="#f7ecd0"/>
+          <stop offset="65%" stop-color="#e9dab2"/>
+          <stop offset="100%" stop-color="#d3bd87"/>
+        </radialGradient>
+        <linearGradient id="riverGrad" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#7fb8b3" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#2a6f6a" stop-opacity="0.45"/>
+        </linearGradient>
+        <pattern id="hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(120,80,30,0.18)" stroke-width="1"/>
+        </pattern>
+        <filter id="paperBlur" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="0.4"/>
+        </filter>
+      </defs>
+
+      <!-- map background -->
+      <rect x="0" y="0" width="400" height="400" fill="url(#paperGrad)"/>
+
+      <!-- soft contour rings -->
+      <g stroke="rgba(120,80,30,0.18)" fill="none" stroke-width="0.6">
+        <ellipse cx="120" cy="280" rx="78" ry="38"/>
+        <ellipse cx="120" cy="280" rx="55" ry="26"/>
+        <ellipse cx="120" cy="280" rx="32" ry="14"/>
+        <ellipse cx="295" cy="120" rx="70" ry="40"/>
+        <ellipse cx="295" cy="120" rx="48" ry="26"/>
+        <ellipse cx="295" cy="120" rx="26" ry="13"/>
+      </g>
+
+      <!-- meandering river -->
+      <path d="M -10 70 Q 80 110 140 90 T 280 180 T 410 230"
+            stroke="url(#riverGrad)" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <path d="M -10 70 Q 80 110 140 90 T 280 180 T 410 230"
+            stroke="rgba(245,235,200,0.45)" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-dasharray="2 4"/>
+
+      <!-- forest hatch patch -->
+      <path d="M 30 320 Q 70 290 110 320 T 200 340 L 200 395 L 30 395 Z"
+            fill="url(#hatch)" opacity="0.55"/>
+
+      <!-- small grove dots -->
+      <g fill="rgba(80,100,55,0.7)">
+        <circle cx="50"  cy="335" r="3"/>
+        <circle cx="70"  cy="345" r="2.5"/>
+        <circle cx="92"  cy="332" r="3.5"/>
+        <circle cx="120" cy="346" r="2.8"/>
+        <circle cx="150" cy="340" r="3.2"/>
+        <circle cx="178" cy="350" r="2.6"/>
+      </g>
+
+      <!-- decorative latitude/longitude marks -->
+      <g stroke="rgba(120,80,30,0.22)" stroke-width="0.5">
+        <line x1="0" y1="100" x2="400" y2="100" stroke-dasharray="2 6"/>
+        <line x1="0" y1="200" x2="400" y2="200" stroke-dasharray="2 6"/>
+        <line x1="0" y1="300" x2="400" y2="300" stroke-dasharray="2 6"/>
+        <line x1="100" y1="0" x2="100" y2="400" stroke-dasharray="2 6"/>
+        <line x1="200" y1="0" x2="200" y2="400" stroke-dasharray="2 6"/>
+        <line x1="300" y1="0" x2="300" y2="400" stroke-dasharray="2 6"/>
+      </g>
+
+      <!-- frame -->
+      <rect x="6" y="6" width="388" height="388" fill="none" stroke="rgba(80,55,20,0.4)" stroke-width="1.2"/>
+      <rect x="11" y="11" width="378" height="378" fill="none" stroke="rgba(80,55,20,0.22)" stroke-width="0.6"/>
+
+      <!-- route layer (drawn before landmarks) -->
+      <g id="routeLayer"></g>
+
+      <!-- landmarks layer -->
+      <g id="lmLayer"></g>
+
+      <!-- compass rose: in top-right corner, rotatable -->
+      <g id="compassGroup" transform="translate(335, 65)" style="cursor: grab;">
+        <circle r="34" fill="rgba(247,236,208,0.85)" stroke="rgba(80,55,20,0.55)" stroke-width="1"/>
+        <circle r="30" fill="none" stroke="rgba(80,55,20,0.18)" stroke-width="0.6"/>
+        <g id="compassRotor">
+          <!-- four-point star -->
+          <polygon points="0,-28 5,0 0,28 -5,0" fill="#8c2a1f" stroke="#2a2117" stroke-width="0.5"/>
+          <polygon points="-28,0 0,-5 28,0 0,5" fill="#efe4c8" stroke="#2a2117" stroke-width="0.5"/>
+          <!-- inset diamonds -->
+          <polygon points="0,-18 3,0 0,18 -3,0" fill="#2a2117"/>
+          <polygon points="-18,0 0,-3 18,0 0,3" fill="#6b5a44"/>
+          <!-- N marker -->
+          <text x="0" y="-30" text-anchor="middle" font-size="9" font-weight="700" fill="#8c2a1f" font-family="Georgia, serif">N</text>
+          <text x="32" y="2.5" text-anchor="middle" font-size="7" fill="#6b5a44" font-family="Georgia, serif">E</text>
+          <text x="0" y="36" text-anchor="middle" font-size="7" fill="#6b5a44" font-family="Georgia, serif">S</text>
+          <text x="-32" y="2.5" text-anchor="middle" font-size="7" fill="#6b5a44" font-family="Georgia, serif">W</text>
+        </g>
+        <circle r="2.2" fill="#2a2117"/>
+        <!-- invisible larger hit target -->
+        <circle r="42" fill="transparent" id="compassHit"/>
+      </g>
+    </svg>
+    <div class="compass-readout" id="compassReadout">Bearing N · 0°</div>
+    <div class="count-readout" id="countReadout">0 / 5 marks</div>
+  </div>
+
+  <div class="palette" role="group" aria-label="Landmark stamps">
+    <button class="stamp" data-kind="grove" aria-pressed="false" aria-label="Grove landmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2a2117" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 4 L7 13 L10 13 L6 19 L18 19 L14 13 L17 13 Z"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+      Grove
+    </button>
+    <button class="stamp" data-kind="well" aria-pressed="false" aria-label="Well landmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2a2117" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="14" r="6"/>
+        <path d="M6 14 L18 14"/>
+        <path d="M9 11 L9 6 L15 6 L15 11"/>
+        <line x1="12" y1="4" x2="12" y2="11"/>
+      </svg>
+      Well
+    </button>
+    <button class="stamp" data-kind="bridge" aria-pressed="false" aria-label="Bridge landmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2a2117" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16 Q12 6 21 16"/>
+        <path d="M3 16 L3 19 M21 16 L21 19"/>
+        <path d="M9 13 L9 16 M15 13 L15 16 M12 11.5 L12 16"/>
+      </svg>
+      Bridge
+    </button>
+    <button class="stamp" data-kind="hearth" aria-pressed="false" aria-label="Hearth landmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2a2117" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 20 L5 9 L12 4 L19 9 L19 20 Z"/>
+        <rect x="10" y="13" width="4" height="7"/>
+      </svg>
+      Hearth
+    </button>
+    <button class="stamp" data-kind="lantern" aria-pressed="false" aria-label="Lantern landmark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2a2117" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 6 L15 6 L17 11 L17 17 L7 17 L7 11 Z"/>
+        <path d="M12 3 L12 6"/>
+        <path d="M9 11 L15 11"/>
+      </svg>
+      Lantern
+    </button>
+  </div>
+
+  <div class="controls">
+    <button class="act" id="chartBtn" disabled>Chart route</button>
+    <button class="act secondary" id="randomBtn">Random</button>
+    <button class="act secondary" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="postcard" id="postcard" aria-live="polite">
+    <div class="stamp-corner" id="stampCorner">✦</div>
+    <h2 id="pcTitle">An unwritten morning</h2>
+    <div class="route-line" id="pcRoute">Drop three or more landmarks, then chart your route.</div>
+    <p class="body" id="pcBody">Each tap on the map plants a small place worth visiting. Spin the compass to choose where the morning begins; tap <em>Chart route</em> to watch the path unfold.</p>
+    <div class="sig">
+      <span id="pcSig">unsigned · awaiting cartographer</span>
+      <button class="copy-btn" id="copyBtn">Copy postcard</button>
+    </div>
+  </div>
+
+  <p class="hint">Tip: drag the compass rose to rotate which landmark the route begins at.</p>
+  <footer>self-contained · offline · no network</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const svg = document.getElementById("map");
+  const mapWrap = document.getElementById("mapWrap");
+  const lmLayer = document.getElementById("lmLayer");
+  const routeLayer = document.getElementById("routeLayer");
+  const palette = document.querySelectorAll(".stamp");
+  const chartBtn = document.getElementById("chartBtn");
+  const randomBtn = document.getElementById("randomBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const copyBtn = document.getElementById("copyBtn");
+  const compassReadout = document.getElementById("compassReadout");
+  const countReadout = document.getElementById("countReadout");
+  const compassRotor = document.getElementById("compassRotor");
+  const compassGroup = document.getElementById("compassGroup");
+  const compassHit = document.getElementById("compassHit");
+  const pcTitle = document.getElementById("pcTitle");
+  const pcRoute = document.getElementById("pcRoute");
+  const pcBody = document.getElementById("pcBody");
+  const pcSig = document.getElementById("pcSig");
+  const stampCorner = document.getElementById("stampCorner");
+
+  const MAX_LANDMARKS = 5;
+  const MIN_LANDMARKS = 3;
+
+  // ------------------------------------------------------------------
+  // Landmark definitions
+  // ------------------------------------------------------------------
+  const KINDS = {
+    grove:   { fill: "#4f7048", ink: "#2a2117", glyph: "grove",   adjectives: ["leaf-quiet", "rustling", "shadow-cool", "moss-soft"] },
+    well:    { fill: "#2a6f6a", ink: "#f7ecd0", glyph: "well",    adjectives: ["deep-still", "echo-bright", "cold-clear", "patient"] },
+    bridge:  { fill: "#b88a2e", ink: "#2a2117", glyph: "bridge",  adjectives: ["arching", "stitching", "low-and-sure", "creak-warm"] },
+    hearth:  { fill: "#8c2a1f", ink: "#f7ecd0", glyph: "hearth",  adjectives: ["smoke-sweet", "tended", "lamp-bright", "kettle-ready"] },
+    lantern: { fill: "#c66a3d", ink: "#2a2117", glyph: "lantern", adjectives: ["paper-glow", "low-burning", "waking", "watchful"] }
+  };
+
+  const FIRST_NAMES = ["Mossy", "Honey", "Tin", "Salt", "Wren", "Pebble", "Birch", "Linen", "Slate", "Plum", "Quiet", "Reed", "Ember", "Snow", "Glass", "Otter"];
+  const LAST_NAMES = ["Crossing", "Hollow", "Bend", "Crook", "Step", "Hush", "Reach", "Knot", "Hill", "Run", "Shoulder", "Threshold", "Cove", "Pass", "Mile", "Edge"];
+
+  function pick(arr, rng=Math.random) { return arr[Math.floor(rng()*arr.length)]; }
+  function namedPlace(kind) {
+    const base = pick(FIRST_NAMES) + " " + pick(LAST_NAMES);
+    return base;
+  }
+
+  // ------------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------------
+  let armedKind = null;       // which stamp is currently active
+  let landmarks = [];         // {x, y, kind, name}
+  let bearing = 0;            // compass rotation in degrees, 0 = N up
+  let charted = false;        // whether a route is currently drawn
+
+  // ------------------------------------------------------------------
+  // Stamp arming
+  // ------------------------------------------------------------------
+  palette.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const kind = btn.dataset.kind;
+      if (armedKind === kind) {
+        disarm();
+      } else {
+        arm(kind);
+      }
+    });
+  });
+
+  function arm(kind) {
+    armedKind = kind;
+    palette.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+    mapWrap.dataset.armed = "true";
+  }
+  function disarm() {
+    armedKind = null;
+    palette.forEach(b => b.setAttribute("aria-pressed", "false"));
+    mapWrap.dataset.armed = "false";
+  }
+
+  // ------------------------------------------------------------------
+  // Map tapping
+  // ------------------------------------------------------------------
+  function svgPoint(evt) {
+    const pt = svg.createSVGPoint();
+    let clientX, clientY;
+    if (evt.touches && evt.touches.length) {
+      clientX = evt.touches[0].clientX;
+      clientY = evt.touches[0].clientY;
+    } else if (evt.changedTouches && evt.changedTouches.length) {
+      clientX = evt.changedTouches[0].clientX;
+      clientY = evt.changedTouches[0].clientY;
+    } else {
+      clientX = evt.clientX;
+      clientY = evt.clientY;
+    }
+    pt.x = clientX; pt.y = clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  svg.addEventListener("pointerdown", (evt) => {
+    // Ignore taps on compass — handled by compass listeners separately
+    if (evt.target && (evt.target.closest && evt.target.closest("#compassGroup"))) return;
+    if (!armedKind) return;
+    if (landmarks.length >= MAX_LANDMARKS) {
+      disarm();
+      return;
+    }
+    const p = svgPoint(evt);
+    // clamp to inside the framed area
+    const x = Math.max(22, Math.min(378, p.x));
+    const y = Math.max(22, Math.min(378, p.y));
+    addLandmark(x, y, armedKind);
+    // auto-disarm when we hit max
+    if (landmarks.length >= MAX_LANDMARKS) disarm();
+  });
+
+  function addLandmark(x, y, kind) {
+    const name = namedPlace(kind);
+    landmarks.push({ x, y, kind, name });
+    renderLandmark(landmarks[landmarks.length - 1], landmarks.length - 1);
+    updateCounts();
+    clearRoute();
+    refreshPostcard();
+  }
+
+  function renderLandmark(lm, idx) {
+    const k = KINDS[lm.kind];
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "lm");
+    g.setAttribute("transform", `translate(${lm.x}, ${lm.y})`);
+    g.setAttribute("data-idx", idx);
+
+    // soft halo
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    halo.setAttribute("r", "14");
+    halo.setAttribute("fill", k.fill);
+    halo.setAttribute("fill-opacity", "0.18");
+    g.appendChild(halo);
+
+    // pin disc
+    const disc = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    disc.setAttribute("r", "9");
+    disc.setAttribute("fill", k.fill);
+    disc.setAttribute("stroke", "#2a2117");
+    disc.setAttribute("stroke-width", "1");
+    g.appendChild(disc);
+
+    // glyph
+    const glyph = makeGlyph(lm.kind, k.ink);
+    g.appendChild(glyph);
+
+    // tiny number label
+    const num = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    num.setAttribute("x", "11");
+    num.setAttribute("y", "-9");
+    num.setAttribute("font-size", "9");
+    num.setAttribute("font-weight", "700");
+    num.setAttribute("font-family", "Georgia, serif");
+    num.setAttribute("fill", "#2a2117");
+    num.textContent = idx + 1;
+    g.appendChild(num);
+
+    lmLayer.appendChild(g);
+  }
+
+  function makeGlyph(kind, color) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("stroke", color);
+    g.setAttribute("stroke-width", "1");
+    g.setAttribute("stroke-linecap", "round");
+    g.setAttribute("stroke-linejoin", "round");
+    g.setAttribute("fill", "none");
+
+    const make = (tag, attrs) => {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    };
+
+    if (kind === "grove") {
+      g.appendChild(make("path", { d: "M 0 -4 L -3 2 L -1 2 L -2 5 L 2 5 L 1 2 L 3 2 Z", fill: color, "fill-opacity":"0.85", stroke:"none" }));
+    } else if (kind === "well") {
+      g.appendChild(make("circle", { cx: 0, cy: 1, r: 3.2 }));
+      g.appendChild(make("line", { x1: -3.2, y1: 1, x2: 3.2, y2: 1 }));
+    } else if (kind === "bridge") {
+      g.appendChild(make("path", { d: "M -4 2 Q 0 -3 4 2" }));
+      g.appendChild(make("line", { x1: -4, y1: 2, x2: -4, y2: 4 }));
+      g.appendChild(make("line", { x1: 4, y1: 2, x2: 4, y2: 4 }));
+    } else if (kind === "hearth") {
+      g.appendChild(make("path", { d: "M -3.5 4 L -3.5 -1 L 0 -4 L 3.5 -1 L 3.5 4 Z" }));
+      g.appendChild(make("rect", { x: -1.2, y: 1, width: 2.4, height: 3 }));
+    } else if (kind === "lantern") {
+      g.appendChild(make("path", { d: "M -2.5 -2 L 2.5 -2 L 3.5 1.5 L 3.5 4 L -3.5 4 L -3.5 1.5 Z" }));
+      g.appendChild(make("line", { x1: 0, y1: -4, x2: 0, y2: -2 }));
+    }
+    return g;
+  }
+
+  function clearLandmarks() {
+    landmarks = [];
+    while (lmLayer.firstChild) lmLayer.removeChild(lmLayer.firstChild);
+    updateCounts();
+    clearRoute();
+    refreshPostcard();
+  }
+
+  function updateCounts() {
+    countReadout.textContent = `${landmarks.length} / ${MAX_LANDMARKS} marks`;
+    chartBtn.disabled = landmarks.length < MIN_LANDMARKS;
+  }
+
+  // ------------------------------------------------------------------
+  // Compass interaction
+  // ------------------------------------------------------------------
+  let compassDragging = false;
+  let compassDragStartAngle = 0;
+  let compassDragStartBearing = 0;
+
+  // The compass group is translated to (335,65) within the 400x400 viewBox.
+  // We need pointer position relative to that center in client coords.
+  function compassAngleFromEvent(evt) {
+    const rect = compassHit.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    // 0deg = up (north), positive = clockwise
+    return Math.atan2(dx, -dy) * 180 / Math.PI;
+  }
+
+  function setBearing(deg) {
+    // normalize to [-180, 180]
+    deg = ((deg + 180) % 360 + 360) % 360 - 180;
+    bearing = deg;
+    compassRotor.setAttribute("transform", `rotate(${-deg})`);
+    const cardinal = bearingCardinal(deg);
+    const rounded = Math.round(((deg % 360) + 360) % 360);
+    compassReadout.textContent = `Bearing ${cardinal} · ${rounded}°`;
+    if (charted) drawRoute(); // re-chart from new start
+    if (landmarks.length) refreshPostcard();
+  }
+
+  function bearingCardinal(deg) {
+    const d = ((deg % 360) + 360) % 360;
+    const labels = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+    return labels[Math.round(d / 22.5) % 16];
+  }
+
+  function startCompassDrag(evt) {
+    evt.preventDefault();
+    compassDragging = true;
+    compassGroup.style.cursor = "grabbing";
+    compassDragStartAngle = compassAngleFromEvent(evt);
+    compassDragStartBearing = bearing;
+  }
+  function moveCompassDrag(evt) {
+    if (!compassDragging) return;
+    evt.preventDefault();
+    const a = compassAngleFromEvent(evt);
+    const delta = a - compassDragStartAngle;
+    setBearing(compassDragStartBearing + delta);
+  }
+  function endCompassDrag() {
+    compassDragging = false;
+    compassGroup.style.cursor = "grab";
+  }
+
+  compassHit.addEventListener("pointerdown", startCompassDrag);
+  window.addEventListener("pointermove", moveCompassDrag);
+  window.addEventListener("pointerup", endCompassDrag);
+  window.addEventListener("pointercancel", endCompassDrag);
+
+  // ------------------------------------------------------------------
+  // Routing
+  // ------------------------------------------------------------------
+  // Order landmarks by angle from centroid, starting from current bearing.
+  function orderForRoute() {
+    if (landmarks.length < 2) return landmarks.slice();
+    const cx = landmarks.reduce((s, l) => s + l.x, 0) / landmarks.length;
+    const cy = landmarks.reduce((s, l) => s + l.y, 0) / landmarks.length;
+    const withAngle = landmarks.map((l, i) => {
+      const a = Math.atan2(l.x - cx, -(l.y - cy)) * 180 / Math.PI;
+      let rel = a - bearing;
+      rel = ((rel + 180) % 360 + 360) % 360;
+      return { lm: l, originalIdx: i, rel };
+    });
+    withAngle.sort((a, b) => a.rel - b.rel);
+    return withAngle.map(w => w.lm);
+  }
+
+  function drawRoute() {
+    clearRoute();
+    if (landmarks.length < MIN_LANDMARKS) return;
+    const ordered = orderForRoute();
+    const pts = ordered.map(l => [l.x, l.y]);
+    pts.push(pts[0]); // close the loop
+
+    // Build smooth path with quadratic curves through midpoints
+    let d = `M ${pts[0][0]} ${pts[0][1]} `;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[i + 1];
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      // slight curve: pull control point perpendicular
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const perpX = -dy / len, perpY = dx / len;
+      const curvature = Math.min(18, len * 0.18);
+      const cx = mx + perpX * curvature;
+      const cy = my + perpY * curvature;
+      d += `Q ${cx} ${cy} ${x2} ${y2} `;
+    }
+
+    const shadow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shadow.setAttribute("d", d);
+    shadow.setAttribute("fill", "none");
+    shadow.setAttribute("stroke", "rgba(80,55,20,0.18)");
+    shadow.setAttribute("stroke-width", "5");
+    shadow.setAttribute("stroke-linecap", "round");
+    shadow.setAttribute("stroke-linejoin", "round");
+    shadow.setAttribute("transform", "translate(1.5, 2)");
+    routeLayer.appendChild(shadow);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#8c2a1f");
+    path.setAttribute("stroke-width", "2.4");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    path.setAttribute("stroke-dasharray", "6 5");
+    path.setAttribute("class", "route-path");
+    routeLayer.appendChild(path);
+
+    // start marker
+    const start = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    start.setAttribute("cx", pts[0][0]);
+    start.setAttribute("cy", pts[0][1]);
+    start.setAttribute("r", "3.2");
+    start.setAttribute("fill", "#8c2a1f");
+    start.setAttribute("stroke", "#f7ecd0");
+    start.setAttribute("stroke-width", "1.2");
+    routeLayer.appendChild(start);
+
+    // animate
+    requestAnimationFrame(() => path.classList.add("drawn"));
+    charted = true;
+    refreshPostcard(ordered);
+  }
+
+  function clearRoute() {
+    while (routeLayer.firstChild) routeLayer.removeChild(routeLayer.firstChild);
+    charted = false;
+  }
+
+  chartBtn.addEventListener("click", () => {
+    drawRoute();
+  });
+
+  // ------------------------------------------------------------------
+  // Postcard generation
+  // ------------------------------------------------------------------
+  const MORNING_VERBS = ["walks", "wanders", "begins", "opens", "loops", "circles", "drifts", "sets out"];
+  const MORNING_MOODS = ["a clear-headed start", "a quiet reset", "a folded-clean page", "a kettle-warm beginning", "a sunlit recompose", "a slow-tea morning", "a clean-step departure", "a long-breath opening", "a careful clearing"];
+  const ROUTE_NAMES_A = ["The", "Little", "Slow", "Long", "First", "Quiet", "Bright", "Folded", "Lantern", "Morning"];
+  const ROUTE_NAMES_B = ["Loop", "Round", "Walk", "Circuit", "Bend", "Reach", "Step", "Wander", "Mile", "Survey"];
+  const ROUTE_NAMES_C = ["of Small Lights", "by the River", "through Tin Hollow", "before Breakfast", "into the Hush", "across the Bend", "for a Fresh Start", "of the Open Window", "by Lantern Light", "for the Morning"];
+
+  function refreshPostcard(ordered) {
+    if (landmarks.length === 0) {
+      pcTitle.textContent = "An unwritten morning";
+      pcRoute.textContent = "Drop three or more landmarks, then chart your route.";
+      pcBody.textContent = "Each tap on the map plants a small place worth visiting. Spin the compass to choose where the morning begins; tap Chart route to watch the path unfold.";
+      pcSig.textContent = "unsigned · awaiting cartographer";
+      stampCorner.textContent = "✦";
+      return;
+    }
+    if (landmarks.length < MIN_LANDMARKS) {
+      pcTitle.textContent = "A morning, half-mapped";
+      pcRoute.textContent = `${landmarks.length} landmark${landmarks.length === 1 ? "" : "s"} placed · ${MIN_LANDMARKS - landmarks.length} more to chart`;
+      pcBody.textContent = "The page is taking shape. Drop a couple more small places — a grove, a well, a hearth — and the route will be ready to draw.";
+      pcSig.textContent = "drafting · " + bearingCardinal(bearing).toLowerCase();
+      stampCorner.textContent = "✎";
+      return;
+    }
+    if (!ordered) ordered = orderForRoute();
+    const seed = hashSeed(ordered, bearing);
+    const rng = mulberry32(seed);
+
+    const routeName = `${pickRng(ROUTE_NAMES_A, rng)} ${pickRng(ROUTE_NAMES_B, rng)} ${pickRng(ROUTE_NAMES_C, rng)}`;
+    const verb = pickRng(MORNING_VERBS, rng);
+    const mood = pickRng(MORNING_MOODS, rng);
+
+    // Build prose
+    const stopParts = ordered.map(l => {
+      const adj = pickRng(KINDS[l.kind].adjectives, rng);
+      return `the ${adj} ${l.kind}`;
+    });
+    const routeLine = ordered.map(l => l.name).join(" → ") + " → " + ordered[0].name;
+
+    let body;
+    if (ordered.length === 3) {
+      body = `From ${stopParts[0]}, the route ${verb} ${bearingDirection(bearing)} toward ${stopParts[1]}, gathers at ${stopParts[2]}, and folds home. A loop sized for ${mood}.`;
+    } else if (ordered.length === 4) {
+      body = `Begin at ${stopParts[0]}. The route ${verb} ${bearingDirection(bearing)} past ${stopParts[1]}, pauses near ${stopParts[2]}, then leans through ${stopParts[3]} and rejoins itself. Sized for ${mood}.`;
+    } else {
+      body = `Five small places, one short loop. Begin at ${stopParts[0]}; the route ${verb} ${bearingDirection(bearing)} through ${stopParts[1]}, ${stopParts[2]}, and ${stopParts[3]} before settling at ${stopParts[4]} and returning. A morning sized for ${mood}.`;
+    }
+
+    pcTitle.textContent = routeName;
+    pcRoute.textContent = routeLine;
+    pcBody.textContent = body;
+    pcSig.textContent = `cartographer's mark · bearing ${bearingCardinal(bearing).toLowerCase()} · ${ordered.length} stops`;
+    stampCorner.textContent = stampGlyphFor(ordered[0].kind);
+  }
+
+  function stampGlyphFor(kind) {
+    if (kind === "grove")   return "♣";
+    if (kind === "well")    return "◯";
+    if (kind === "bridge")  return "∩";
+    if (kind === "hearth")  return "▲";
+    if (kind === "lantern") return "✺";
+    return "✦";
+  }
+
+  function bearingDirection(deg) {
+    const d = ((deg % 360) + 360) % 360;
+    if (d > 337.5 || d <= 22.5)  return "northward";
+    if (d <= 67.5)               return "northeast";
+    if (d <= 112.5)              return "eastward";
+    if (d <= 157.5)              return "southeast";
+    if (d <= 202.5)              return "southward";
+    if (d <= 247.5)              return "southwest";
+    if (d <= 292.5)              return "westward";
+    return "northwest";
+  }
+
+  // tiny deterministic RNG seeded from current state
+  function hashSeed(ordered, bearing) {
+    let h = 2166136261 >>> 0;
+    const s = ordered.map(l => `${l.kind}:${Math.round(l.x)}:${Math.round(l.y)}`).join("|") + `|b:${Math.round(bearing)}`;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(a) {
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function pickRng(arr, rng) { return arr[Math.floor(rng() * arr.length)]; }
+
+  // ------------------------------------------------------------------
+  // Random / Reset
+  // ------------------------------------------------------------------
+  function randomScene() {
+    clearLandmarks();
+    disarm();
+    const kinds = Object.keys(KINDS);
+    const n = 3 + Math.floor(Math.random() * 3); // 3..5
+    const used = new Set();
+    for (let i = 0; i < n; i++) {
+      // sample within frame, with some margin
+      const x = 50 + Math.random() * 300;
+      const y = 50 + Math.random() * 300;
+      // prefer variety but allow repeats once all kinds used
+      let kind;
+      const remaining = kinds.filter(k => !used.has(k));
+      if (remaining.length) {
+        kind = remaining[Math.floor(Math.random() * remaining.length)];
+        used.add(kind);
+      } else {
+        kind = kinds[Math.floor(Math.random() * kinds.length)];
+      }
+      addLandmark(x, y, kind);
+    }
+    setBearing(Math.floor(Math.random() * 360) - 180);
+    drawRoute();
+  }
+
+  randomBtn.addEventListener("click", randomScene);
+  resetBtn.addEventListener("click", () => {
+    clearLandmarks();
+    setBearing(0);
+    disarm();
+  });
+
+  // ------------------------------------------------------------------
+  // Copy postcard
+  // ------------------------------------------------------------------
+  copyBtn.addEventListener("click", async () => {
+    const lines = [
+      pcTitle.textContent,
+      "",
+      pcRoute.textContent,
+      "",
+      pcBody.textContent,
+      "",
+      "— " + pcSig.textContent,
+      "Morning Compass Cartographer · May 13, 2026"
+    ];
+    const text = lines.join("\n");
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      copyBtn.classList.add("copied");
+      copyBtn.textContent = "Copied ✓";
+      setTimeout(() => {
+        copyBtn.classList.remove("copied");
+        copyBtn.textContent = "Copy postcard";
+      }, 1600);
+    } catch (e) {
+      copyBtn.textContent = "Copy failed";
+      setTimeout(() => { copyBtn.textContent = "Copy postcard"; }, 1600);
+    }
+  });
+
+  // ------------------------------------------------------------------
+  // First-run nudge
+  // ------------------------------------------------------------------
+  setBearing(0);
+  updateCounts();
+  refreshPostcard();
+})();
+</script>
+</body>
+</html>
