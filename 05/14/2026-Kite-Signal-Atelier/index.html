@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1726">
+<title>Kite Signal Atelier · May 14, 2026</title>
+<style>
+  :root {
+    --bg-1: #0d1726;
+    --bg-2: #1a2940;
+    --bg-3: #2c4a6e;
+    --ink: #f6efe2;
+    --paper: #f1e7cf;
+    --paper-shadow: rgba(0,0,0,0.22);
+    --thread: #e9d28a;
+    --ribbon-a: #f17a6a;
+    --ribbon-b: #67c4d8;
+    --ribbon-c: #f1c84b;
+    --accent: #ffd06b;
+    --dim: rgba(246,239,226,0.55);
+    --line: rgba(246,239,226,0.18);
+    --panel: rgba(8,14,25,0.55);
+    --panel-border: rgba(246,239,226,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 110%, rgba(255,208,107,0.10), transparent 60%),
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(103,196,216,0.16), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2) 60%, var(--bg-3));
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    line-height: 1.45;
+  }
+  .wrap {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 18px 16px 28px;
+  }
+  header {
+    text-align: center;
+    padding: 6px 4px 14px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  h1 {
+    font-size: clamp(1.4rem, 5.2vw, 1.8rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 6px 0 4px;
+    color: var(--ink);
+  }
+  .tag {
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  .stage {
+    position: relative;
+    height: 320px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 8%, rgba(255,255,255,0.10), transparent 60%),
+      linear-gradient(180deg, #142540, #20436e 55%, #3a6a92);
+    box-shadow: inset 0 -30px 60px rgba(0,0,0,0.35), 0 12px 30px rgba(0,0,0,0.35);
+  }
+  .stage::before, .stage::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(246,239,226,0.85);
+    pointer-events: none;
+  }
+  .stage::before {
+    width: 60px; height: 18px;
+    top: 38px; left: -10px;
+    filter: blur(5px); opacity: 0.55;
+  }
+  .stage::after {
+    width: 90px; height: 22px;
+    top: 70px; right: -20px;
+    filter: blur(7px); opacity: 0.40;
+  }
+  .stars {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .star {
+    position: absolute;
+    width: 2px; height: 2px; border-radius: 50%;
+    background: rgba(246,239,226,0.6);
+    box-shadow: 0 0 4px rgba(255,255,255,0.7);
+    animation: twinkle 3.4s ease-in-out infinite;
+  }
+  @keyframes twinkle { 0%,100%{opacity:0.25} 50%{opacity:0.85} }
+  svg.kite-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .readout {
+    position: absolute;
+    left: 12px; bottom: 12px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .readout b { color: var(--accent); font-weight: 700; }
+
+  .panel {
+    margin-top: 18px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+  }
+  .panel + .panel { margin-top: 12px; }
+  .panel-title {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-title .hint { color: var(--accent); font-weight: 600; letter-spacing: 0.05em; text-transform: none; font-size: 11px; }
+
+  /* Shape row */
+  .shape-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .shape-btn {
+    border: 1px solid var(--panel-border);
+    background: rgba(246,239,226,0.05);
+    border-radius: 10px;
+    min-height: 56px;
+    padding: 6px 4px 4px;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s ease, background 0.2s, border-color 0.2s;
+  }
+  .shape-btn svg { display: block; }
+  .shape-btn span { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-top: 2px; }
+  .shape-btn.active {
+    background: rgba(255,208,107,0.12);
+    border-color: rgba(255,208,107,0.55);
+  }
+  .shape-btn.active span { color: var(--accent); }
+  .shape-btn:active { transform: scale(0.96); }
+
+  /* Knots */
+  .knot-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .knot-btn {
+    flex: 1 1 0;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: rgba(246,239,226,0.05);
+    color: var(--ink);
+    font: 600 13px/1 inherit;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.12s ease, background 0.2s, border-color 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .knot-btn:active { transform: scale(0.94); }
+  .knot-btn[data-on="1"] { background: rgba(241,122,106,0.18); border-color: rgba(241,122,106,0.65); color: #ffd9d2; }
+  .knot-btn[data-on="2"] { background: rgba(103,196,216,0.18); border-color: rgba(103,196,216,0.65); color: #cdeff7; }
+  .knot-btn[data-on="3"] { background: rgba(241,200,75,0.20); border-color: rgba(241,200,75,0.70); color: #fff1c0; }
+
+  /* Sliders */
+  .slider-row {
+    display: grid;
+    gap: 12px;
+  }
+  .slider {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .slider .lbl {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .slider .lbl b { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%;
+    height: 30px;
+    background: transparent;
+    margin: 0;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(246,239,226,0.10), rgba(246,239,226,0.30));
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(246,239,226,0.10), rgba(246,239,226,0.30));
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #15233a;
+    margin-top: -9px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #15233a;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  input[type="range"]:focus { outline: none; }
+  input[type="range"]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(255,208,107,0.25); }
+
+  /* Action bar */
+  .actions {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .btn {
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(246,239,226,0.05);
+    color: var(--ink);
+    font: 600 14px/1 inherit;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.1s ease, background 0.2s, border-color 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(180deg, #ffd06b, #f1a93a);
+    color: #1a1108;
+    border-color: rgba(255,208,107,0.7);
+    box-shadow: 0 6px 18px rgba(255,176,71,0.30);
+  }
+  .btn.primary:active { box-shadow: 0 3px 10px rgba(255,176,71,0.25); }
+
+  /* Card */
+  .card {
+    margin-top: 14px;
+    border-radius: 14px;
+    padding: 14px 16px 16px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02)),
+      var(--paper);
+    color: #2c241a;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.35);
+    position: relative;
+    transform-origin: 50% -30px;
+    animation: cardIn 0.5s cubic-bezier(.2,.8,.25,1.1);
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(-8px) rotate(-1.2deg); } to { opacity: 1; transform: none; } }
+  .card .stamp {
+    position: absolute;
+    top: -10px; right: 12px;
+    background: var(--ribbon-a);
+    color: #fff;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 4px;
+    transform: rotate(2deg);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+  .card h3 {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    color: #1a130a;
+    margin-bottom: 6px;
+  }
+  .card .meta {
+    font-size: 11px;
+    color: #6b5a3d;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .card p {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #382e1f;
+  }
+  .card .row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: #5a4a2c;
+  }
+  .card .row b { display: block; color: #2c241a; font-size: 12px; margin-bottom: 2px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; }
+
+  .toast {
+    position: fixed;
+    left: 50%; bottom: 24px;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(13,23,38,0.92);
+    border: 1px solid var(--panel-border);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  @media (max-width: 360px) {
+    .shape-row { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .shape-btn { min-height: 50px; }
+    .stage { height: 290px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .star { animation: none; }
+    .card { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">⚡ Daily Surprise · 2026·05·14</div>
+    <h1>Kite Signal Atelier</h1>
+    <div class="tag">tune a paper kite into a tiny sky signal</div>
+  </header>
+
+  <section class="stage" aria-label="Sky">
+    <div class="stars" id="stars" aria-hidden="true"></div>
+    <svg class="kite-svg" viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <linearGradient id="paperGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f6efe2"/>
+          <stop offset="100%" stop-color="#d8c79b"/>
+        </linearGradient>
+        <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="0.6"/>
+        </filter>
+      </defs>
+      <!-- Tether anchor (bottom center) -->
+      <circle cx="200" cy="310" r="3" fill="#f6efe2" opacity="0.7"/>
+      <!-- Thread -->
+      <path id="thread" d="M200 310 Q 200 240, 200 170" stroke="#e9d28a" stroke-width="1.2" fill="none" opacity="0.85"/>
+      <!-- Kite group: animated by JS -->
+      <g id="kite" transform="translate(200 150)">
+        <g id="kiteBody"></g>
+        <g id="kiteTail"></g>
+      </g>
+    </svg>
+    <div class="readout" id="readout">Wind <b id="rWind">calm</b> · Lift <b id="rLift">low</b></div>
+  </section>
+
+  <section class="panel" aria-labelledby="lblShape">
+    <div class="panel-title"><span id="lblShape">Kite Shape</span><span class="hint" id="shapeName">Diamond</span></div>
+    <div class="shape-row" role="radiogroup" aria-label="Choose kite shape">
+      <button class="shape-btn active" role="radio" aria-checked="true" data-shape="diamond" aria-label="Diamond kite">
+        <svg width="28" height="34" viewBox="0 0 28 34" aria-hidden="true"><polygon points="14,2 26,17 14,32 2,17" fill="#f6efe2" stroke="#1a2940" stroke-width="1.2"/><line x1="14" y1="2" x2="14" y2="32" stroke="#1a2940" stroke-width="0.8"/><line x1="2" y1="17" x2="26" y2="17" stroke="#1a2940" stroke-width="0.8"/></svg>
+        <span>Diamond</span>
+      </button>
+      <button class="shape-btn" role="radio" aria-checked="false" data-shape="delta" aria-label="Delta kite">
+        <svg width="32" height="30" viewBox="0 0 32 30" aria-hidden="true"><polygon points="16,2 30,26 16,18 2,26" fill="#f6efe2" stroke="#1a2940" stroke-width="1.2"/><line x1="16" y1="2" x2="16" y2="26" stroke="#1a2940" stroke-width="0.8"/></svg>
+        <span>Delta</span>
+      </button>
+      <button class="shape-btn" role="radio" aria-checked="false" data-shape="box" aria-label="Box kite">
+        <svg width="30" height="32" viewBox="0 0 30 32" aria-hidden="true"><rect x="6" y="6" width="18" height="20" fill="#f6efe2" stroke="#1a2940" stroke-width="1.2"/><line x1="6" y1="6" x2="24" y2="26" stroke="#1a2940" stroke-width="0.7"/><line x1="24" y1="6" x2="6" y2="26" stroke="#1a2940" stroke-width="0.7"/></svg>
+        <span>Box</span>
+      </button>
+      <button class="shape-btn" role="radio" aria-checked="false" data-shape="swallow" aria-label="Swallow kite">
+        <svg width="32" height="30" viewBox="0 0 32 30" aria-hidden="true"><path d="M16 2 L30 14 L22 18 L28 28 L16 22 L4 28 L10 18 L2 14 Z" fill="#f6efe2" stroke="#1a2940" stroke-width="1.2"/></svg>
+        <span>Swallow</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="lblKnots">
+    <div class="panel-title"><span id="lblKnots">Ribbon Knots</span><span class="hint" id="knotCount">0 tied</span></div>
+    <div class="knot-row" role="group" aria-label="Tie ribbon knots">
+      <button class="knot-btn" data-knot="1" data-on="0" aria-pressed="false" aria-label="Coral knot">Coral</button>
+      <button class="knot-btn" data-knot="2" data-on="0" aria-pressed="false" aria-label="Sea knot">Sea</button>
+      <button class="knot-btn" data-knot="3" data-on="0" aria-pressed="false" aria-label="Sun knot">Sun</button>
+      <button class="knot-btn" data-knot="1" data-on="0" aria-pressed="false" aria-label="Coral knot 2">Coral</button>
+      <button class="knot-btn" data-knot="2" data-on="0" aria-pressed="false" aria-label="Sea knot 2">Sea</button>
+      <button class="knot-btn" data-knot="3" data-on="0" aria-pressed="false" aria-label="Sun knot 2">Sun</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="lblWind">
+    <div class="panel-title"><span id="lblWind">Wind &amp; Lift</span><span class="hint">tap or drag</span></div>
+    <div class="slider-row">
+      <label class="slider">
+        <span class="lbl">Wind puff <b id="windVal">3</b></span>
+        <input id="wind" type="range" min="0" max="10" value="3" aria-label="Wind puff strength">
+      </label>
+      <label class="slider">
+        <span class="lbl">Tether lift <b id="liftVal">5</b></span>
+        <input id="lift" type="range" min="0" max="10" value="5" aria-label="Tether lift height">
+      </label>
+      <label class="slider">
+        <span class="lbl">Tail length <b id="tailVal">4</b></span>
+        <input id="tail" type="range" min="0" max="8" value="4" aria-label="Tail length">
+      </label>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="resetBtn" type="button" aria-label="Reset kite">Reset</button>
+    <button class="btn primary" id="sendBtn" type="button" aria-label="Send signal">Send Signal ✦</button>
+  </div>
+
+  <div id="cardSlot" aria-live="polite"></div>
+
+  <footer>Self-contained · No network · Mobile-first</footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- Stars -----------------------------------------------------------
+  const starsEl = document.getElementById("stars");
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement("div");
+    s.className = "star";
+    s.style.left = (Math.random() * 100).toFixed(1) + "%";
+    s.style.top = (Math.random() * 55).toFixed(1) + "%";
+    s.style.animationDelay = (Math.random() * 3).toFixed(2) + "s";
+    s.style.opacity = (0.35 + Math.random() * 0.5).toFixed(2);
+    starsEl.appendChild(s);
+  }
+
+  // --- State -----------------------------------------------------------
+  const state = {
+    shape: "diamond",
+    knots: [0,0,0,0,0,0],
+    wind: 3,
+    lift: 5,
+    tail: 4
+  };
+
+  const SHAPE_NAMES = {
+    diamond: "Diamond",
+    delta: "Delta",
+    box: "Box",
+    swallow: "Swallow"
+  };
+
+  // --- Kite renderer ---------------------------------------------------
+  const kiteBody = document.getElementById("kiteBody");
+  const kiteTail = document.getElementById("kiteTail");
+  const kiteG = document.getElementById("kite");
+  const thread = document.getElementById("thread");
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function drawShape() {
+    kiteBody.innerHTML = "";
+    const fill = "url(#paperGrad)";
+    const stroke = "#1a2940";
+    const sw = "1.5";
+    if (state.shape === "diamond") {
+      const poly = svgEl("polygon", { points: "0,-44 32,0 0,46 -32,0", fill, stroke, "stroke-width": sw });
+      kiteBody.appendChild(poly);
+      kiteBody.appendChild(svgEl("line", { x1: 0, y1: -44, x2: 0, y2: 46, stroke, "stroke-width": "0.8", opacity: "0.55" }));
+      kiteBody.appendChild(svgEl("line", { x1: -32, y1: 0, x2: 32, y2: 0, stroke, "stroke-width": "0.8", opacity: "0.55" }));
+    } else if (state.shape === "delta") {
+      const poly = svgEl("polygon", { points: "0,-42 42,30 0,16 -42,30", fill, stroke, "stroke-width": sw });
+      kiteBody.appendChild(poly);
+      kiteBody.appendChild(svgEl("line", { x1: 0, y1: -42, x2: 0, y2: 30, stroke, "stroke-width": "0.8", opacity: "0.55" }));
+    } else if (state.shape === "box") {
+      const outer = svgEl("rect", { x: -26, y: -34, width: 52, height: 60, fill, stroke, "stroke-width": sw, rx: 2 });
+      kiteBody.appendChild(outer);
+      kiteBody.appendChild(svgEl("line", { x1: -26, y1: -34, x2: 26, y2: 26, stroke, "stroke-width": "0.7", opacity: "0.5" }));
+      kiteBody.appendChild(svgEl("line", { x1: 26, y1: -34, x2: -26, y2: 26, stroke, "stroke-width": "0.7", opacity: "0.5" }));
+      kiteBody.appendChild(svgEl("rect", { x: -16, y: -22, width: 32, height: 36, fill: "none", stroke, "stroke-width": "0.7", opacity: "0.45" }));
+    } else if (state.shape === "swallow") {
+      const poly = svgEl("polygon", { points: "0,-42 38,-6 24,4 36,34 0,18 -36,34 -24,4 -38,-6", fill, stroke, "stroke-width": sw });
+      kiteBody.appendChild(poly);
+      kiteBody.appendChild(svgEl("line", { x1: 0, y1: -42, x2: 0, y2: 18, stroke, "stroke-width": "0.8", opacity: "0.55" }));
+    }
+    // Center disc
+    kiteBody.appendChild(svgEl("circle", { cx: 0, cy: 0, r: 4, fill: "#1a2940" }));
+    kiteBody.appendChild(svgEl("circle", { cx: 0, cy: 0, r: 1.5, fill: "#ffd06b" }));
+  }
+
+  function drawTail() {
+    kiteTail.innerHTML = "";
+    const tailColors = ["#f17a6a", "#67c4d8", "#f1c84b"];
+    let baseY = 0;
+    if (state.shape === "diamond") baseY = 46;
+    else if (state.shape === "delta") baseY = 30;
+    else if (state.shape === "box") baseY = 26;
+    else baseY = 18; // swallow
+
+    const segs = state.tail; // 0..8
+    let y = baseY + 4;
+    for (let i = 0; i < segs; i++) {
+      const dx = (i % 2 === 0 ? -1 : 1) * (4 + Math.min(i, 4));
+      const col = tailColors[i % 3];
+      kiteTail.appendChild(svgEl("circle", { cx: dx, cy: y + i * 9, r: 3.4, fill: col, stroke: "#1a2940", "stroke-width": "0.6" }));
+      kiteTail.appendChild(svgEl("path", {
+        d: "M0," + (y + i * 9 - 5) + " Q" + (dx * 1.2) + "," + (y + i * 9) + " 0," + (y + i * 9 + 5),
+        stroke: "#1a2940", "stroke-width": "0.4", fill: "none", opacity: "0.5"
+      }));
+    }
+
+    // Ribbon knots: attach at sides
+    const knotPalette = { 0: null, 1: "#f17a6a", 2: "#67c4d8", 3: "#f1c84b" };
+    const knotPositions = [
+      [-30, -10], [30, -10],
+      [-26,  14], [26,  14],
+      [-18,  -28], [18, -28]
+    ];
+    for (let i = 0; i < 6; i++) {
+      const t = state.knots[i];
+      if (!t) continue;
+      const [kx, ky] = knotPositions[i];
+      const col = knotPalette[t];
+      // Tiny ribbon: bow
+      kiteTail.appendChild(svgEl("path", {
+        d: "M" + kx + "," + ky + " q -6 -3 -10 2 q 4 4 10 -2",
+        fill: col, stroke: "#1a2940", "stroke-width": "0.5"
+      }));
+      kiteTail.appendChild(svgEl("path", {
+        d: "M" + kx + "," + ky + " q 6 -3 10 2 q -4 4 -10 -2",
+        fill: col, stroke: "#1a2940", "stroke-width": "0.5"
+      }));
+      kiteTail.appendChild(svgEl("circle", { cx: kx, cy: ky, r: 1.6, fill: "#1a2940" }));
+    }
+  }
+
+  // --- Animation -------------------------------------------------------
+  let t0 = performance.now();
+  let raf = 0;
+  let reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function loop(now) {
+    const t = (now - t0) / 1000;
+    // Wind influences sway speed, lift influences vertical height & tilt damping.
+    const wind = state.wind; // 0..10
+    const lift = state.lift; // 0..10
+    const baseY = 170 - lift * 9;        // 170 at 0 lift, ~80 at 10 lift
+    const sway = (wind / 10) * 28 + 4;   // horizontal sway px
+    const speed = 0.6 + (wind / 10) * 1.7;
+    const tilt = Math.sin(t * speed) * (8 + wind * 1.5);
+    const bob = Math.cos(t * speed * 0.85) * (2 + (10 - lift) * 0.3);
+    const xOff = reduceMotion ? 0 : Math.sin(t * speed * 0.7) * sway;
+    const yOff = reduceMotion ? 0 : bob;
+
+    const cx = 200 + xOff;
+    const cy = baseY + yOff;
+    kiteG.setAttribute("transform", "translate(" + cx.toFixed(1) + " " + cy.toFixed(1) + ") rotate(" + tilt.toFixed(1) + ")");
+    // Curve thread from anchor (200,310) to (cx,cy)
+    const midX = (200 + cx) / 2 + (xOff * 0.4);
+    const midY = (310 + cy) / 2 + 18;
+    thread.setAttribute("d", "M200 310 Q " + midX.toFixed(1) + " " + midY.toFixed(1) + ", " + cx.toFixed(1) + " " + cy.toFixed(1));
+
+    raf = requestAnimationFrame(loop);
+  }
+  raf = requestAnimationFrame(loop);
+
+  // --- Controls --------------------------------------------------------
+  const shapeBtns = document.querySelectorAll(".shape-btn");
+  const shapeName = document.getElementById("shapeName");
+  shapeBtns.forEach(b => {
+    b.addEventListener("click", () => {
+      shapeBtns.forEach(x => { x.classList.remove("active"); x.setAttribute("aria-checked", "false"); });
+      b.classList.add("active");
+      b.setAttribute("aria-checked", "true");
+      state.shape = b.dataset.shape;
+      shapeName.textContent = SHAPE_NAMES[state.shape] || "Kite";
+      drawShape();
+      drawTail();
+    });
+  });
+
+  const knotBtns = document.querySelectorAll(".knot-btn");
+  const knotCountEl = document.getElementById("knotCount");
+  knotBtns.forEach((b, i) => {
+    b.addEventListener("click", () => {
+      const on = b.getAttribute("data-on") === "0" ? "1" : "0";
+      // If turning on, set to its knot-type id; if off, set to 0.
+      if (on === "1") {
+        b.setAttribute("data-on", b.dataset.knot);
+        state.knots[i] = parseInt(b.dataset.knot, 10);
+        b.setAttribute("aria-pressed", "true");
+      } else {
+        b.setAttribute("data-on", "0");
+        state.knots[i] = 0;
+        b.setAttribute("aria-pressed", "false");
+      }
+      const tied = state.knots.filter(k => k > 0).length;
+      knotCountEl.textContent = tied + (tied === 1 ? " tied" : " tied");
+      drawTail();
+    });
+  });
+
+  function bindSlider(id, key, valId) {
+    const inp = document.getElementById(id);
+    const val = document.getElementById(valId);
+    inp.addEventListener("input", () => {
+      state[key] = parseInt(inp.value, 10);
+      val.textContent = state[key];
+      if (key === "tail") drawTail();
+      updateReadout();
+    });
+  }
+  bindSlider("wind", "wind", "windVal");
+  bindSlider("lift", "lift", "liftVal");
+  bindSlider("tail", "tail", "tailVal");
+
+  function updateReadout() {
+    const rWind = document.getElementById("rWind");
+    const rLift = document.getElementById("rLift");
+    rWind.textContent = state.wind <= 1 ? "still" : state.wind <= 3 ? "calm" : state.wind <= 6 ? "fresh" : state.wind <= 8 ? "lively" : "racing";
+    rLift.textContent = state.lift <= 2 ? "low" : state.lift <= 5 ? "easy" : state.lift <= 7 ? "buoyant" : "soaring";
+  }
+  updateReadout();
+
+  // --- Reset & Send ----------------------------------------------------
+  const cardSlot = document.getElementById("cardSlot");
+  const toast = document.getElementById("toast");
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1600);
+  }
+
+  function reset() {
+    state.shape = "diamond";
+    state.knots = [0,0,0,0,0,0];
+    state.wind = 3; state.lift = 5; state.tail = 4;
+    shapeBtns.forEach(b => {
+      const isFirst = b.dataset.shape === "diamond";
+      b.classList.toggle("active", isFirst);
+      b.setAttribute("aria-checked", isFirst ? "true" : "false");
+    });
+    shapeName.textContent = "Diamond";
+    knotBtns.forEach((b) => {
+      b.setAttribute("data-on", "0");
+      b.setAttribute("aria-pressed", "false");
+    });
+    knotCountEl.textContent = "0 tied";
+    document.getElementById("wind").value = 3; document.getElementById("windVal").textContent = "3";
+    document.getElementById("lift").value = 5; document.getElementById("liftVal").textContent = "5";
+    document.getElementById("tail").value = 4; document.getElementById("tailVal").textContent = "4";
+    updateReadout();
+    drawShape();
+    drawTail();
+    cardSlot.innerHTML = "";
+    showToast("Atelier cleared");
+  }
+  document.getElementById("resetBtn").addEventListener("click", reset);
+
+  // Name generator
+  const ADJ = ["Quiet","Drifting","Cinder","Sunday","Paper","Salt","Linen","Marigold","Coral","Tide","Lantern","Glass","Wren","Folded","Slow","Hummingbird","Almond","Plum"];
+  const NOUN = ["Reply","Postcard","Compass","Hour","Promise","Ribbon","Sketch","Echo","Margin","Window","Lullaby","Sparrow","Field","Stamp","Doorway","Errand"];
+  const SHAPE_FEEL = {
+    diamond: "steady",
+    delta: "long-reaching",
+    box: "patient",
+    swallow: "darting"
+  };
+  const KNOT_FEEL = {
+    1: "coral cheer",
+    2: "sea quiet",
+    3: "sun warmth"
+  };
+
+  function pick(arr, seed) { return arr[Math.abs(seed) % arr.length]; }
+
+  function signalName() {
+    const seed = (state.shape.length * 7) + state.wind * 13 + state.lift * 5 + state.tail * 3 + state.knots.reduce((s,k,i)=>s + k*(i+1), 0) + Math.floor(Math.random()*97);
+    return pick(ADJ, seed) + " " + pick(NOUN, Math.floor(seed/3)+1);
+  }
+
+  function buildCard() {
+    const tied = state.knots.filter(k => k > 0);
+    const knotTypes = [...new Set(tied)];
+    const feelParts = knotTypes.map(k => KNOT_FEEL[k]);
+    const feel = feelParts.length === 0 ? "uncluttered air" :
+                 feelParts.length === 1 ? feelParts[0] :
+                 feelParts.slice(0,-1).join(", ") + " and " + feelParts.slice(-1);
+
+    const moodWind = state.wind <= 2 ? "barely a breath of breeze" :
+                     state.wind <= 5 ? "a friendly puff of wind" :
+                     state.wind <= 8 ? "a bright running wind" :
+                                       "an unruly racing wind";
+    const moodLift = state.lift <= 3 ? "skims just above the rooftops" :
+                     state.lift <= 6 ? "rides at a comfortable height" :
+                     state.lift <= 8 ? "stretches the thread tight" :
+                                       "stitches itself into the high blue";
+
+    const tailLine = state.tail === 0 ? "with no tail, only nerve" :
+                     state.tail <= 3 ? "trailing a short, sensible tail" :
+                     state.tail <= 6 ? "with a long ribbon tail keeping time" :
+                                       "wearing a dramatic festival tail";
+
+    const name = signalName();
+    const shapeFeel = SHAPE_FEEL[state.shape];
+    const para = "A " + shapeFeel + " " + state.shape + " kite, " + tailLine + ", finds " + moodWind + " and " + moodLift + ". The signal it sends is " + feel + " — the kind of small reply you fold into a pocket and forget you ever doubted.";
+
+    cardSlot.innerHTML = "";
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="stamp">Signal ✦</div>' +
+      '<h3></h3>' +
+      '<div class="meta">From the atelier · May 14, 2026</div>' +
+      '<p></p>' +
+      '<div class="row">' +
+        '<div><b>Kite</b><span></span></div>' +
+        '<div><b>Wind</b><span></span></div>' +
+        '<div><b>Lift</b><span></span></div>' +
+      '</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;">' +
+        '<button class="btn" id="copyBtn" type="button" style="flex:1; min-height:42px; background:rgba(26,41,64,0.08); color:#1a2940; border-color:rgba(26,41,64,0.25);">Copy</button>' +
+        '<button class="btn" id="againBtn" type="button" style="flex:1; min-height:42px; background:rgba(26,41,64,0.08); color:#1a2940; border-color:rgba(26,41,64,0.25);">Another</button>' +
+      '</div>';
+    card.querySelector("h3").textContent = name;
+    card.querySelector("p").textContent = para;
+    const rowSpans = card.querySelectorAll(".row span");
+    rowSpans[0].textContent = SHAPE_NAMES[state.shape];
+    rowSpans[1].textContent = document.getElementById("rWind").textContent;
+    rowSpans[2].textContent = document.getElementById("rLift").textContent;
+
+    cardSlot.appendChild(card);
+
+    const copyText = name + "\nKite Signal Atelier · May 14, 2026\n\n" + para + "\n\nKite: " + SHAPE_NAMES[state.shape] + " · Wind: " + document.getElementById("rWind").textContent + " · Lift: " + document.getElementById("rLift").textContent + " · Knots: " + (tied.length || "none");
+
+    card.querySelector("#copyBtn").addEventListener("click", () => {
+      copyToClipboard(copyText).then(ok => showToast(ok ? "Copied to clipboard" : "Selected — press Copy"));
+    });
+    card.querySelector("#againBtn").addEventListener("click", () => {
+      buildCard();
+    });
+  }
+
+  function copyToClipboard(text) {
+    return new Promise((resolve) => {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => resolve(true)).catch(() => fallback());
+      } else {
+        fallback();
+      }
+      function fallback() {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "absolute"; ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand && document.execCommand("copy");
+          document.body.removeChild(ta);
+          resolve(!!ok);
+        } catch (e) { resolve(false); }
+      }
+    });
+  }
+
+  document.getElementById("sendBtn").addEventListener("click", () => {
+    buildCard();
+    // small skyward nudge
+    t0 = performance.now() - 1.4;
+  });
+
+  // --- Initial paint ---------------------------------------------------
+  drawShape();
+  drawTail();
+
+  // Pause animation when tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { cancelAnimationFrame(raf); }
+    else { t0 = performance.now(); raf = requestAnimationFrame(loop); }
+  });
+})();
+</script>
+</body>
+</html>
