@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1622">
+<title>Dewdrop Switchboard</title>
+<style>
+  :root {
+    --bg-a: #07101a;
+    --bg-b: #122436;
+    --ink: #e8f4fb;
+    --ink-dim: #8fb4c8;
+    --line: rgba(150,210,235,0.18);
+    --line-strong: rgba(180,230,255,0.36);
+    --warm: #ffd896;
+    --warm-2: #ffb15e;
+    --cool: #7ee8ff;
+    --cool-2: #9cbcff;
+    --leaf: #a4e9bd;
+    --rose: #ffa3c8;
+    --panel: rgba(10,22,34,0.72);
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255,216,150,0.10), transparent 60%),
+      radial-gradient(ellipse 90% 70% at 90% 100%, rgba(126,232,255,0.10), transparent 60%),
+      linear-gradient(170deg, var(--bg-a), var(--bg-b));
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    line-height: 1.45;
+    overflow-x: hidden;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .wrap {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 18px 14px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  header.intro {
+    text-align: center;
+    padding: 8px 4px 0;
+  }
+  .kicker {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 6vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    background: linear-gradient(120deg, #fff, var(--cool));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .blurb {
+    margin: 8px auto 0;
+    max-width: 360px;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+
+  .board-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-bottom: 10px;
+    justify-content: center;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .legend .src { color: var(--warm); }
+  .legend .sink { color: var(--leaf); }
+  .legend .prism { color: var(--cool); }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,216,150,0.08), transparent 50%),
+      radial-gradient(circle at 80% 90%, rgba(126,232,255,0.10), transparent 55%),
+      linear-gradient(160deg, #0a1726, #0e2236);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  svg.field {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 12px 12px;
+    min-height: 48px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover { background: rgba(255,255,255,0.08); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(135deg, rgba(255,216,150,0.22), rgba(126,232,255,0.22));
+    border-color: rgba(255,255,255,0.28);
+  }
+  .btn.primary:hover { background: linear-gradient(135deg, rgba(255,216,150,0.32), rgba(126,232,255,0.32)); }
+
+  .meter {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .meter .lit {
+    color: var(--warm);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+  .bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    overflow: hidden;
+    position: relative;
+  }
+  .bar::after {
+    content: '';
+    position: absolute; inset: 0;
+    width: var(--w, 0%);
+    background: linear-gradient(90deg, var(--warm-2), var(--warm), var(--cool));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+
+  .hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-dim);
+    padding: 4px 6px 0;
+  }
+  .hint b { color: var(--ink); font-weight: 600; }
+
+  /* Card output */
+  .card-out {
+    background: linear-gradient(160deg, #0e1d2e, #0a1424);
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    padding: 16px;
+    margin-top: 4px;
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .card-out.show { display: block; animation: rise 0.5s ease; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .card-name {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    background: linear-gradient(120deg, var(--warm), var(--cool));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .card-stamp {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .card-line {
+    font-size: 13px;
+    color: var(--ink);
+    margin: 4px 0 6px;
+  }
+  .card-meta {
+    font-size: 11px;
+    color: var(--ink-dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+  .card-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .card-meta b { color: var(--ink); font-weight: 600; }
+
+  footer.foot {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 360px) {
+    .wrap { padding: 14px 10px 24px; }
+    .blurb { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <div class="kicker">Daily Surprise · 05·15</div>
+    <h1>Dewdrop Switchboard</h1>
+    <p class="blurb">Route morning light through a tiny dew garden. Tap prisms to turn. Tap droplets to shift their tint. Compose the circuit you can pocket.</p>
+  </header>
+
+  <div class="board-card">
+    <div class="legend" aria-hidden="true">
+      <span><i class="dot src" style="background:var(--warm)"></i> source</span>
+      <span><i class="dot prism" style="background:var(--cool)"></i> prism</span>
+      <span><i class="dot sink" style="background:var(--leaf)"></i> dew sink</span>
+    </div>
+
+    <div class="stage" id="stage" role="application" aria-label="Dewdrop switchboard">
+      <svg class="field" id="field" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet" aria-hidden="false">
+        <defs>
+          <radialGradient id="glowWarm" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffe7b8" stop-opacity="1"/>
+            <stop offset="60%" stop-color="#ffb15e" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#ffb15e" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="glowCool" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#cef5ff" stop-opacity="1"/>
+            <stop offset="60%" stop-color="#7ee8ff" stop-opacity="0.45"/>
+            <stop offset="100%" stop-color="#7ee8ff" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="glowLeaf" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#e0fbe8" stop-opacity="1"/>
+            <stop offset="55%" stop-color="#a4e9bd" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#a4e9bd" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="glowRose" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffe1ee" stop-opacity="1"/>
+            <stop offset="60%" stop-color="#ffa3c8" stop-opacity="0.45"/>
+            <stop offset="100%" stop-color="#ffa3c8" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.2"/>
+          </filter>
+        </defs>
+        <g id="beamLayer"></g>
+        <g id="cellLayer"></g>
+      </svg>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="resetBtn" type="button" aria-label="Reset the board">Reset</button>
+      <button class="btn primary" id="composeBtn" type="button" aria-label="Compose a morning circuit card">Compose card</button>
+    </div>
+
+    <div class="meter" aria-live="polite">
+      <span>Dew lit</span>
+      <span class="bar" id="bar" style="--w: 0%"></span>
+      <span class="lit"><span id="litCount">0</span>/<span id="totalCount">0</span></span>
+    </div>
+
+    <p class="hint"><b>Tap a prism</b> to rotate · <b>Tap a droplet</b> to swap its tint · light flows from suns</p>
+  </div>
+
+  <div class="card-out" id="cardOut" aria-live="polite">
+    <div class="card-head">
+      <div class="card-name" id="cardName">—</div>
+      <div class="card-stamp" id="cardStamp">circuit · 05·15</div>
+    </div>
+    <div class="card-line" id="cardLine">—</div>
+    <div class="card-meta">
+      <span><b id="cardLit">0</b> lit</span>
+      <span>route <b id="cardRoute">—</b></span>
+      <span>tint <b id="cardTint">—</b></span>
+      <span>seed <b id="cardSeed">—</b></span>
+    </div>
+  </div>
+
+  <footer class="foot">A small morning toy · self-contained · no network</footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const SIZE = 600;
+  const GRID = 5;
+  const PAD = 60;
+  const STEP = (SIZE - PAD * 2) / (GRID - 1);
+
+  const COLORS = {
+    warm:  '#ffd896',
+    cool:  '#7ee8ff',
+    leaf:  '#a4e9bd',
+    rose:  '#ffa3c8',
+    none:  '#5b7a8a'
+  };
+  const TINT_KEYS = ['warm','cool','leaf','rose'];
+  const TINT_NAMES = { warm:'amber', cool:'glacier', leaf:'fern', rose:'blush' };
+
+  const stage = document.getElementById('stage');
+  const field = document.getElementById('field');
+  const cellLayer = document.getElementById('cellLayer');
+  const beamLayer = document.getElementById('beamLayer');
+  const litEl = document.getElementById('litCount');
+  const totalEl = document.getElementById('totalCount');
+  const barEl = document.getElementById('bar');
+  const resetBtn = document.getElementById('resetBtn');
+  const composeBtn = document.getElementById('composeBtn');
+  const cardOut = document.getElementById('cardOut');
+
+  // Seeded RNG for reproducible boards
+  let seed = 1;
+  function srand(s){ seed = (s|0) || 1; }
+  function rand(){
+    // xorshift32
+    let x = seed | 0;
+    x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+    seed = x | 0;
+    return ((x >>> 0) % 1000000) / 1000000;
+  }
+  function pick(arr){ return arr[Math.floor(rand() * arr.length)]; }
+
+  // Cell types: 'source' (emits beam in one direction), 'prism' (4-way rotatable mirror/splitter), 'drop' (sink with tint), 'empty'
+  // Each cell at row r, col c
+  let cells = []; // 2D array of cell objects
+  let cardSeedDisplay = 0;
+
+  function key(r,c){ return r*GRID + c; }
+  function inBounds(r,c){ return r>=0 && c>=0 && r<GRID && c<GRID; }
+
+  function makeBoard(s){
+    srand(s);
+    cardSeedDisplay = s;
+    cells = [];
+    for (let r=0;r<GRID;r++){
+      const row = [];
+      for (let c=0;c<GRID;c++){
+        row.push({ r, c, type:'empty', rot:0, tint:'none', lit:false, beamColor:null, sourceDir:0, hits:[] });
+      }
+      cells.push(row);
+    }
+
+    // Place 2 sources on edges, each pointing inward
+    const edgePositions = [];
+    for (let i=1;i<GRID-1;i++){
+      edgePositions.push({r:0,c:i,dir:2}); // top -> down
+      edgePositions.push({r:GRID-1,c:i,dir:0}); // bottom -> up
+      edgePositions.push({r:i,c:0,dir:1}); // left -> right
+      edgePositions.push({r:i,c:GRID-1,dir:3}); // right -> left
+    }
+    // pick 2 distinct
+    shuffle(edgePositions);
+    const src1 = edgePositions[0];
+    let src2 = edgePositions[1];
+    // ensure not same row/col axis (just preference)
+    let tries = 0;
+    while (src2 && (src2.r===src1.r && src2.c===src1.c) && tries < 10) {
+      src2 = edgePositions[2+tries]; tries++;
+    }
+    const srcTints = shuffle(['warm','cool','rose','leaf'].slice());
+    setCell(src1.r, src1.c, { type:'source', rot:src1.dir, tint:srcTints[0] });
+    setCell(src2.r, src2.c, { type:'source', rot:src2.dir, tint:srcTints[1] });
+
+    // Place 3-4 prisms in interior
+    const interior = [];
+    for (let r=1;r<GRID-1;r++) for (let c=1;c<GRID-1;c++) interior.push({r,c});
+    shuffle(interior);
+    const prismCount = 4;
+    for (let i=0;i<prismCount;i++){
+      const p = interior[i];
+      // alternate behavior via 'kind': 'split' (T) or 'turn' (L)
+      const kind = (i % 2 === 0) ? 'turn' : 'split';
+      setCell(p.r, p.c, { type:'prism', rot: Math.floor(rand()*4), tint:'none', kind });
+    }
+
+    // Place 3-4 drops elsewhere (sinks)
+    const dropCount = 4;
+    const used = new Set(cells.flat().filter(c=>c.type!=='empty').map(c=>key(c.r,c.c)));
+    const candidates = [];
+    for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+      if (!used.has(key(r,c))) candidates.push({r,c});
+    }
+    shuffle(candidates);
+    const dropTints = [];
+    for (let i=0;i<dropCount;i++) dropTints.push(TINT_KEYS[i % TINT_KEYS.length]);
+    shuffle(dropTints);
+    for (let i=0;i<dropCount;i++){
+      const p = candidates[i];
+      setCell(p.r, p.c, { type:'drop', rot:0, tint:dropTints[i] });
+    }
+
+    totalEl.textContent = dropCount;
+  }
+
+  function setCell(r,c, patch){
+    Object.assign(cells[r][c], patch);
+  }
+
+  function shuffle(a){
+    for (let i=a.length-1;i>0;i--){
+      const j = Math.floor(rand() * (i+1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Beam propagation
+  // Directions: 0=up,1=right,2=down,3=left
+  const DR = [-1, 0, 1, 0];
+  const DC = [0, 1, 0, -1];
+
+  function propagate(){
+    // reset
+    for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+      cells[r][c].lit = false;
+      cells[r][c].hits = [];
+    }
+    const beams = []; // {r1,c1,r2,c2,color}
+
+    // For each source, walk forward
+    for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++){
+      const cell = cells[r][c];
+      if (cell.type !== 'source') continue;
+      walk(r, c, cell.rot, cell.tint, 0, beams, new Set());
+    }
+
+    drawBeams(beams);
+    paintCells();
+    updateMeter();
+  }
+
+  function walk(r, c, dir, color, depth, beams, visited){
+    if (depth > 60) return;
+    const sig = r+','+c+','+dir+','+color;
+    if (visited.has(sig)) return;
+    visited.add(sig);
+
+    const nr = r + DR[dir];
+    const nc = c + DC[dir];
+    if (!inBounds(nr, nc)) {
+      // beam exits — draw a partial beam to the edge
+      beams.push({ r1:r, c1:c, r2:nr, c2:nc, color, exit:true });
+      return;
+    }
+    const target = cells[nr][nc];
+    beams.push({ r1:r, c1:c, r2:nr, c2:nc, color });
+
+    if (target.type === 'drop'){
+      target.hits.push(color);
+      target.beamColor = color;
+      if (target.tint === color) target.lit = true;
+      // beam absorbed
+      return;
+    }
+    if (target.type === 'source'){
+      // absorbed (don't pass through sources)
+      return;
+    }
+    if (target.type === 'prism'){
+      // turn or split based on rotation and kind
+      const outDirs = prismOut(target, dir);
+      // mix color visually if multiple inputs (skip for simplicity)
+      for (const od of outDirs){
+        walk(nr, nc, od, color, depth+1, beams, visited);
+      }
+      return;
+    }
+    // empty: continue straight
+    walk(nr, nc, dir, color, depth+1, beams, visited);
+  }
+
+  function prismOut(prism, incomingDir){
+    // incoming beam is heading 'incomingDir' from prev cell INTO prism cell
+    // The beam "enters" the prism from the opposite side, so its travel direction continues unless redirected.
+    // 'turn' prism (L shape): redirects 90° based on rotation.
+    //   Rotation 0: a beam going down turns right; going left turns up; (mirrors on this axis)
+    //   We'll define turn mapping: rot=0 maps {down->right, left->up}; reverse: {up->left, right->down}.
+    //   rot=1 rotates that 90° clockwise, etc.
+    // 'split' prism (T shape): splits the beam into two perpendicular outputs.
+    //   rot=0 base mapping: input from top (going down) splits into left+right.
+    //   Other rotations rotate the T shape.
+    if (prism.kind === 'turn'){
+      // Base map for rot=0
+      // turn maps pairs: (down<->right) and (up<->left)
+      const base = { 2:1, 1:2, 0:3, 3:0 }; // 2=down, becomes 1=right etc.
+      const adj = (incomingDir + (4 - prism.rot)) % 4;
+      let outAdj = base[adj];
+      const outDir = (outAdj + prism.rot) % 4;
+      return [outDir];
+    } else {
+      // split: T-shape, base rot=0: input from top (going down) splits left+right.
+      // Rotation rotates the T. The "trunk" of the T is opposite the input side.
+      // For simplicity, define: split converts incoming dir into the two perpendicular dirs,
+      // but only if the incoming dir matches the trunk side; otherwise it acts like a turn toward the trunk.
+      const trunk = prism.rot; // the open end of T points this way
+      if (incomingDir === (trunk + 2) % 4){
+        // came from the trunk side, hitting the bar: split into two perpendiculars
+        return [(trunk + 1) % 4, (trunk + 3) % 4];
+      } else if (incomingDir === trunk){
+        // came from the bar end going toward trunk: pass through to trunk dir
+        return [trunk];
+      } else {
+        // hit from a side: bounce toward trunk
+        return [trunk];
+      }
+    }
+  }
+
+  function updateMeter(){
+    let lit = 0, total = 0;
+    for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++){
+      if (cells[r][c].type === 'drop'){
+        total++;
+        if (cells[r][c].lit) lit++;
+      }
+    }
+    litEl.textContent = lit;
+    totalEl.textContent = total;
+    const pct = total ? Math.round(lit / total * 100) : 0;
+    barEl.style.setProperty('--w', pct + '%');
+  }
+
+  // Rendering
+  function cellXY(r, c){
+    return { x: PAD + c * STEP, y: PAD + r * STEP };
+  }
+
+  function drawBeams(beams){
+    beamLayer.innerHTML = '';
+    // dim grid wires
+    for (let r=0;r<GRID;r++){
+      for (let c=0;c<GRID;c++){
+        const p = cellXY(r,c);
+        // horizontal wire
+        if (c < GRID-1){
+          const p2 = cellXY(r,c+1);
+          const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+          line.setAttribute('x1', p.x); line.setAttribute('y1', p.y);
+          line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+          line.setAttribute('stroke', 'rgba(150,210,235,0.07)');
+          line.setAttribute('stroke-width', '1.2');
+          beamLayer.appendChild(line);
+        }
+        if (r < GRID-1){
+          const p2 = cellXY(r+1,c);
+          const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+          line.setAttribute('x1', p.x); line.setAttribute('y1', p.y);
+          line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+          line.setAttribute('stroke', 'rgba(150,210,235,0.07)');
+          line.setAttribute('stroke-width', '1.2');
+          beamLayer.appendChild(line);
+        }
+      }
+    }
+
+    // active beams
+    for (const b of beams){
+      const p1 = cellXY(b.r1, b.c1);
+      let p2;
+      if (b.exit){
+        // extend beyond the edge a bit then fade
+        const dr = b.r2 - b.r1;
+        const dc = b.c2 - b.c1;
+        p2 = { x: p1.x + dc * STEP * 0.5, y: p1.y + dr * STEP * 0.5 };
+      } else {
+        p2 = cellXY(b.r2, b.c2);
+      }
+      const stroke = COLORS[b.color] || '#fff';
+
+      // glow underlay
+      const glow = document.createElementNS('http://www.w3.org/2000/svg','line');
+      glow.setAttribute('x1', p1.x); glow.setAttribute('y1', p1.y);
+      glow.setAttribute('x2', p2.x); glow.setAttribute('y2', p2.y);
+      glow.setAttribute('stroke', stroke);
+      glow.setAttribute('stroke-opacity', '0.25');
+      glow.setAttribute('stroke-width', '14');
+      glow.setAttribute('stroke-linecap','round');
+      beamLayer.appendChild(glow);
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+      line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+      line.setAttribute('stroke', stroke);
+      line.setAttribute('stroke-opacity', '0.9');
+      line.setAttribute('stroke-width', '3');
+      line.setAttribute('stroke-linecap','round');
+      beamLayer.appendChild(line);
+
+      // animated dash
+      const dash = document.createElementNS('http://www.w3.org/2000/svg','line');
+      dash.setAttribute('x1', p1.x); dash.setAttribute('y1', p1.y);
+      dash.setAttribute('x2', p2.x); dash.setAttribute('y2', p2.y);
+      dash.setAttribute('stroke', '#ffffff');
+      dash.setAttribute('stroke-opacity', '0.65');
+      dash.setAttribute('stroke-width', '1.6');
+      dash.setAttribute('stroke-dasharray', '6 12');
+      dash.setAttribute('stroke-linecap','round');
+      const anim = document.createElementNS('http://www.w3.org/2000/svg','animate');
+      anim.setAttribute('attributeName','stroke-dashoffset');
+      anim.setAttribute('from','0');
+      anim.setAttribute('to','-36');
+      anim.setAttribute('dur','1.6s');
+      anim.setAttribute('repeatCount','indefinite');
+      dash.appendChild(anim);
+      beamLayer.appendChild(dash);
+    }
+  }
+
+  function paintCells(){
+    cellLayer.innerHTML = '';
+
+    for (let r=0;r<GRID;r++){
+      for (let c=0;c<GRID;c++){
+        const cell = cells[r][c];
+        const p = cellXY(r,c);
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('transform', `translate(${p.x},${p.y})`);
+        g.dataset.r = r;
+        g.dataset.c = c;
+        g.style.cursor = (cell.type==='prism' || cell.type==='drop') ? 'pointer' : 'default';
+
+        if (cell.type === 'empty'){
+          const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+          dot.setAttribute('r','3');
+          dot.setAttribute('fill','rgba(180,220,240,0.18)');
+          g.appendChild(dot);
+        } else if (cell.type === 'source'){
+          drawSource(g, cell);
+        } else if (cell.type === 'prism'){
+          drawPrism(g, cell);
+        } else if (cell.type === 'drop'){
+          drawDrop(g, cell);
+        }
+
+        cellLayer.appendChild(g);
+      }
+    }
+  }
+
+  function drawSource(g, cell){
+    const color = COLORS[cell.tint];
+    // glow
+    const glow = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    glow.setAttribute('r','30');
+    glow.setAttribute('fill', `url(#glow${cap(cell.tint)})`);
+    glow.setAttribute('opacity','0.95');
+    g.appendChild(glow);
+    // sun body
+    const sun = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    sun.setAttribute('r','14');
+    sun.setAttribute('fill', color);
+    sun.setAttribute('stroke','rgba(255,255,255,0.6)');
+    sun.setAttribute('stroke-width','1.2');
+    g.appendChild(sun);
+    // rays (8)
+    for (let i=0;i<8;i++){
+      const a = i * Math.PI / 4;
+      const x1 = Math.cos(a) * 17, y1 = Math.sin(a) * 17;
+      const x2 = Math.cos(a) * 23, y2 = Math.sin(a) * 23;
+      const ray = document.createElementNS('http://www.w3.org/2000/svg','line');
+      ray.setAttribute('x1',x1); ray.setAttribute('y1',y1);
+      ray.setAttribute('x2',x2); ray.setAttribute('y2',y2);
+      ray.setAttribute('stroke', color);
+      ray.setAttribute('stroke-width','2');
+      ray.setAttribute('stroke-linecap','round');
+      ray.setAttribute('opacity','0.85');
+      g.appendChild(ray);
+    }
+    // arrow showing direction
+    const ang = cell.rot * 90;
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    arrow.setAttribute('d','M 0 -6 L 0 6 L 10 0 Z');
+    arrow.setAttribute('fill','#0b1622');
+    arrow.setAttribute('transform', `rotate(${ang - 90}) translate(8,0)`);
+    arrow.setAttribute('opacity','0.85');
+    g.appendChild(arrow);
+  }
+
+  function drawPrism(g, cell){
+    // hex backdrop
+    const hex = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    const pts = [];
+    for (let i=0;i<6;i++){
+      const a = i * Math.PI / 3 - Math.PI / 6;
+      pts.push((Math.cos(a)*22).toFixed(2) + ',' + (Math.sin(a)*22).toFixed(2));
+    }
+    hex.setAttribute('points', pts.join(' '));
+    hex.setAttribute('fill','rgba(126,232,255,0.06)');
+    hex.setAttribute('stroke','rgba(180,230,255,0.5)');
+    hex.setAttribute('stroke-width','1.2');
+    g.appendChild(hex);
+
+    // inner shape: turn = L mirror, split = T splitter
+    const inner = document.createElementNS('http://www.w3.org/2000/svg','g');
+    inner.setAttribute('transform', `rotate(${cell.rot * 90})`);
+    if (cell.kind === 'turn'){
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      // L-shape mirror: two segments meeting at center
+      // rot=0: down -> right means a diagonal mirror from top-right to bottom-left
+      path.setAttribute('d','M -12 -12 L 12 12');
+      path.setAttribute('stroke','#cef5ff');
+      path.setAttribute('stroke-width','3');
+      path.setAttribute('stroke-linecap','round');
+      path.setAttribute('opacity','0.95');
+      inner.appendChild(path);
+      // softer arc
+      const arc = document.createElementNS('http://www.w3.org/2000/svg','path');
+      arc.setAttribute('d','M -10 -6 Q 0 0 6 10');
+      arc.setAttribute('stroke','rgba(206,245,255,0.45)');
+      arc.setAttribute('stroke-width','1.6');
+      arc.setAttribute('fill','none');
+      inner.appendChild(arc);
+    } else {
+      // split T: trunk points to "rot" direction (right at rot=0... but our base maps trunk=rot, where rot=0 means right)
+      // Actually we defined trunk = prism.rot, with directions 0=up,1=right,2=down,3=left.
+      // To make the visual correct, we should not double-rotate the inner group by rot*90.
+      // We'll draw the T pointing "up" then rotate by (rot - 0)*90... but rot=0 should point up.
+      // Use a different approach: don't pre-rotate inner; rotate just the T.
+      inner.setAttribute('transform', `rotate(${cell.rot * 90 - 90})`);
+      // T: trunk pointing right (since after -90 rotation at rot=0, the right-pointing T becomes up-pointing T) — but rot=0 is up. So:
+      // base T points up: bar on top, stem down? Let's redefine: draw T with bar horizontal at y=-2, stem going to y=12.
+      // For rot=0 trunk=up, we want the open end (trunk) facing up: bar at y=2 (lower), stem going up to y=-12.
+      // simpler: draw bar across center, stem going UP.
+      inner.setAttribute('transform', `rotate(${cell.rot * 90})`);
+      const bar = document.createElementNS('http://www.w3.org/2000/svg','line');
+      bar.setAttribute('x1','-12'); bar.setAttribute('y1','0');
+      bar.setAttribute('x2','12'); bar.setAttribute('y2','0');
+      bar.setAttribute('stroke','#cef5ff');
+      bar.setAttribute('stroke-width','3');
+      bar.setAttribute('stroke-linecap','round');
+      inner.appendChild(bar);
+      const stem = document.createElementNS('http://www.w3.org/2000/svg','line');
+      stem.setAttribute('x1','0'); stem.setAttribute('y1','0');
+      stem.setAttribute('x2','0'); stem.setAttribute('y2','-12');
+      stem.setAttribute('stroke','#cef5ff');
+      stem.setAttribute('stroke-width','3');
+      stem.setAttribute('stroke-linecap','round');
+      inner.appendChild(stem);
+    }
+    g.appendChild(inner);
+
+    // tap target (transparent larger circle)
+    const tap = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    tap.setAttribute('r','28');
+    tap.setAttribute('fill','transparent');
+    tap.setAttribute('data-tap','prism');
+    g.appendChild(tap);
+  }
+
+  function drawDrop(g, cell){
+    const wantColor = COLORS[cell.tint];
+    const lit = cell.lit;
+    // glow
+    if (lit){
+      const glow = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      glow.setAttribute('r','28');
+      glow.setAttribute('fill', `url(#glow${cap(cell.tint)})`);
+      glow.setAttribute('opacity','0.95');
+      g.appendChild(glow);
+    }
+    // drop body (slightly teardrop using path)
+    const drop = document.createElementNS('http://www.w3.org/2000/svg','path');
+    drop.setAttribute('d','M 0 -14 C 8 -4 12 4 6 12 C 0 17 -6 17 -12 12 C -16 6 -8 -2 0 -14 Z');
+    drop.setAttribute('fill', lit ? wantColor : 'rgba(255,255,255,0.06)');
+    drop.setAttribute('stroke', wantColor);
+    drop.setAttribute('stroke-width','1.6');
+    drop.setAttribute('opacity', lit ? '1' : '0.7');
+    g.appendChild(drop);
+    // small highlight
+    const hl = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+    hl.setAttribute('cx','-4'); hl.setAttribute('cy','-6');
+    hl.setAttribute('rx','3'); hl.setAttribute('ry','5');
+    hl.setAttribute('fill','rgba(255,255,255,0.5)');
+    hl.setAttribute('opacity', lit ? '0.7' : '0.25');
+    g.appendChild(hl);
+    // tap target
+    const tap = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    tap.setAttribute('r','22');
+    tap.setAttribute('fill','transparent');
+    tap.setAttribute('data-tap','drop');
+    g.appendChild(tap);
+  }
+
+  function cap(s){ return s ? s[0].toUpperCase() + s.slice(1) : ''; }
+
+  // Interaction
+  field.addEventListener('click', function(e){
+    const target = e.target.closest('g[data-r]');
+    if (!target) return;
+    const r = parseInt(target.dataset.r, 10);
+    const c = parseInt(target.dataset.c, 10);
+    const cell = cells[r][c];
+    if (cell.type === 'prism'){
+      cell.rot = (cell.rot + 1) % 4;
+      propagate();
+    } else if (cell.type === 'drop'){
+      const i = TINT_KEYS.indexOf(cell.tint);
+      cell.tint = TINT_KEYS[(i + 1) % TINT_KEYS.length];
+      propagate();
+    } else if (cell.type === 'source'){
+      // tapping a source rotates it (advanced — also fun)
+      cell.rot = (cell.rot + 1) % 4;
+      propagate();
+    }
+  });
+
+  resetBtn.addEventListener('click', function(){
+    cardOut.classList.remove('show');
+    // new random board each reset, so the toy stays fresh
+    makeBoard((Math.random() * 1e9) | 0);
+    propagate();
+  });
+
+  composeBtn.addEventListener('click', composeCard);
+
+  // Card composition
+  const ADJ = ['quiet','clear','gentle','dappled','steady','bright','folded','feathered','low','warm','threaded','spilled','wandering','tucked','glassy'];
+  const NOUN = ['relay','garden','footbridge','meadow','aviary','workshop','lantern','aperture','chamber','almanac','vestibule','grove','window','telegram','mosaic'];
+
+  function composeCard(){
+    let lit = 0, total = 0;
+    const litTints = [];
+    for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++){
+      if (cells[r][c].type === 'drop'){
+        total++;
+        if (cells[r][c].lit){ lit++; litTints.push(cells[r][c].tint); }
+      }
+    }
+    // Deterministic-ish: name uses the current seed + lit count
+    srand((cardSeedDisplay * 1009 + lit * 31 + total) >>> 0);
+    const name = cap(pick(ADJ)) + ' ' + cap(pick(NOUN));
+    const route = lit === 0 ? 'empty' : (lit === total ? 'complete' : 'partial');
+    const tint = litTints.length ? (litTints.every(t => t === litTints[0]) ? TINT_NAMES[litTints[0]] : 'mixed') : '—';
+    const lineOptions = [
+      'A small bright detour through the morning.',
+      'The dew remembered which colors to keep.',
+      'Three taps and a window of weather opened.',
+      'The path settled before the kettle did.',
+      'A circuit you can carry in a pocket.',
+      'Light found its way without being told.',
+      'A morning routed by patient fingers.',
+      'The garden hummed a quiet completed note.',
+      'Half-lit, and that was already enough.',
+      'A small switchboard, kindly answered.'
+    ];
+    let line;
+    if (lit === 0) line = 'No dew was lit — the morning kept its quiet.';
+    else if (lit === total) line = lineOptions[Math.floor(rand() * 4)] + ' Every droplet found its color.';
+    else line = lineOptions[4 + Math.floor(rand() * 6)];
+
+    document.getElementById('cardName').textContent = name;
+    document.getElementById('cardLine').textContent = line;
+    document.getElementById('cardLit').textContent = lit + '/' + total;
+    document.getElementById('cardRoute').textContent = route;
+    document.getElementById('cardTint').textContent = tint;
+    document.getElementById('cardSeed').textContent = '#' + (cardSeedDisplay % 100000).toString(36);
+    cardOut.classList.add('show');
+    cardOut.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  // Init
+  function init(){
+    makeBoard((Math.random() * 1e9) | 0);
+    propagate();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
