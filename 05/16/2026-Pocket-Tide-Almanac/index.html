@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a1a26" />
+<title>Pocket Tide Almanac</title>
+<style>
+  :root {
+    --bg-0: #061218;
+    --bg-1: #0a1c28;
+    --bg-2: #102a3a;
+    --ink: #d8ecf3;
+    --ink-dim: #7fa3b3;
+    --ink-faint: #3f6276;
+    --accent: #f4c97a;
+    --accent-2: #76d6c9;
+    --shell-1: #f6dcc1;
+    --shell-2: #e3b39a;
+    --shell-3: #c69080;
+    --pebble: #8aa4b4;
+    --kelp: #5f9a6e;
+    --rim: #c9a06a;
+    --water-deep: #18506a;
+    --water-mid:  #2e7d96;
+    --water-top:  #7ccfe0;
+    --foam:       rgba(232,246,250,0.85);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: radial-gradient(ellipse at 50% -10%, #102a3a 0%, var(--bg-0) 70%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(env(safe-area-inset-top), 14px) 12px max(env(safe-area-inset-bottom), 14px);
+    gap: 12px;
+  }
+
+  header {
+    text-align: center;
+    max-width: 520px;
+    width: 100%;
+    padding: 6px 4px 4px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  h1 {
+    font-size: clamp(1.4rem, 5vw, 1.9rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+  .tagline {
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 520px;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    border-radius: 20px;
+    background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    border: 1px solid rgba(244,201,122,0.18);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45),
+                inset 0 0 0 1px rgba(244,201,122,0.04);
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  .moon-readout {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .moon-readout .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f7e9c9, #6b5934);
+    box-shadow: 0 0 12px rgba(247,233,201,0.4);
+  }
+  .tide-readout {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    pointer-events: none;
+    text-align: right;
+  }
+  .tide-readout strong {
+    display: block;
+    color: var(--accent-2);
+    letter-spacing: -0.01em;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: none;
+    margin-top: 2px;
+  }
+
+  .palette {
+    width: 100%;
+    max-width: 520px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .pal-btn {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid rgba(244,201,122,0.18);
+    background: linear-gradient(180deg, rgba(16,42,58,0.7), rgba(10,28,40,0.7));
+    color: var(--ink);
+    border-radius: 12px;
+    min-height: 56px;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.18s, transform 0.06s, background 0.18s;
+  }
+  .pal-btn:active { transform: scale(0.97); }
+  .pal-btn.active {
+    border-color: var(--accent);
+    background: linear-gradient(180deg, rgba(244,201,122,0.16), rgba(244,201,122,0.04));
+    box-shadow: 0 0 0 1px rgba(244,201,122,0.25) inset;
+  }
+  .pal-btn .ico {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pal-btn .lbl {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .pal-btn.active .lbl { color: var(--accent); }
+
+  .tide-row {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 6px;
+  }
+  .tide-row .label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    width: 38px;
+    flex-shrink: 0;
+  }
+  .tide-row .label.right { text-align: right; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 44px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--water-deep), var(--water-top));
+    border: 1px solid rgba(244,201,122,0.12);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f9eccf, #c8a366);
+    border: 1px solid rgba(0,0,0,0.4);
+    margin-top: -11px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45), 0 0 8px rgba(247,229,184,0.4);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--water-deep), var(--water-top));
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f9eccf, #c8a366);
+    border: 1px solid rgba(0,0,0,0.4);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+  }
+
+  .actions {
+    width: 100%;
+    max-width: 520px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.6fr;
+    gap: 8px;
+  }
+  .btn {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid rgba(244,201,122,0.18);
+    background: linear-gradient(180deg, rgba(16,42,58,0.7), rgba(10,28,40,0.7));
+    color: var(--ink);
+    border-radius: 12px;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: border-color 0.18s, transform 0.06s, background 0.18s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(180deg, rgba(244,201,122,0.18), rgba(244,201,122,0.06));
+    border-color: rgba(244,201,122,0.5);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .btn.primary:hover { border-color: rgba(244,201,122,0.8); }
+
+  .almanac {
+    width: 100%;
+    max-width: 520px;
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, #f6ecd1 0%, #f0e0b8 100%);
+    color: #4a3514;
+    padding: 18px 18px 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45),
+                inset 0 0 0 1px rgba(74,53,20,0.08);
+    position: relative;
+    transform-origin: top center;
+    transition: opacity 0.4s, transform 0.4s;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    pointer-events: none;
+    margin-top: 4px;
+  }
+  .almanac.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .almanac::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px dashed rgba(74,53,20,0.25);
+    border-radius: 9px;
+    pointer-events: none;
+  }
+  .alm-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(74,53,20,0.7);
+    margin-bottom: 8px;
+  }
+  .alm-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: #2c1f08;
+    margin-bottom: 6px;
+    font-style: italic;
+  }
+  .alm-body {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #3a2a10;
+  }
+  .alm-footer {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(74,53,20,0.6);
+  }
+  .alm-copy {
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(74,53,20,0.08);
+    border: 1px solid rgba(74,53,20,0.2);
+    color: #4a3514;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-height: 28px;
+  }
+  .alm-copy.copied { background: rgba(74,53,20,0.18); }
+
+  .hint {
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-align: center;
+    line-height: 1.45;
+    padding: 0 8px;
+    max-width: 520px;
+  }
+
+  footer {
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  @media (min-width: 700px) {
+    body { gap: 14px; padding-top: 24px; }
+    h1 { font-size: 2rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .almanac { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Daily Surprise · May 16</div>
+  <h1>Pocket <span class="accent">Tide Almanac</span></h1>
+  <p class="tagline">Set shells and pebbles around a small pool. Slide the moon. Compose a tiny almanac entry of the morning.</p>
+</header>
+
+<div class="stage" id="stage" aria-label="Tide pool canvas">
+  <div class="moon-readout"><span class="dot" id="moonDot"></span><span id="moonText">WAXING CRESCENT</span></div>
+  <div class="tide-readout">TIDE<strong id="tideText">slack low</strong></div>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div class="palette" role="toolbar" aria-label="Object palette">
+  <button class="pal-btn active" data-tool="shell" aria-pressed="true">
+    <span class="ico">
+      <svg width="26" height="26" viewBox="0 0 26 26"><path d="M13 4 C7 4 4 10 4 16 L22 16 C22 10 19 4 13 4 Z" fill="#f6dcc1" stroke="#a76a4a" stroke-width="0.8"/><path d="M13 4 L13 16 M9 5.5 L10 16 M17 5.5 L16 16" stroke="#a76a4a" stroke-width="0.6" fill="none"/></svg>
+    </span>
+    <span class="lbl">Shell</span>
+  </button>
+  <button class="pal-btn" data-tool="pebble" aria-pressed="false">
+    <span class="ico">
+      <svg width="26" height="26" viewBox="0 0 26 26"><ellipse cx="13" cy="14" rx="9" ry="6" fill="#8aa4b4" stroke="#3f5566" stroke-width="0.8"/><ellipse cx="10" cy="11" rx="2.5" ry="1.3" fill="#a8bdc8" opacity="0.6"/></svg>
+    </span>
+    <span class="lbl">Pebble</span>
+  </button>
+  <button class="pal-btn" data-tool="kelp" aria-pressed="false">
+    <span class="ico">
+      <svg width="26" height="26" viewBox="0 0 26 26"><path d="M9 22 C7 18 11 14 8 10 C6 6 12 4 11 2" stroke="#5f9a6e" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M16 22 C18 18 14 14 17 10 C19 6 14 4 15 2" stroke="#5f9a6e" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    </span>
+    <span class="lbl">Kelp</span>
+  </button>
+  <button class="pal-btn" data-tool="erase" aria-pressed="false">
+    <span class="ico">
+      <svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="none" stroke="#d8ecf3" stroke-width="1.4" stroke-dasharray="2 2"/><line x1="8" y1="8" x2="18" y2="18" stroke="#d8ecf3" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </span>
+    <span class="lbl">Erase</span>
+  </button>
+</div>
+
+<div class="tide-row">
+  <span class="label">New</span>
+  <input id="moonSlider" type="range" min="0" max="100" value="22" aria-label="Moon and tide slider"/>
+  <span class="label right">Full</span>
+</div>
+
+<div class="actions">
+  <button class="btn" id="resetBtn" aria-label="Clear the pool">Clear</button>
+  <button class="btn" id="randomBtn" aria-label="Scatter random objects">Scatter</button>
+  <button class="btn primary" id="composeBtn" aria-label="Compose almanac entry">Compose entry</button>
+</div>
+
+<div class="almanac" id="almanac" aria-live="polite">
+  <div class="alm-head"><span id="almNo">Entry No. 1</span><span id="almDate">May 16</span></div>
+  <div class="alm-title" id="almTitle">A Quiet Saltwater Page</div>
+  <div class="alm-body" id="almBody">Under a waxing crescent and a slack low tide, the pool held three shells and one pebble.</div>
+  <div class="alm-footer">
+    <span>Pocket Tide Almanac</span>
+    <button class="alm-copy" id="almCopy" aria-label="Copy almanac entry">Copy</button>
+  </div>
+</div>
+
+<p class="hint" id="hint">Tap the pool to place. Tap a placed object with the erase tool to remove it. Drag the slider to bring the tide in.</p>
+
+<footer>Tap · Drag · Listen</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('canvas');
+  const ctx     = canvas.getContext('2d');
+  const moonSlider = document.getElementById('moonSlider');
+  const moonText   = document.getElementById('moonText');
+  const tideText   = document.getElementById('tideText');
+  const moonDot    = document.getElementById('moonDot');
+  const palBtns    = document.querySelectorAll('.pal-btn');
+  const resetBtn   = document.getElementById('resetBtn');
+  const randomBtn  = document.getElementById('randomBtn');
+  const composeBtn = document.getElementById('composeBtn');
+  const almanac    = document.getElementById('almanac');
+  const almTitle   = document.getElementById('almTitle');
+  const almBody    = document.getElementById('almBody');
+  const almNo      = document.getElementById('almNo');
+  const almDate    = document.getElementById('almDate');
+  const almCopy    = document.getElementById('almCopy');
+  const hint       = document.getElementById('hint');
+
+  // ----- State -----
+  const state = {
+    tool: 'shell',
+    objects: [], // {kind, x, y, r, hue, seed}
+    moon: 0.22, // 0 = new, 1 = full (slider 0..1)
+    entryNo: parseInt(localStorage.getItem('pta-entry-no') || '0', 10),
+    lastPlaceAt: 0,
+  };
+
+  // ----- Sizing -----
+  let W = 0, H = 0, dpr = 1, cx = 0, cy = 0, R = 0;
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = rect.width;
+    H = rect.height;
+    canvas.width  = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx = W / 2;
+    cy = H / 2 + 4;
+    R  = Math.min(W, H) * 0.42;
+  }
+  window.addEventListener('resize', () => { resize(); });
+
+  // ----- Moon phase mapping -----
+  const moonPhases = [
+    { lo: 0.00, hi: 0.06, name: 'NEW MOON',          tide: 'spring low',   weight: 1.0 },
+    { lo: 0.06, hi: 0.30, name: 'WAXING CRESCENT',   tide: 'slack low',    weight: 0.4 },
+    { lo: 0.30, hi: 0.44, name: 'FIRST QUARTER',     tide: 'neap mid',     weight: 0.2 },
+    { lo: 0.44, hi: 0.56, name: 'WAXING GIBBOUS',    tide: 'rising high',  weight: 0.6 },
+    { lo: 0.56, hi: 0.70, name: 'FULL MOON',         tide: 'spring high',  weight: 1.0 },
+    { lo: 0.70, hi: 0.84, name: 'WANING GIBBOUS',    tide: 'falling high', weight: 0.6 },
+    { lo: 0.84, hi: 0.96, name: 'LAST QUARTER',      tide: 'neap mid',     weight: 0.2 },
+    { lo: 0.96, hi: 1.01, name: 'WANING CRESCENT',   tide: 'slack low',    weight: 0.4 },
+  ];
+  function currentPhase() {
+    for (const p of moonPhases) {
+      if (state.moon >= p.lo && state.moon < p.hi) return p;
+    }
+    return moonPhases[moonPhases.length - 1];
+  }
+  function tideFill() {
+    // 0..1 water height inside the pool. Springs full/new = extremes (high/low), neap = mid.
+    // Simpler: derive directly so the slider feels physical.
+    // New → low water, Full → high water, others interpolate with a small bulge for gibbous.
+    const m = state.moon;
+    // sinusoidal: low at 0, peak at 0.5, low at 1 — that matches new→full→back.
+    const base = (1 - Math.cos(m * Math.PI * 2)) / 2; // 0 at new, 1 at full
+    return 0.18 + 0.62 * base; // 0.18..0.80
+  }
+
+  function updateReadouts() {
+    const p = currentPhase();
+    moonText.textContent = p.name;
+    tideText.textContent = p.tide;
+    // moon icon dot: shift highlight based on phase
+    const m = state.moon;
+    const hi = 0.35 + 0.4 * Math.sin(m * Math.PI * 2 - Math.PI/2);
+    moonDot.style.background = `radial-gradient(circle at ${hi*100}% 35%, #f9eccf, #6b5934)`;
+  }
+
+  // ----- Object placement -----
+  function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function inPool(x, y, margin = 6) {
+    return dist(x, y, cx, cy) <= R - margin;
+  }
+
+  function place(x, y) {
+    if (!inPool(x, y, 10)) return;
+    const tool = state.tool;
+    if (tool === 'erase') {
+      // remove topmost object within radius
+      for (let i = state.objects.length - 1; i >= 0; i--) {
+        const o = state.objects[i];
+        if (dist(x, y, o.x, o.y) <= o.r + 4) {
+          state.objects.splice(i, 1);
+          return;
+        }
+      }
+      return;
+    }
+    // avoid double-stacking at same spot
+    for (const o of state.objects) {
+      if (dist(x, y, o.x, o.y) < 14) return;
+    }
+    let r, hue;
+    if (tool === 'shell') {
+      r = rand(11, 16);
+      hue = pick([20, 18, 28, 35, 12]); // warm hues
+    } else if (tool === 'pebble') {
+      r = rand(8, 14);
+      hue = pick([195, 205, 215, 220, 200]);
+    } else if (tool === 'kelp') {
+      r = rand(14, 20);
+      hue = pick([130, 140, 120]);
+    }
+    state.objects.push({
+      kind: tool,
+      x, y, r, hue,
+      seed: Math.random() * 1000,
+      rot: rand(0, Math.PI * 2),
+      placedAt: performance.now(),
+    });
+    if (state.objects.length > 60) state.objects.shift();
+  }
+
+  function pointerToCanvas(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (W / rect.width),
+      y: (e.clientY - rect.top)  * (H / rect.height),
+    };
+  }
+
+  let pointerDown = false;
+  let lastPlaceTime = 0;
+  stage.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    pointerDown = true;
+    const p = pointerToCanvas(e);
+    place(p.x, p.y);
+    lastPlaceTime = performance.now();
+    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!pointerDown) return;
+    const now = performance.now();
+    if (now - lastPlaceTime < 90) return; // throttle drag-place
+    const p = pointerToCanvas(e);
+    place(p.x, p.y);
+    lastPlaceTime = now;
+  });
+  stage.addEventListener('pointerup',     () => { pointerDown = false; });
+  stage.addEventListener('pointercancel', () => { pointerDown = false; });
+
+  // ----- Palette buttons -----
+  palBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      palBtns.forEach(o => { o.classList.remove('active'); o.setAttribute('aria-pressed','false'); });
+      b.classList.add('active');
+      b.setAttribute('aria-pressed','true');
+      state.tool = b.dataset.tool;
+      if (state.tool === 'erase') {
+        hint.textContent = 'Tap a placed object to remove it.';
+      } else {
+        hint.textContent = `Tap inside the pool to place a ${state.tool}. Slide the moon to change the tide.`;
+      }
+    });
+  });
+
+  // ----- Slider -----
+  moonSlider.addEventListener('input', () => {
+    state.moon = parseInt(moonSlider.value, 10) / 100;
+    updateReadouts();
+  });
+
+  // ----- Actions -----
+  resetBtn.addEventListener('click', () => {
+    state.objects = [];
+    hideAlmanac();
+  });
+  randomBtn.addEventListener('click', () => {
+    state.objects = [];
+    const tools = ['shell','pebble','pebble','kelp','shell','pebble'];
+    const n = 6 + Math.floor(Math.random() * 6);
+    let tries = 0;
+    while (state.objects.length < n && tries < 200) {
+      tries++;
+      // sample inside pool with a poisson-ish minimum distance
+      const a = Math.random() * Math.PI * 2;
+      const rr = Math.sqrt(Math.random()) * (R - 18);
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr;
+      state.tool = pick(tools);
+      place(x, y);
+    }
+    state.tool = 'shell';
+    palBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.tool === 'shell');
+      b.setAttribute('aria-pressed', b.dataset.tool === 'shell' ? 'true' : 'false');
+    });
+    hideAlmanac();
+  });
+
+  composeBtn.addEventListener('click', composeEntry);
+
+  // ----- Almanac composition -----
+  const titleAdj = [
+    'Quiet','Slow','Brass','Salt-bright','Glassy','Brief','Tidewashed','Page-thin',
+    'Folded','Half-pencilled','Soft','Hushed','Pocket','Slate-grey','Honeyed','Loose-leaf',
+    'Coastline','Almanac','Low-voiced','Slack','Frayed','Margin','Lantern',
+  ];
+  const titleNoun = [
+    'Page','Hymn','Telegram','Cartograph','Ledger','Letter','Footnote','Margin',
+    'Pebblework','Tide-chart','Calendar','Postscript','Saltwater Note','Errand',
+    'Inventory','Almanac Leaf','Catalogue','Errand-list','Shorthand','Notation',
+  ];
+  function nameForArrangement() {
+    // deterministic-ish based on what's in the pool + moon
+    const seed = (state.objects.length * 31)
+               + Math.floor(state.moon * 97) * 7
+               + state.objects.reduce((s,o) => s + (o.kind === 'shell' ? 3 : o.kind === 'pebble' ? 5 : 7), 0);
+    const a = titleAdj[seed % titleAdj.length];
+    const n = titleNoun[(seed * 13) % titleNoun.length];
+    return `A ${a} ${n}`;
+  }
+
+  function tally() {
+    const t = { shell: 0, pebble: 0, kelp: 0 };
+    for (const o of state.objects) t[o.kind]++;
+    return t;
+  }
+
+  function wordNum(n) {
+    return ['no','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'][n] || `${n}`;
+  }
+
+  function arrangementSentence() {
+    const t = tally();
+    const parts = [];
+    if (t.shell)  parts.push(`${wordNum(t.shell)} ${t.shell === 1 ? 'shell' : 'shells'}`);
+    if (t.pebble) parts.push(`${wordNum(t.pebble)} ${t.pebble === 1 ? 'pebble' : 'pebbles'}`);
+    if (t.kelp)   parts.push(`${wordNum(t.kelp)} ${t.kelp === 1 ? 'strand of kelp' : 'strands of kelp'}`);
+    if (!parts.length) return 'an empty pool, smooth as a fresh page';
+    if (parts.length === 1) return parts[0];
+    if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+    return `${parts.slice(0,-1).join(', ')}, and ${parts[parts.length-1]}`;
+  }
+
+  const closings = [
+    'The almanac signs off in pencil and turns the page.',
+    'The pool keeps its small, exact opinion of the morning.',
+    'A gull crosses the margin once and is not noted.',
+    'The day, somewhere, is already underway.',
+    'The water remembers nothing in particular and that is the point.',
+    'A boat is leaving a harbor; this almanac was not consulted.',
+    'Tomorrow the pool will be rearranged; tomorrow this entry will still be true.',
+    'Filed under: small weathers, well-kept.',
+  ];
+
+  function composeEntry() {
+    state.entryNo = (state.entryNo || 0) + 1;
+    localStorage.setItem('pta-entry-no', String(state.entryNo));
+    const phase = currentPhase();
+    const name  = nameForArrangement();
+    const items = arrangementSentence();
+    const closer = closings[(state.entryNo + state.objects.length) % closings.length];
+    almNo.textContent    = `Entry No. ${state.entryNo}`;
+    almDate.textContent  = 'May 16';
+    almTitle.textContent = name;
+    almBody.innerHTML =
+      `Under a <strong>${phase.name.toLowerCase()}</strong> and a <strong>${phase.tide}</strong>, the pool held ${items}. ${closer}`;
+    showAlmanac();
+  }
+  function showAlmanac() {
+    almanac.classList.add('show');
+    setTimeout(() => {
+      almanac.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  }
+  function hideAlmanac() {
+    almanac.classList.remove('show');
+  }
+
+  // ----- Copy -----
+  almCopy.addEventListener('click', async () => {
+    const text =
+      `Pocket Tide Almanac — ${almNo.textContent}\n` +
+      `${almTitle.textContent}\n\n` +
+      `${almBody.textContent}\n\n` +
+      `(May 16)`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      almCopy.classList.add('copied');
+      almCopy.textContent = 'Copied';
+      setTimeout(() => {
+        almCopy.classList.remove('copied');
+        almCopy.textContent = 'Copy';
+      }, 1400);
+    } catch (e) {
+      almCopy.textContent = 'Press & hold';
+    }
+  });
+
+  // ----- Rendering -----
+  let t0 = performance.now();
+
+  function drawBackground() {
+    // outer warm sand/board hint behind pool
+    const g = ctx.createRadialGradient(cx, cy - R*0.3, R*0.2, cx, cy, R*1.6);
+    g.addColorStop(0, 'rgba(244,201,122,0.06)');
+    g.addColorStop(1, 'rgba(6,18,24,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawPoolRim(time) {
+    // soft sandy rim
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R + 14, 0, Math.PI * 2);
+    ctx.arc(cx, cy, R - 2, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(201,160,106,0.16)';
+    ctx.fill();
+
+    // ring of tide notches around the inside, slowly drifting
+    const notches = 36;
+    const fill = tideFill();
+    for (let i = 0; i < notches; i++) {
+      const a = (i / notches) * Math.PI * 2 + time * 0.00006;
+      const len = 4 + 3 * Math.sin(a * 3 + time * 0.001);
+      const x1 = cx + Math.cos(a) * (R + 2);
+      const y1 = cy + Math.sin(a) * (R + 2);
+      const x2 = cx + Math.cos(a) * (R + 2 + len);
+      const y2 = cy + Math.sin(a) * (R + 2 + len);
+      // major notches every 9
+      const major = (i % 9 === 0);
+      ctx.strokeStyle = major ? 'rgba(244,201,122,0.55)' : 'rgba(201,160,106,0.35)';
+      ctx.lineWidth = major ? 1.4 : 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // a small "N" marker at top
+    ctx.fillStyle = 'rgba(244,201,122,0.6)';
+    ctx.font = '600 9px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', cx, cy - R - 18);
+
+    // tide-fill marker on rim (an indicator showing current waterline outside)
+    const angle = -Math.PI / 2 + fill * Math.PI * 2 * 0.0; // we'll use right side
+    const fillAngle = Math.PI / 2; // right side
+    const px = cx + Math.cos(fillAngle) * (R + 22);
+    const py = cy + Math.sin(fillAngle) * (R + 22) - (1 - fill) * 6;
+    ctx.fillStyle = 'rgba(124,207,224,0.7)';
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawWater(time) {
+    ctx.save();
+    // clip to pool circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.clip();
+
+    // base water gradient by tide level
+    const fill = tideFill();
+    const g = ctx.createRadialGradient(cx, cy - R*0.2, R*0.1, cx, cy, R);
+    const deep = `hsl(198, ${30 + fill*15}%, ${10 + fill*8}%)`;
+    const mid  = `hsl(192, ${42 + fill*15}%, ${22 + fill*10}%)`;
+    const top  = `hsl(186, ${55 + fill*12}%, ${48 + fill*6}%)`;
+    g.addColorStop(0, top);
+    g.addColorStop(0.55, mid);
+    g.addColorStop(1, deep);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - R, cy - R, R*2, R*2);
+
+    // moving sine "ripples" — concentric circles drifting outward
+    const ripples = 4;
+    for (let i = 0; i < ripples; i++) {
+      const phase = (time * 0.00025 + i / ripples) % 1;
+      const rr = phase * R * 1.05;
+      const alpha = (1 - phase) * 0.18 * (0.6 + fill * 0.4);
+      ctx.strokeStyle = `rgba(220,240,250,${alpha.toFixed(3)})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // subtle sine-band caustics across the surface
+    const bands = 9;
+    for (let i = 0; i < bands; i++) {
+      const y = cy - R + (i / bands) * R * 2;
+      const offset = Math.sin(time * 0.0008 + i * 0.8) * 6;
+      ctx.strokeStyle = `rgba(180,220,235,${0.04 + (i%2)*0.02})`;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      for (let x = cx - R; x <= cx + R; x += 6) {
+        const yy = y + Math.sin((x + offset) * 0.04 + time * 0.001) * 2.5;
+        if (x === cx - R) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+
+    // small moon highlight on the water
+    const moonAngle = -Math.PI/2 - (state.moon - 0.5) * Math.PI * 0.6;
+    const mx = cx + Math.cos(moonAngle) * R * 0.55;
+    const my = cy + Math.sin(moonAngle) * R * 0.55;
+    const moonGlow = ctx.createRadialGradient(mx, my, 1, mx, my, R * 0.32);
+    const moonStrength = 0.18 + Math.abs(Math.sin(state.moon * Math.PI)) * 0.22;
+    moonGlow.addColorStop(0, `rgba(247,229,184,${moonStrength.toFixed(3)})`);
+    moonGlow.addColorStop(1, 'rgba(247,229,184,0)');
+    ctx.fillStyle = moonGlow;
+    ctx.fillRect(cx - R, cy - R, R*2, R*2);
+
+    ctx.restore();
+  }
+
+  function drawObjectShell(o, time, submerged) {
+    const wob = submerged ? Math.sin(time * 0.0018 + o.seed) * 1.5 : 0;
+    const x = o.x + wob, y = o.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(o.rot);
+    if (submerged) ctx.globalAlpha = 0.78;
+    // fan shape
+    ctx.beginPath();
+    ctx.moveTo(0, -o.r * 0.1);
+    ctx.bezierCurveTo(-o.r, -o.r*0.3, -o.r*0.95, o.r*0.9, 0, o.r*0.85);
+    ctx.bezierCurveTo(o.r*0.95, o.r*0.9, o.r, -o.r*0.3, 0, -o.r*0.1);
+    ctx.closePath();
+    const grad = ctx.createRadialGradient(0, -o.r*0.2, o.r*0.1, 0, o.r*0.3, o.r);
+    grad.addColorStop(0, `hsl(${o.hue}, 55%, 86%)`);
+    grad.addColorStop(1, `hsl(${o.hue + 8}, 35%, 60%)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    // ribs
+    ctx.strokeStyle = `hsla(${o.hue + 5}, 30%, 38%, 0.55)`;
+    ctx.lineWidth = 0.7;
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, -o.r*0.05);
+      ctx.quadraticCurveTo(i * o.r*0.18, o.r*0.45, i * o.r*0.32, o.r*0.85);
+      ctx.stroke();
+    }
+    // hinge
+    ctx.beginPath();
+    ctx.fillStyle = `hsla(${o.hue + 10}, 30%, 30%, 0.9)`;
+    ctx.arc(0, -o.r*0.1, o.r*0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawObjectPebble(o, time, submerged) {
+    const wob = submerged ? Math.sin(time * 0.0014 + o.seed) * 1.2 : 0;
+    const x = o.x + wob, y = o.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(o.rot);
+    if (submerged) ctx.globalAlpha = 0.72;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, o.r, o.r * 0.72, 0, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(-o.r*0.3, -o.r*0.3, o.r*0.1, 0, 0, o.r);
+    grad.addColorStop(0, `hsl(${o.hue}, 15%, 72%)`);
+    grad.addColorStop(1, `hsl(${o.hue + 8}, 22%, 38%)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = `hsla(${o.hue}, 28%, 25%, 0.5)`;
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+    // small specular dot
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(-o.r*0.3, -o.r*0.32, o.r*0.22, o.r*0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawObjectKelp(o, time, submerged) {
+    const x = o.x, y = o.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(o.rot * 0.2);
+    if (submerged) ctx.globalAlpha = 0.85;
+    const sway = Math.sin(time * 0.0014 + o.seed) * (submerged ? 4 : 2);
+    ctx.strokeStyle = `hsl(${o.hue}, 38%, 38%)`;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, o.r);
+    ctx.quadraticCurveTo(sway, 0, sway * 0.6, -o.r);
+    ctx.stroke();
+    // little leaves
+    ctx.fillStyle = `hsl(${o.hue + 10}, 42%, 42%)`;
+    for (let i = -2; i <= 2; i++) {
+      if (i === 0) continue;
+      const t = (i + 2) / 4;
+      const lx = sway * (t - 0.5) * 1.4;
+      const ly = o.r - t * o.r * 2;
+      ctx.beginPath();
+      ctx.ellipse(lx + (i*2), ly, 4, 1.6, i * 0.4, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawObjects(time) {
+    const fill = tideFill();
+    // sort: kelp first (back), pebbles, shells (front)
+    const order = { kelp: 0, pebble: 1, shell: 2 };
+    const sorted = state.objects.slice().sort((a,b) => order[a.kind] - order[b.kind]);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R - 2, 0, Math.PI * 2);
+    ctx.clip();
+
+    for (const o of sorted) {
+      // submergence: how covered the object is given the tide. We'll say
+      // tide >= 0.5 means most objects feel submerged.
+      const sub = fill > 0.5;
+      // small entry pop animation
+      const age = (time - o.placedAt) / 220;
+      if (age < 1) {
+        ctx.save();
+        const s = 0.6 + 0.4 * Math.min(age, 1);
+        ctx.translate(o.x, o.y);
+        ctx.scale(s, s);
+        ctx.translate(-o.x, -o.y);
+      }
+
+      if (o.kind === 'shell')  drawObjectShell(o, time, sub);
+      if (o.kind === 'pebble') drawObjectPebble(o, time, sub);
+      if (o.kind === 'kelp')   drawObjectKelp(o, time, sub);
+
+      if (age < 1) ctx.restore();
+
+      // soft ripple if recently placed
+      if (age < 1.6) {
+        const ringR = 6 + age * 22;
+        ctx.strokeStyle = `rgba(220,240,250,${(1 - age/1.6) * 0.35})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, ringR, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawPoolEdge() {
+    // crisp inner edge
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(244,201,122,0.35)';
+    ctx.stroke();
+
+    // inner soft shadow
+    const ig = ctx.createRadialGradient(cx, cy, R*0.85, cx, cy, R);
+    ig.addColorStop(0, 'rgba(0,0,0,0)');
+    ig.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = ig;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEmptyHint() {
+    if (state.objects.length > 0) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(216,236,243,0.45)';
+    ctx.font = '500 11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('tap to place', cx, cy - 2);
+    ctx.fillStyle = 'rgba(216,236,243,0.28)';
+    ctx.fillText('· · ·', cx, cy + 14);
+    ctx.restore();
+  }
+
+  function frame(now) {
+    const time = now;
+    ctx.clearRect(0, 0, W, H);
+    drawBackground();
+    drawPoolRim(time);
+    drawWater(time);
+    drawObjects(time);
+    drawPoolEdge();
+    drawEmptyHint();
+    requestAnimationFrame(frame);
+  }
+
+  // ----- Init -----
+  function init() {
+    resize();
+    updateReadouts();
+    // small starter arrangement so the pool isn't empty
+    const starters = [
+      { kind: 'pebble', dx: -42, dy: 28 },
+      { kind: 'shell',  dx:  18, dy: -10 },
+      { kind: 'kelp',   dx:  56, dy: 36 },
+    ];
+    for (const s of starters) {
+      state.tool = s.kind;
+      place(cx + s.dx, cy + s.dy);
+    }
+    state.tool = 'shell';
+    requestAnimationFrame(frame);
+  }
+
+  // Wait one frame for layout to settle before measuring
+  requestAnimationFrame(() => {
+    init();
+    // Re-measure after fonts/layout
+    setTimeout(resize, 60);
+  });
+})();
+</script>
+
+</body>
+</html>
