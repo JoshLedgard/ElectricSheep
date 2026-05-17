@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a2438">
+<title>Cloudline Stamp Press</title>
+<style>
+  :root {
+    --paper: #f4ecd8;
+    --paper-edge: #e6dcc1;
+    --ink-blue: #2a4a6b;
+    --ink-rose: #b54a5a;
+    --ink-amber: #c2873a;
+    --ink-violet: #6a4a8a;
+    --ink-graphite: #2a2a2a;
+    --night: #1a2438;
+    --night-2: #243250;
+    --dawn: #e8b48a;
+    --noon: #fbecb1;
+    --dusk: #c1a0b8;
+    --line: rgba(40,30,20,0.18);
+    --text: #2a2418;
+    --text-dim: #6a5e48;
+    --accent: #b54a5a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% -10%, rgba(255,210,160,0.25), transparent),
+      linear-gradient(180deg, var(--night) 0%, var(--night-2) 100%);
+    color: var(--text);
+    font-family: 'Georgia', 'Iowan Old Style', 'Palatino', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding: max(env(safe-area-inset-top), 14px) 14px max(env(safe-area-inset-bottom), 18px);
+    max-width: 520px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    color: var(--paper);
+    padding-top: 4px;
+  }
+  .eyebrow {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(244,236,216,0.55);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--paper);
+  }
+  .tag {
+    font-size: 12px;
+    color: rgba(244,236,216,0.55);
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* Card surface */
+  .panel {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 10px 30px rgba(0,0,0,0.35);
+    position: relative;
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(40,30,20,0.12);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+
+  /* Postcard stage */
+  .stage-wrap { position: relative; }
+  .stage {
+    width: 100%;
+    aspect-ratio: 5 / 3;
+    background: var(--paper);
+    border-radius: 6px;
+    display: block;
+    touch-action: manipulation;
+  }
+  .stage-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .stage-meta strong { color: var(--text); font-weight: 600; letter-spacing: 0.04em; text-transform: none; font-family: Georgia, serif; font-size: 14px; }
+
+  /* Cloud row */
+  .clouds-label, .ink-label, .slider-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(244,236,216,0.55);
+    margin: 4px 2px 6px;
+  }
+
+  .clouds {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .cloud-btn {
+    background: rgba(244,236,216,0.06);
+    border: 1px solid rgba(244,236,216,0.18);
+    border-radius: 10px;
+    aspect-ratio: 1 / 1;
+    min-height: 56px;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    color: var(--paper);
+  }
+  .cloud-btn:active { transform: scale(0.94); }
+  .cloud-btn.on {
+    background: rgba(244,236,216,0.95);
+    border-color: var(--paper);
+  }
+  .cloud-btn svg { width: 100%; height: 100%; display: block; }
+  .cloud-btn .stroke { stroke: var(--paper); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cloud-btn.on .stroke { stroke: var(--night); }
+
+  /* Inks */
+  .inks {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .ink-btn {
+    aspect-ratio: 1 / 1;
+    min-height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(244,236,216,0.15);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .ink-btn:active { transform: scale(0.92); }
+  .ink-btn.on {
+    border-color: var(--paper);
+    box-shadow: 0 0 0 3px rgba(244,236,216,0.18), 0 6px 16px rgba(0,0,0,0.35);
+  }
+  .ink-btn[data-ink="blue"]    { background: radial-gradient(circle at 35% 30%, #4f7aa0, #1f3b58 75%); }
+  .ink-btn[data-ink="rose"]    { background: radial-gradient(circle at 35% 30%, #d96a7a, #8a3344 75%); }
+  .ink-btn[data-ink="amber"]   { background: radial-gradient(circle at 35% 30%, #e0a85a, #8a5c20 75%); }
+  .ink-btn[data-ink="violet"]  { background: radial-gradient(circle at 35% 30%, #8e6cb0, #4a3068 75%); }
+  .ink-btn[data-ink="graphite"]{ background: radial-gradient(circle at 35% 30%, #585858, #1e1e1e 75%); }
+
+  /* Sliders */
+  .sliders { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 4px; }
+  .slider-row {
+    background: rgba(244,236,216,0.05);
+    border: 1px solid rgba(244,236,216,0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .slider-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .slider-name {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(244,236,216,0.7);
+  }
+  .slider-val {
+    font-size: 13px; color: var(--paper); font-style: italic;
+  }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(90deg, rgba(244,236,216,0.15), rgba(244,236,216,0.35));
+    border-radius: 3px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    background: linear-gradient(90deg, rgba(244,236,216,0.15), rgba(244,236,216,0.35));
+    border-radius: 3px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--night);
+    margin-top: -8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--night);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+
+  /* Action row */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 2px;
+  }
+  .btn {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid rgba(244,236,216,0.25);
+    background: rgba(244,236,216,0.06);
+    color: var(--paper);
+    font-family: Georgia, serif;
+    font-size: 15px;
+    padding: 14px 12px;
+    min-height: 48px;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: background 0.15s, transform 0.1s, border-color 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:hover { background: rgba(244,236,216,0.12); }
+  .btn-press {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #c2873a 0%, #9a662a 100%);
+    color: #fff5dc;
+    border-color: #9a662a;
+    font-size: 17px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    min-height: 56px;
+    box-shadow: 0 6px 18px rgba(154,102,42,0.35);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    position: relative;
+  }
+  .btn-press::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px dashed rgba(255,245,220,0.4);
+    border-radius: 7px;
+    pointer-events: none;
+  }
+  .btn-press:active { transform: scale(0.98) translateY(1px); box-shadow: 0 2px 8px rgba(154,102,42,0.4); }
+
+  /* Result */
+  .result {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 18px 16px 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    position: relative;
+    display: none;
+    animation: stamp-in 0.45s cubic-bezier(.2,.7,.2,1.4);
+  }
+  .result.show { display: block; }
+  @keyframes stamp-in {
+    0% { transform: scale(0.6) rotate(-3deg); opacity: 0; }
+    60% { transform: scale(1.04) rotate(0.5deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .result-eyebrow {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .result-title {
+    font-family: Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .result-body {
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+  .result-body em { font-style: italic; color: var(--text-dim); }
+  .result-stamp {
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 64px; height: 64px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+    text-align: center;
+    opacity: 0.7;
+    transform: rotate(-9deg);
+    line-height: 1.2;
+    padding: 4px;
+  }
+  .result-foot {
+    display: flex; gap: 8px;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  .pill {
+    flex: 1;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    padding: 10px 12px;
+    min-height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+  .pill:active { background: rgba(40,30,20,0.06); }
+  .copied { background: rgba(40,90,60,0.1); border-color: rgba(40,90,60,0.3); }
+
+  /* Help */
+  .help {
+    text-align: center;
+    color: rgba(244,236,216,0.5);
+    font-size: 11px;
+    font-style: italic;
+    padding: 6px 8px 14px;
+    line-height: 1.5;
+  }
+
+  @media (min-width: 460px) {
+    .actions { grid-template-columns: 1fr 1fr 1fr; }
+    .btn-press { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Daily Surprise · 05.17.2026</div>
+  <h1>Cloudline Stamp Press</h1>
+  <div class="tag">a pocket atelier for printing small skies</div>
+</header>
+
+<section class="panel">
+  <div class="stage-wrap">
+    <canvas id="stage" class="stage" width="1000" height="600" aria-label="Postcard preview"></canvas>
+    <div class="stage-meta">
+      <span>EDITION <span id="edition">—</span></span>
+      <strong id="postmark">Cloudline</strong>
+      <span><span id="paper-w">—</span></span>
+    </div>
+  </div>
+</section>
+
+<div>
+  <div class="clouds-label">Cloud Shapes — tap to toggle</div>
+  <div class="clouds" id="clouds"></div>
+</div>
+
+<div>
+  <div class="ink-label">Weather Ink</div>
+  <div class="inks" id="inks">
+    <button class="ink-btn on" data-ink="blue"     aria-label="Blue ink"></button>
+    <button class="ink-btn"    data-ink="rose"     aria-label="Rose ink"></button>
+    <button class="ink-btn"    data-ink="amber"    aria-label="Amber ink"></button>
+    <button class="ink-btn"    data-ink="violet"   aria-label="Violet ink"></button>
+    <button class="ink-btn"    data-ink="graphite" aria-label="Graphite ink"></button>
+  </div>
+</div>
+
+<div class="sliders">
+  <div class="slider-row">
+    <div class="slider-head">
+      <span class="slider-name">Dawn</span>
+      <span class="slider-val" id="dawn-val">first light</span>
+    </div>
+    <input id="dawn" type="range" min="0" max="100" value="32" />
+  </div>
+  <div class="slider-row">
+    <div class="slider-head">
+      <span class="slider-name">Breeze</span>
+      <span class="slider-val" id="breeze-val">light south</span>
+    </div>
+    <input id="breeze" type="range" min="0" max="100" value="40" />
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn" id="shuffle">Shuffle Sky</button>
+  <button class="btn" id="clear">Clear Shapes</button>
+  <button class="btn btn-press" id="press">Press Stamp</button>
+</div>
+
+<section class="result" id="result" aria-live="polite">
+  <div class="result-stamp" id="result-stamp">Cloud<br>line<br>Press</div>
+  <div class="result-eyebrow">Cloudline Stamp Press · Edition <span id="r-edition">001</span></div>
+  <div class="result-title" id="r-title">A Quiet Postmark</div>
+  <div class="result-body" id="r-body"></div>
+  <div class="result-foot">
+    <button class="pill" id="copy-btn">Copy</button>
+    <button class="pill" id="new-btn">New Sky</button>
+  </div>
+</section>
+
+<div class="help">
+  Pick cloud shapes, choose an ink, slide dawn and breeze, then press the stamp.<br>
+  Each pressing mints a one-of-a-kind postmark.
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Cloud shape vocabulary ----------
+  const SHAPES = [
+    {
+      id: 'cumulus', name: 'cumulus',
+      icon: 'M 4 14 q 0 -4 4 -4 q 0 -4 5 -4 q 4 0 5 3 q 4 0 4 4 q 0 3 -4 3 H 8 q -4 0 -4 -2 z',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => puffPaint(ctx, x, y, scale, ink, breeze, tone, 5, 1.0)
+    },
+    {
+      id: 'cirrus', name: 'cirrus',
+      icon: 'M 3 9 q 3 -3 7 -1 q 4 -3 8 -1 q 4 -2 5 0 M 3 14 q 5 -2 9 0 q 4 -2 9 0 M 5 19 q 4 -1 7 0',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => cirrusPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'stratus', name: 'stratus',
+      icon: 'M 3 9 h 18 M 3 13 h 18 M 3 17 h 14',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => stratusPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'anvil', name: 'anvil head',
+      icon: 'M 3 9 q 3 -2 8 -2 q 4 0 6 3 q 4 0 4 3 q 0 2 -4 2 H 7 q -4 0 -4 -3 z M 10 17 l 3 4 M 14 17 l 1 4',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => anvilPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'wisp', name: 'wisp',
+      icon: 'M 4 12 q 3 -3 7 -1 q 3 2 6 0 q 3 -3 4 -1 M 6 17 q 3 -2 6 -1',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => wispPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'fog', name: 'low fog',
+      icon: 'M 3 15 q 3 -1 6 0 q 3 1 6 0 q 3 -1 6 0 M 4 19 q 4 -1 8 0 q 4 1 8 0',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => fogPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'mackerel', name: 'mackerel',
+      icon: 'M 4 8 q 2 -2 4 0 q 2 2 4 0 q 2 -2 4 0 q 2 2 4 0 M 4 13 q 2 -2 4 0 q 2 2 4 0 q 2 -2 4 0 q 2 2 4 0 M 6 18 q 2 -2 4 0 q 2 2 4 0',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => mackerelPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'tower', name: 'tower',
+      icon: 'M 8 20 q 0 -4 3 -4 q 0 -5 4 -4 q 0 -4 3 -3 q 0 3 -2 4 q 4 0 1 3 q 3 2 -1 4 z',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => towerPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'sunray', name: 'sunray break',
+      icon: 'M 12 4 V 9 M 5 7 l 3 3 M 19 7 l -3 3 M 4 14 H 9 M 20 14 H 15 M 12 18 q -5 0 -7 -3 q 4 -3 7 -3 q 3 0 7 3 q -2 3 -7 3 z',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => sunrayPaint(ctx, x, y, scale, ink, breeze, tone)
+    },
+    {
+      id: 'flock', name: 'flock',
+      icon: 'M 4 14 q 1 -3 3 -3 q 1 0 2 1 q 1 -3 3 -3 q 1 0 2 1 q 1 -3 3 -3 q 2 0 3 2',
+      draw: (ctx, x, y, scale, ink, breeze, tone) => flockPaint(ctx, x, y, scale, ink, breeze, tone)
+    }
+  ];
+
+  // ---------- Inks ----------
+  const INKS = {
+    blue:     { primary: '#2a4a6b', light: '#5e84a8', glow: 'rgba(60,110,160,0.35)', name: 'tidewater blue' },
+    rose:     { primary: '#a23c4e', light: '#d68090', glow: 'rgba(180,80,100,0.32)', name: 'old rose' },
+    amber:    { primary: '#a86a26', light: '#e0a85a', glow: 'rgba(200,140,60,0.35)', name: 'lantern amber' },
+    violet:   { primary: '#574078', light: '#9b7fc0', glow: 'rgba(110,80,160,0.32)', name: 'twilight violet' },
+    graphite: { primary: '#2a2a2a', light: '#777',    glow: 'rgba(60,60,60,0.30)',   name: 'soft graphite' }
+  };
+
+  // ---------- State ----------
+  const state = {
+    activeShapes: new Set(['cumulus', 'cirrus']),
+    ink: 'blue',
+    dawn: 32,
+    breeze: 40,
+    edition: 1,
+    seed: Math.floor(Math.random() * 99999)
+  };
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const ctx = stage.getContext('2d');
+  const cloudsRow = $('clouds');
+  const inksRow = $('inks');
+  const dawnEl = $('dawn');
+  const breezeEl = $('breeze');
+  const dawnVal = $('dawn-val');
+  const breezeVal = $('breeze-val');
+  const postmark = $('postmark');
+  const editionEl = $('edition');
+  const paperW = $('paper-w');
+  const result = $('result');
+  const resultStamp = $('result-stamp');
+  const rEdition = $('r-edition');
+  const rTitle = $('r-title');
+  const rBody = $('r-body');
+  const copyBtn = $('copy-btn');
+  const newBtn = $('new-btn');
+
+  // ---------- Build cloud buttons ----------
+  SHAPES.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'cloud-btn' + (state.activeShapes.has(s.id) ? ' on' : '');
+    b.dataset.shape = s.id;
+    b.setAttribute('aria-label', s.name);
+    b.setAttribute('aria-pressed', state.activeShapes.has(s.id) ? 'true' : 'false');
+    b.innerHTML = `<svg viewBox="0 0 24 24"><path class="stroke" d="${s.icon}"/></svg>`;
+    b.addEventListener('click', () => {
+      if (state.activeShapes.has(s.id)) state.activeShapes.delete(s.id);
+      else state.activeShapes.add(s.id);
+      // never allow zero — at least one shape
+      if (state.activeShapes.size === 0) state.activeShapes.add(s.id);
+      b.classList.toggle('on', state.activeShapes.has(s.id));
+      b.setAttribute('aria-pressed', state.activeShapes.has(s.id) ? 'true' : 'false');
+      newSeed();
+      draw();
+    });
+    cloudsRow.appendChild(b);
+  });
+
+  // ---------- Ink buttons ----------
+  Array.from(inksRow.querySelectorAll('.ink-btn')).forEach(b => {
+    b.addEventListener('click', () => {
+      inksRow.querySelectorAll('.ink-btn').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      state.ink = b.dataset.ink;
+      draw();
+    });
+  });
+
+  // ---------- Sliders ----------
+  dawnEl.addEventListener('input', () => {
+    state.dawn = +dawnEl.value;
+    dawnVal.textContent = dawnLabel(state.dawn);
+    draw();
+  });
+  breezeEl.addEventListener('input', () => {
+    state.breeze = +breezeEl.value;
+    breezeVal.textContent = breezeLabel(state.breeze);
+    draw();
+  });
+
+  $('shuffle').addEventListener('click', () => {
+    // pick 2-4 random shapes
+    const pool = SHAPES.map(s => s.id);
+    const n = 2 + Math.floor(Math.random() * 3);
+    state.activeShapes = new Set();
+    while (state.activeShapes.size < n) {
+      state.activeShapes.add(pool[Math.floor(Math.random() * pool.length)]);
+    }
+    // rotate ink occasionally
+    if (Math.random() < 0.5) {
+      const inkList = Object.keys(INKS);
+      state.ink = inkList[Math.floor(Math.random() * inkList.length)];
+    }
+    // jitter dawn and breeze
+    state.dawn = Math.max(0, Math.min(100, state.dawn + (Math.random() * 50 - 25)));
+    state.breeze = Math.max(0, Math.min(100, state.breeze + (Math.random() * 50 - 25)));
+    dawnEl.value = state.dawn;
+    breezeEl.value = state.breeze;
+    dawnVal.textContent = dawnLabel(state.dawn);
+    breezeVal.textContent = breezeLabel(state.breeze);
+    syncCloudBtns();
+    syncInkBtns();
+    newSeed();
+    draw();
+  });
+
+  $('clear').addEventListener('click', () => {
+    state.activeShapes = new Set(['cumulus']);
+    syncCloudBtns();
+    newSeed();
+    draw();
+  });
+
+  $('press').addEventListener('click', pressStamp);
+  copyBtn.addEventListener('click', copyPostmark);
+  newBtn.addEventListener('click', () => {
+    result.classList.remove('show');
+    newSeed();
+    draw();
+  });
+
+  function syncCloudBtns() {
+    cloudsRow.querySelectorAll('.cloud-btn').forEach(b => {
+      const on = state.activeShapes.has(b.dataset.shape);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function syncInkBtns() {
+    inksRow.querySelectorAll('.ink-btn').forEach(b => {
+      b.classList.toggle('on', b.dataset.ink === state.ink);
+    });
+  }
+
+  // ---------- Labels ----------
+  function dawnLabel(v) {
+    if (v < 12) return 'before light';
+    if (v < 28) return 'first light';
+    if (v < 45) return 'early dawn';
+    if (v < 58) return 'open morning';
+    if (v < 72) return 'mid-morning';
+    if (v < 86) return 'high light';
+    return 'noon bright';
+  }
+  function breezeLabel(v) {
+    if (v < 10) return 'still air';
+    if (v < 25) return 'soft drift';
+    if (v < 42) return 'light south';
+    if (v < 58) return 'steady breeze';
+    if (v < 75) return 'sailing wind';
+    if (v < 90) return 'brisk weather';
+    return 'racing sky';
+  }
+
+  // ---------- Seeded RNG ----------
+  function newSeed() { state.seed = Math.floor(Math.random() * 99999); }
+  function mulberry(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- Resize handling ----------
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = stage.getBoundingClientRect();
+    stage.width = Math.max(300, Math.floor(rect.width * dpr));
+    stage.height = Math.floor(stage.width * 0.6);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    paperW.textContent = Math.floor(rect.width) + ' × ' + Math.floor(rect.width * 0.6) + ' px';
+    draw();
+  }
+
+  // ---------- Sky gradient ----------
+  function skyStops(dawn) {
+    // dawn 0..100 → night → dawn → noon → late
+    const t = dawn / 100;
+    if (t < 0.18) {
+      return [
+        ['#1a2438', 0],
+        ['#293756', 0.55],
+        ['#4a5174', 1]
+      ];
+    } else if (t < 0.40) {
+      return [
+        ['#2c3957', 0],
+        ['#7a6088', 0.45],
+        ['#e0a98a', 0.85],
+        ['#f7d8a8', 1]
+      ];
+    } else if (t < 0.65) {
+      return [
+        ['#7fb0d0', 0],
+        ['#e7d7a8', 0.55],
+        ['#fbecb1', 1]
+      ];
+    } else if (t < 0.85) {
+      return [
+        ['#b9d4e2', 0],
+        ['#fbecb1', 0.65],
+        ['#f9e4a4', 1]
+      ];
+    }
+    return [
+      ['#e6efe9', 0],
+      ['#f4ecd8', 0.55],
+      ['#efd9a8', 1]
+    ];
+  }
+
+  // ---------- Drawing ----------
+  function draw() {
+    const W = stage.width;
+    const H = stage.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Paper background
+    ctx.fillStyle = '#f4ecd8';
+    ctx.fillRect(0, 0, W, H);
+
+    // Inner postcard frame
+    const pad = Math.max(14, W * 0.025);
+    const fx = pad, fy = pad, fw = W - pad * 2, fh = H - pad * 2;
+
+    // Sky gradient inside frame
+    const grd = ctx.createLinearGradient(0, fy, 0, fy + fh);
+    const stops = skyStops(state.dawn);
+    stops.forEach(s => grd.addColorStop(s[1], s[0]));
+    ctx.fillStyle = grd;
+    roundRect(ctx, fx, fy, fw, fh, 6);
+    ctx.fill();
+
+    // Faint horizon line low in sky
+    const horizonY = fy + fh * 0.78;
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#1a2438';
+    ctx.fillRect(fx, horizonY, fw, fh - (horizonY - fy));
+    ctx.restore();
+
+    // Sun/moon disc
+    drawCelestial(fx, fy, fw, fh);
+
+    // Cloud painting from active shapes
+    const rng = mulberry(state.seed);
+    const ink = INKS[state.ink];
+    const breeze = state.breeze / 100;
+    const tone = state.dawn / 100;
+
+    const shapes = Array.from(state.activeShapes);
+    // composition strategy: 3-7 clouds, layered
+    const clouds = 3 + Math.floor(rng() * 4);
+    const layerInfo = [];
+    for (let i = 0; i < clouds; i++) {
+      const id = shapes[Math.floor(rng() * shapes.length)];
+      const shape = SHAPES.find(s => s.id === id);
+      // distribute across sky
+      const colT = (i + rng() * 0.7) / clouds;
+      const x = fx + fw * (0.08 + colT * 0.85);
+      const y = fy + fh * (0.16 + rng() * 0.5);
+      const scale = (fh * 0.22) * (0.55 + rng() * 0.75);
+      layerInfo.push({ shape, x, y, scale, drift: rng() });
+    }
+    // sort by y so farther/lower clouds draw first
+    layerInfo.sort((a, b) => a.y - b.y);
+    layerInfo.forEach(L => {
+      // breeze pulls clouds rightward subtly
+      const dx = breeze * 28 * (L.drift - 0.4);
+      L.shape.draw(ctx, L.x + dx, L.y, L.scale, ink, breeze, tone);
+    });
+
+    // Foreground hill silhouette (very low)
+    drawHills(fx, fy + fh, fw, ink, tone);
+
+    // Postcard ruling lines + stamp box
+    drawPostcardChrome(fx, fy, fw, fh);
+
+    // Title text bottom-right
+    drawPostmark(fx + fw, fy + fh, ink);
+
+    // Edition label
+    editionEl.textContent = String(state.edition).padStart(3, '0');
+    postmark.textContent = postmarkName();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawCelestial(fx, fy, fw, fh) {
+    const t = state.dawn / 100;
+    // sun rises from low-left to high-right across dawn
+    const cx = fx + fw * (0.18 + t * 0.55);
+    const cy = fy + fh * (0.72 - t * 0.55);
+    const r = fh * 0.07;
+    ctx.save();
+    let glow, core;
+    if (t < 0.18)      { glow = 'rgba(220,220,250,0.35)'; core = '#e8ebf2'; }
+    else if (t < 0.45) { glow = 'rgba(255,180,120,0.55)'; core = '#fdd9a0'; }
+    else if (t < 0.75) { glow = 'rgba(255,220,140,0.55)'; core = '#fff1c2'; }
+    else               { glow = 'rgba(255,240,200,0.5)';  core = '#fff8de'; }
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 3.5);
+    g.addColorStop(0, glow);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHills(fx, baseY, fw, ink, tone) {
+    ctx.save();
+    ctx.fillStyle = withAlpha(ink.primary, 0.85);
+    ctx.beginPath();
+    ctx.moveTo(fx, baseY);
+    const segs = 14;
+    for (let i = 0; i <= segs; i++) {
+      const x = fx + (fw * i) / segs;
+      const y = baseY - 6 - Math.sin(i * 0.7 + state.seed * 0.1) * 4 - (i % 3 === 0 ? 4 : 0);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(fx + fw, baseY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPostcardChrome(fx, fy, fw, fh) {
+    ctx.save();
+    // outer dashed border
+    ctx.strokeStyle = 'rgba(40,30,20,0.35)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    roundRect(ctx, fx + 2, fy + 2, fw - 4, fh - 4, 5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPostmark(rx, ry, ink) {
+    ctx.save();
+    const r = Math.max(28, stage.height * 0.09);
+    const cx = rx - r - 12;
+    const cy = ry - r - 12;
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = ink.primary;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2); ctx.stroke();
+    // hairlines across
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx - r, cy + i * 4);
+      ctx.lineTo(cx + r, cy + i * 4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = ink.primary;
+    ctx.font = `bold ${Math.floor(r * 0.3)}px -apple-system, Segoe UI, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CLOUDLINE', cx, cy - r * 0.15);
+    ctx.font = `${Math.floor(r * 0.22)}px -apple-system, Segoe UI, sans-serif`;
+    ctx.fillText('STAMP·PRESS', cx, cy + r * 0.2);
+    ctx.restore();
+  }
+
+  // ---------- Individual cloud paints ----------
+  function withAlpha(hex, a) {
+    // hex like #aabbcc
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function puffPaint(ctx, x, y, scale, ink, breeze, tone, n, scatter) {
+    ctx.save();
+    ctx.fillStyle = ink.light;
+    ctx.globalAlpha = 0.55;
+    // soft underlight
+    const g = ctx.createRadialGradient(x, y + scale * 0.5, 0, x, y + scale * 0.5, scale * 2);
+    g.addColorStop(0, withAlpha(ink.primary, 0.35));
+    g.addColorStop(1, withAlpha(ink.primary, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y + scale * 0.4, scale * 1.6, 0, Math.PI * 2); ctx.fill();
+    // dots forming a cumulus
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#fbf5e4';
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const dx = (t - 0.5) * scale * 2.2 * scatter;
+      const dy = -Math.sin(t * Math.PI) * scale * 0.6 + (i % 2) * 4;
+      const r = scale * (0.6 - Math.abs(t - 0.5) * 0.4) + 4;
+      ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // shadow under
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = ink.primary;
+    ctx.beginPath();
+    ctx.ellipse(x, y + scale * 0.65, scale * 1.1, scale * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function cirrusPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    ctx.strokeStyle = '#fbf5e4';
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = Math.max(2, scale * 0.10);
+    ctx.lineCap = 'round';
+    const len = scale * 3;
+    const skew = 0.4 + breeze * 0.6;
+    for (let i = 0; i < 4; i++) {
+      const yy = y + (i - 1.5) * scale * 0.45;
+      ctx.beginPath();
+      const startX = x - len / 2;
+      ctx.moveTo(startX, yy);
+      const segs = 8;
+      for (let s = 1; s <= segs; s++) {
+        const t = s / segs;
+        const px = startX + len * t;
+        const py = yy + Math.sin(t * Math.PI * 1.5 + i) * scale * 0.12 - t * scale * 0.05 * skew;
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function stratusPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    const bandH = scale * 0.35;
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.45 - i * 0.1;
+      ctx.fillStyle = '#fbf5e4';
+      const yy = y + (i - 1) * bandH * 0.9;
+      ctx.beginPath();
+      ctx.ellipse(x, yy, scale * 1.8, bandH * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function anvilPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    ctx.fillStyle = '#fbf5e4';
+    ctx.globalAlpha = 0.9;
+    // big puff body
+    puffPaint(ctx, x, y - scale * 0.2, scale * 0.9, ink, breeze, tone, 5, 1.0);
+    // anvil flat top
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.ellipse(x + scale * 0.5 * breeze, y - scale * 0.8, scale * 1.6, scale * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // rain streaks below
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = ink.primary;
+    ctx.lineWidth = Math.max(1, scale * 0.05);
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * scale * 0.18, y + scale * 0.35);
+      ctx.lineTo(x + i * scale * 0.18 - scale * 0.08, y + scale * 0.9);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function wispPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    ctx.strokeStyle = '#fbf5e4';
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = Math.max(3, scale * 0.16);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const yy = y + (i - 1) * scale * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(x - scale, yy);
+      ctx.quadraticCurveTo(x, yy - scale * 0.2 - breeze * scale * 0.3, x + scale, yy + scale * 0.1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function fogPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    for (let i = 0; i < 5; i++) {
+      ctx.globalAlpha = 0.18 - i * 0.025;
+      ctx.fillStyle = '#fbf5e4';
+      ctx.beginPath();
+      ctx.ellipse(x, y + i * scale * 0.18, scale * (2.4 - i * 0.2), scale * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function mackerelPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    ctx.fillStyle = '#fbf5e4';
+    ctx.globalAlpha = 0.8;
+    const cols = 6, rows = 3;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const dx = (c - cols / 2 + 0.5) * scale * 0.45 + (r % 2) * scale * 0.18;
+        const dy = (r - rows / 2 + 0.5) * scale * 0.36;
+        const rad = scale * 0.16 - r * 0.012 * scale;
+        ctx.beginPath(); ctx.arc(x + dx, y + dy, rad, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function towerPaint(ctx, x, y, scale, ink, breeze, tone) {
+    // tall stacked puffs
+    ctx.save();
+    puffPaint(ctx, x, y + scale * 0.4, scale * 0.8, ink, breeze, tone, 5, 1.0);
+    puffPaint(ctx, x + breeze * scale * 0.2, y - scale * 0.1, scale * 0.7, ink, breeze, tone, 4, 0.85);
+    puffPaint(ctx, x + breeze * scale * 0.4, y - scale * 0.6, scale * 0.55, ink, breeze, tone, 3, 0.7);
+    ctx.restore();
+  }
+
+  function sunrayPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    // a puff with rays radiating up
+    puffPaint(ctx, x, y + scale * 0.2, scale * 0.85, ink, breeze, tone, 4, 0.95);
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = '#fff5cd';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(2, scale * 0.08);
+    for (let i = -3; i <= 3; i++) {
+      const ang = (i / 6) * 0.7 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(ang) * scale * 0.6, y + Math.sin(ang) * scale * 0.6);
+      ctx.lineTo(x + Math.cos(ang) * scale * 1.7, y + Math.sin(ang) * scale * 1.7);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function flockPaint(ctx, x, y, scale, ink, breeze, tone) {
+    ctx.save();
+    ctx.strokeStyle = ink.primary;
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = Math.max(1.5, scale * 0.06);
+    ctx.lineCap = 'round';
+    const n = 5 + Math.floor(scale / 20);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const dx = (t - 0.5) * scale * 2.4;
+      const dy = Math.sin(t * Math.PI) * -scale * 0.4 + (i % 2) * scale * 0.08;
+      const w = scale * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(x + dx - w, y + dy);
+      ctx.quadraticCurveTo(x + dx, y + dy - w * 0.6, x + dx + w, y + dy);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Postmark name + result ----------
+  const NAME_OPENERS = ['A', 'A Small', 'A Quiet', 'The First', 'The Soft', 'The Slow', 'A Folded', 'A Far', 'A Drifting'];
+  const NAME_NOUNS = ['Postmark', 'Letter Home', 'Morning Card', 'Sky Notice', 'Weather Stamp', 'Almanac Page', 'Departure', 'Window Note'];
+  const NAME_TAILS = ['for No Reason', 'in May', 'before Breakfast', 'with Loose Stitching', 'in Warm Ink', 'from the Cloudline', 'in Five Inks', '— Edition One'];
+
+  function postmarkName() {
+    const rng = mulberry(state.seed + state.edition * 17);
+    const a = NAME_OPENERS[Math.floor(rng() * NAME_OPENERS.length)];
+    const n = NAME_NOUNS[Math.floor(rng() * NAME_NOUNS.length)];
+    const t = NAME_TAILS[Math.floor(rng() * NAME_TAILS.length)];
+    return `${a} ${n} ${t}`;
+  }
+
+  function pressStamp() {
+    const ink = INKS[state.ink];
+    const shapes = Array.from(state.activeShapes)
+      .map(id => SHAPES.find(s => s.id === id).name);
+    const shapeList = humanList(shapes);
+    const name = postmarkName();
+
+    const body = [
+      `Pressed on ${dawnLabel(state.dawn)}, with a ${breezeLabel(state.breeze)}.`,
+      `Inked in ${ink.name}.`,
+      `Sky carries ${shapeList}.`,
+      `<em>Filed under "kept on purpose."</em>`
+    ].join('<br>');
+
+    rTitle.textContent = name;
+    rBody.innerHTML = body;
+    rEdition.textContent = String(state.edition).padStart(3, '0');
+    resultStamp.style.color = ink.primary;
+    result.classList.add('show');
+    state.edition += 1;
+    // gentle scroll-to-result
+    setTimeout(() => result.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+
+  function copyPostmark() {
+    const ink = INKS[state.ink];
+    const txt = [
+      `CLOUDLINE STAMP PRESS — Edition ${String(state.edition - 1).padStart(3, '0')}`,
+      rTitle.textContent,
+      '',
+      `Pressed on ${dawnLabel(state.dawn)}, with a ${breezeLabel(state.breeze)}.`,
+      `Inked in ${ink.name}.`,
+      `Sky: ${humanList(Array.from(state.activeShapes).map(id => SHAPES.find(s => s.id === id).name))}.`,
+      '',
+      'Filed under kept on purpose.'
+    ].join('\n');
+    const done = () => {
+      copyBtn.classList.add('copied');
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.textContent = 'Copy'; }, 1400);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(done, fallbackCopy);
+      } else fallbackCopy();
+    } catch (e) { fallbackCopy(); }
+
+    function fallbackCopy() {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.left = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  }
+
+  function humanList(arr) {
+    if (!arr.length) return 'clear sky';
+    if (arr.length === 1) return arr[0];
+    if (arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+    return arr.slice(0, -1).join(', ') + ', and ' + arr[arr.length - 1];
+  }
+
+  // ---------- Init ----------
+  dawnVal.textContent = dawnLabel(state.dawn);
+  breezeVal.textContent = breezeLabel(state.breeze);
+  window.addEventListener('resize', resize, { passive: true });
+  // initial layout: wait for paint so we have a width
+  requestAnimationFrame(resize);
+})();
+</script>
+</body>
+</html>
