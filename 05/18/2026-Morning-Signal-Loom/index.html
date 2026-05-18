@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#13131d">
+<title>Morning Signal Loom</title>
+<style>
+  :root {
+    --bg-1: #13131d;
+    --bg-2: #1c1a2a;
+    --paper: #f6efe1;
+    --ink: #2c2434;
+    --ink-soft: #6b5e7a;
+    --warm: #f7c79a;
+    --warm-deep: #d98b58;
+    --gold: #f0c050;
+    --line: rgba(110, 95, 130, 0.35);
+    --line-soft: rgba(110, 95, 130, 0.18);
+    --accent: #e87a8c;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: radial-gradient(140% 90% at 50% -10%, #232238 0%, var(--bg-1) 55%, #0c0c14 100%);
+    color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 14px calc(env(safe-area-inset-bottom, 0) + 18px);
+    max-width: 100vw;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Header */
+  header { text-align: center; padding: 4px 4px 0; }
+  .eyebrow {
+    font-size: 10.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--warm);
+    opacity: 0.75;
+    margin-bottom: 6px;
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    font-weight: 700;
+    color: #fff5e4;
+  }
+  .lede {
+    margin: 0 auto;
+    font-size: 13.5px;
+    color: rgba(246, 239, 225, 0.7);
+    max-width: 360px;
+  }
+
+  /* Loom card */
+  .loom {
+    background: linear-gradient(180deg, #f6efe1 0%, #efe4cd 100%);
+    color: var(--ink);
+    border-radius: 18px;
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .loom::before {
+    /* paper grain */
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(rgba(110, 95, 130, 0.08) 1px, transparent 1px),
+      radial-gradient(rgba(110, 95, 130, 0.05) 1px, transparent 1px);
+    background-size: 14px 14px, 7px 7px;
+    background-position: 0 0, 3px 3px;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+  .loom-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+  }
+  .loom-head .count { color: var(--warm-deep); font-weight: 700; }
+
+  .ribbon {
+    position: relative; z-index: 1;
+    min-height: 160px;
+    border-radius: 10px;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(110, 95, 130, 0.06) 0 1px,
+      transparent 1px 28px
+    );
+    box-shadow: inset 0 0 0 1px var(--line-soft);
+    padding: 6px;
+    display: flex;
+    flex-direction: column-reverse; /* newest row at bottom, build upward visually but newest is the bottom row */
+    gap: 4px;
+    overflow: hidden;
+  }
+  .empty-hint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-soft);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    padding: 18px;
+    text-align: center;
+    opacity: 0.85;
+  }
+  .row {
+    position: relative;
+    height: 26px;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    animation: weave-in 420ms cubic-bezier(.22,.9,.28,1.2) both;
+    background: #fff;
+  }
+  @keyframes weave-in {
+    from { transform: translateY(8px) scaleX(0.92); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  .row .warp,
+  .row .weft,
+  .row .mark {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .row .warp {
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(0,0,0,0.10) 0 1px,
+      transparent 1px 7px
+    );
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+  }
+  .row .mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.92);
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.18);
+    font-weight: 700;
+  }
+  .row .tone-dot {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 0 6px rgba(255,255,255,0.5);
+  }
+  .row.fade-out {
+    animation: fade-out 320ms ease both;
+  }
+  @keyframes fade-out {
+    to { transform: translateY(-6px) scaleX(0.92); opacity: 0; }
+  }
+
+  /* Spool tray */
+  .spools-label {
+    text-align: center;
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(246, 239, 225, 0.5);
+    margin-top: 2px;
+  }
+  .spools {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    padding: 4px 2px 0;
+  }
+  .spool {
+    appearance: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    min-height: 60px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.08),
+      0 4px 10px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 4px 6px;
+    gap: 6px;
+    color: rgba(246, 239, 225, 0.85);
+    font-family: inherit;
+    transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .spool:active {
+    transform: translateY(1px) scale(0.97);
+    background: rgba(255,255,255,0.07);
+  }
+  .spool:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .swatch {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,0.55),
+      inset 0 -6px 8px rgba(0,0,0,0.18),
+      0 2px 6px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .swatch::after {
+    /* thread loop coming off the spool */
+    content: "";
+    position: absolute;
+    left: 50%; top: 100%;
+    width: 1px; height: 6px;
+    background: rgba(0,0,0,0.25);
+    transform: translateX(-50%);
+  }
+  .spool-name {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    text-align: center;
+    opacity: 0.85;
+  }
+
+  /* Actions */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    min-height: 48px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(246, 239, 225, 0.92);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+    transition: transform 120ms ease, background 120ms ease;
+  }
+  .btn:active { transform: translateY(1px) scale(0.99); }
+  .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.compose {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, var(--warm) 0%, var(--warm-deep) 100%);
+    color: #2b1a14;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.45),
+      0 6px 16px rgba(217, 139, 88, 0.35);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 12.5px;
+  }
+  .btn.compose:disabled {
+    background: rgba(255,255,255,0.06);
+    color: rgba(246, 239, 225, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+
+  /* Dispatch card (output) */
+  .dispatch {
+    background: linear-gradient(180deg, #2a2438 0%, #1f1a2c 100%);
+    border-radius: 16px;
+    padding: 16px 16px 14px;
+    box-shadow: var(--shadow), inset 0 0 0 1px rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+    transition: opacity 320ms ease, transform 320ms ease;
+  }
+  .dispatch::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(80% 60% at 50% 0%, rgba(240, 192, 80, 0.12), transparent 70%);
+    pointer-events: none;
+  }
+  .dispatch[hidden] { display: none; }
+  .dispatch.flash { animation: dispatch-in 480ms cubic-bezier(.22,.9,.28,1.2) both; }
+  @keyframes dispatch-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .dispatch-stamp {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .dispatch-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff5e4;
+    margin: 0 0 8px;
+    line-height: 1.25;
+    position: relative;
+  }
+  .dispatch-body {
+    font-size: 13.5px;
+    color: rgba(246, 239, 225, 0.85);
+    margin: 0;
+    position: relative;
+    white-space: pre-line;
+  }
+  .dispatch-tone {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--warm);
+    margin-top: 10px;
+    letter-spacing: 0.18em;
+    position: relative;
+    opacity: 0.85;
+  }
+  .dispatch-foot {
+    margin-top: 10px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(246, 239, 225, 0.45);
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  /* About */
+  .about {
+    text-align: center;
+    color: rgba(246, 239, 225, 0.45);
+    font-size: 11.5px;
+    line-height: 1.55;
+    padding: 4px 6px 0;
+  }
+  .about strong { color: rgba(246, 239, 225, 0.7); font-weight: 600; }
+
+  /* Layout helpers */
+  @media (min-width: 480px) {
+    h1 { font-size: 28px; }
+    .spools { grid-template-columns: repeat(6, 1fr); }
+    .ribbon { min-height: 200px; }
+  }
+  @media (max-width: 359px) {
+    .spools { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .row { animation: none; }
+    .row.fade-out { animation: none; opacity: 0; }
+    .dispatch.flash { animation: none; }
+    .spool { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow">Daily Surprise · May 18</div>
+      <h1>Morning Signal Loom</h1>
+      <p class="lede">Tap thread spools to weave a small signal ribbon. Each row adds a tone. Press <strong style="color:var(--warm)">Compose Signal</strong> to mint a tiny morning dispatch.</p>
+    </header>
+
+    <section class="loom" aria-label="Loom">
+      <div class="loom-head">
+        <span>Loom</span>
+        <span><span class="count" id="rowCount">0</span>&nbsp;/&nbsp;8 rows</span>
+      </div>
+      <div class="ribbon" id="ribbon" aria-live="polite">
+        <div class="empty-hint" id="emptyHint">Pick a spool below to weave the first row.</div>
+      </div>
+    </section>
+
+    <div class="spools-label">Thread Spools</div>
+    <div class="spools" id="spools" role="group" aria-label="Thread spools">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btnShuffle" type="button">Shuffle</button>
+      <button class="btn" id="btnReset" type="button">Reset</button>
+      <button class="btn compose" id="btnCompose" type="button" disabled>Compose Signal</button>
+    </div>
+
+    <article class="dispatch" id="dispatch" hidden aria-live="polite">
+      <div class="dispatch-stamp" id="dStamp">Morning Dispatch</div>
+      <h2 class="dispatch-title" id="dTitle">—</h2>
+      <p class="dispatch-body" id="dBody">—</p>
+      <div class="dispatch-tone" id="dTone">—</div>
+      <div class="dispatch-foot">
+        <span id="dDate">—</span>
+        <span>Loom · 2026-05-18</span>
+      </div>
+    </article>
+
+    <p class="about">
+      A small browser toy about <strong>fresh starts</strong> and <strong>playful systems</strong>.
+      Nothing leaves the page — every signal you mint stays right here.
+    </p>
+  </main>
+
+<script>
+(() => {
+  // --- Spool palette: warm, dawn-leaning, accessible-contrast set ---
+  const SPOOLS = [
+    { id: "dawn",   name: "Dawn",   color: "#f2a08a", mark: "·",    tone: "lo",  word: "warm"   },
+    { id: "mist",   name: "Mist",   color: "#9bc4c4", mark: "—",    tone: "mid", word: "soft"   },
+    { id: "lichen", name: "Lichen", color: "#7fa66a", mark: "✕",    tone: "lo",  word: "fresh"  },
+    { id: "slate",  name: "Slate",  color: "#5a6f9a", mark: "║",    tone: "mid", word: "steady" },
+    { id: "ember",  name: "Ember",  color: "#d96b54", mark: "◆",    tone: "hi",  word: "spark"  },
+    { id: "plum",   name: "Plum",   color: "#8a5a8a", mark: "○",    tone: "hi",  word: "quiet"  },
+  ];
+
+  const MAX_ROWS = 8;
+  const CELLS_PER_ROW = 12;
+
+  // --- Word banks for the morning dispatch ---
+  const ADJECTIVES = {
+    warm:   ["Tender",  "Lantern",  "Honeyed",  "First-Light"],
+    soft:   ["Gentle",  "Hush",     "Folded",   "Quietwater"],
+    fresh:  ["Clover",  "Crisp",    "Greenway", "Open-Door"],
+    steady: ["Even",    "Anchor",   "Daylit",   "Long-Path"],
+    spark:  ["Quick",   "Kindled",  "Bright",   "Restart"],
+    quiet:  ["Inkwell", "Lowlight", "Slowsky",  "Curtain"]
+  };
+  const NOUNS = [
+    "Loom", "Signal", "Ribbon", "Weft", "Switchboard",
+    "Almanac", "Bulletin", "Postmark", "Dispatch", "Pattern", "Frequency"
+  ];
+  const VERBS = [
+    "settles", "unspools", "lights", "begins", "leans in",
+    "warms up", "loosens", "opens", "threads", "answers"
+  ];
+  const OBJECTS = [
+    "a fresh page", "the small day", "an open hour",
+    "the loose minute", "a quiet plan", "the next bright thing",
+    "a folded note", "tomorrow's edge", "the morning's first yes"
+  ];
+  const CLOSERS = [
+    "Carry it lightly.",
+    "Begin where you are.",
+    "Let it stay small.",
+    "Keep one hand free.",
+    "Trust the loose ends.",
+    "Walk it out into the day.",
+    "Save room for surprise.",
+    "Pull the thread gently."
+  ];
+
+  // --- State ---
+  const state = {
+    rows: [], // [{spoolId, pattern: [0/1 per cell]}]
+  };
+
+  // --- Deterministic-ish small RNG so the same weave -> same name ---
+  function hashStr(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(arr, rng) {
+    return arr[Math.floor(rng() * arr.length)];
+  }
+  function randInt(rng, n) { return Math.floor(rng() * n); }
+
+  // --- DOM ---
+  const ribbon = document.getElementById("ribbon");
+  const emptyHint = document.getElementById("emptyHint");
+  const spoolsEl = document.getElementById("spools");
+  const rowCountEl = document.getElementById("rowCount");
+  const btnShuffle = document.getElementById("btnShuffle");
+  const btnReset = document.getElementById("btnReset");
+  const btnCompose = document.getElementById("btnCompose");
+  const dispatchEl = document.getElementById("dispatch");
+  const dTitle = document.getElementById("dTitle");
+  const dBody = document.getElementById("dBody");
+  const dTone = document.getElementById("dTone");
+  const dDate = document.getElementById("dDate");
+  const dStamp = document.getElementById("dStamp");
+
+  // --- Build spool buttons ---
+  function buildSpools() {
+    spoolsEl.innerHTML = "";
+    SPOOLS.forEach(s => {
+      const btn = document.createElement("button");
+      btn.className = "spool";
+      btn.type = "button";
+      btn.setAttribute("aria-label", `Weave a row of ${s.name} thread`);
+      btn.dataset.id = s.id;
+      btn.innerHTML = `
+        <span class="swatch" style="--c:${s.color}"></span>
+        <span class="spool-name">${s.name}</span>
+      `;
+      btn.addEventListener("click", () => addRow(s.id));
+      spoolsEl.appendChild(btn);
+    });
+  }
+
+  // --- Row generation: each row gets a small woven pattern ---
+  function makePattern(seed) {
+    const rng = mulberry32(seed);
+    const out = [];
+    let cursor = randInt(rng, 3);
+    for (let i = 0; i < CELLS_PER_ROW; i++) {
+      // simple alternating "up/down" warp interplay with random skips
+      const flip = rng() < 0.45;
+      out.push(flip ? 1 : 0);
+      cursor = (cursor + 1) % 3;
+    }
+    return out;
+  }
+
+  function renderRow(rowData, idx) {
+    const spool = SPOOLS.find(s => s.id === rowData.spoolId);
+    const el = document.createElement("div");
+    el.className = "row";
+    el.style.background = spool.color;
+    el.setAttribute("role", "img");
+    el.setAttribute("aria-label", `Row ${idx + 1}: ${spool.name} thread, ${spool.tone} tone`);
+
+    const warp = document.createElement("div");
+    warp.className = "warp";
+    el.appendChild(warp);
+
+    // tone dots — placed on the high points of the pattern
+    rowData.pattern.forEach((v, i) => {
+      if (v === 1) {
+        const dot = document.createElement("span");
+        dot.className = "tone-dot";
+        const left = ((i + 0.5) / CELLS_PER_ROW) * 100;
+        dot.style.left = `calc(${left}% - 3px)`;
+        el.appendChild(dot);
+      }
+    });
+
+    // a centered mark glyph for the spool
+    const mark = document.createElement("div");
+    mark.className = "mark";
+    mark.textContent = spool.mark.repeat(3);
+    el.appendChild(mark);
+
+    return el;
+  }
+
+  function refresh() {
+    // Clear and re-render rows
+    Array.from(ribbon.querySelectorAll(".row")).forEach(n => n.remove());
+    state.rows.forEach((r, i) => ribbon.appendChild(renderRow(r, i)));
+    rowCountEl.textContent = state.rows.length;
+    emptyHint.style.display = state.rows.length === 0 ? "" : "none";
+    btnCompose.disabled = state.rows.length === 0;
+    btnReset.disabled = state.rows.length === 0;
+  }
+
+  function addRow(spoolId) {
+    if (state.rows.length >= MAX_ROWS) return;
+    const seed = hashStr(spoolId + ":" + state.rows.length + ":" + Math.floor(Math.random() * 1e9));
+    state.rows.push({ spoolId, pattern: makePattern(seed) });
+    refresh();
+    // Hide any prior dispatch when the user starts re-weaving
+    if (!dispatchEl.hidden) {
+      dispatchEl.hidden = true;
+      dispatchEl.classList.remove("flash");
+    }
+  }
+
+  function shuffle() {
+    // Replace whole loom with 4-6 random rows
+    const rng = mulberry32(Date.now() & 0xffffffff);
+    const n = 4 + randInt(rng, 3);
+    state.rows = [];
+    for (let i = 0; i < n; i++) {
+      const s = SPOOLS[randInt(rng, SPOOLS.length)];
+      state.rows.push({ spoolId: s.id, pattern: makePattern(hashStr(s.id + ":" + i + ":" + rng())) });
+    }
+    refresh();
+    dispatchEl.hidden = true;
+  }
+
+  function resetAll() {
+    if (state.rows.length === 0) return;
+    // animate out then clear
+    const nodes = Array.from(ribbon.querySelectorAll(".row"));
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      state.rows = [];
+      refresh();
+      dispatchEl.hidden = true;
+      return;
+    }
+    nodes.forEach(n => n.classList.add("fade-out"));
+    setTimeout(() => {
+      state.rows = [];
+      refresh();
+      dispatchEl.hidden = true;
+    }, 280);
+  }
+
+  // --- Compose the morning dispatch ---
+  function compose() {
+    if (state.rows.length === 0) return;
+
+    const sequence = state.rows.map(r => r.spoolId);
+    const seedStr = sequence.join("-") + "#" + state.rows.length;
+    const rng = mulberry32(hashStr(seedStr));
+
+    // Pick adjective bank from first spool's word, noun from any spool's flavor
+    const firstWord = SPOOLS.find(s => s.id === sequence[0]).word;
+    const lastWord  = SPOOLS.find(s => s.id === sequence[sequence.length - 1]).word;
+    const adj1 = pick(ADJECTIVES[firstWord], rng);
+    const adj2 = pick(ADJECTIVES[lastWord],  rng);
+    const noun = pick(NOUNS, rng);
+    const verb = pick(VERBS, rng);
+    const obj  = pick(OBJECTS, rng);
+    const closer = pick(CLOSERS, rng);
+
+    const title = `${adj1} ${noun} of ${adj2} Mornings`;
+
+    const body =
+      `The loom ${verb} ${obj}.\n` +
+      `Threads: ${sequence.map(id => SPOOLS.find(s => s.id === id).name).join(" → ")}.\n` +
+      `${closer}`;
+
+    // Tone string: e.g. " ·—·◆║○ "
+    const tone = sequence
+      .map(id => SPOOLS.find(s => s.id === id).mark)
+      .join(" ");
+
+    dTitle.textContent = title;
+    dBody.textContent  = body;
+    dTone.textContent  = tone;
+    dDate.textContent  = formatDate();
+    dStamp.textContent = `Signal № ${Math.abs(hashStr(seedStr)) % 9000 + 1000}`;
+
+    dispatchEl.hidden = false;
+    dispatchEl.classList.remove("flash");
+    // restart animation
+    void dispatchEl.offsetWidth;
+    dispatchEl.classList.add("flash");
+
+    // Scroll the dispatch into view on small screens
+    setTimeout(() => {
+      dispatchEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 60);
+  }
+
+  function formatDate() {
+    const d = new Date();
+    const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  // --- Wire up ---
+  btnShuffle.addEventListener("click", shuffle);
+  btnReset.addEventListener("click", resetAll);
+  btnCompose.addEventListener("click", compose);
+
+  buildSpools();
+  refresh();
+})();
+</script>
+</body>
+</html>
