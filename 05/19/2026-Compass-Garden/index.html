@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1230">
+<title>Compass Garden</title>
+<style>
+  :root {
+    --bg-a: #0a1230;
+    --bg-b: #1a1d4a;
+    --bg-c: #f6c79a;
+    --ink: #f6f2e6;
+    --ink-soft: rgba(246,242,230,0.72);
+    --ink-dim: rgba(246,242,230,0.42);
+    --gold: #ffd58a;
+    --rose: #ff9fb0;
+    --mint: #aef2c8;
+    --sky: #9ed6ff;
+    --violet: #c8a8ff;
+    --surface: rgba(255,255,255,0.08);
+    --surface-hi: rgba(255,255,255,0.16);
+    --border: rgba(255,255,255,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background:
+      radial-gradient(120% 60% at 50% 110%, var(--bg-c) 0%, transparent 55%),
+      radial-gradient(80% 60% at 50% 0%, var(--bg-b) 0%, var(--bg-a) 70%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding: max(env(safe-area-inset-top), 18px) 16px max(env(safe-area-inset-bottom), 24px);
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    padding: 8px 4px 14px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(1.7rem, 6vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  h1 .star { color: var(--gold); }
+  .lede {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin: 8px auto 14px;
+    border-radius: 24px;
+    overflow: hidden;
+    background:
+      radial-gradient(70% 70% at 50% 35%, rgba(255,255,255,0.10), transparent 70%),
+      linear-gradient(180deg, rgba(8,12,32,0.85), rgba(20,16,40,0.85));
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.6), inset 0 0 60px rgba(0,0,0,0.4);
+    touch-action: manipulation;
+  }
+  .stage.mode-dawn {
+    background:
+      radial-gradient(80% 80% at 50% 20%, rgba(255,210,150,0.18), transparent 65%),
+      linear-gradient(180deg, rgba(45,30,55,0.85), rgba(120,80,70,0.65) 70%, rgba(246,199,154,0.55));
+  }
+  .stage.mode-meadow {
+    background:
+      radial-gradient(70% 70% at 50% 30%, rgba(180,255,220,0.15), transparent 70%),
+      linear-gradient(180deg, rgba(10,40,40,0.85), rgba(20,60,55,0.8) 60%, rgba(200,255,210,0.35));
+  }
+  svg { display:block; width:100%; height:100%; }
+
+  .hint {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    transition: opacity 0.4s;
+  }
+  .hint.gone { opacity: 0; }
+
+  .legend {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    pointer-events: none;
+  }
+  .legend strong { color: var(--gold); font-weight: 600; }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  button {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s, transform 0.1s, border-color 0.2s;
+  }
+  button:active { transform: scale(0.97); background: var(--surface-hi); }
+  button.primary {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, var(--gold), var(--rose));
+    color: #2a1640;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-color: transparent;
+    box-shadow: 0 8px 24px -8px rgba(255,160,140,0.6);
+  }
+  button.primary:disabled {
+    background: var(--surface);
+    color: var(--ink-dim);
+    box-shadow: none;
+  }
+
+  .palette {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 2px 8px;
+    margin-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .palette::-webkit-scrollbar { display: none; }
+  .seed-pick, .mode-pick {
+    flex: 0 0 auto;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .seed-pick.active, .mode-pick.active {
+    background: var(--surface-hi);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold) inset, 0 6px 18px -6px rgba(255,213,138,0.5);
+  }
+  .seed-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 4px 4px 6px;
+  }
+
+  .card-out {
+    margin-top: 16px;
+    padding: 18px 18px 20px;
+    border-radius: 18px;
+    background: linear-gradient(140deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s, transform 0.5s;
+    pointer-events: none;
+  }
+  .card-out.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .card-out .stamp {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .card-out h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+    line-height: 1.15;
+  }
+  .card-out p {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .card-out .quote {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,0.15);
+    font-style: italic;
+    color: var(--ink);
+    font-size: 15px;
+  }
+  .card-out .meta {
+    margin-top: 10px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Daily Surprise · May 19</div>
+  <h1>Compass <span class="star">Garden</span></h1>
+  <p class="lede">Tap the dial to plant glowing seed-stars. Their pattern will name a small route through your morning.</p>
+</header>
+
+<div class="section-label">Seed</div>
+<div class="palette" id="seeds"></div>
+
+<div class="stage" id="stage">
+  <div class="hint" id="hint">Tap anywhere on the dial to plant a seed-star</div>
+  <svg viewBox="0 0 400 400" id="svg" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="legend">PLANTED <strong id="count">0</strong> / 12</div>
+</div>
+
+<div class="section-label">Sky</div>
+<div class="palette" id="modes"></div>
+
+<div class="controls">
+  <button id="shuffle">↻ Nudge</button>
+  <button id="clear">✕ Clear</button>
+  <button class="primary" id="compose" disabled>Compose Route</button>
+</div>
+
+<div class="card-out" id="out">
+  <div class="stamp">Compass Garden · No. <span id="numId">001</span></div>
+  <h2 id="routeName">—</h2>
+  <p id="routeBody"></p>
+  <div class="quote" id="routeMotto"></div>
+  <div class="meta" id="routeMeta"></div>
+</div>
+
+<footer>self-contained · runs offline</footer>
+
+<script>
+(() => {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const stage = document.getElementById('stage');
+  const svg = document.getElementById('svg');
+  const hint = document.getElementById('hint');
+  const countEl = document.getElementById('count');
+  const composeBtn = document.getElementById('compose');
+  const shuffleBtn = document.getElementById('shuffle');
+  const clearBtn = document.getElementById('clear');
+  const out = document.getElementById('out');
+  const numId = document.getElementById('numId');
+  const routeName = document.getElementById('routeName');
+  const routeBody = document.getElementById('routeBody');
+  const routeMotto = document.getElementById('routeMotto');
+  const routeMeta = document.getElementById('routeMeta');
+
+  const W = 400, H = 400, CX = 200, CY = 200, R = 168;
+  const MAX_SEEDS = 12;
+
+  const SEEDS = [
+    { id:'lantern', label:'Lantern',  color:'#ffd58a' },
+    { id:'rose',    label:'Rose',     color:'#ff9fb0' },
+    { id:'mint',    label:'Mint',     color:'#aef2c8' },
+    { id:'sky',     label:'Sky',      color:'#9ed6ff' },
+    { id:'violet',  label:'Violet',   color:'#c8a8ff' },
+  ];
+
+  const MODES = [
+    { id:'night',  label:'Night'  },
+    { id:'dawn',   label:'Dawn'   },
+    { id:'meadow', label:'Meadow' },
+  ];
+
+  let currentSeed = SEEDS[0];
+  let currentMode = MODES[0];
+  let seeds = [];
+
+  /* ---------- build palettes ---------- */
+  const seedsBar = document.getElementById('seeds');
+  SEEDS.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'seed-pick' + (i===0 ? ' active' : '');
+    b.innerHTML = `<span class="seed-dot" style="background:${s.color};color:${s.color}"></span>${s.label}`;
+    b.addEventListener('click', () => {
+      currentSeed = s;
+      [...seedsBar.children].forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+    });
+    seedsBar.appendChild(b);
+  });
+
+  const modesBar = document.getElementById('modes');
+  MODES.forEach((m, i) => {
+    const b = document.createElement('button');
+    b.className = 'mode-pick' + (i===0 ? ' active' : '');
+    b.textContent = m.label;
+    b.addEventListener('click', () => {
+      currentMode = m;
+      [...modesBar.children].forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      stage.classList.remove('mode-night','mode-dawn','mode-meadow');
+      stage.classList.add('mode-' + m.id);
+      drawAll();
+    });
+    modesBar.appendChild(b);
+  });
+  stage.classList.add('mode-night');
+
+  /* ---------- draw dial ---------- */
+  function drawDial() {
+    // background rings
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElementNS(svgNS, 'circle');
+      c.setAttribute('cx', CX);
+      c.setAttribute('cy', CY);
+      c.setAttribute('r', R * (0.3 + i * 0.22));
+      c.setAttribute('fill', 'none');
+      c.setAttribute('stroke', 'rgba(255,255,255,0.10)');
+      c.setAttribute('stroke-width', i === 3 ? 1.5 : 1);
+      svg.appendChild(c);
+    }
+    // tick marks (compass)
+    for (let a = 0; a < 360; a += 15) {
+      const rad = (a - 90) * Math.PI / 180;
+      const major = a % 90 === 0;
+      const r1 = R - (major ? 14 : 7);
+      const r2 = R;
+      const x1 = CX + Math.cos(rad) * r1;
+      const y1 = CY + Math.sin(rad) * r1;
+      const x2 = CX + Math.cos(rad) * r2;
+      const y2 = CY + Math.sin(rad) * r2;
+      const l = document.createElementNS(svgNS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+      l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      l.setAttribute('stroke', major ? 'rgba(255,213,138,0.6)' : 'rgba(255,255,255,0.22)');
+      l.setAttribute('stroke-width', major ? 2 : 1);
+      l.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(l);
+    }
+    // cardinal letters
+    const cards = [['N',0],['E',90],['S',180],['W',270]];
+    cards.forEach(([ltr, a]) => {
+      const rad = (a - 90) * Math.PI / 180;
+      const tx = CX + Math.cos(rad) * (R + 16);
+      const ty = CY + Math.sin(rad) * (R + 16) + 4;
+      const t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('x', tx);
+      t.setAttribute('y', ty);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', '11');
+      t.setAttribute('font-family', '-apple-system, sans-serif');
+      t.setAttribute('font-weight', '600');
+      t.setAttribute('letter-spacing', '0.2em');
+      t.setAttribute('fill', 'rgba(255,213,138,0.75)');
+      t.textContent = ltr;
+      svg.appendChild(t);
+    });
+    // center pip
+    const pip = document.createElementNS(svgNS, 'circle');
+    pip.setAttribute('cx', CX); pip.setAttribute('cy', CY);
+    pip.setAttribute('r', 3.5);
+    pip.setAttribute('fill', 'rgba(255,213,138,0.85)');
+    svg.appendChild(pip);
+  }
+
+  function drawSeeds() {
+    // connector path through seeds in plant order
+    if (seeds.length >= 2) {
+      let d = `M ${seeds[0].x} ${seeds[0].y}`;
+      for (let i = 1; i < seeds.length; i++) {
+        d += ` L ${seeds[i].x} ${seeds[i].y}`;
+      }
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', 'rgba(255,255,255,0.35)');
+      p.setAttribute('stroke-width', '1.2');
+      p.setAttribute('stroke-dasharray', '3 4');
+      p.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(p);
+    }
+    seeds.forEach((s, i) => {
+      // halo
+      const halo = document.createElementNS(svgNS, 'circle');
+      halo.setAttribute('cx', s.x); halo.setAttribute('cy', s.y);
+      halo.setAttribute('r', 14);
+      halo.setAttribute('fill', s.color);
+      halo.setAttribute('opacity', '0.18');
+      svg.appendChild(halo);
+      // core
+      const core = document.createElementNS(svgNS, 'circle');
+      core.setAttribute('cx', s.x); core.setAttribute('cy', s.y);
+      core.setAttribute('r', 5);
+      core.setAttribute('fill', s.color);
+      svg.appendChild(core);
+      // tiny order numeral
+      const t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('x', s.x + 9);
+      t.setAttribute('y', s.y - 7);
+      t.setAttribute('font-size', '9');
+      t.setAttribute('font-family', '-apple-system, sans-serif');
+      t.setAttribute('fill', 'rgba(255,255,255,0.55)');
+      t.textContent = i + 1;
+      svg.appendChild(t);
+    });
+  }
+
+  function drawAll() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    drawDial();
+    drawSeeds();
+    countEl.textContent = seeds.length;
+    composeBtn.disabled = seeds.length < 3;
+  }
+
+  /* ---------- planting ---------- */
+  function svgPointFromEvent(e) {
+    const rect = svg.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return {
+      x: cx / rect.width * W,
+      y: cy / rect.height * H
+    };
+  }
+
+  function plant(e) {
+    if (seeds.length >= MAX_SEEDS) return;
+    const p = svgPointFromEvent(e);
+    const dx = p.x - CX, dy = p.y - CY;
+    const dist = Math.hypot(dx, dy);
+    // clamp inside dial slightly
+    let x = p.x, y = p.y;
+    if (dist > R - 8) {
+      const ang = Math.atan2(dy, dx);
+      x = CX + Math.cos(ang) * (R - 8);
+      y = CY + Math.sin(ang) * (R - 8);
+    }
+    seeds.push({ x, y, color: currentSeed.color, id: currentSeed.id });
+    hint.classList.add('gone');
+    drawAll();
+  }
+
+  stage.addEventListener('click', plant);
+
+  shuffleBtn.addEventListener('click', () => {
+    if (seeds.length === 0) {
+      // sprinkle a starter spray
+      for (let i = 0; i < 5; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 30 + Math.random() * (R - 40);
+        seeds.push({
+          x: CX + Math.cos(a) * r,
+          y: CY + Math.sin(a) * r,
+          color: SEEDS[i % SEEDS.length].color,
+          id: SEEDS[i % SEEDS.length].id
+        });
+      }
+      hint.classList.add('gone');
+    } else {
+      // nudge each existing seed slightly
+      seeds.forEach(s => {
+        s.x += (Math.random() - 0.5) * 28;
+        s.y += (Math.random() - 0.5) * 28;
+        const dx = s.x - CX, dy = s.y - CY;
+        const d = Math.hypot(dx, dy);
+        if (d > R - 8) {
+          const a = Math.atan2(dy, dx);
+          s.x = CX + Math.cos(a) * (R - 8);
+          s.y = CY + Math.sin(a) * (R - 8);
+        }
+      });
+    }
+    drawAll();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    seeds = [];
+    out.classList.remove('show');
+    hint.classList.remove('gone');
+    drawAll();
+  });
+
+  /* ---------- compose route ---------- */
+  const ROUTE_PREFIX = ['Slow','Bright','Quiet','Soft','Long','Pocket','Small','Honest','First','Open','Easy','Fair'];
+  const ROUTE_BODY   = ['Lantern','Compass','Meadow','Tideline','Window','Footbridge','Doorway','Orchard','Threshold','Almanac','Notebook','Signal'];
+  const ROUTE_SUFFIX = ['Loop','Walk','Round','Path','Errand','Detour','Crossing','Lane','Circuit','Wander','Drift','Mile'];
+  const VERBS = ['begin','greet','listen','arrange','tend','count','gather','open','steady','notice','warm','sketch'];
+  const NOUNS = ['the kettle','one window','the doorway','the loose plan','the first light','a small list','the kind sentence','the small map','the patient hour','the soft start','the open page','the quiet room'];
+  const TONES = ['fresh start','morning curiosity','playful system','calm beginning','gentle order','small adventure'];
+
+  function pick(arr, i) { return arr[((i % arr.length) + arr.length) % arr.length]; }
+
+  function fingerprint() {
+    // produce a small integer fingerprint from seed positions and types
+    let h = 2166136261;
+    seeds.forEach((s, i) => {
+      const qx = Math.round(s.x);
+      const qy = Math.round(s.y);
+      const c = s.id.charCodeAt(0) + s.id.charCodeAt(1);
+      h = (h ^ (qx + qy * 31 + c * 7 + i * 13)) >>> 0;
+      h = Math.imul(h, 16777619) >>> 0;
+    });
+    return h;
+  }
+
+  function compassLetter(s) {
+    const dx = s.x - CX, dy = s.y - CY;
+    const ang = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+    if (ang < 45 || ang >= 315) return 'N';
+    if (ang < 135) return 'E';
+    if (ang < 225) return 'S';
+    return 'W';
+  }
+
+  function bearingTag() {
+    const counts = {N:0,E:0,S:0,W:0};
+    seeds.forEach(s => counts[compassLetter(s)]++);
+    // sort by count desc
+    const top = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+    const names = { N:'true north', E:'east-light', S:'south-warmth', W:'west-quiet' };
+    return names[top];
+  }
+
+  function avgBearing() {
+    let sx = 0, sy = 0;
+    seeds.forEach(s => { sx += s.x - CX; sy += s.y - CY; });
+    return Math.atan2(sy, sx) * 180 / Math.PI;
+  }
+
+  function spread() {
+    // mean distance from centroid, normalized to R
+    let cx = 0, cy = 0;
+    seeds.forEach(s => { cx += s.x; cy += s.y; });
+    cx /= seeds.length; cy /= seeds.length;
+    let d = 0;
+    seeds.forEach(s => { d += Math.hypot(s.x - cx, s.y - cy); });
+    return Math.min(1, (d / seeds.length) / R);
+  }
+
+  function compose() {
+    if (seeds.length < 3) return;
+    const fp = fingerprint();
+    const a = pick(ROUTE_PREFIX, fp);
+    const b = pick(ROUTE_BODY, fp >> 4);
+    const c = pick(ROUTE_SUFFIX, fp >> 8);
+    const v1 = pick(VERBS, fp >> 12);
+    const v2 = pick(VERBS, (fp >> 16) ^ seeds.length);
+    const n1 = pick(NOUNS, fp >> 20);
+    const n2 = pick(NOUNS, (fp >> 24) ^ 7);
+    const tone = pick(TONES, fp >> 5);
+    const sprd = spread();
+    const sprdWord = sprd < 0.25 ? 'tight cluster' : sprd < 0.55 ? 'easy spread' : 'wide constellation';
+
+    const name = `${a} ${b} ${c}`;
+    const bearing = bearingTag();
+    const num = ((fp % 899) + 100).toString();
+
+    routeName.textContent = name;
+    routeBody.textContent = `A ${seeds.length}-stop garden in a ${sprdWord}, pointed toward ${bearing}. ${cap(tone)}.`;
+    routeMotto.textContent = `“First ${v1} ${n1}, then ${v2} ${n2}.”`;
+    routeMeta.textContent = `${seeds.length} seeds · ${currentMode.label.toLowerCase()} sky · ${sprdWord}`;
+    numId.textContent = num;
+    out.classList.add('show');
+    // gentle scroll into view
+    setTimeout(() => out.scrollIntoView({behavior:'smooth', block:'nearest'}), 60);
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  composeBtn.addEventListener('click', compose);
+
+  /* ---------- init ---------- */
+  drawAll();
+})();
+</script>
+</body>
+</html>
