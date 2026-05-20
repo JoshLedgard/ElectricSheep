@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#06121c">
+<title>Pocket Tide Cartographer</title>
+<style>
+  :root{
+    --bg:#06121c;
+    --surface:#0d1d2a;
+    --surface-2:#102634;
+    --line:rgba(120,180,210,0.18);
+    --line-soft:rgba(120,180,210,0.10);
+    --ink:#dbeaf2;
+    --ink-dim:#7a96a8;
+    --ink-faint:#4a6478;
+    --gold:#f0c674;
+    --foam:#76d6c9;
+    --sea-deep:#0a1c28;
+    --sea-mid:#10303f;
+    --sea-shal:#1a4858;
+    --sand:#3a2f1f;
+    --sand-edge:#5a4a32;
+    --green:#5fcf83;
+    --red:#ee6963;
+    --yellow:#f1cc4e;
+    --white:#e8eef2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(118,214,201,0.07), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 110%, rgba(240,198,116,0.05), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.5;
+    min-height:100%;
+    padding:18px 14px 36px;
+    overflow-x:hidden;
+  }
+  .wrap{max-width:440px;margin:0 auto}
+
+  header{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  .brand{
+    font-size:11px;
+    letter-spacing:0.32em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:8px;
+  }
+  h1{
+    font-size:1.45rem;
+    font-weight:700;
+    color:var(--ink);
+    letter-spacing:-0.01em;
+    margin-bottom:6px;
+  }
+  h1 .a{color:var(--foam)}
+  h1 .b{color:var(--gold)}
+  .sub{
+    font-size:13px;
+    color:var(--ink-dim);
+    max-width:340px;
+    margin:0 auto;
+  }
+
+  /* Palette row */
+  .palette{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+    margin:18px 0 10px;
+  }
+  .p-btn{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px 4px 6px;
+    color:var(--ink-dim);
+    font-family:inherit;
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    min-height:60px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s, color .15s;
+  }
+  .p-btn .sw{
+    width:22px;height:22px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .p-btn.active{
+    background:var(--surface-2);
+    border-color:var(--foam);
+    color:var(--ink);
+    box-shadow:0 0 0 1px rgba(118,214,201,0.18) inset;
+  }
+
+  /* Chart */
+  .chart-wrap{
+    position:relative;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    padding:0;
+  }
+  #chart{
+    display:block;
+    width:100%;
+    height:auto;
+    touch-action:manipulation;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .hint{
+    position:absolute;
+    left:10px;bottom:8px;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    color:var(--ink-faint);
+    pointer-events:none;
+    background:rgba(6,18,28,0.55);
+    padding:3px 7px;
+    border-radius:4px;
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+  }
+  .scale{
+    position:absolute;
+    right:10px;bottom:8px;
+    font-size:10px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    pointer-events:none;
+  }
+
+  /* Tide slider */
+  .tide{
+    margin:14px 0 4px;
+    padding:12px 14px 14px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+  .tide-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:6px;
+  }
+  .tide-label{
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .tide-val{
+    font-size:13px;
+    color:var(--gold);
+    font-variant-numeric:tabular-nums;
+    letter-spacing:0.04em;
+  }
+  input[type="range"]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:34px;
+    background:transparent;
+    cursor:pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:6px;
+    background:linear-gradient(90deg, var(--sea-deep), var(--foam));
+    border-radius:3px;
+    border:1px solid var(--line);
+  }
+  input[type="range"]::-moz-range-track{
+    height:6px;
+    background:linear-gradient(90deg, var(--sea-deep), var(--foam));
+    border-radius:3px;
+    border:1px solid var(--line);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:26px;height:26px;border-radius:50%;
+    background:var(--gold);
+    border:2px solid #0d1d2a;
+    box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    margin-top:-12px;
+    cursor:pointer;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:26px;height:26px;border-radius:50%;
+    background:var(--gold);
+    border:2px solid #0d1d2a;
+    box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    cursor:pointer;
+  }
+  .tide-ticks{
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
+    color:var(--ink-faint);
+    letter-spacing:0.1em;
+    margin-top:-2px;
+    padding:0 2px;
+  }
+
+  /* Controls */
+  .controls{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:10px;
+  }
+  .btn{
+    background:var(--surface);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-family:inherit;
+    font-size:13px;
+    letter-spacing:0.04em;
+    padding:0 14px;
+    min-height:46px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s, transform .08s;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{
+    grid-column:1/3;
+    background:linear-gradient(180deg, #16415a, #0e2c3e);
+    border-color:rgba(118,214,201,0.45);
+    color:var(--foam);
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-size:12.5px;
+  }
+  .btn.primary:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+    color:var(--ink-faint);
+    border-color:var(--line);
+    background:var(--surface);
+  }
+
+  /* Status line */
+  .status{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:11px;
+    letter-spacing:0.12em;
+    color:var(--ink-faint);
+    text-transform:uppercase;
+    margin:12px 4px 0;
+  }
+  .status .count{color:var(--gold)}
+
+  /* Result */
+  .result{
+    margin-top:16px;
+    border-radius:14px;
+    border:1px solid rgba(240,198,116,0.32);
+    background:linear-gradient(180deg, #142a36, #0c1d28);
+    padding:18px 18px 20px;
+    animation:rise .35s ease both;
+  }
+  @keyframes rise{
+    from{opacity:0;transform:translateY(8px)}
+    to{opacity:1;transform:none}
+  }
+  .r-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .r-label{
+    font-size:10px;
+    letter-spacing:0.32em;
+    text-transform:uppercase;
+    color:var(--gold);
+  }
+  .r-num{
+    font-size:11px;
+    color:var(--ink-faint);
+    letter-spacing:0.08em;
+    font-variant-numeric:tabular-nums;
+  }
+  .r-name{
+    font-size:1.35rem;
+    color:var(--ink);
+    line-height:1.2;
+    letter-spacing:-0.01em;
+    margin-bottom:4px;
+  }
+  .r-tag{
+    font-size:12px;
+    color:var(--foam);
+    letter-spacing:0.04em;
+    margin-bottom:14px;
+  }
+  .r-report{
+    font-size:13.5px;
+    color:var(--ink);
+    line-height:1.55;
+    border-top:1px dashed rgba(118,214,201,0.22);
+    padding-top:12px;
+  }
+  .r-report em{
+    color:var(--gold);
+    font-style:normal;
+  }
+  .r-stats{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:10px;
+    font-size:11px;
+    color:var(--ink-dim);
+    letter-spacing:0.05em;
+  }
+  .r-stats span{display:inline-flex;align-items:center;gap:5px}
+  .r-stats i{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+  }
+
+  footer{
+    margin-top:24px;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-faint);
+    letter-spacing:0.12em;
+  }
+
+  /* Focus rings (keyboard) */
+  .p-btn:focus-visible, .btn:focus-visible{
+    outline:2px solid var(--foam);
+    outline-offset:2px;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    .result{animation:none}
+    #chart .wave1, #chart .wave2{animation:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">⚓ Pocket Tide</div>
+    <h1><span class="a">Tide</span> <span class="b">Cartographer</span></h1>
+    <p class="sub">Drop buoys on a quiet harbor. Tap each one to spin its current. Slide the tide. Then chart it.</p>
+  </header>
+
+  <div class="palette" role="tablist" aria-label="Buoy type">
+    <button class="p-btn active" data-type="channel" role="tab" aria-selected="true">
+      <span class="sw">
+        <svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" fill="#5fcf83" stroke="#0d1d2a" stroke-width="1.5"/>
+        </svg>
+      </span>
+      Channel
+    </button>
+    <button class="p-btn" data-type="harbor" role="tab" aria-selected="false">
+      <span class="sw">
+        <svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" fill="#ee6963" stroke="#0d1d2a" stroke-width="1.5"/>
+        </svg>
+      </span>
+      Port
+    </button>
+    <button class="p-btn" data-type="hazard" role="tab" aria-selected="false">
+      <span class="sw">
+        <svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+          <polygon points="11,2 20,11 11,20 2,11" fill="#f1cc4e" stroke="#0d1d2a" stroke-width="1.5"/>
+        </svg>
+      </span>
+      Hazard
+    </button>
+    <button class="p-btn" data-type="anchor" role="tab" aria-selected="false">
+      <span class="sw">
+        <svg viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+          <rect x="4" y="4" width="14" height="14" fill="#e8eef2" stroke="#0d1d2a" stroke-width="1.5" rx="2"/>
+        </svg>
+      </span>
+      Anchor
+    </button>
+  </div>
+
+  <div class="chart-wrap">
+    <svg id="chart" viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" aria-label="Harbor chart">
+      <defs>
+        <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0a1f2c"/>
+          <stop offset="0.55" stop-color="#10303f"/>
+          <stop offset="1" stop-color="#0e2735"/>
+        </linearGradient>
+        <linearGradient id="land" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2c2415"/>
+          <stop offset="1" stop-color="#1a1408"/>
+        </linearGradient>
+        <linearGradient id="tideOver" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#76d6c9" stop-opacity="0"/>
+          <stop offset="1" stop-color="#76d6c9" stop-opacity="0.18"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#f0c674" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#f0c674" stop-opacity="0"/>
+        </radialGradient>
+        <pattern id="grid" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+          <path d="M30 0 L0 0 0 30" fill="none" stroke="rgba(120,180,210,0.06)" stroke-width="1"/>
+        </pattern>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5"/>
+        </filter>
+      </defs>
+
+      <!-- Water base -->
+      <rect x="0" y="0" width="360" height="280" fill="url(#water)"/>
+      <rect x="0" y="0" width="360" height="280" fill="url(#grid)"/>
+
+      <!-- Wave animations (subtle) -->
+      <g opacity="0.5" style="mix-blend-mode:screen">
+        <path class="wave1" d="M -20 200 Q 30 195 80 200 T 180 200 T 280 200 T 380 200"
+              fill="none" stroke="rgba(118,214,201,0.18)" stroke-width="1"/>
+        <path class="wave2" d="M -20 230 Q 40 226 90 230 T 200 230 T 310 230 T 420 230"
+              fill="none" stroke="rgba(118,214,201,0.10)" stroke-width="1"/>
+      </g>
+
+      <!-- Compass rose -->
+      <g transform="translate(312, 38)" opacity="0.65">
+        <circle r="22" fill="none" stroke="rgba(240,198,116,0.35)" stroke-width="0.7"/>
+        <circle r="15" fill="none" stroke="rgba(240,198,116,0.18)" stroke-width="0.5"/>
+        <line x1="0" y1="-20" x2="0" y2="20" stroke="rgba(240,198,116,0.35)" stroke-width="0.6"/>
+        <line x1="-20" y1="0" x2="20" y2="0" stroke="rgba(240,198,116,0.20)" stroke-width="0.6"/>
+        <polygon points="0,-20 -3,-8 0,-10 3,-8" fill="#f0c674"/>
+        <text y="-23" text-anchor="middle" font-size="6.5" fill="#f0c674" font-family="-apple-system, sans-serif" letter-spacing="0.1em">N</text>
+      </g>
+
+      <!-- Land masses -->
+      <g id="lands">
+        <!-- Upper headland: peninsula curving from top-left -->
+        <path id="land1"
+              d="M 0 0 L 360 0 L 360 38
+                 C 320 48 290 62 256 58
+                 C 218 53 198 78 162 72
+                 C 124 65 96 50 60 58
+                 C 34 64 12 50 0 56 Z"
+              fill="url(#land)" stroke="#5a4a32" stroke-width="0.8" stroke-linejoin="round"/>
+        <!-- Small island in the bay -->
+        <path id="land2"
+              d="M 232 196 Q 252 188 270 200 Q 278 214 268 224 Q 250 232 232 224 Q 220 212 232 196 Z"
+              fill="url(#land)" stroke="#5a4a32" stroke-width="0.7"/>
+        <!-- Pier from right edge -->
+        <path id="land3"
+              d="M 360 120 L 360 152 L 318 148 Q 312 144 318 140 L 360 138 Z"
+              fill="url(#land)" stroke="#5a4a32" stroke-width="0.7"/>
+      </g>
+
+      <!-- Sandy shore highlights (responds to tide) -->
+      <g id="shores" opacity="0.6">
+        <path d="M 0 56 C 12 50 34 64 60 58 C 96 50 124 65 162 72 C 198 78 218 53 256 58 C 290 62 320 48 360 38"
+              fill="none" stroke="rgba(240,210,150,0.28)" stroke-width="1.2"/>
+        <path d="M 232 196 Q 252 188 270 200 Q 278 214 268 224 Q 250 232 232 224 Q 220 212 232 196 Z"
+              fill="none" stroke="rgba(240,210,150,0.32)" stroke-width="1"/>
+      </g>
+
+      <!-- Tide overlay (water level) -->
+      <rect id="tideOverlay" x="0" y="0" width="360" height="280" fill="url(#tideOver)" opacity="0.5"/>
+
+      <!-- Faint depth contours -->
+      <g opacity="0.16" fill="none" stroke="rgba(118,214,201,0.5)" stroke-width="0.6" stroke-dasharray="2 4">
+        <path d="M 0 100 Q 100 96 200 108 T 360 102"/>
+        <path d="M 0 140 Q 120 134 220 150 T 360 144"/>
+        <path d="M 0 180 Q 110 174 220 188 T 360 182"/>
+      </g>
+
+      <!-- Buoy group (placed dynamically) -->
+      <g id="buoys"></g>
+
+      <!-- Tap-zone overlay catches pointer events -->
+      <rect id="tapzone" x="0" y="0" width="360" height="280" fill="transparent"/>
+    </svg>
+    <div class="hint">Tap water · tap a buoy to spin current</div>
+    <div class="scale">1 : Mini</div>
+  </div>
+
+  <div class="tide">
+    <div class="tide-row">
+      <div class="tide-label">Tide</div>
+      <div class="tide-val"><span id="tideVal">Mid</span> · <span id="tideMeters">+1.4 m</span></div>
+    </div>
+    <input id="tide" type="range" min="0" max="100" value="50" aria-label="Tide level">
+    <div class="tide-ticks"><span>LOW</span><span>MEAN</span><span>HIGH</span></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="nudge" type="button">Nudge</button>
+    <button class="btn" id="clear" type="button">Clear</button>
+    <button class="btn primary" id="chart-btn" type="button" disabled>Chart the Harbor</button>
+  </div>
+
+  <div class="status">
+    <span>Buoys: <span class="count" id="bcount">0</span> / 12</span>
+    <span id="hint2">Drop 3 to chart</span>
+  </div>
+
+  <section class="result" id="result" hidden aria-live="polite">
+    <div class="r-top">
+      <div class="r-label">Charted Harbor</div>
+      <div class="r-num" id="rNum">№ 000</div>
+    </div>
+    <div class="r-name" id="rName">—</div>
+    <div class="r-tag" id="rTag">—</div>
+    <div class="r-report" id="rReport">—</div>
+    <div class="r-stats" id="rStats"></div>
+  </section>
+
+  <footer>· A tiny chart-room ·</footer>
+
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById('chart');
+  const buoysG = document.getElementById('buoys');
+  const tapzone = document.getElementById('tapzone');
+  const land1 = document.getElementById('land1');
+  const land2 = document.getElementById('land2');
+  const land3 = document.getElementById('land3');
+  const tideInput = document.getElementById('tide');
+  const tideValEl = document.getElementById('tideVal');
+  const tideMEl = document.getElementById('tideMeters');
+  const tideOverlay = document.getElementById('tideOverlay');
+  const bcountEl = document.getElementById('bcount');
+  const hint2 = document.getElementById('hint2');
+  const chartBtn = document.getElementById('chart-btn');
+  const nudgeBtn = document.getElementById('nudge');
+  const clearBtn = document.getElementById('clear');
+  const resultEl = document.getElementById('result');
+  const rName = document.getElementById('rName');
+  const rTag = document.getElementById('rTag');
+  const rReport = document.getElementById('rReport');
+  const rNum = document.getElementById('rNum');
+  const rStats = document.getElementById('rStats');
+
+  const MAX_BUOYS = 12;
+  const TYPES = {
+    channel: { color:'#5fcf83', label:'Channel' },
+    harbor:  { color:'#ee6963', label:'Port' },
+    hazard:  { color:'#f1cc4e', label:'Hazard' },
+    anchor:  { color:'#e8eef2', label:'Anchor' },
+  };
+  // current direction: 0=none, 1=N, 2=E, 3=S, 4=W
+  const DIR_VEC = [[0,0],[0,-1],[1,0],[0,1],[-1,0]];
+  const DIR_NAMES = ['still','north','east','south','west'];
+
+  let buoys = [];
+  let activeType = 'channel';
+  let nextId = 1;
+  let tide = 50;
+  let suppressNextTap = false;
+
+  /* ---------- Palette buttons ---------- */
+  document.querySelectorAll('.p-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.p-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected','false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      activeType = btn.dataset.type;
+    });
+  });
+
+  /* ---------- Tide slider ---------- */
+  function tideLabel(v){
+    if (v < 22) return 'Low';
+    if (v < 42) return 'Ebb';
+    if (v < 58) return 'Mid';
+    if (v < 78) return 'Flood';
+    return 'High';
+  }
+  function tideMeters(v){
+    const m = -1.2 + (v/100)*3.0; // -1.2..+1.8
+    const s = (m >= 0 ? '+' : '');
+    return s + m.toFixed(1) + ' m';
+  }
+  function applyTide(){
+    tideValEl.textContent = tideLabel(tide);
+    tideMEl.textContent = tideMeters(tide);
+    // overlay alpha rises with tide (more water/foam)
+    tideOverlay.setAttribute('opacity', (0.18 + (tide/100)*0.55).toFixed(2));
+  }
+  tideInput.addEventListener('input', () => {
+    tide = parseInt(tideInput.value, 10);
+    applyTide();
+  });
+  applyTide();
+
+  /* ---------- SVG point conversion ---------- */
+  function svgPoint(evt){
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX;
+    pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function isOnLand(x, y){
+    const pt = svg.createSVGPoint();
+    pt.x = x; pt.y = y;
+    try {
+      if (land1.isPointInFill(pt)) return true;
+      if (land2.isPointInFill(pt)) return true;
+      if (land3.isPointInFill(pt)) return true;
+    } catch(e){}
+    return false;
+  }
+
+  /* ---------- Buoy rendering ---------- */
+  function buoyShape(type, color){
+    let shape;
+    if (type === 'hazard'){
+      shape = document.createElementNS(SVG_NS, 'polygon');
+      shape.setAttribute('points', '0,-8 8,0 0,8 -8,0');
+    } else if (type === 'anchor'){
+      shape = document.createElementNS(SVG_NS, 'rect');
+      shape.setAttribute('x','-6'); shape.setAttribute('y','-6');
+      shape.setAttribute('width','12'); shape.setAttribute('height','12');
+      shape.setAttribute('rx','2');
+    } else {
+      shape = document.createElementNS(SVG_NS, 'circle');
+      shape.setAttribute('r', '7');
+    }
+    shape.setAttribute('fill', color);
+    shape.setAttribute('stroke', '#0d1d2a');
+    shape.setAttribute('stroke-width', '1.4');
+    return shape;
+  }
+
+  function renderBuoys(){
+    while (buoysG.firstChild) buoysG.removeChild(buoysG.firstChild);
+    buoys.forEach((b, idx) => {
+      const g = document.createElementNS(SVG_NS, 'g');
+      g.setAttribute('transform', `translate(${b.x},${b.y})`);
+      g.setAttribute('data-id', b.id);
+      g.style.cursor = 'pointer';
+
+      // soft halo
+      const halo = document.createElementNS(SVG_NS, 'circle');
+      halo.setAttribute('r', '14');
+      halo.setAttribute('fill', 'url(#glow)');
+      halo.setAttribute('opacity', '0.55');
+      g.appendChild(halo);
+
+      // water ripple ring
+      const ring = document.createElementNS(SVG_NS, 'circle');
+      ring.setAttribute('r', '11');
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', 'rgba(118,214,201,0.55)');
+      ring.setAttribute('stroke-width', '0.8');
+      g.appendChild(ring);
+
+      // current arrow
+      if (b.cur > 0){
+        const arrow = document.createElementNS(SVG_NS, 'g');
+        const ang = (b.cur - 1) * 90;
+        arrow.setAttribute('transform', `rotate(${ang})`);
+        const shaft = document.createElementNS(SVG_NS, 'line');
+        shaft.setAttribute('x1','0'); shaft.setAttribute('y1','-10');
+        shaft.setAttribute('x2','0'); shaft.setAttribute('y2','-22');
+        shaft.setAttribute('stroke','#76d6c9');
+        shaft.setAttribute('stroke-width','1.5');
+        shaft.setAttribute('stroke-linecap','round');
+        arrow.appendChild(shaft);
+        const head = document.createElementNS(SVG_NS, 'polygon');
+        head.setAttribute('points', '0,-26 -3.5,-19 3.5,-19');
+        head.setAttribute('fill', '#76d6c9');
+        arrow.appendChild(head);
+        g.appendChild(arrow);
+      }
+
+      // main shape
+      g.appendChild(buoyShape(b.type, TYPES[b.type].color));
+
+      // number label
+      const txt = document.createElementNS(SVG_NS, 'text');
+      txt.setAttribute('y', '2');
+      txt.setAttribute('text-anchor','middle');
+      txt.setAttribute('font-size','7');
+      txt.setAttribute('fill', b.type === 'hazard' || b.type === 'anchor' ? '#0d1d2a' : '#0d1d2a');
+      txt.setAttribute('font-family','-apple-system, sans-serif');
+      txt.setAttribute('font-weight','700');
+      txt.textContent = (idx + 1);
+      g.appendChild(txt);
+
+      // generous invisible tap target
+      const hit = document.createElementNS(SVG_NS, 'circle');
+      hit.setAttribute('r','22');
+      hit.setAttribute('fill','transparent');
+      g.appendChild(hit);
+
+      g.addEventListener('pointerdown', (ev) => {
+        ev.stopPropagation();
+        suppressNextTap = true;
+        b.cur = (b.cur + 1) % 5;
+        renderBuoys();
+      });
+
+      buoysG.appendChild(g);
+    });
+    bcountEl.textContent = buoys.length;
+    chartBtn.disabled = buoys.length < 3;
+    if (buoys.length === 0) hint2.textContent = 'Drop 3 to chart';
+    else if (buoys.length < 3) hint2.textContent = `${3 - buoys.length} more to chart`;
+    else hint2.textContent = 'Tap buoy to spin current';
+  }
+
+  /* ---------- Add / clear / nudge ---------- */
+  function addBuoy(x, y){
+    if (buoys.length >= MAX_BUOYS) return;
+    if (isOnLand(x, y)) return;
+    if (x < 8 || x > 352 || y < 8 || y > 272) return;
+    buoys.push({ id: nextId++, x, y, type: activeType, cur: 0 });
+    if (resultEl.hidden === false){
+      resultEl.hidden = true;
+    }
+    renderBuoys();
+  }
+
+  tapzone.addEventListener('pointerdown', (ev) => {
+    if (suppressNextTap){
+      suppressNextTap = false;
+      return;
+    }
+    const p = svgPoint(ev);
+    addBuoy(p.x, p.y);
+  });
+
+  // After bubbling from buoy tap, reset suppression on next frame
+  document.addEventListener('pointerup', () => {
+    setTimeout(() => { suppressNextTap = false; }, 0);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    buoys = [];
+    renderBuoys();
+    resultEl.hidden = true;
+  });
+
+  nudgeBtn.addEventListener('click', () => {
+    if (buoys.length === 0){
+      // sprinkle 5 starter buoys in safe water
+      const seedSpots = [
+        {x:80,y:130,t:'channel'}, {x:160,y:160,t:'harbor'},
+        {x:120,y:210,t:'channel'}, {x:200,y:120,t:'hazard'},
+        {x:280,y:170,t:'anchor'}
+      ];
+      seedSpots.forEach((s, i) => {
+        if (!isOnLand(s.x, s.y)){
+          buoys.push({ id: nextId++, x: s.x, y: s.y, type: s.t, cur: ((i*2)%5) });
+        }
+      });
+    } else {
+      // jiggle existing buoys
+      buoys = buoys.map(b => {
+        let nx = b.x + (Math.random()*16 - 8);
+        let ny = b.y + (Math.random()*16 - 8);
+        nx = Math.max(10, Math.min(350, nx));
+        ny = Math.max(10, Math.min(270, ny));
+        // bounce off land
+        if (isOnLand(nx, ny)){ nx = b.x; ny = b.y; }
+        return { ...b, x: nx, y: ny };
+      });
+    }
+    resultEl.hidden = true;
+    renderBuoys();
+  });
+
+  /* ---------- Deterministic naming ---------- */
+  // FNV-1a 32-bit
+  function hash(s){
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++){
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(a){
+    return function(){
+      let t = (a += 0x6D2B79F5) >>> 0;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+
+  const ADJ = [
+    'Lantern','Silver','Slow','Quiet','Saltlight','Compass','North','Pearl',
+    'Cedar','Pebble','Driftwood','Bramble','Misty','Tide','Anchor','Bell',
+    'Beacon','Morning','Dawn','Halyard','Foam','Reedy','Heron','Kelp',
+    'Lichen','Marrow','Tern','Gull','Eider','Sandshore'
+  ];
+  const NOUN = [
+    'Cove','Bay','Inlet','Reach','Harbor','Quay','Approach','Mouth','Channel',
+    'Anchorage','Roadstead','Sound','Crossing','Berth','Hook','Bight','Narrows',
+    'Shoal','Landing','Lagoon','Basin'
+  ];
+  const VERSE1 = [
+    'Currents settle','Light holds steady','The tide answers','The harbor breathes',
+    'Lanterns count slow','A bell turns gently','Foam laces the rocks','Gulls keep distance',
+    'The chart sighs','Buoys agree','The line eases','A pier creaks once'
+  ];
+  const VERSE2 = [
+    'toward the warm side',
+    'through the inner narrows',
+    'past the lichen pier',
+    'around the small island',
+    'below the morning gulls',
+    'beside the channel mark',
+    'over the resting shoal',
+    'with the slow flood',
+    'against a kind ebb',
+    'into the long approach'
+  ];
+  const TAGS = [
+    'a quiet morning chart',
+    'a slow-fresh harbor',
+    'a small good roadstead',
+    'a calm beginner anchorage',
+    'a gentle return route',
+    'a lantern-lit basin',
+    'a notes-of-fog crossing',
+    'a pocket bay, well kept'
+  ];
+
+  function compose(){
+    if (buoys.length < 3) return;
+
+    const sig = buoys.map(b =>
+      `${b.type[0]}${Math.round(b.x)},${Math.round(b.y)},${b.cur}`
+    ).join('|') + `|t${tide}`;
+    const seed = hash(sig);
+    const rng = mulberry32(seed);
+
+    // pick name
+    const a = pick(rng, ADJ);
+    const n = pick(rng, NOUN);
+
+    // stats
+    const counts = { channel:0, harbor:0, hazard:0, anchor:0 };
+    buoys.forEach(b => counts[b.type]++);
+
+    const currentBuoys = buoys.filter(b => b.cur > 0);
+    const dirCount = [0,0,0,0,0];
+    currentBuoys.forEach(b => dirCount[b.cur]++);
+    let prevailingIdx = 0;
+    for (let i = 1; i < 5; i++){
+      if (dirCount[i] > dirCount[prevailingIdx]) prevailingIdx = i;
+    }
+    const prevailing = prevailingIdx === 0 ? 'still' : DIR_NAMES[prevailingIdx];
+
+    // mean depth from tide + buoy spread
+    const xs = buoys.map(b => b.x), ys = buoys.map(b => b.y);
+    const sx = Math.max(...xs) - Math.min(...xs);
+    const sy = Math.max(...ys) - Math.min(...ys);
+    const spread = Math.round((sx + sy) / 8);
+    const depth = (1.2 + (tide/100)*3.6 + (spread/40)).toFixed(1);
+
+    // pick tag & motto using rng
+    const tag = pick(rng, TAGS);
+    const motto = `${pick(rng, VERSE1)} ${pick(rng, VERSE2)}.`;
+
+    const num = String((seed % 999) + 1).padStart(3,'0');
+    const name = `${a} ${n}`;
+
+    rName.textContent = name;
+    rTag.textContent = tag;
+    rNum.textContent = '№ ' + num;
+
+    const tideName = tideLabel(tide);
+    const drift = prevailing === 'still'
+      ? 'No prevailing current — the basin sits open.'
+      : `Prevailing drift runs <em>${prevailing}</em>.`;
+
+    rReport.innerHTML =
+      `${buoys.length} buoy${buoys.length===1?'':'s'} hold the line at <em>${tideName.toLowerCase()} water</em> ` +
+      `(<em>${tideMeters(tide)}</em>). Mean depth ≈ <em>${depth} m</em>. ${drift} <em>${motto}</em>`;
+
+    // little colored chips
+    rStats.innerHTML = '';
+    const chips = [
+      ['#5fcf83', counts.channel + ' channel'],
+      ['#ee6963', counts.harbor + ' port'],
+      ['#f1cc4e', counts.hazard + ' hazard'],
+      ['#e8eef2', counts.anchor + ' anchor'],
+    ];
+    chips.forEach(([c, label]) => {
+      const span = document.createElement('span');
+      span.innerHTML = `<i style="background:${c}"></i>${label}`;
+      rStats.appendChild(span);
+    });
+
+    resultEl.hidden = false;
+    setTimeout(() => {
+      resultEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }, 80);
+  }
+
+  chartBtn.addEventListener('click', compose);
+
+  // Initial sprinkle so the chart isn't empty on first open
+  nudgeBtn.click();
+  // (don't auto-compose; let them tap)
+
+})();
+</script>
+
+</body>
+</html>
