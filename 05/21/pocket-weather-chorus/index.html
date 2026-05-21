@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a1428">
+<title>Pocket Weather Chorus</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-1: #0a1428;
+    --bg-2: #14233f;
+    --bg-3: #1c2f4f;
+    --ink: #f6efe0;
+    --ink-dim: #b3c4d8;
+    --ink-soft: #6e8197;
+    --line: rgba(246, 239, 224, 0.12);
+    --line-strong: rgba(246, 239, 224, 0.28);
+    --gold: #f4c97a;
+    --rose: #f49da6;
+    --mint: #9be8c4;
+    --sky: #8fc4f0;
+    --lilac: #c9b0f3;
+    --warm-tint: 0;
+    --bright: 0.5;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: ui-serif, 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    color: var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(244, 201, 122, calc(var(--warm-tint) * 0.18)), transparent 60%),
+      radial-gradient(80% 60% at 100% 110%, rgba(143, 196, 240, calc((1 - var(--warm-tint)) * 0.16)), transparent 60%),
+      linear-gradient(170deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
+    background-attachment: fixed;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .shell {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 22px 18px 60px;
+  }
+
+  /* Header */
+  .crest {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: ui-sans-serif, -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .crest::before, .crest::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  h1 {
+    font-size: clamp(28px, 9vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--gold);
+    background: linear-gradient(120deg, var(--gold), var(--rose));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .blurb {
+    text-align: center;
+    font-size: 14px;
+    color: var(--ink-dim);
+    max-width: 32ch;
+    margin: 0 auto 22px;
+  }
+  .blurb b { color: var(--ink); font-weight: 600; }
+
+  /* Section heading */
+  .label {
+    font-family: ui-sans-serif, -apple-system, 'Helvetica Neue', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 22px 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .label .pip {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 3px rgba(244, 201, 122, 0.18);
+  }
+  .label .hint {
+    margin-left: auto;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+
+  /* Voice palette */
+  .voices {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .voice {
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 4px 8px;
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 86px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    transition: border-color 0.2s, transform 0.18s, background 0.2s;
+  }
+  .voice:active { transform: scale(0.97); }
+  .voice .glyph {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .voice .name {
+    font-family: ui-sans-serif, -apple-system, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .voice[data-active="true"] {
+    background: rgba(244, 201, 122, 0.08);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(244, 201, 122, 0.12);
+  }
+  .voice[data-active="true"] .name { color: var(--gold); }
+
+  /* Stave */
+  .stave-wrap {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px 12px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stave-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 14px 12px auto 12px;
+    height: 1px;
+    background: var(--line);
+    top: 50%;
+    transform: translateY(-12px);
+  }
+  .stave-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 14px 12px auto 12px;
+    height: 1px;
+    background: var(--line);
+    top: 50%;
+    transform: translateY(20px);
+  }
+  .stave {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    z-index: 1;
+  }
+  .row-label {
+    position: absolute;
+    left: -6px;
+    font-family: ui-sans-serif, -apple-system, sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+  .row-label.top { top: 4px; }
+  .row-label.bot { bottom: 4px; }
+  .cell {
+    aspect-ratio: 1 / 1;
+    min-height: 56px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.015);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    position: relative;
+    transition: border-color 0.18s, background 0.18s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cell:active { transform: scale(0.96); }
+  .cell[data-empty="true"]::before {
+    content: attr(data-num);
+    color: var(--ink-soft);
+    opacity: 0.4;
+    font-family: ui-sans-serif, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+  }
+  .cell[data-filled="true"] {
+    border-style: solid;
+    border-color: var(--line-strong);
+    background: rgba(255,255,255,0.045);
+  }
+  .cell .ribbon {
+    position: absolute;
+    top: 4px; left: 50%; transform: translateX(-50%);
+    width: var(--vol, 50%);
+    max-width: 70%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--rose), var(--gold));
+    border-radius: 2px;
+    opacity: 0.85;
+  }
+
+  /* Sliders */
+  .knobs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .knob {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 14px 12px;
+    background: rgba(255,255,255,0.025);
+  }
+  .knob-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .knob-name {
+    font-family: ui-sans-serif, -apple-system, sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .knob-value {
+    font-family: ui-serif, Georgia, serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--gold);
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 32px;
+    background: transparent;
+    margin: 0;
+    touch-action: pan-y;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--sky), var(--gold));
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--sky), var(--gold));
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--bg-1);
+    margin-top: -10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--bg-1);
+    cursor: pointer;
+  }
+
+  /* Buttons */
+  .actions {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    border-radius: 14px;
+    padding: 14px 6px;
+    min-height: 48px;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(135deg, rgba(244, 201, 122, 0.95), rgba(244, 157, 166, 0.95));
+    color: #1a1208;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn.primary:disabled {
+    opacity: 0.45;
+    filter: saturate(0.5);
+    cursor: not-allowed;
+  }
+
+  /* Forecast card */
+  .scroll {
+    margin-top: 20px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 18px 20px;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 24px, rgba(255,255,255,0.02) 24px 25px),
+      linear-gradient(170deg, rgba(244,201,122,0.06), rgba(244,157,166,0.04));
+    position: relative;
+    min-height: 110px;
+    overflow: hidden;
+    transition: opacity 0.4s;
+  }
+  .scroll[data-empty="true"] { opacity: 0.55; }
+  .scroll-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 6px;
+  }
+  .scroll-id {
+    font-family: ui-sans-serif, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .scroll-name {
+    font-style: italic;
+    color: var(--gold);
+    font-size: 15px;
+  }
+  .poem {
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  .poem .line { display: block; }
+  .poem .em { color: var(--gold); font-style: italic; }
+  .meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: ui-sans-serif, sans-serif;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+  .meta span b { color: var(--ink-dim); font-weight: 500; }
+
+  .footer {
+    text-align: center;
+    margin-top: 28px;
+    font-family: ui-sans-serif, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .footer::before, .footer::after { content: '·'; margin: 0 8px; }
+
+  /* SVG voice animations - subtle, prefers-reduced-motion safe */
+  @keyframes drip { 0% { transform: translateY(-6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(8px); opacity: 0; } }
+  @keyframes sunpulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.12); opacity: 1; } }
+  @keyframes wobble { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+  @keyframes drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3px); } }
+  @keyframes flick { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+
+  .glyph svg { width: 100%; height: 100%; overflow: visible; }
+  .g-drizzle .drop { animation: drip 1.6s ease-in infinite; transform-origin: center; }
+  .g-drizzle .drop:nth-child(2) { animation-delay: 0.4s; }
+  .g-drizzle .drop:nth-child(3) { animation-delay: 0.8s; }
+  .g-sunbeam .core { animation: sunpulse 2.4s ease-in-out infinite; transform-origin: center; }
+  .g-sunbeam .ray { animation: sunpulse 2.4s ease-in-out infinite; transform-origin: center; opacity: 0.5; }
+  .g-windbell .ring { animation: wobble 1.8s ease-in-out infinite; transform-origin: center; }
+  .g-cloud .puff { animation: drift 3.6s ease-in-out infinite; }
+  .g-ember .glow { animation: flick 1.4s ease-in-out infinite; transform-origin: center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .g-drizzle .drop, .g-sunbeam .core, .g-sunbeam .ray, .g-windbell .ring, .g-cloud .puff, .g-ember .glow {
+      animation: none;
+    }
+  }
+
+  /* Tile-in-cell glyph sizing */
+  .cell .glyph { width: 60%; height: 60%; opacity: 0.92; }
+
+  @media (min-width: 420px) {
+    .knobs { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="crest">Daily Surprise · 21 May 2026</div>
+  <h1>Pocket Weather<br><em>Chorus</em></h1>
+  <p class="blurb">A small <b>soundless orchestra</b> of weathers. Pick voices, set them on the stave, tune mood &amp; intensity — then sing a tiny forecast.</p>
+
+  <!-- Voice palette -->
+  <div class="label"><span class="pip"></span>Choose a voice <span class="hint">tap to select</span></div>
+  <div class="voices" id="voices"></div>
+
+  <!-- Stave -->
+  <div class="label"><span class="pip"></span>Stave <span class="hint">tap a cell to place · tap again to clear</span></div>
+  <div class="stave-wrap">
+    <div class="row-label top">upper sky</div>
+    <div class="row-label bot">low air</div>
+    <div class="stave" id="stave"></div>
+  </div>
+
+  <!-- Sliders -->
+  <div class="knobs">
+    <div class="knob">
+      <div class="knob-head">
+        <span class="knob-name">Mood</span>
+        <span class="knob-value" id="moodValue">overcast</span>
+      </div>
+      <input type="range" id="mood" min="0" max="100" value="35" aria-label="Mood">
+    </div>
+    <div class="knob">
+      <div class="knob-head">
+        <span class="knob-name">Intensity</span>
+        <span class="knob-value" id="intensityValue">a hush</span>
+      </div>
+      <input type="range" id="intensity" min="0" max="100" value="50" aria-label="Intensity">
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn primary" id="sing">Sing the forecast</button>
+    <button class="btn" id="shuffle">Shuffle</button>
+    <button class="btn" id="clear">Clear</button>
+  </div>
+
+  <!-- Forecast scroll -->
+  <div class="scroll" id="scroll" data-empty="true">
+    <div class="scroll-head">
+      <span class="scroll-id" id="scrollId">no forecast yet</span>
+      <span class="scroll-name" id="scrollName">—</span>
+    </div>
+    <div class="poem" id="poem">
+      <span class="line">Place a few voices on the stave,</span>
+      <span class="line">tune the mood, then press <em>sing</em>.</span>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div class="footer">Electric Sheep</div>
+
+</div>
+
+<!-- SVG defs (shared glyphs) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="g-drizzle" viewBox="0 0 40 40">
+      <g class="g-drizzle">
+        <path d="M10 14 q 4 -8 10 -8 t 10 8 q 4 0 4 5 t -6 5 H 12 q -6 0 -6 -5 t 4 -5 z" fill="none" stroke="#8fc4f0" stroke-width="1.6"/>
+        <ellipse class="drop" cx="14" cy="26" rx="1.4" ry="2.4" fill="#8fc4f0"/>
+        <ellipse class="drop" cx="20" cy="26" rx="1.4" ry="2.4" fill="#8fc4f0"/>
+        <ellipse class="drop" cx="26" cy="26" rx="1.4" ry="2.4" fill="#8fc4f0"/>
+      </g>
+    </symbol>
+    <symbol id="g-sunbeam" viewBox="0 0 40 40">
+      <g class="g-sunbeam">
+        <circle class="core" cx="20" cy="20" r="6" fill="#f4c97a"/>
+        <g class="ray" fill="none" stroke="#f4c97a" stroke-width="1.6" stroke-linecap="round">
+          <line x1="20" y1="4" x2="20" y2="9"/>
+          <line x1="20" y1="31" x2="20" y2="36"/>
+          <line x1="4" y1="20" x2="9" y2="20"/>
+          <line x1="31" y1="20" x2="36" y2="20"/>
+          <line x1="8.5" y1="8.5" x2="12" y2="12"/>
+          <line x1="28" y1="28" x2="31.5" y2="31.5"/>
+          <line x1="31.5" y1="8.5" x2="28" y2="12"/>
+          <line x1="12" y1="28" x2="8.5" y2="31.5"/>
+        </g>
+      </g>
+    </symbol>
+    <symbol id="g-windbell" viewBox="0 0 40 40">
+      <g class="g-windbell">
+        <path class="ring" d="M14 8 h12 a2 2 0 0 1 2 2 v18 a8 8 0 0 1 -16 0 v-18 a2 2 0 0 1 2 -2 z" fill="none" stroke="#9be8c4" stroke-width="1.6"/>
+        <line x1="20" y1="4" x2="20" y2="8" stroke="#9be8c4" stroke-width="1.6" stroke-linecap="round"/>
+        <circle class="ring" cx="20" cy="32" r="2.2" fill="#9be8c4"/>
+      </g>
+    </symbol>
+    <symbol id="g-cloud" viewBox="0 0 40 40">
+      <g class="g-cloud">
+        <path class="puff" d="M8 26 q -2 -6 4 -8 q 0 -8 8 -8 q 8 0 9 7 q 7 0 7 6 q 0 5 -6 5 H 12 q -6 0 -4 -2 z" fill="#c9b0f3" opacity="0.85"/>
+      </g>
+    </symbol>
+    <symbol id="g-ember" viewBox="0 0 40 40">
+      <g class="g-ember">
+        <circle class="glow" cx="20" cy="22" r="9" fill="#f49da6" opacity="0.35"/>
+        <path d="M20 8 q -4 6 0 10 q 6 -2 4 -10 z" fill="#f4c97a"/>
+        <ellipse cx="20" cy="30" rx="6" ry="2" fill="#f49da6" opacity="0.4"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+(function(){
+  'use strict';
+
+  const VOICES = [
+    { id: 'drizzle', name: 'Drizzle', color: '#8fc4f0' },
+    { id: 'sunbeam', name: 'Sunbeam', color: '#f4c97a' },
+    { id: 'windbell', name: 'Windbell', color: '#9be8c4' },
+    { id: 'cloud',    name: 'Cloud',   color: '#c9b0f3' },
+    { id: 'ember',    name: 'Ember',   color: '#f49da6' },
+  ];
+
+  const CELLS = 10; // 5 cols x 2 rows
+  const stave = Array(CELLS).fill(null);
+  let activeVoice = 'drizzle';
+
+  const $ = (id) => document.getElementById(id);
+  const voicesEl = $('voices');
+  const staveEl = $('stave');
+  const moodEl = $('mood');
+  const intEl = $('intensity');
+  const moodValueEl = $('moodValue');
+  const intValueEl = $('intensityValue');
+  const singBtn = $('sing');
+  const shuffleBtn = $('shuffle');
+  const clearBtn = $('clear');
+
+  // Build voice palette
+  VOICES.forEach((v) => {
+    const btn = document.createElement('button');
+    btn.className = 'voice';
+    btn.dataset.voice = v.id;
+    btn.dataset.active = (v.id === activeVoice) ? 'true' : 'false';
+    btn.innerHTML = `
+      <span class="glyph"><svg><use href="#g-${v.id}"></use></svg></span>
+      <span class="name">${v.name}</span>
+    `;
+    btn.addEventListener('click', () => {
+      activeVoice = v.id;
+      [...voicesEl.children].forEach((c) => c.dataset.active = (c.dataset.voice === v.id) ? 'true' : 'false');
+    });
+    voicesEl.appendChild(btn);
+  });
+
+  // Build stave cells
+  for (let i = 0; i < CELLS; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.empty = 'true';
+    cell.dataset.idx = String(i);
+    cell.dataset.num = String(i + 1).padStart(2, '0');
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('aria-label', `Stave cell ${i + 1}`);
+    cell.tabIndex = 0;
+    cell.addEventListener('click', () => onCellTap(i));
+    cell.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellTap(i); }
+    });
+    staveEl.appendChild(cell);
+  }
+
+  function onCellTap(i) {
+    const cell = staveEl.children[i];
+    if (stave[i]) {
+      // Clear if same voice tapped; otherwise overwrite
+      if (stave[i] === activeVoice) {
+        stave[i] = null;
+        cell.dataset.empty = 'true';
+        cell.dataset.filled = '';
+        cell.innerHTML = '';
+        return;
+      }
+    }
+    stave[i] = activeVoice;
+    cell.dataset.empty = 'false';
+    cell.dataset.filled = 'true';
+    const vol = 35 + Math.round((parseInt(intEl.value, 10) / 100) * 50);
+    cell.style.setProperty('--vol', vol + '%');
+    cell.innerHTML = `<span class="ribbon"></span><span class="glyph"><svg><use href="#g-${activeVoice}"></use></svg></span>`;
+  }
+
+  function refillRibbons() {
+    const vol = 35 + Math.round((parseInt(intEl.value, 10) / 100) * 50);
+    [...staveEl.children].forEach((c) => {
+      if (c.dataset.filled === 'true') c.style.setProperty('--vol', vol + '%');
+    });
+  }
+
+  // Sliders
+  const MOOD_TIERS = [
+    [0, 'a still grey'],
+    [18, 'overcast'],
+    [38, 'soft morning'],
+    [58, 'sunward'],
+    [78, 'bright noon'],
+    [92, 'gold high'],
+  ];
+  const INT_TIERS = [
+    [0, 'a hush'],
+    [18, 'a murmur'],
+    [38, 'a small song'],
+    [58, 'a chorus'],
+    [78, 'a swell'],
+    [92, 'full sky'],
+  ];
+  function pickTier(value, tiers) {
+    let label = tiers[0][1];
+    for (const [thr, l] of tiers) { if (value >= thr) label = l; }
+    return label;
+  }
+  function updateLabels() {
+    const m = parseInt(moodEl.value, 10);
+    const i = parseInt(intEl.value, 10);
+    moodValueEl.textContent = pickTier(m, MOOD_TIERS);
+    intValueEl.textContent = pickTier(i, INT_TIERS);
+    document.documentElement.style.setProperty('--warm-tint', (m / 100).toFixed(2));
+    document.documentElement.style.setProperty('--bright', (Math.max(0.25, i / 100)).toFixed(2));
+    refillRibbons();
+  }
+  moodEl.addEventListener('input', updateLabels);
+  intEl.addEventListener('input', updateLabels);
+  updateLabels();
+
+  // Deterministic PRNG (mulberry32) seeded from state hash
+  function hashStr(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+  function rng(seed) {
+    let a = seed >>> 0;
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function pick(arr, r) { return arr[Math.floor(r() * arr.length)]; }
+
+  // Word banks - all generic seasonal/weather imagery
+  const BANK = {
+    drizzle: {
+      verb: ['leans', 'taps', 'rinses', 'softens', 'beads on'],
+      noun: ['the gutter', 'the rooftops', 'a low branch', 'the windowsill', 'small puddles'],
+      adj:  ['silver', 'quiet', 'cool', 'narrow', 'fine']
+    },
+    sunbeam: {
+      verb: ['warms', 'lands on', 'finds', 'opens', 'falls across'],
+      noun: ['the table', 'a side of the wall', 'the kettle', 'one bright tile', 'a slow afternoon'],
+      adj:  ['gold', 'late', 'wide', 'honeyed', 'pale']
+    },
+    windbell: {
+      verb: ['rings', 'turns', 'shivers', 'taps', 'tilts'],
+      noun: ['the porch', 'a small chime', 'the open window', 'the eaves', 'the dry leaves'],
+      adj:  ['thin', 'clear', 'glass', 'cool', 'high']
+    },
+    cloud: {
+      verb: ['drifts past', 'crosses', 'lowers over', 'settles by', 'shadows'],
+      noun: ['the hill', 'the small garden', 'the long roof', 'the morning', 'the field'],
+      adj:  ['soft', 'wide', 'lilac', 'careful', 'slow']
+    },
+    ember: {
+      verb: ['glows in', 'warms', 'hums under', 'banks beneath', 'softens at'],
+      noun: ['the grate', 'the kitchen edge', 'the late hour', 'the porch step', 'a quiet corner'],
+      adj:  ['amber', 'low', 'patient', 'warm', 'rust']
+    }
+  };
+
+  const CONNECTORS = [' and ', ', then ', '; then ', ', while '];
+  const OPENERS = ['Today,', 'This hour,', 'A little while,', 'For one breath,', 'Soon,', 'By the window,'];
+  const CLOSERS = [
+    'and the day keeps still.',
+    'and the kettle is patient.',
+    'and the porch holds its quiet.',
+    'and a small page turns.',
+    'and the morning agrees.',
+    'and the room keeps listening.',
+  ];
+
+  const NAME_ADJ = ['Slow', 'Soft', 'Pocket', 'Quiet', 'Small', 'Late', 'Honey', 'Linen', 'Tin', 'Bright', 'Silver', 'Paper'];
+  const NAME_NOUN = ['Chorus', 'Movement', 'Hour', 'Air', 'Forecast', 'Almanac', 'Bulletin', 'Round', 'Suite', 'Page'];
+
+  function compose() {
+    const filled = stave.map((v, i) => v ? { v, i } : null).filter(Boolean);
+    if (filled.length === 0) {
+      return {
+        empty: true,
+      };
+    }
+    const m = parseInt(moodEl.value, 10);
+    const inten = parseInt(intEl.value, 10);
+    const stateKey = stave.map((v) => v ? v[0] : '.').join('') + '|' + m + '|' + inten;
+    const seed = hashStr(stateKey);
+    const r = rng(seed);
+
+    // Count voices
+    const counts = {};
+    filled.forEach(({ v }) => counts[v] = (counts[v] || 0) + 1);
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const primary = sorted[0][0];
+    const secondary = sorted[1] ? sorted[1][0] : null;
+
+    function line(voice) {
+      const b = BANK[voice];
+      return `${pick(b.adj, r)} ${voice} ${pick(b.verb, r)} ${pick(b.noun, r)}`;
+    }
+
+    const opener = pick(OPENERS, r);
+    let middle;
+    if (secondary) {
+      middle = line(primary) + pick(CONNECTORS, r) + line(secondary);
+    } else {
+      middle = line(primary);
+    }
+    middle = middle.charAt(0).toUpperCase() + middle.slice(1);
+    const closer = pick(CLOSERS, r);
+
+    // Mood-influenced flourish
+    let flourish = '';
+    if (m < 25) flourish = ' Under a low grey.';
+    else if (m > 75) flourish = ' Light high and steady.';
+
+    // Intensity-influenced flourish
+    let intText;
+    if (inten < 25) intText = 'kept small';
+    else if (inten > 75) intText = 'bright and full';
+    else intText = 'evenly held';
+
+    const name = `${pick(NAME_ADJ, r)} ${pick(NAME_NOUN, r)}`;
+    const id = 'PWC-' + (seed % 9000 + 1000).toString();
+
+    return {
+      empty: false,
+      lines: [
+        opener,
+        middle + '.' + flourish,
+        closer,
+      ],
+      name,
+      id,
+      primary,
+      secondary,
+      filledCount: filled.length,
+      intText,
+    };
+  }
+
+  function renderForecast(out) {
+    const scroll = $('scroll');
+    const poem = $('poem');
+    const scrollId = $('scrollId');
+    const scrollName = $('scrollName');
+    const meta = $('meta');
+
+    if (out.empty) {
+      scroll.dataset.empty = 'true';
+      scrollId.textContent = 'no forecast yet';
+      scrollName.textContent = '—';
+      poem.innerHTML = '<span class="line">Place a few voices on the stave,</span><span class="line">tune the mood, then press <em class="em">sing</em>.</span>';
+      meta.innerHTML = '';
+      return;
+    }
+    scroll.dataset.empty = 'false';
+    scrollId.textContent = out.id;
+    scrollName.textContent = '"' + out.name + '"';
+
+    const voicesUsed = out.secondary
+      ? `${cap(out.primary)} &amp; ${cap(out.secondary)}`
+      : cap(out.primary);
+
+    poem.innerHTML =
+      `<span class="line">${out.lines[0]}</span>` +
+      `<span class="line">${out.lines[1]}</span>` +
+      `<span class="line">${out.lines[2]}</span>`;
+
+    meta.innerHTML = `
+      <span><b>voices</b> ${voicesUsed}</span>
+      <span><b>tiles</b> ${out.filledCount}/10</span>
+      <span><b>kept</b> ${out.intText}</span>
+    `;
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  singBtn.addEventListener('click', () => {
+    const out = compose();
+    renderForecast(out);
+    if (!out.empty) {
+      const scroll = $('scroll');
+      scroll.animate(
+        [{ opacity: 0.4 }, { opacity: 1 }],
+        { duration: 420, easing: 'ease-out' }
+      );
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    for (let i = 0; i < CELLS; i++) {
+      stave[i] = null;
+      const cell = staveEl.children[i];
+      cell.dataset.empty = 'true';
+      cell.dataset.filled = '';
+      cell.innerHTML = '';
+    }
+    renderForecast({ empty: true });
+  });
+
+  shuffleBtn.addEventListener('click', () => {
+    // Place a deterministic-feeling but varied arrangement using Math.random
+    for (let i = 0; i < CELLS; i++) {
+      stave[i] = null;
+      const cell = staveEl.children[i];
+      cell.dataset.empty = 'true';
+      cell.dataset.filled = '';
+      cell.innerHTML = '';
+    }
+    const count = 4 + Math.floor(Math.random() * 5); // 4-8 tiles
+    const positions = [...Array(CELLS).keys()].sort(() => Math.random() - 0.5).slice(0, count);
+    positions.forEach((p) => {
+      const v = VOICES[Math.floor(Math.random() * VOICES.length)].id;
+      stave[p] = v;
+      const cell = staveEl.children[p];
+      cell.dataset.empty = 'false';
+      cell.dataset.filled = 'true';
+      const vol = 35 + Math.round((parseInt(intEl.value, 10) / 100) * 50);
+      cell.style.setProperty('--vol', vol + '%');
+      cell.innerHTML = `<span class="ribbon"></span><span class="glyph"><svg><use href="#g-${v}"></use></svg></span>`;
+    });
+    // Lightly nudge sliders for novelty
+    moodEl.value = String(20 + Math.floor(Math.random() * 70));
+    intEl.value = String(25 + Math.floor(Math.random() * 65));
+    updateLabels();
+  });
+
+})();
+</script>
+</body>
+</html>
