@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0c1428">
+<title>Pocket Signal Garden</title>
+<style>
+  :root {
+    --bg: #0c1428;
+    --bg2: #16203a;
+    --surface: rgba(255,255,255,0.04);
+    --surface2: rgba(255,255,255,0.08);
+    --line: rgba(160,200,240,0.18);
+    --text: #e6eef8;
+    --text-dim: #8aa0bf;
+    --accent: #ffd66b;
+    --accent2: #7adfff;
+    --accent3: #ff9bc8;
+    --shadow: 0 6px 20px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    background:
+      radial-gradient(60% 40% at 20% 10%, rgba(122,223,255,0.10), transparent 70%),
+      radial-gradient(50% 40% at 90% 20%, rgba(255,155,200,0.08), transparent 70%),
+      radial-gradient(70% 60% at 50% 110%, rgba(255,214,107,0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, #0a1024 60%, #050912 100%);
+    padding: 24px 16px 48px;
+    overflow-x: hidden;
+  }
+  .wrap { max-width: 460px; margin: 0 auto; }
+  header {
+    text-align: center;
+    padding: 8px 0 18px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(1.6rem, 6vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    background: linear-gradient(120deg, var(--accent2), var(--accent) 60%, var(--accent3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .lede {
+    margin-top: 10px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Garden grid */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px;
+    margin-top: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
+  }
+  .panel-label {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .panel-label .count {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .garden {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    position: relative;
+    background:
+      radial-gradient(80% 60% at 50% 50%, rgba(122,223,255,0.08), transparent 80%),
+      linear-gradient(160deg, #0e1a34, #131e3a 60%, #0a1226);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .garden svg { width: 100%; height: 100%; display: block; }
+
+  /* Sliders */
+  .controls { margin-top: 14px; display: grid; gap: 12px; }
+  .slider-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .slider-row label .v {
+    color: var(--accent2);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    background: transparent;
+    height: 32px;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent3));
+    opacity: 0.85;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent3));
+    opacity: 0.85;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 4px rgba(122,223,255,0.25);
+    margin-top: -10px;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 4px rgba(122,223,255,0.25);
+    cursor: pointer;
+  }
+
+  /* Buttons */
+  .buttons {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-height: 48px;
+    cursor: pointer;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    transition: transform 0.1s, background 0.15s, border-color 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary {
+    grid-column: 1 / -1;
+    background: linear-gradient(120deg, rgba(255,214,107,0.95), rgba(255,155,200,0.95));
+    color: #1b1322;
+    border-color: rgba(255,255,255,0.25);
+    font-weight: 600;
+  }
+  button.primary:active { filter: brightness(0.95); }
+  button.ghost { background: transparent; color: var(--text-dim); }
+
+  /* Card output */
+  .card {
+    margin-top: 18px;
+    border-radius: 18px;
+    padding: 20px;
+    background:
+      radial-gradient(60% 70% at 30% 0%, rgba(122,223,255,0.18), transparent 60%),
+      radial-gradient(60% 70% at 90% 100%, rgba(255,155,200,0.16), transparent 60%),
+      linear-gradient(160deg, #1a2647, #0f1830);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .card.shown { display: block; animation: rise 0.4s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .card-name {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .card-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .card-canvas {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 14px;
+    background: #0a1226;
+  }
+  .card-canvas svg { width: 100%; height: 100%; display: block; }
+  .motto {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--text);
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+  .meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+  .meta span b { color: var(--accent2); font-weight: 500; }
+
+  footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  @media (min-width: 520px) {
+    body { padding: 32px 24px 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">A daily surprise · 23 May</div>
+    <h1>Pocket Signal Garden</h1>
+    <p class="lede">Tap the garden to plant signal seeds. Tune wavelength and patience, then mint a tiny morning broadcast.</p>
+  </header>
+
+  <section class="panel" aria-label="Garden">
+    <div class="panel-label"><span>Garden</span><span><span class="count" id="seedCount">0</span> / 12 seeds</span></div>
+    <div class="garden" id="garden" role="img" aria-label="Tap to plant signal seeds on a soft grid">
+      <svg viewBox="0 0 300 300" id="gardenSvg" aria-hidden="true">
+        <defs>
+          <radialGradient id="seedGlow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stop-color="#ffe7a0" stop-opacity="0.95"/>
+            <stop offset="55%" stop-color="#ffb56a" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#ffb56a" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="seedGlow2" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stop-color="#bff2ff" stop-opacity="0.95"/>
+            <stop offset="55%" stop-color="#7adfff" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#7adfff" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="seedGlow3" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stop-color="#ffd5e7" stop-opacity="0.95"/>
+            <stop offset="55%" stop-color="#ff9bc8" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#ff9bc8" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <g id="gridLayer"></g>
+        <g id="waveLayer"></g>
+        <g id="seedLayer"></g>
+      </svg>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Tuning">
+    <div class="panel-label"><span>Tuning</span></div>
+    <div class="controls">
+      <div class="slider-row">
+        <label for="wavelength">Wavelength <span class="v" id="wavelengthV">soft</span></label>
+        <input type="range" id="wavelength" min="1" max="9" value="4" aria-label="Wavelength">
+      </div>
+      <div class="slider-row">
+        <label for="patience">Patience <span class="v" id="patienceV">unhurried</span></label>
+        <input type="range" id="patience" min="1" max="9" value="5" aria-label="Patience">
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="primary" id="broadcast">Broadcast</button>
+      <button id="randomize" type="button">Surprise me</button>
+      <button class="ghost" id="clear" type="button">Clear garden</button>
+    </div>
+  </section>
+
+  <section class="card" id="card" aria-live="polite">
+    <div class="card-name" id="cardName">Morning Signal</div>
+    <div class="card-title" id="cardTitle">—</div>
+    <div class="card-canvas"><svg viewBox="0 0 320 180" id="cardSvg" aria-hidden="true"></svg></div>
+    <div class="motto" id="motto">—</div>
+    <div class="meta" id="meta"></div>
+  </section>
+
+  <footer>From the garden · May 23</footer>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const GRID = 6;
+  const CELL = 300 / GRID;
+  const MAX_SEEDS = 12;
+
+  const garden = document.getElementById("garden");
+  const gardenSvg = document.getElementById("gardenSvg");
+  const gridLayer = document.getElementById("gridLayer");
+  const seedLayer = document.getElementById("seedLayer");
+  const waveLayer = document.getElementById("waveLayer");
+  const seedCountEl = document.getElementById("seedCount");
+  const wavelength = document.getElementById("wavelength");
+  const patience = document.getElementById("patience");
+  const wavelengthV = document.getElementById("wavelengthV");
+  const patienceV = document.getElementById("patienceV");
+  const card = document.getElementById("card");
+  const cardSvg = document.getElementById("cardSvg");
+  const cardTitle = document.getElementById("cardTitle");
+  const cardName = document.getElementById("cardName");
+  const motto = document.getElementById("motto");
+  const meta = document.getElementById("meta");
+
+  const broadcastBtn = document.getElementById("broadcast");
+  const randomizeBtn = document.getElementById("randomize");
+  const clearBtn = document.getElementById("clear");
+
+  let seeds = []; // {x,y,kind}
+
+  // Draw soft dotted grid
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      const cx = c * CELL + CELL / 2;
+      const cy = r * CELL + CELL / 2;
+      const d = document.createElementNS(NS, "circle");
+      d.setAttribute("cx", cx);
+      d.setAttribute("cy", cy);
+      d.setAttribute("r", 1.2);
+      d.setAttribute("fill", "rgba(160,200,240,0.18)");
+      gridLayer.appendChild(d);
+    }
+  }
+
+  function snap(p) {
+    // Map garden client coordinates → SVG coords → cell center
+    const rect = garden.getBoundingClientRect();
+    const x = (p.x - rect.left) / rect.width * 300;
+    const y = (p.y - rect.top) / rect.height * 300;
+    const c = Math.min(GRID - 1, Math.max(0, Math.floor(x / CELL)));
+    const r = Math.min(GRID - 1, Math.max(0, Math.floor(y / CELL)));
+    return { col: c, row: r, cx: c * CELL + CELL / 2, cy: r * CELL + CELL / 2 };
+  }
+
+  function plantAt(clientX, clientY) {
+    if (seeds.length >= MAX_SEEDS) return;
+    const s = snap({ x: clientX, y: clientY });
+    // Toggle if already planted in that cell
+    const idx = seeds.findIndex(t => t.col === s.col && t.row === s.row);
+    if (idx >= 0) {
+      seeds.splice(idx, 1);
+    } else {
+      const kind = ((s.col * 3 + s.row * 5 + seeds.length) % 3) + 1;
+      seeds.push({ col: s.col, row: s.row, cx: s.cx, cy: s.cy, kind });
+    }
+    redrawGarden();
+  }
+
+  garden.addEventListener("click", (e) => {
+    plantAt(e.clientX, e.clientY);
+  });
+
+  function redrawGarden() {
+    seedLayer.innerHTML = "";
+    waveLayer.innerHTML = "";
+    seedCountEl.textContent = seeds.length;
+
+    // Wave field driven by wavelength
+    const wl = +wavelength.value;
+    const pat = +patience.value;
+    drawWaves(wl, pat);
+
+    for (const s of seeds) {
+      const g = document.createElementNS(NS, "g");
+      const glow = document.createElementNS(NS, "circle");
+      glow.setAttribute("cx", s.cx);
+      glow.setAttribute("cy", s.cy);
+      glow.setAttribute("r", 22);
+      glow.setAttribute("fill", `url(#seedGlow${s.kind === 1 ? "" : s.kind})`);
+      const dot = document.createElementNS(NS, "circle");
+      dot.setAttribute("cx", s.cx);
+      dot.setAttribute("cy", s.cy);
+      dot.setAttribute("r", 4.5);
+      const fill = s.kind === 1 ? "#ffe7a0" : s.kind === 2 ? "#bff2ff" : "#ffd5e7";
+      dot.setAttribute("fill", fill);
+      dot.setAttribute("stroke", "rgba(255,255,255,0.7)");
+      dot.setAttribute("stroke-width", 0.6);
+      g.appendChild(glow);
+      g.appendChild(dot);
+      seedLayer.appendChild(g);
+    }
+  }
+
+  function drawWaves(wl, pat) {
+    if (seeds.length === 0) return;
+    const lines = 5 + Math.floor(pat * 0.8); // patience → more concentric rings
+    const stepBase = 8 + wl * 4; // wavelength → spacing
+    for (const s of seeds) {
+      for (let i = 1; i <= lines; i++) {
+        const r = i * stepBase * (1 - 0.05 * (wl - 5));
+        const ring = document.createElementNS(NS, "circle");
+        ring.setAttribute("cx", s.cx);
+        ring.setAttribute("cy", s.cy);
+        ring.setAttribute("r", Math.max(2, r));
+        ring.setAttribute("fill", "none");
+        const baseStroke = s.kind === 1 ? "255,214,107" : s.kind === 2 ? "122,223,255" : "255,155,200";
+        const op = Math.max(0.03, 0.30 - i * 0.025 - (10 - pat) * 0.005);
+        ring.setAttribute("stroke", `rgba(${baseStroke},${op.toFixed(3)})`);
+        ring.setAttribute("stroke-width", 0.8);
+        waveLayer.appendChild(ring);
+      }
+    }
+  }
+
+  // Slider labels
+  const wlWords = ["", "tight", "tight", "crisp", "soft", "soft", "wide", "wide", "broad", "broad"];
+  const patWords = ["", "snap", "brisk", "brisk", "steady", "unhurried", "unhurried", "patient", "patient", "still"];
+
+  function updateLabels() {
+    wavelengthV.textContent = wlWords[+wavelength.value] || "soft";
+    patienceV.textContent = patWords[+patience.value] || "steady";
+  }
+  wavelength.addEventListener("input", () => { updateLabels(); redrawGarden(); });
+  patience.addEventListener("input", () => { updateLabels(); redrawGarden(); });
+
+  // Clear / randomize
+  clearBtn.addEventListener("click", () => {
+    seeds = [];
+    redrawGarden();
+    card.classList.remove("shown");
+  });
+
+  randomizeBtn.addEventListener("click", () => {
+    seeds = [];
+    const n = 3 + Math.floor(Math.random() * 6); // 3..8
+    const used = new Set();
+    while (seeds.length < n) {
+      const c = Math.floor(Math.random() * GRID);
+      const r = Math.floor(Math.random() * GRID);
+      const key = c + "," + r;
+      if (used.has(key)) continue;
+      used.add(key);
+      const kind = ((c * 3 + r * 5 + seeds.length) % 3) + 1;
+      seeds.push({ col: c, row: r, cx: c * CELL + CELL / 2, cy: r * CELL + CELL / 2, kind });
+    }
+    wavelength.value = 1 + Math.floor(Math.random() * 9);
+    patience.value = 1 + Math.floor(Math.random() * 9);
+    updateLabels();
+    redrawGarden();
+  });
+
+  // --- Deterministic broadcast ---
+  // FNV-1a hash, returns 32-bit unsigned
+  function hash(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function makeRng(seed) {
+    let s = seed || 1;
+    return function () {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+
+  const SYL_A = ["mor","sun","fern","tide","lark","ash","quill","wren","cove","mer","glen","brim","veld","ory","kel"];
+  const SYL_B = ["lin","va","ro","sa","ti","mel","ka","ny","ra","li","ven","sol","ma","te","yu"];
+  const SYL_C = ["ix","on","et","or","ah","ia","um","el","is","ax"];
+
+  function makeSeedName(rng) {
+    const a = SYL_A[Math.floor(rng() * SYL_A.length)];
+    const b = SYL_B[Math.floor(rng() * SYL_B.length)];
+    const c = rng() > 0.55 ? SYL_C[Math.floor(rng() * SYL_C.length)] : "";
+    const base = a + b + c;
+    return base.charAt(0).toUpperCase() + base.slice(1);
+  }
+
+  const MOTTO_OPEN = [
+    "Begin where the light is patient.",
+    "Step softly into the open hour.",
+    "Lean into the listening kind of quiet.",
+    "Trust small, well-tended signals.",
+    "Notice what the morning forgets to hide.",
+    "Tune to the slower channel today.",
+    "Plant a small thing, then wait kindly.",
+    "Take one careful breath, then continue.",
+    "Read the day in gentle frequencies.",
+    "Pick the warm note and follow it."
+  ];
+  const MOTTO_MIDDLE = [
+    "Let the wavelength choose the work.",
+    "Let one true seed do the heavy hour.",
+    "Mind the spaces between signals.",
+    "Carry only what hums in tune.",
+    "The pattern is already arriving.",
+    "Small loops, well watered.",
+    "The good idea will repeat itself.",
+    "Stay close to the warm part of the field."
+  ];
+  const MOTTO_CLOSE = [
+    "Broadcast small. Listen large.",
+    "The garden is the message.",
+    "Tomorrow learns from today's grace.",
+    "Tend the channel; the song will come.",
+    "What you plant in the quiet will reply.",
+    "Patience is its own carrier wave.",
+    "Even a faint signal is enough."
+  ];
+
+  const TITLE_LEFT = ["Pocket","Quiet","Slow","Soft","Bright","Open","Warm","Patient","Folded","Tide-"];
+  const TITLE_RIGHT = ["Frequency","Broadcast","Garden Note","Signal","Bulletin","Telegram","Almanac","Refrain","Field Card","Dispatch"];
+
+  function pickPaletteFromKinds(kinds) {
+    const counts = [0,0,0,0];
+    for (const k of kinds) counts[k] = (counts[k] || 0) + 1;
+    // dominant kind sets base palette
+    let best = 1, bestN = -1;
+    for (let i = 1; i <= 3; i++) { if (counts[i] > bestN) { bestN = counts[i]; best = i; } }
+    if (best === 1) return ["#3a2a14","#ffd66b","#ffb56a","#ffe7a0"];
+    if (best === 2) return ["#0e2638","#7adfff","#bff2ff","#cdeefb"];
+    return ["#311a2a","#ff9bc8","#ffd5e7","#ffe7f1"];
+  }
+
+  function broadcast() {
+    if (seeds.length === 0) {
+      // Auto-plant a soft starter pattern so the toy still rewards a single tap
+      randomizeBtn.click();
+    }
+    const wl = +wavelength.value;
+    const pat = +patience.value;
+    // Build a stable signature
+    const sig = seeds.map(s => s.col + "_" + s.row + "_" + s.kind).sort().join("|") + ":" + wl + ":" + pat;
+    const seed = hash(sig);
+    const rng = makeRng(seed);
+
+    const kinds = seeds.map(s => s.kind);
+    const palette = pickPaletteFromKinds(kinds);
+
+    const namePart1 = TITLE_LEFT[Math.floor(rng() * TITLE_LEFT.length)];
+    const namePart2 = TITLE_RIGHT[Math.floor(rng() * TITLE_RIGHT.length)];
+    const seedName = makeSeedName(rng);
+
+    const m1 = MOTTO_OPEN[Math.floor(rng() * MOTTO_OPEN.length)];
+    const m2 = MOTTO_MIDDLE[Math.floor(rng() * MOTTO_MIDDLE.length)];
+    const m3 = MOTTO_CLOSE[Math.floor(rng() * MOTTO_CLOSE.length)];
+
+    cardName.textContent = "Seed · " + seedName;
+    cardTitle.textContent = namePart1 + " " + namePart2;
+    motto.innerHTML = "&ldquo;" + m1 + " " + m2 + " " + m3 + "&rdquo;";
+
+    meta.innerHTML = "";
+    const wlW = wlWords[wl] || "soft";
+    const patW = patWords[pat] || "steady";
+    [
+      ["Seeds", seeds.length],
+      ["Wavelength", wlW],
+      ["Patience", patW],
+      ["Field", paletteName(kinds)]
+    ].forEach(([k, v]) => {
+      const sp = document.createElement("span");
+      sp.innerHTML = k + " <b>" + v + "</b>";
+      meta.appendChild(sp);
+    });
+
+    renderCardCanvas(palette, seed, wl, pat);
+    card.classList.add("shown");
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function paletteName(kinds) {
+    const counts = {1:0,2:0,3:0};
+    for (const k of kinds) counts[k]++;
+    if (counts[1] >= counts[2] && counts[1] >= counts[3]) return "amber";
+    if (counts[2] >= counts[3]) return "cyan";
+    return "petal";
+  }
+
+  function renderCardCanvas(palette, seed, wl, pat) {
+    const [bg, c1, c2, c3] = palette;
+    cardSvg.innerHTML = "";
+    // background gradient
+    const defs = document.createElementNS(NS, "defs");
+    defs.innerHTML = `
+      <linearGradient id="bgGrad" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0%" stop-color="${bg}"/>
+        <stop offset="100%" stop-color="#0a1226"/>
+      </linearGradient>`;
+    cardSvg.appendChild(defs);
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("x", 0); rect.setAttribute("y", 0);
+    rect.setAttribute("width", 320); rect.setAttribute("height", 180);
+    rect.setAttribute("fill", "url(#bgGrad)");
+    cardSvg.appendChild(rect);
+
+    const rng = makeRng(seed ^ 0x9e3779b9);
+
+    // Skyline: wavy lines responding to wavelength
+    const lines = 5 + Math.round(pat * 0.5);
+    for (let i = 0; i < lines; i++) {
+      const path = document.createElementNS(NS, "path");
+      let d = "";
+      const baseY = 30 + i * (130 / lines);
+      const amp = 5 + (10 - wl) * 0.8 + rng() * 6;
+      const freq = (wl * 0.15) + 0.4 + rng() * 0.2;
+      const phase = rng() * Math.PI * 2;
+      for (let x = 0; x <= 320; x += 4) {
+        const y = baseY + Math.sin(x * freq * 0.1 + phase) * amp;
+        d += (x === 0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
+      }
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      const col = i % 3 === 0 ? c1 : i % 3 === 1 ? c2 : c3;
+      path.setAttribute("stroke", col);
+      path.setAttribute("stroke-opacity", (0.20 + 0.55 * (1 - i / lines)).toFixed(2));
+      path.setAttribute("stroke-width", (0.7 + (i % 2 === 0 ? 0.4 : 0)).toFixed(2));
+      cardSvg.appendChild(path);
+    }
+
+    // Seed dots replicated as constellation
+    const proj = seeds.length ? seeds : [];
+    for (const s of proj) {
+      // map seed grid (0..5, 0..5) into card area
+      const px = 20 + (s.col + 0.5) * (280 / GRID);
+      const py = 20 + (s.row + 0.5) * (140 / GRID);
+      const glow = document.createElementNS(NS, "circle");
+      glow.setAttribute("cx", px); glow.setAttribute("cy", py);
+      glow.setAttribute("r", 10);
+      glow.setAttribute("fill", s.kind === 1 ? c1 : s.kind === 2 ? c2 : c3);
+      glow.setAttribute("opacity", 0.18);
+      const dot = document.createElementNS(NS, "circle");
+      dot.setAttribute("cx", px); dot.setAttribute("cy", py);
+      dot.setAttribute("r", 2.2);
+      dot.setAttribute("fill", "#ffffff");
+      dot.setAttribute("opacity", 0.9);
+      cardSvg.appendChild(glow);
+      cardSvg.appendChild(dot);
+    }
+  }
+
+  broadcastBtn.addEventListener("click", broadcast);
+
+  // Initial state
+  updateLabels();
+  redrawGarden();
+})();
+</script>
+</body>
+</html>
