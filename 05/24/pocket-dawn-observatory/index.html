@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pocket Dawn Observatory</title>
+<meta name="description" content="A tiny mobile-first dawn observatory. Drag the horizon, place a few beacons, observe a deterministic sky map and one-line field note.">
+<meta name="theme-color" content="#1a1530">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ink: #f8efe0;
+    --ink-dim: #c4b0a0;
+    --ink-faint: #7a6878;
+    --beacon: #fff3c4;
+    --arc: rgba(255, 213, 144, 0.95);
+    --line: rgba(255, 235, 195, 0.55);
+    --surface: rgba(20, 14, 30, 0.55);
+    --border: rgba(255, 220, 180, 0.18);
+    --border-strong: rgba(255, 220, 180, 0.32);
+    --accent: #ffd590;
+    --accent-warm: #ff9566;
+  }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #0a0618;
+    color: var(--ink);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    padding:
+      env(safe-area-inset-top, 0)
+      env(safe-area-inset-right, 0)
+      env(safe-area-inset-bottom, 0)
+      env(safe-area-inset-left, 0);
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(60, 30, 70, 0.6), transparent 70%),
+      radial-gradient(ellipse 80% 40% at 50% 100%, rgba(200, 100, 70, 0.18), transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 18px 14px 36px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .sky {
+    margin-top: 14px;
+    border-radius: 18px;
+    border: 1px solid var(--border-strong);
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 5 / 4;
+    background: linear-gradient(to bottom, #1a1530 0%, #3a2848 55%, #c87a6a 100%);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    box-shadow:
+      0 1px 0 rgba(255, 220, 180, 0.08) inset,
+      0 18px 40px -20px rgba(0, 0, 0, 0.6);
+    transition: background 0.4s ease;
+  }
+  .sky svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .horizon-fade {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 28%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.22), transparent);
+    pointer-events: none;
+  }
+  .hint {
+    position: absolute;
+    top: 10px; left: 12px; right: 12px;
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.68);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  .counter {
+    position: absolute;
+    bottom: 10px; right: 12px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.78);
+    letter-spacing: 0.1em;
+    background: rgba(0, 0, 0, 0.32);
+    padding: 5px 10px;
+    border-radius: 99px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .sun-pulse {
+    transform-origin: center;
+    animation: sunPulse 3.2s ease-in-out infinite;
+  }
+  @keyframes sunPulse {
+    0%, 100% { opacity: 0.32; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(1.18); }
+  }
+  .beacon-glow {
+    opacity: 0;
+    animation: beaconIn 0.6s ease forwards;
+  }
+  @keyframes beaconIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .controls {
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  .slider-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 80px;
+    gap: 10px;
+    align-items: center;
+    font-size: 11px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+  }
+  .slider-row label {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+  }
+  .slider-row .val {
+    text-align: right;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  input[type="range"] {
+    width: 100%;
+    height: 44px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, #4a3a4a, var(--accent));
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: -9px;
+    border: 2px solid #1a0e20;
+    box-shadow:
+      0 0 0 1px rgba(255, 213, 144, 0.4),
+      0 0 12px rgba(255, 213, 144, 0.45);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(to right, #4a3a4a, var(--accent));
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #1a0e20;
+    cursor: pointer;
+  }
+  input[type="range"]:focus { outline: none; }
+  input[type="range"]:focus::-webkit-slider-thumb {
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 0 14px rgba(255, 213, 144, 0.55);
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px;
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:active { transform: scale(0.97); }
+  button:hover { background: rgba(40, 30, 50, 0.72); }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button.primary {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #ffb774, #ff8a5a);
+    color: #1a0e20;
+    border: none;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    box-shadow: 0 6px 22px -8px rgba(255, 140, 90, 0.55);
+  }
+  button.primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ffc384, #ff9566);
+  }
+  button.primary:disabled {
+    opacity: 0.42;
+    background: var(--surface);
+    color: var(--ink-dim);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .card {
+    margin-top: 16px;
+    border-radius: 18px;
+    border: 1px solid var(--border-strong);
+    overflow: hidden;
+    background: var(--surface);
+    display: none;
+  }
+  .card.shown {
+    display: block;
+    animation: cardIn 0.6s ease;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .card-band {
+    height: 28px;
+    display: flex;
+  }
+  .card-band span { flex: 1; }
+  .card-body { padding: 14px 16px 16px; }
+  .card-label {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .card-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .card-note {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  .card-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .card-meta .sep { opacity: 0.5; }
+  .card-copy {
+    margin-top: 14px;
+    width: 100%;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 12px;
+    min-height: 44px;
+    background: transparent;
+    color: var(--ink-dim);
+    border-color: var(--border);
+  }
+  .card-copy.copied {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  footer {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  footer .dot { opacity: 0.4; margin: 0 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sun-pulse, .beacon-glow { animation: none !important; opacity: 0.5 !important; }
+    .card.shown { animation: none; }
+    .sky { transition: none; }
+  }
+
+  @media (min-width: 520px) {
+    .app { padding: 26px 18px 40px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Daily Surprise · May 24</div>
+    <h1>Pocket Dawn Observatory</h1>
+    <div class="sub">Drag the glowing horizon. Tap 3–7 quiet beacons. Observe.</div>
+  </header>
+
+  <div class="sky" id="sky" role="application" aria-label="Sky cartography toy">
+    <svg viewBox="0 0 500 400" preserveAspectRatio="xMidYMid slice" id="svg" aria-hidden="true">
+      <defs>
+        <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="#fff5d0" stop-opacity="0.95"/>
+          <stop offset="45%" stop-color="#ffd590" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#ffd590" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="#fff0c0" stop-opacity="0.9"/>
+          <stop offset="60%" stop-color="#ffb070" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#ffb070" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <g id="stars-bg"></g>
+      <path id="arc" d="" fill="none" stroke="rgba(255,213,144,0.85)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="4 6"/>
+      <g id="sun-group">
+        <circle id="sunHalo" cx="250" cy="220" r="36" fill="url(#sunHalo)" class="sun-pulse"/>
+        <circle id="sun" cx="250" cy="220" r="11" fill="#ffe7b0" stroke="#ffb070" stroke-width="0.8"/>
+      </g>
+      <g id="lines" opacity="0"></g>
+      <g id="beacons"></g>
+    </svg>
+    <div class="horizon-fade"></div>
+    <div class="hint" id="hint">Drag the small sun · tap to place beacons</div>
+    <div class="counter" id="counter">0 / 7 beacons</div>
+  </div>
+
+  <div class="controls">
+    <div class="slider-row">
+      <label for="phase">Phase</label>
+      <input type="range" id="phase" min="0" max="100" value="40" aria-label="Dawn phase">
+      <span class="val" id="phaseVal">first-light</span>
+    </div>
+    <div class="buttons">
+      <button id="surprise" type="button">Surprise me</button>
+      <button id="reset" type="button">Clear sky</button>
+      <button id="observe" class="primary" type="button" disabled>Observe</button>
+    </div>
+  </div>
+
+  <div class="card" id="card" role="status" aria-live="polite">
+    <div class="card-band" id="cardBand"></div>
+    <div class="card-body">
+      <div class="card-label">Field Observation</div>
+      <div class="card-name" id="cardName">—</div>
+      <div class="card-note" id="cardNote">—</div>
+      <div class="card-meta">
+        <span id="metaBeacons">0 beacons</span>
+        <span class="sep">·</span>
+        <span id="metaPhase">phase</span>
+        <span class="sep">·</span>
+        <span id="metaArc">arc 0°</span>
+      </div>
+      <button class="card-copy" id="copy" type="button">Copy observation</button>
+    </div>
+  </div>
+
+  <footer>
+    Electric Sheep <span class="dot">·</span> 2026-05-24
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  const sky        = document.getElementById("sky");
+  const arcPath    = document.getElementById("arc");
+  const sun        = document.getElementById("sun");
+  const sunHalo    = document.getElementById("sunHalo");
+  const beaconsG   = document.getElementById("beacons");
+  const linesG     = document.getElementById("lines");
+  const bgStarsG   = document.getElementById("stars-bg");
+  const phaseInput = document.getElementById("phase");
+  const phaseVal   = document.getElementById("phaseVal");
+  const counter    = document.getElementById("counter");
+  const observeBtn = document.getElementById("observe");
+  const surpriseBtn= document.getElementById("surprise");
+  const resetBtn   = document.getElementById("reset");
+  const card       = document.getElementById("card");
+  const hint       = document.getElementById("hint");
+  const copyBtn    = document.getElementById("copy");
+
+  const VB_W = 500, VB_H = 400;
+  const MAX_BEACONS = 7;
+  const MIN_BEACONS = 3;
+  const HORIZON_Y_FRAC = 0.78;  // where the arc anchors
+  const TAP_TOP_LIMIT  = 0.86;  // ignore taps near the fade
+
+  let sunPos  = 0.5;   // fraction 0..1 horizontal
+  let sunY    = 0.55;  // fraction 0..1 vertical (smaller = higher in sky)
+  let beacons = [];    // [{x, y}] in 0..1
+  let dragging = null; // 'sun' | null
+  let observed = null; // {name, note, seed, angle}
+  let cardCopyResetT = 0;
+
+  // ============================================================
+  // UTIL
+  // ============================================================
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashState() {
+    const phase = +phaseInput.value;
+    let s = "p:" + phase + "|s:" + Math.round(sunPos * 100) + "," + Math.round(sunY * 100) + "|b:";
+    for (const b of beacons) {
+      s += Math.round(b.x * 100) + "," + Math.round(b.y * 100) + ";";
+    }
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function pick(arr, rng) {
+    return arr[Math.floor(rng() * arr.length)];
+  }
+
+  // ============================================================
+  // BACKGROUND STARS (subtle, fixed seed)
+  // ============================================================
+  function seedStars() {
+    bgStarsG.innerHTML = "";
+    const rng = mulberry32(7919);
+    for (let i = 0; i < 70; i++) {
+      const x = rng() * VB_W;
+      const y = rng() * VB_H * 0.72;
+      const r = 0.4 + rng() * 0.95;
+      const o = 0.18 + rng() * 0.45;
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      c.setAttribute("cx", x.toFixed(1));
+      c.setAttribute("cy", y.toFixed(1));
+      c.setAttribute("r", r.toFixed(2));
+      c.setAttribute("fill", "#fff3d8");
+      c.setAttribute("opacity", o.toFixed(2));
+      bgStarsG.appendChild(c);
+    }
+  }
+
+  // ============================================================
+  // ARC
+  // ============================================================
+  // Quadratic arc through (sunPos, sunY) anchored on the horizon.
+  function getArcParts() {
+    const horizonY = VB_H * HORIZON_Y_FRAC;
+    const apexX = sunPos * VB_W;
+    const apexY = VB_H * sunY;
+    // Control point so the curve passes near (apexX, apexY) at t=0.5
+    const cx = 2 * apexX - 0.5 * VB_W;
+    const cy = 2 * apexY - horizonY;
+    return {
+      d: "M 0 " + horizonY + " Q " + cx.toFixed(1) + " " + cy.toFixed(1) +
+         " " + VB_W + " " + horizonY,
+      apexX, apexY
+    };
+  }
+  function updateArc() {
+    const a = getArcParts();
+    arcPath.setAttribute("d", a.d);
+    sun.setAttribute("cx", a.apexX);
+    sun.setAttribute("cy", a.apexY);
+    sunHalo.setAttribute("cx", a.apexX);
+    sunHalo.setAttribute("cy", a.apexY);
+    // Sun grows slightly when higher
+    const heightFrac = 1 - (sunY - 0.2) / 0.7;
+    const r = 9 + Math.max(0, Math.min(1, heightFrac)) * 4;
+    sun.setAttribute("r", r.toFixed(1));
+    sunHalo.setAttribute("r", (r * 3.2).toFixed(1));
+  }
+
+  // ============================================================
+  // BEACONS
+  // ============================================================
+  function renderBeacons() {
+    beaconsG.innerHTML = "";
+    for (let i = 0; i < beacons.length; i++) {
+      const b = beacons[i];
+      const cx = b.x * VB_W;
+      const cy = b.y * VB_H;
+      const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      glow.setAttribute("cx", cx);
+      glow.setAttribute("cy", cy);
+      glow.setAttribute("r", 14);
+      glow.setAttribute("fill", "url(#beaconGlow)");
+      glow.setAttribute("class", "beacon-glow");
+      beaconsG.appendChild(glow);
+      const star = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      star.setAttribute("cx", cx);
+      star.setAttribute("cy", cy);
+      star.setAttribute("r", "3.2");
+      star.setAttribute("fill", "#fff7dc");
+      star.setAttribute("stroke", "#ffb86a");
+      star.setAttribute("stroke-width", "0.6");
+      beaconsG.appendChild(star);
+    }
+    counter.textContent = beacons.length + " / " + MAX_BEACONS + " beacons";
+    observeBtn.disabled = beacons.length < MIN_BEACONS;
+    hint.style.opacity = beacons.length >= 1 ? "0" : "1";
+  }
+
+  // ============================================================
+  // PHASE (warm dawn palette)
+  // ============================================================
+  const PHASE_BANDS = [
+    { v: 0,   label: "pre-dawn",
+      stops: ["#0d0a20", "#221a3a", "#5a3a55", "#a86a78"] },
+    { v: 25,  label: "first-light",
+      stops: ["#181536", "#382858", "#7a4a70", "#e8957a"] },
+    { v: 50,  label: "horizon-warm",
+      stops: ["#1f1c3c", "#503560", "#a4607a", "#f0a570"] },
+    { v: 75,  label: "sun-up",
+      stops: ["#293060", "#6b4878", "#dd8a76", "#ffc78a"] },
+    { v: 100, label: "full-morning",
+      stops: ["#3a4880", "#8a6090", "#f0a07a", "#ffd6a0"] }
+  ];
+  function mixHex(a, b, t) {
+    const ar = parseInt(a.slice(1, 3), 16);
+    const ag = parseInt(a.slice(3, 5), 16);
+    const ab = parseInt(a.slice(5, 7), 16);
+    const br = parseInt(b.slice(1, 3), 16);
+    const bg = parseInt(b.slice(3, 5), 16);
+    const bb = parseInt(b.slice(5, 7), 16);
+    const r  = Math.round(ar + (br - ar) * t);
+    const g  = Math.round(ag + (bg - ag) * t);
+    const bl = Math.round(ab + (bb - ab) * t);
+    return "#" + [r, g, bl].map(n => n.toString(16).padStart(2, "0")).join("");
+  }
+  function phaseInterp(v) {
+    let lo = PHASE_BANDS[0], hi = PHASE_BANDS[PHASE_BANDS.length - 1];
+    for (let i = 0; i < PHASE_BANDS.length - 1; i++) {
+      if (v >= PHASE_BANDS[i].v && v <= PHASE_BANDS[i + 1].v) {
+        lo = PHASE_BANDS[i]; hi = PHASE_BANDS[i + 1]; break;
+      }
+    }
+    const span = (hi.v - lo.v) || 1;
+    const t = (v - lo.v) / span;
+    return {
+      label: t < 0.5 ? lo.label : hi.label,
+      stops: lo.stops.map((c, i) => mixHex(c, hi.stops[i], t))
+    };
+  }
+  function applyPhase() {
+    const v = +phaseInput.value;
+    const info = phaseInterp(v);
+    phaseVal.textContent = info.label;
+    sky.style.background =
+      "linear-gradient(to bottom, " +
+      info.stops[0] + " 0%, " +
+      info.stops[1] + " 30%, " +
+      info.stops[2] + " 65%, " +
+      info.stops[3] + " 100%)";
+    if (observed) hideCard();
+  }
+
+  // ============================================================
+  // POINTER
+  // ============================================================
+  function getFrac(evt) {
+    const rect = sky.getBoundingClientRect();
+    const x = (evt.clientX - rect.left) / rect.width;
+    const y = (evt.clientY - rect.top) / rect.height;
+    return {
+      px: Math.max(0, Math.min(1, x)),
+      py: Math.max(0, Math.min(1, y))
+    };
+  }
+  function nearSun(px, py) {
+    // Generous touch target around the sun handle
+    return Math.hypot(px - sunPos, py - sunY) < 0.12;
+  }
+
+  sky.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const p = getFrac(e);
+    if (nearSun(p.px, p.py)) {
+      dragging = "sun";
+      try { sky.setPointerCapture(e.pointerId); } catch (_) {}
+      hint.style.opacity = "0";
+      return;
+    }
+    if (p.py > TAP_TOP_LIMIT) return;
+    if (beacons.length >= MAX_BEACONS) return;
+    beacons.push({ x: p.px, y: p.py });
+    renderBeacons();
+    if (observed) hideCard();
+  });
+  sky.addEventListener("pointermove", (e) => {
+    if (dragging !== "sun") return;
+    const p = getFrac(e);
+    sunPos = Math.max(0.08, Math.min(0.92, p.px));
+    sunY   = Math.max(0.20, Math.min(0.74, p.py));
+    updateArc();
+    if (observed) hideCard();
+  });
+  function endDrag() { dragging = null; }
+  sky.addEventListener("pointerup", endDrag);
+  sky.addEventListener("pointercancel", endDrag);
+  sky.addEventListener("lostpointercapture", endDrag);
+  sky.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  phaseInput.addEventListener("input", applyPhase);
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
+  function clearAll() {
+    beacons = [];
+    sunPos = 0.5;
+    sunY   = 0.55;
+    phaseInput.value = 40;
+    applyPhase();
+    updateArc();
+    renderBeacons();
+    hideCard();
+    hint.style.opacity = "1";
+  }
+  resetBtn.addEventListener("click", clearAll);
+
+  surpriseBtn.addEventListener("click", () => {
+    const seed = (Math.random() * 0x7fffffff) | 0;
+    const rng = mulberry32(seed);
+    beacons = [];
+    const count = 3 + Math.floor(rng() * 5); // 3..7
+    for (let i = 0; i < count; i++) {
+      beacons.push({
+        x: 0.08 + rng() * 0.84,
+        y: 0.08 + rng() * 0.66
+      });
+    }
+    sunPos = 0.15 + rng() * 0.70;
+    sunY   = 0.28 + rng() * 0.42;
+    phaseInput.value = Math.floor(rng() * 101);
+    applyPhase();
+    updateArc();
+    renderBeacons();
+    hideCard();
+    hint.style.opacity = "0";
+  });
+
+  // ============================================================
+  // DETERMINISTIC OBSERVATION
+  // ============================================================
+  const ADJECTIVES = [
+    "Quiet", "Sleeping", "First", "Patient", "Folded", "Half-lit", "Hollow",
+    "Warm", "Distant", "Listening", "Steady", "Rolling", "Dappled", "Returning",
+    "Cool", "Tilted", "Honest", "Slender", "Drifting", "Tin-colored",
+    "Borrowed", "Pocket", "Quiet-eyed"
+  ];
+  const NOUNS = [
+    "Heron", "Compass", "Kite", "Almanac", "Ladder", "Sextant", "Cairn",
+    "Bellwether", "Lantern", "Anchor", "Loom", "Ferry", "Beacon", "Atlas",
+    "Mariner", "Postcard", "Cipher", "Spindle", "Window", "Whistle"
+  ];
+  const VERBS = [
+    "leans", "tilts", "climbs", "rests", "drifts", "settles", "wakes",
+    "listens", "opens", "folds", "traces", "hums"
+  ];
+  const PLACES = [
+    "across the warm horizon",
+    "over the slow valley",
+    "above a tin-colored sea",
+    "past the first thin clouds",
+    "between two paler hills",
+    "along the rim of the bay",
+    "over a quiet rooftop garden",
+    "just above the harbor lights",
+    "across an unhurried street"
+  ];
+  const CLOSINGS = [
+    "and waits to be named.",
+    "while the day collects itself.",
+    "as if it had been there all along.",
+    "before anyone else has noticed.",
+    "and seems unhurried about it.",
+    "with the patience of weather.",
+    "in the slow color of waking.",
+    "and lets the light do the rest."
+  ];
+
+  function chordAngle() {
+    if (beacons.length < 2) return 0;
+    const sorted = beacons.slice().sort((a, b) => a.x - b.x);
+    const a = sorted[0], z = sorted[sorted.length - 1];
+    const dx = (z.x - a.x) * VB_W;
+    const dy = (z.y - a.y) * VB_H;
+    return Math.round(Math.atan2(-dy, dx) * 180 / Math.PI);
+  }
+
+  function observation() {
+    const seed = hashState();
+    const rng = mulberry32(seed);
+    const adj  = pick(ADJECTIVES, rng);
+    const noun = pick(NOUNS, rng);
+    const name = adj + " " + noun;
+    const verb = pick(VERBS, rng);
+    const place = pick(PLACES, rng);
+    const close = pick(CLOSINGS, rng);
+    const note = "The " + adj.toLowerCase() + " " + noun.toLowerCase() +
+                 " " + verb + " " + place + ", " + close;
+    return { name, note, seed, angle: chordAngle() };
+  }
+
+  // ============================================================
+  // CARD
+  // ============================================================
+  function showCard(obs) {
+    observed = obs;
+    document.getElementById("cardName").textContent = obs.name;
+    document.getElementById("cardNote").textContent = obs.note;
+    document.getElementById("metaBeacons").textContent = beacons.length + " beacons";
+    document.getElementById("metaPhase").textContent   = phaseVal.textContent;
+    document.getElementById("metaArc").textContent     =
+      "arc " + (obs.angle >= 0 ? "+" : "") + obs.angle + "°";
+
+    const info = phaseInterp(+phaseInput.value);
+    const band = document.getElementById("cardBand");
+    band.innerHTML = "";
+    const swatches = [info.stops[0], info.stops[1], info.stops[2], info.stops[3], "#fff3c4"];
+    for (const s of swatches) {
+      const sp = document.createElement("span");
+      sp.style.background = s;
+      band.appendChild(sp);
+    }
+    card.classList.add("shown");
+    drawConstellationLines();
+  }
+  function hideCard() {
+    if (!observed) return;
+    observed = null;
+    card.classList.remove("shown");
+    linesG.innerHTML = "";
+    linesG.setAttribute("opacity", "0");
+    copyBtn.classList.remove("copied");
+    copyBtn.textContent = "Copy observation";
+    if (cardCopyResetT) { clearTimeout(cardCopyResetT); cardCopyResetT = 0; }
+  }
+  function drawConstellationLines() {
+    linesG.innerHTML = "";
+    if (beacons.length < 2) return;
+    // Walk from leftmost beacon, nearest-neighbor
+    const remaining = beacons.map(b => ({ x: b.x, y: b.y }));
+    remaining.sort((a, b) => a.x - b.x);
+    const path = [remaining.shift()];
+    while (remaining.length) {
+      const last = path[path.length - 1];
+      let bestIdx = 0, bestD = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const d = Math.hypot(remaining[i].x - last.x, remaining[i].y - last.y);
+        if (d < bestD) { bestD = d; bestIdx = i; }
+      }
+      path.push(remaining.splice(bestIdx, 1)[0]);
+    }
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", a.x * VB_W);
+      ln.setAttribute("y1", a.y * VB_H);
+      ln.setAttribute("x2", b.x * VB_W);
+      ln.setAttribute("y2", b.y * VB_H);
+      ln.setAttribute("stroke", "rgba(255,235,195,0.6)");
+      ln.setAttribute("stroke-width", "1");
+      ln.setAttribute("stroke-dasharray", "3 4");
+      ln.setAttribute("stroke-linecap", "round");
+      linesG.appendChild(ln);
+    }
+    linesG.setAttribute("opacity", "1");
+  }
+
+  observeBtn.addEventListener("click", () => {
+    if (beacons.length < MIN_BEACONS) return;
+    showCard(observation());
+    setTimeout(() => {
+      try { card.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+      catch (_) { card.scrollIntoView(); }
+    }, 60);
+  });
+
+  // ============================================================
+  // COPY
+  // ============================================================
+  copyBtn.addEventListener("click", async () => {
+    if (!observed) return;
+    const text =
+      observed.name + " — " + observed.note + "\n" +
+      "(" + beacons.length + " beacons · " + phaseVal.textContent +
+      " · arc " + (observed.angle >= 0 ? "+" : "") + observed.angle + "°)";
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch (_) { ok = false; }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand("copy"); } catch (_) {}
+      document.body.removeChild(ta);
+    }
+    copyBtn.classList.toggle("copied", ok);
+    copyBtn.textContent = ok ? "Copied to clipboard" : "Copy failed — try again";
+    if (cardCopyResetT) clearTimeout(cardCopyResetT);
+    cardCopyResetT = setTimeout(() => {
+      copyBtn.classList.remove("copied");
+      copyBtn.textContent = "Copy observation";
+      cardCopyResetT = 0;
+    }, 1800);
+  });
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  seedStars();
+  applyPhase();
+  updateArc();
+  renderBeacons();
+})();
+</script>
+</body>
+</html>
