@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1c1428">
+<title>Pocket Compass Loom</title>
+<style>
+  :root {
+    --bg-0: #181020;
+    --bg-1: #2a1626;
+    --bg-2: #3a1c24;
+    --ink: #f3e3cc;
+    --ink-dim: #c9a98a;
+    --ink-faint: #87674e;
+    --warm-1: #ffb06d;
+    --warm-2: #ff8a5a;
+    --warm-3: #f0c267;
+    --warm-4: #e25b6f;
+    --warm-5: #a0507a;
+    --surface: rgba(255, 230, 200, 0.06);
+    --surface-strong: rgba(255, 230, 200, 0.12);
+    --border: rgba(255, 200, 150, 0.18);
+    --border-strong: rgba(255, 200, 150, 0.4);
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255, 176, 109, 0.18), transparent 60%),
+      radial-gradient(ellipse 90% 60% at 30% 100%, rgba(226, 91, 111, 0.12), transparent 70%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
+    color: var(--ink);
+    font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    line-height: 1.5;
+    padding: 16px 14px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  header {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    font-size: clamp(1.35rem, 5.5vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  h1 span { color: var(--warm-1); }
+
+  .sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+
+  /* Loom */
+  .loom-wrap {
+    width: 100%;
+    max-width: 460px;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at 50% 45%, rgba(255, 200, 150, 0.06), transparent 65%),
+      linear-gradient(180deg, rgba(20, 14, 26, 0.55), rgba(40, 20, 32, 0.45));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .loom-wrap svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Thread palette */
+  .palette {
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: stretch;
+  }
+
+  .thread-btn {
+    flex: 1;
+    min-height: 48px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    padding: 6px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .thread-btn:active { transform: scale(0.97); }
+  .thread-btn.is-active {
+    border-color: var(--border-strong);
+    background: var(--surface-strong);
+  }
+  .thread-swatch {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+  }
+  .thread-name {
+    color: var(--ink-dim);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+  }
+  .thread-btn.is-active .thread-name { color: var(--ink); }
+
+  /* Controls */
+  .controls {
+    width: 100%;
+    max-width: 460px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.3fr;
+    gap: 8px;
+  }
+
+  button.ctrl {
+    min-height: 48px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  button.ctrl:active { transform: scale(0.97); }
+  button.ctrl:hover { border-color: var(--border-strong); }
+  button.ctrl:focus-visible { outline: 2px solid var(--warm-1); outline-offset: 2px; }
+
+  button.ctrl.primary {
+    background: linear-gradient(135deg, var(--warm-1), var(--warm-4));
+    color: #2a1320;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  button.ctrl.primary[disabled] {
+    background: var(--surface);
+    color: var(--ink-faint);
+    cursor: not-allowed;
+    font-weight: 400;
+  }
+
+  /* Status line */
+  .status {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    min-height: 1.4em;
+  }
+  .status .accent { color: var(--warm-3); }
+
+  /* Card overlay */
+  .card-veil {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 6, 16, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 10;
+  }
+  .card-veil.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .chart-card {
+    width: 100%;
+    max-width: 360px;
+    background: linear-gradient(160deg, #271529, #3a1d28 60%, #4a2628);
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+    transform: translateY(10px) scale(0.98);
+    transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .card-veil.is-open .chart-card { transform: translateY(0) scale(1); }
+
+  .chart-card h2 {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--warm-3);
+    margin-bottom: 6px;
+  }
+  .chart-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .chart-glyph {
+    width: 100%;
+    height: 140px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 12px;
+    margin: 10px 0 12px;
+    border: 1px solid var(--border);
+  }
+  .chart-glyph svg { width: 100%; height: 100%; display: block; }
+  .chart-line {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .chart-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-bottom: 12px;
+  }
+  .chart-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .chart-actions button {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.18s ease;
+  }
+  .chart-actions button:active { background: var(--surface-strong); }
+
+  /* Help footer */
+  .hint {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  /* SVG knot styles */
+  .knot {
+    cursor: grab;
+    touch-action: none;
+  }
+  .knot:active { cursor: grabbing; }
+  .knot-body {
+    transition: filter 0.18s ease;
+  }
+  .knot.is-dragging .knot-body {
+    filter: brightness(1.15) drop-shadow(0 0 6px var(--warm-3));
+  }
+  .ring {
+    fill: none;
+    stroke: rgba(255, 200, 150, 0.16);
+    stroke-width: 1;
+  }
+  .ring.major {
+    stroke: rgba(255, 200, 150, 0.26);
+    stroke-width: 1.2;
+  }
+  .tick {
+    stroke: rgba(255, 200, 150, 0.32);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+  }
+  .tick-label {
+    fill: var(--ink-faint);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    font-family: inherit;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+  .thread {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.92;
+  }
+  .pulse {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: knotPulse 3.6s ease-in-out infinite;
+  }
+
+  @keyframes knotPulse {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .pulse { animation: none; }
+  }
+
+  @media (min-width: 540px) {
+    body { padding: 24px 18px 36px; gap: 18px; }
+    .loom-wrap { max-width: 460px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">May 25 · daily surprise</div>
+  <h1>Pocket <span>Compass Loom</span></h1>
+  <p class="sub">Drag three knots. Pick a thread. Weave a route. Chart it.</p>
+</header>
+
+<div class="loom-wrap" id="loomWrap" aria-label="Compass loom canvas">
+  <svg id="loom" viewBox="0 0 400 400" role="img" aria-label="Three draggable compass knots on a warm dawn loom"></svg>
+</div>
+
+<div class="palette" id="palette" role="group" aria-label="Thread palette">
+  <button class="thread-btn is-active" data-thread="ember" aria-pressed="true">
+    <span class="thread-swatch" style="background: linear-gradient(90deg,#ffb06d,#ff8a5a)"></span>
+    <span class="thread-name">ember</span>
+  </button>
+  <button class="thread-btn" data-thread="ochre" aria-pressed="false">
+    <span class="thread-swatch" style="background: linear-gradient(90deg,#f0c267,#e2904a)"></span>
+    <span class="thread-name">ochre</span>
+  </button>
+  <button class="thread-btn" data-thread="rose" aria-pressed="false">
+    <span class="thread-swatch" style="background: linear-gradient(90deg,#e25b6f,#a0507a)"></span>
+    <span class="thread-name">rose</span>
+  </button>
+  <button class="thread-btn" data-thread="dust" aria-pressed="false">
+    <span class="thread-swatch" style="background: linear-gradient(90deg,#d4a48a,#87674e)"></span>
+    <span class="thread-name">dust</span>
+  </button>
+</div>
+
+<div class="controls">
+  <button class="ctrl" id="resetBtn" type="button">Reshuffle</button>
+  <button class="ctrl" id="clearBtn" type="button">Unweave</button>
+  <button class="ctrl primary" id="chartBtn" type="button" disabled>Chart route</button>
+</div>
+
+<div class="status" id="status">Tap a knot pair to weave a thread between them.</div>
+
+<div class="hint">three knots · four threads · one quiet chart</div>
+
+<div class="card-veil" id="veil" aria-hidden="true">
+  <div class="chart-card" role="dialog" aria-modal="true" aria-labelledby="chartName">
+    <h2>Charted route</h2>
+    <div class="chart-name" id="chartName">—</div>
+    <div class="chart-glyph"><svg id="glyph" viewBox="0 0 200 140" aria-hidden="true"></svg></div>
+    <p class="chart-line" id="chartLine">—</p>
+    <div class="chart-meta">
+      <span id="chartCardinals">— · —</span>
+      <span id="chartBearing">000°</span>
+    </div>
+    <div class="chart-actions">
+      <button id="copyBtn" type="button">Copy itinerary</button>
+      <button id="closeBtn" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const loom = document.getElementById('loom');
+  const wrap = document.getElementById('loomWrap');
+  const palette = document.getElementById('palette');
+  const status = document.getElementById('status');
+  const chartBtn = document.getElementById('chartBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const veil = document.getElementById('veil');
+  const closeBtn = document.getElementById('closeBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const chartNameEl = document.getElementById('chartName');
+  const chartLineEl = document.getElementById('chartLine');
+  const chartCardinals = document.getElementById('chartCardinals');
+  const chartBearing = document.getElementById('chartBearing');
+  const glyph = document.getElementById('glyph');
+
+  const SVG = 'http://www.w3.org/2000/svg';
+  const VIEW = 400;
+  const CENTER = VIEW / 2;
+  const OUTER_R = 168;
+  const INNER_R = 92;
+  const KNOT_R = 20;
+
+  const THREADS = {
+    ember: { color1: '#ffb06d', color2: '#ff8a5a', wave: 0.18, name: 'ember' },
+    ochre: { color1: '#f0c267', color2: '#e2904a', wave: 0.10, name: 'ochre' },
+    rose:  { color1: '#e25b6f', color2: '#a0507a', wave: 0.26, name: 'rose'  },
+    dust:  { color1: '#d4a48a', color2: '#87674e', wave: 0.06, name: 'dust'  }
+  };
+
+  // State
+  let knots = [];   // { id, angle (radians, 0=east, ccw), x, y }
+  let threads = []; // { a, b, kind }
+  let activeThread = 'ember';
+
+  // --- Build the loom backdrop (rings + ticks) ---
+  function buildBackdrop() {
+    // Outer subtle ring
+    const ringOuter = document.createElementNS(SVG, 'circle');
+    ringOuter.setAttribute('cx', CENTER);
+    ringOuter.setAttribute('cy', CENTER);
+    ringOuter.setAttribute('r', OUTER_R);
+    ringOuter.setAttribute('class', 'ring major');
+    loom.appendChild(ringOuter);
+
+    for (let i = 1; i <= 4; i++) {
+      const r = INNER_R + (OUTER_R - INNER_R) * (i / 5);
+      const c = document.createElementNS(SVG, 'circle');
+      c.setAttribute('cx', CENTER);
+      c.setAttribute('cy', CENTER);
+      c.setAttribute('r', r);
+      c.setAttribute('class', 'ring');
+      loom.appendChild(c);
+    }
+    const inner = document.createElementNS(SVG, 'circle');
+    inner.setAttribute('cx', CENTER);
+    inner.setAttribute('cy', CENTER);
+    inner.setAttribute('r', INNER_R);
+    inner.setAttribute('class', 'ring major');
+    loom.appendChild(inner);
+
+    // 16 ticks + N/E/S/W labels
+    const cardinals = { 0: 'E', 4: 'N', 8: 'W', 12: 'S' };
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const ix = CENTER + Math.cos(a) * (OUTER_R - 6);
+      const iy = CENTER + Math.sin(-a) * (OUTER_R - 6);
+      const ox = CENTER + Math.cos(a) * OUTER_R;
+      const oy = CENTER + Math.sin(-a) * OUTER_R;
+      const t = document.createElementNS(SVG, 'line');
+      t.setAttribute('x1', ix);
+      t.setAttribute('y1', iy);
+      t.setAttribute('x2', ox);
+      t.setAttribute('y2', oy);
+      t.setAttribute('class', 'tick');
+      loom.appendChild(t);
+
+      if (cardinals[i]) {
+        const lx = CENTER + Math.cos(a) * (OUTER_R + 14);
+        const ly = CENTER + Math.sin(-a) * (OUTER_R + 14);
+        const lbl = document.createElementNS(SVG, 'text');
+        lbl.setAttribute('x', lx);
+        lbl.setAttribute('y', ly);
+        lbl.setAttribute('class', 'tick-label');
+        lbl.textContent = cardinals[i];
+        loom.appendChild(lbl);
+      }
+    }
+
+    // Soft center mark
+    const dot = document.createElementNS(SVG, 'circle');
+    dot.setAttribute('cx', CENTER);
+    dot.setAttribute('cy', CENTER);
+    dot.setAttribute('r', 2.5);
+    dot.setAttribute('fill', 'rgba(255,200,150,0.4)');
+    loom.appendChild(dot);
+  }
+
+  // --- Layers for threads + knots (so threads sit beneath knots) ---
+  const threadLayer = document.createElementNS(SVG, 'g');
+  threadLayer.setAttribute('id', 'threadLayer');
+  const knotLayer = document.createElementNS(SVG, 'g');
+  knotLayer.setAttribute('id', 'knotLayer');
+
+  buildBackdrop();
+  loom.appendChild(threadLayer);
+  loom.appendChild(knotLayer);
+
+  // --- Knots ---
+  function angleToXY(angleRad, radius) {
+    return {
+      x: CENTER + Math.cos(angleRad) * radius,
+      y: CENTER + Math.sin(-angleRad) * radius
+    };
+  }
+
+  function radiusForKnots() {
+    return (INNER_R + OUTER_R) / 2;
+  }
+
+  function makeKnots() {
+    knots = [];
+    threadLayer.innerHTML = '';
+    knotLayer.innerHTML = '';
+    threads = [];
+    const start = Math.random() * Math.PI * 2;
+    for (let i = 0; i < 3; i++) {
+      const ang = start + (i / 3) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const r = radiusForKnots();
+      const p = angleToXY(ang, r);
+      knots.push({ id: i, angle: ang, x: p.x, y: p.y });
+    }
+    drawKnots();
+    setStatus('Three fresh knots placed. Pick a thread, then tap two knots to weave.');
+    updateChartButton();
+  }
+
+  function drawKnots() {
+    knotLayer.innerHTML = '';
+    const labels = ['I', 'II', 'III'];
+    knots.forEach((k, idx) => {
+      const g = document.createElementNS(SVG, 'g');
+      g.setAttribute('class', 'knot');
+      g.setAttribute('data-id', String(k.id));
+      g.setAttribute('transform', `translate(${k.x.toFixed(2)} ${k.y.toFixed(2)})`);
+
+      // outer glow ring
+      const halo = document.createElementNS(SVG, 'circle');
+      halo.setAttribute('r', KNOT_R + 6);
+      halo.setAttribute('fill', 'rgba(255, 200, 150, 0.06)');
+      halo.setAttribute('stroke', 'rgba(255, 200, 150, 0.2)');
+      halo.setAttribute('stroke-width', '1');
+      g.appendChild(halo);
+
+      // gradient body
+      const grad = document.createElementNS(SVG, 'radialGradient');
+      const gid = `kg${idx}-${Date.now()}`;
+      grad.setAttribute('id', gid);
+      grad.setAttribute('cx', '0.4');
+      grad.setAttribute('cy', '0.35');
+      grad.setAttribute('r', '0.7');
+      const s1 = document.createElementNS(SVG, 'stop');
+      s1.setAttribute('offset', '0%');
+      s1.setAttribute('stop-color', '#fff1d8');
+      const s2 = document.createElementNS(SVG, 'stop');
+      s2.setAttribute('offset', '60%');
+      s2.setAttribute('stop-color', '#ffb06d');
+      const s3 = document.createElementNS(SVG, 'stop');
+      s3.setAttribute('offset', '100%');
+      s3.setAttribute('stop-color', '#a04b62');
+      grad.appendChild(s1); grad.appendChild(s2); grad.appendChild(s3);
+      g.appendChild(grad);
+
+      const body = document.createElementNS(SVG, 'circle');
+      body.setAttribute('class', 'knot-body pulse');
+      body.setAttribute('r', KNOT_R);
+      body.setAttribute('fill', `url(#${gid})`);
+      body.setAttribute('stroke', 'rgba(0,0,0,0.25)');
+      body.setAttribute('stroke-width', '1');
+      g.appendChild(body);
+
+      const lbl = document.createElementNS(SVG, 'text');
+      lbl.setAttribute('x', 0);
+      lbl.setAttribute('y', 1);
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('dominant-baseline', 'middle');
+      lbl.setAttribute('font-family', 'inherit');
+      lbl.setAttribute('font-size', '12');
+      lbl.setAttribute('font-weight', '700');
+      lbl.setAttribute('fill', '#2a1320');
+      lbl.textContent = labels[idx];
+      g.appendChild(lbl);
+
+      attachKnotHandlers(g, k);
+      knotLayer.appendChild(g);
+    });
+  }
+
+  // --- Thread weaving ---
+  function pairKey(a, b) {
+    return a < b ? `${a}-${b}` : `${b}-${a}`;
+  }
+
+  function toggleThread(aId, bId) {
+    if (aId === bId) return;
+    const key = pairKey(aId, bId);
+    const existingIdx = threads.findIndex(t => pairKey(t.a, t.b) === key);
+    if (existingIdx >= 0) {
+      const existing = threads[existingIdx];
+      if (existing.kind === activeThread) {
+        threads.splice(existingIdx, 1);
+        setStatus(`Unwove ${existing.kind} between ${roman(aId)} and ${roman(bId)}.`);
+      } else {
+        existing.kind = activeThread;
+        setStatus(`Recolored ${roman(aId)}–${roman(bId)} with ${activeThread}.`);
+      }
+    } else {
+      threads.push({ a: aId, b: bId, kind: activeThread });
+      setStatus(`Wove ${activeThread} between ${roman(aId)} and ${roman(bId)}.`);
+    }
+    drawThreads();
+    updateChartButton();
+  }
+
+  function roman(n) { return ['I', 'II', 'III'][n] || String(n + 1); }
+
+  function drawThreads() {
+    threadLayer.innerHTML = '';
+    threads.forEach((t, idx) => {
+      const a = knots[t.a];
+      const b = knots[t.b];
+      if (!a || !b) return;
+      const cfg = THREADS[t.kind];
+
+      const path = curvedPath(a.x, a.y, b.x, b.y, cfg.wave, t.kind, idx);
+
+      // Build linear gradient for this strand
+      const gid = `tg-${idx}-${Date.now().toString(36)}`;
+      const lg = document.createElementNS(SVG, 'linearGradient');
+      lg.setAttribute('id', gid);
+      lg.setAttribute('x1', a.x); lg.setAttribute('y1', a.y);
+      lg.setAttribute('x2', b.x); lg.setAttribute('y2', b.y);
+      lg.setAttribute('gradientUnits', 'userSpaceOnUse');
+      const s1 = document.createElementNS(SVG, 'stop');
+      s1.setAttribute('offset', '0%');
+      s1.setAttribute('stop-color', cfg.color1);
+      const s2 = document.createElementNS(SVG, 'stop');
+      s2.setAttribute('offset', '100%');
+      s2.setAttribute('stop-color', cfg.color2);
+      lg.appendChild(s1); lg.appendChild(s2);
+      threadLayer.appendChild(lg);
+
+      // Faint shadow strand for depth
+      const shadow = document.createElementNS(SVG, 'path');
+      shadow.setAttribute('class', 'thread');
+      shadow.setAttribute('d', path);
+      shadow.setAttribute('stroke', 'rgba(0,0,0,0.35)');
+      shadow.setAttribute('stroke-width', '7');
+      shadow.setAttribute('transform', 'translate(0.6,1.2)');
+      shadow.setAttribute('opacity', '0.32');
+      threadLayer.appendChild(shadow);
+
+      const main = document.createElementNS(SVG, 'path');
+      main.setAttribute('class', 'thread');
+      main.setAttribute('d', path);
+      main.setAttribute('stroke', `url(#${gid})`);
+      main.setAttribute('stroke-width', '5');
+      threadLayer.appendChild(main);
+
+      // Tiny highlight strand for a woven feel
+      const hi = document.createElementNS(SVG, 'path');
+      hi.setAttribute('class', 'thread');
+      hi.setAttribute('d', curvedPath(a.x, a.y, b.x, b.y, cfg.wave * 1.05, t.kind, idx + 100));
+      hi.setAttribute('stroke', 'rgba(255, 240, 220, 0.45)');
+      hi.setAttribute('stroke-width', '1.2');
+      hi.setAttribute('stroke-dasharray', '2 6');
+      threadLayer.appendChild(hi);
+    });
+  }
+
+  function curvedPath(x1, y1, x2, y2, waveAmp, kind, seed) {
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    // perpendicular unit
+    const px = -dy / len;
+    const py = dx / len;
+    // bend toward center for outer pairs, away for tight pairs
+    const distToCenter = Math.hypot(mx - CENTER, my - CENTER);
+    const dir = distToCenter > 30 ? 1 : -1;
+    // sign blend with hash of kind+seed for variety
+    const h = (hashString(kind + ':' + seed) % 1000) / 1000;
+    const sign = h > 0.5 ? 1 : -1;
+    const amp = len * waveAmp * dir * sign;
+    const cx = mx + px * amp;
+    const cy = my + py * amp;
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${cx.toFixed(2)} ${cy.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  }
+
+  function hashString(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h;
+  }
+
+  // --- Drag handling ---
+  function clientToSVG(clientX, clientY) {
+    const rect = loom.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * VIEW;
+    const y = ((clientY - rect.top) / rect.height) * VIEW;
+    return { x, y };
+  }
+
+  function clampToLoom(x, y) {
+    const dx = x - CENTER;
+    const dy = y - CENTER;
+    const dist = Math.hypot(dx, dy);
+    const minR = INNER_R + KNOT_R - 8;
+    const maxR = OUTER_R - KNOT_R + 4;
+    if (dist < 0.001) return { x: CENTER + minR, y: CENTER };
+    let r = Math.max(minR, Math.min(maxR, dist));
+    return { x: CENTER + (dx / dist) * r, y: CENTER + (dy / dist) * r };
+  }
+
+  function attachKnotHandlers(group, knot) {
+    let dragging = false;
+    let moved = false;
+    let pointerId = null;
+    let startX = 0, startY = 0;
+
+    const start = (e) => {
+      e.preventDefault();
+      dragging = true;
+      moved = false;
+      pointerId = e.pointerId;
+      group.setPointerCapture(pointerId);
+      group.classList.add('is-dragging');
+      const p = clientToSVG(e.clientX, e.clientY);
+      startX = p.x; startY = p.y;
+    };
+
+    const move = (e) => {
+      if (!dragging) return;
+      const p = clientToSVG(e.clientX, e.clientY);
+      const dx = p.x - startX;
+      const dy = p.y - startY;
+      if (Math.hypot(dx, dy) > 3) moved = true;
+      const c = clampToLoom(p.x, p.y);
+      knot.x = c.x; knot.y = c.y;
+      knot.angle = Math.atan2(-(c.y - CENTER), c.x - CENTER);
+      group.setAttribute('transform', `translate(${knot.x.toFixed(2)} ${knot.y.toFixed(2)})`);
+      drawThreads();
+    };
+
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      group.classList.remove('is-dragging');
+      try { group.releasePointerCapture(pointerId); } catch (_) {}
+      if (!moved) {
+        handleKnotTap(knot.id);
+      }
+    };
+
+    group.addEventListener('pointerdown', start);
+    group.addEventListener('pointermove', move);
+    group.addEventListener('pointerup', end);
+    group.addEventListener('pointercancel', end);
+  }
+
+  // Knot tap selection: tap one knot, then another, draws a thread of the active color.
+  let pendingKnot = null;
+  function handleKnotTap(id) {
+    if (pendingKnot === null) {
+      pendingKnot = id;
+      flashKnot(id);
+      setStatus(`Knot ${roman(id)} ready — tap another knot to weave a thread.`);
+    } else if (pendingKnot === id) {
+      pendingKnot = null;
+      setStatus('Selection cleared.');
+    } else {
+      const otherId = pendingKnot;
+      pendingKnot = null;
+      toggleThread(otherId, id);
+    }
+  }
+
+  function flashKnot(id) {
+    const node = knotLayer.querySelector(`.knot[data-id="${id}"] .knot-body`);
+    if (!node) return;
+    node.setAttribute('stroke', 'rgba(255, 240, 220, 0.9)');
+    node.setAttribute('stroke-width', '2');
+    setTimeout(() => {
+      node.setAttribute('stroke', 'rgba(0,0,0,0.25)');
+      node.setAttribute('stroke-width', '1');
+    }, 500);
+  }
+
+  // --- Palette ---
+  palette.addEventListener('click', (e) => {
+    const btn = e.target.closest('.thread-btn');
+    if (!btn) return;
+    palette.querySelectorAll('.thread-btn').forEach(b => {
+      b.classList.toggle('is-active', b === btn);
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+    });
+    activeThread = btn.dataset.thread;
+    setStatus(`Active thread: ${activeThread}.`);
+  });
+
+  // --- Controls ---
+  resetBtn.addEventListener('click', () => {
+    makeKnots();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    threads = [];
+    pendingKnot = null;
+    drawThreads();
+    setStatus('Threads unwoven. Knots stay where you placed them.');
+    updateChartButton();
+  });
+
+  chartBtn.addEventListener('click', () => {
+    if (threads.length === 0) return;
+    openChart();
+  });
+
+  closeBtn.addEventListener('click', () => closeChart());
+  veil.addEventListener('click', (e) => {
+    if (e.target === veil) closeChart();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && veil.classList.contains('is-open')) closeChart();
+  });
+
+  // --- Status / chart enable ---
+  function setStatus(msg) {
+    status.textContent = msg;
+  }
+  function updateChartButton() {
+    chartBtn.disabled = threads.length === 0;
+  }
+
+  // --- Chart generation (deterministic from current state) ---
+  const ADJECTIVES = ['quiet', 'patient', 'unhurried', 'warm', 'careful', 'long', 'soft', 'low', 'open', 'slow'];
+  const NOUNS = ['orchard', 'meadow', 'harbor', 'terrace', 'archive', 'kitchen', 'porch', 'corridor', 'attic', 'reading-room'];
+  const VERBS = ['drift toward', 'walk through', 'pause beside', 'curl around', 'pass under', 'lean into', 'follow', 'thread between'];
+  const NAMES = [
+    'Patient Bend', 'Warm Pass', 'Soft Triangle', 'Low Crossing', 'Honest Knot',
+    'Three-Lamp Walk', 'Quiet Triad', 'Long Yarn', 'Slow Compass', 'Open Loop',
+    'Folded Compass', 'Twin Lanterns', 'Unhurried Hem', 'Careful Tilt', 'Field Spool'
+  ];
+
+  function deterministicShuffle(seed, arr) {
+    let h = seed >>> 0;
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+      const j = h % (i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  function bearingDeg(angleRad) {
+    // angleRad: 0 = east, ccw positive (math convention)
+    // Convert to compass bearing: 0 = N, clockwise
+    let deg = 90 - angleRad * 180 / Math.PI;
+    deg = ((deg % 360) + 360) % 360;
+    return deg;
+  }
+
+  function cardinal8(deg) {
+    const names = ['N','NE','E','SE','S','SW','W','NW'];
+    const idx = Math.round(deg / 45) % 8;
+    return names[idx];
+  }
+
+  function chartState() {
+    // Build a stable summary string of state for hashing
+    const parts = [];
+    knots.forEach(k => {
+      const xr = Math.round(k.x);
+      const yr = Math.round(k.y);
+      parts.push(`k${k.id}:${xr},${yr}`);
+    });
+    threads.slice().sort((a, b) => {
+      const ka = pairKey(a.a, a.b); const kb = pairKey(b.a, b.b);
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    }).forEach(t => {
+      parts.push(`t:${pairKey(t.a, t.b)}:${t.kind}`);
+    });
+    return parts.join('|');
+  }
+
+  function buildItinerary(seed) {
+    const adjs = deterministicShuffle(seed ^ 0xA1, ADJECTIVES);
+    const nouns = deterministicShuffle(seed ^ 0xB2, NOUNS);
+    const verbs = deterministicShuffle(seed ^ 0xC3, VERBS);
+    const adj1 = adjs[0];
+    const noun1 = nouns[0];
+    const verb1 = verbs[0];
+    const noun2 = nouns[1] === noun1 ? nouns[2] : nouns[1];
+    return `A ${adj1} morning: ${verb1} the ${noun1}, then onward to the ${noun2}.`;
+  }
+
+  function buildName(seed) {
+    const names = deterministicShuffle(seed ^ 0x9F, NAMES);
+    return names[0];
+  }
+
+  function openChart() {
+    const summary = chartState();
+    const seed = hashString(summary);
+
+    // Centroid of woven knots
+    const used = new Set();
+    threads.forEach(t => { used.add(t.a); used.add(t.b); });
+    const usedKnots = knots.filter(k => used.has(k.id));
+    const cx = usedKnots.reduce((s, k) => s + k.x, 0) / usedKnots.length;
+    const cy = usedKnots.reduce((s, k) => s + k.y, 0) / usedKnots.length;
+    const ang = Math.atan2(-(cy - CENTER), cx - CENTER);
+    const deg = bearingDeg(ang);
+    const card = cardinal8(deg);
+
+    // Second bearing: longest thread direction
+    let longest = null;
+    let longestLen = 0;
+    threads.forEach(t => {
+      const a = knots[t.a]; const b = knots[t.b];
+      const len = Math.hypot(a.x - b.x, a.y - b.y);
+      if (len > longestLen) {
+        longestLen = len;
+        longest = { a, b };
+      }
+    });
+    let secondaryCard = card;
+    let secondaryDeg = deg;
+    if (longest) {
+      const lang = Math.atan2(-(longest.b.y - longest.a.y), longest.b.x - longest.a.x);
+      secondaryDeg = bearingDeg(lang);
+      secondaryCard = cardinal8(secondaryDeg);
+    }
+
+    const name = buildName(seed);
+    const line = buildItinerary(seed);
+
+    chartNameEl.textContent = name;
+    chartLineEl.textContent = line;
+    chartCardinals.textContent = `${card} · ${secondaryCard}`;
+    chartBearing.textContent = `${Math.round(deg).toString().padStart(3, '0')}°`;
+
+    drawGlyph(seed);
+
+    veil.classList.add('is-open');
+    veil.setAttribute('aria-hidden', 'false');
+    closeBtn.focus({ preventScroll: true });
+  }
+
+  function closeChart() {
+    veil.classList.remove('is-open');
+    veil.setAttribute('aria-hidden', 'true');
+    chartBtn.focus({ preventScroll: true });
+  }
+
+  function drawGlyph(seed) {
+    glyph.innerHTML = '';
+    // miniature replay of loom in the card preview
+    const w = 200; const h = 140;
+    const cx = w / 2; const cy = h / 2;
+    const r = Math.min(w, h) / 2 - 14;
+
+    // soft warm wash
+    const bg = document.createElementNS(SVG, 'circle');
+    bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r + 4);
+    bg.setAttribute('fill', 'rgba(255, 200, 150, 0.05)');
+    bg.setAttribute('stroke', 'rgba(255, 200, 150, 0.18)');
+    glyph.appendChild(bg);
+
+    const ringInner = document.createElementNS(SVG, 'circle');
+    ringInner.setAttribute('cx', cx); ringInner.setAttribute('cy', cy);
+    ringInner.setAttribute('r', r * 0.55);
+    ringInner.setAttribute('fill', 'none');
+    ringInner.setAttribute('stroke', 'rgba(255, 200, 150, 0.16)');
+    glyph.appendChild(ringInner);
+
+    // place knots
+    const mini = knots.map(k => {
+      const ang = Math.atan2(-(k.y - CENTER), k.x - CENTER);
+      const dist = Math.hypot(k.x - CENTER, k.y - CENTER);
+      const t = (dist - INNER_R) / (OUTER_R - INNER_R);
+      const rr = r * 0.55 + (r - r * 0.55) * Math.max(0, Math.min(1, t));
+      return {
+        id: k.id,
+        x: cx + Math.cos(ang) * rr,
+        y: cy + Math.sin(-ang) * rr
+      };
+    });
+
+    // threads
+    threads.forEach((t, idx) => {
+      const a = mini[t.a]; const b = mini[t.b];
+      if (!a || !b) return;
+      const cfg = THREADS[t.kind];
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const dx = b.x - a.x; const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -dy / len; const py = dx / len;
+      const dirToCenter = Math.hypot(mx - cx, my - cy) > 8 ? 1 : -1;
+      const amp = len * cfg.wave * dirToCenter * (((seed >> idx) & 1) ? 1 : -1);
+      const cpx = mx + px * amp;
+      const cpy = my + py * amp;
+
+      const grad = document.createElementNS(SVG, 'linearGradient');
+      const gid = `mg-${idx}`;
+      grad.setAttribute('id', gid);
+      grad.setAttribute('x1', a.x); grad.setAttribute('y1', a.y);
+      grad.setAttribute('x2', b.x); grad.setAttribute('y2', b.y);
+      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+      const s1 = document.createElementNS(SVG, 'stop');
+      s1.setAttribute('offset', '0%'); s1.setAttribute('stop-color', cfg.color1);
+      const s2 = document.createElementNS(SVG, 'stop');
+      s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', cfg.color2);
+      grad.appendChild(s1); grad.appendChild(s2);
+      glyph.appendChild(grad);
+
+      const p = document.createElementNS(SVG, 'path');
+      p.setAttribute('d', `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} Q ${cpx.toFixed(2)} ${cpy.toFixed(2)} ${b.x.toFixed(2)} ${b.y.toFixed(2)}`);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', `url(#${gid})`);
+      p.setAttribute('stroke-width', '2.4');
+      p.setAttribute('stroke-linecap', 'round');
+      glyph.appendChild(p);
+    });
+
+    mini.forEach((m, i) => {
+      const d = document.createElementNS(SVG, 'circle');
+      d.setAttribute('cx', m.x); d.setAttribute('cy', m.y);
+      d.setAttribute('r', 4.5);
+      d.setAttribute('fill', '#ffe1bd');
+      d.setAttribute('stroke', '#a04b62');
+      d.setAttribute('stroke-width', '1');
+      glyph.appendChild(d);
+    });
+  }
+
+  copyBtn.addEventListener('click', async () => {
+    const text = `${chartNameEl.textContent}\n${chartLineEl.textContent}\nbearing ${chartBearing.textContent} · ${chartCardinals.textContent}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy itinerary'; }, 1400);
+    } catch (_) {
+      copyBtn.textContent = 'Copy unsupported';
+      setTimeout(() => { copyBtn.textContent = 'Copy itinerary'; }, 1400);
+    }
+  });
+
+  // --- Boot ---
+  makeKnots();
+})();
+</script>
+</body>
+</html>
