@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1d1220">
+<title>Pocket Rainbell Foundry</title>
+<style>
+  :root {
+    --bg-0: #1a1220;
+    --bg-1: #2b1622;
+    --bg-2: #3a1c20;
+    --ink: #f6e3c8;
+    --ink-dim: #d6ab85;
+    --ink-faint: #8a6650;
+    --warm-1: #ffb06d;
+    --warm-2: #ff8a5a;
+    --warm-3: #f0c267;
+    --warm-4: #e25b6f;
+    --warm-5: #a04b62;
+    --bronze-1: #d6975a;
+    --bronze-2: #a06236;
+    --surface: rgba(255, 230, 200, 0.06);
+    --surface-strong: rgba(255, 230, 200, 0.12);
+    --border: rgba(255, 200, 150, 0.18);
+    --border-strong: rgba(255, 200, 150, 0.4);
+    --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 176, 109, 0.18), transparent 60%),
+      radial-gradient(ellipse 90% 60% at 30% 100%, rgba(226, 91, 111, 0.10), transparent 70%),
+      linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 55%, var(--bg-2) 100%);
+    color: var(--ink);
+    font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    line-height: 1.5;
+    padding: 16px 14px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  header {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    font-size: clamp(1.35rem, 5.5vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  h1 span { color: var(--warm-1); }
+
+  .sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+
+  /* Foundry canvas */
+  .foundry-wrap {
+    width: 100%;
+    max-width: 460px;
+    aspect-ratio: 4 / 5;
+    position: relative;
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at 50% 10%, rgba(255, 200, 150, 0.08), transparent 55%),
+      linear-gradient(180deg, rgba(20, 12, 28, 0.65), rgba(50, 24, 32, 0.55));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .foundry-wrap svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Sliders */
+  .sliders {
+    width: 100%;
+    max-width: 460px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .slider-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 10px 12px 12px;
+    min-height: 64px;
+  }
+
+  .slider-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .slider-row .val {
+    font-size: 12px;
+    color: var(--warm-3);
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 32px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--warm-5), var(--warm-1));
+    border-radius: 999px;
+  }
+  input[type=range]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--warm-5), var(--warm-1));
+    border-radius: 999px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff1d8, #ffb06d 60%, #a04b62);
+    border: 1px solid rgba(0,0,0,0.4);
+    margin-top: -9px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff1d8, #ffb06d 60%, #a04b62);
+    border: 1px solid rgba(0,0,0,0.4);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+
+  /* Controls */
+  .controls {
+    width: 100%;
+    max-width: 460px;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 8px;
+  }
+
+  button.ctrl {
+    min-height: 48px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  button.ctrl:active { transform: scale(0.97); }
+  button.ctrl:hover { border-color: var(--border-strong); }
+  button.ctrl:focus-visible { outline: 2px solid var(--warm-1); outline-offset: 2px; }
+
+  button.ctrl.primary {
+    background: linear-gradient(135deg, var(--warm-1), var(--warm-4));
+    color: #2a1320;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  button.ctrl.primary[disabled] {
+    background: var(--surface);
+    color: var(--ink-faint);
+    cursor: not-allowed;
+    font-weight: 400;
+  }
+
+  /* Status */
+  .status {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    min-height: 1.4em;
+  }
+  .status .accent { color: var(--warm-3); }
+
+  /* Card overlay */
+  .card-veil {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 6, 16, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 10;
+  }
+  .card-veil.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .bell-card {
+    width: 100%;
+    max-width: 360px;
+    background: linear-gradient(160deg, #261628, #3a1d28 60%, #4a2628);
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+    transform: translateY(10px) scale(0.98);
+    transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .card-veil.is-open .bell-card { transform: translateY(0) scale(1); }
+
+  .bell-card h2 {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--warm-3);
+    margin-bottom: 6px;
+  }
+  .bell-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .bell-glyph {
+    width: 100%;
+    height: 130px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 12px;
+    margin: 10px 0 10px;
+    border: 1px solid var(--border);
+  }
+  .bell-glyph svg { width: 100%; height: 100%; display: block; }
+  .palette-strip {
+    width: 100%;
+    height: 20px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid var(--border);
+  }
+  .palette-strip span {
+    flex: 1;
+    height: 100%;
+  }
+  .bell-line {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .bell-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-bottom: 12px;
+  }
+  .bell-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .bell-actions button {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.18s ease;
+  }
+  .bell-actions button:active { background: var(--surface-strong); }
+
+  /* Help footer */
+  .hint {
+    width: 100%;
+    max-width: 460px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  /* SVG bits */
+  .cloud-body {
+    fill: rgba(255, 220, 190, 0.18);
+    stroke: rgba(255, 220, 190, 0.35);
+    stroke-width: 1.2;
+  }
+  .cloud-mouth {
+    fill: rgba(255, 180, 130, 0.25);
+  }
+  .bowl-shell {
+    stroke: rgba(255, 200, 150, 0.5);
+    stroke-width: 1.4;
+  }
+  .bowl-rim {
+    stroke: rgba(255, 230, 200, 0.9);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .bowl-shadow {
+    fill: rgba(0,0,0,0.35);
+  }
+  .bowl-count {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-family: inherit;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    letter-spacing: 0.06em;
+  }
+  .bowl-count.has {
+    fill: var(--warm-3);
+  }
+  .droplet {
+    fill: rgba(255, 220, 180, 0.92);
+    stroke: rgba(255, 240, 220, 0.9);
+    stroke-width: 0.6;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  }
+  .ring-pulse {
+    fill: none;
+    stroke: var(--warm-1);
+    stroke-width: 2;
+    pointer-events: none;
+  }
+  .sky-tap-hint {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    font-family: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+
+  @media (min-width: 540px) {
+    body { padding: 24px 18px 36px; gap: 18px; }
+    .foundry-wrap { max-width: 460px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">May 26 · daily surprise</div>
+  <h1>Pocket <span>Rainbell Foundry</span></h1>
+  <p class="sub">Tap the sky to drop a bead. Five bronze bowls. Cast a quiet bell.</p>
+</header>
+
+<div class="foundry-wrap" id="foundryWrap" aria-label="Rainbell foundry canvas">
+  <svg id="foundry" viewBox="0 0 400 500" role="img" aria-label="A drifting cloud above five bronze bowls"></svg>
+</div>
+
+<div class="sliders">
+  <div class="slider-card">
+    <div class="slider-row"><span>Tempo</span><span class="val" id="tempoVal">drift</span></div>
+    <input type="range" id="tempo" min="0" max="10" step="1" value="4" aria-label="Tempo">
+  </div>
+  <div class="slider-card">
+    <div class="slider-row"><span>Glow</span><span class="val" id="glowVal">amber</span></div>
+    <input type="range" id="glow" min="0" max="10" step="1" value="5" aria-label="Glow">
+  </div>
+</div>
+
+<div class="controls">
+  <button class="ctrl" id="resetBtn" type="button">Empty bowls</button>
+  <button class="ctrl primary" id="castBtn" type="button" disabled>Cast bell</button>
+</div>
+
+<div class="status" id="status">Tap the sky. A bead falls from the cloud's spout into the bowl below.</div>
+
+<div class="hint">five bowls · two dials · one quiet bell</div>
+
+<div class="card-veil" id="veil" aria-hidden="true">
+  <div class="bell-card" role="dialog" aria-modal="true" aria-labelledby="bellName">
+    <h2>Cast bell</h2>
+    <div class="bell-name" id="bellName">—</div>
+    <div class="bell-glyph"><svg id="glyph" viewBox="0 0 200 130" aria-hidden="true"></svg></div>
+    <div class="palette-strip" id="paletteStrip" aria-hidden="true"></div>
+    <p class="bell-line" id="bellLine">—</p>
+    <div class="bell-meta">
+      <span id="bellSig">— · —</span>
+      <span id="bellMass">000 g</span>
+    </div>
+    <div class="bell-actions">
+      <button id="copyBtn" type="button">Copy bell</button>
+      <button id="closeBtn" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SVG = 'http://www.w3.org/2000/svg';
+  const VIEW_W = 400, VIEW_H = 500;
+  const SKY_TOP = 0, SKY_BOTTOM = 320;
+  const BOWL_Y = 410;
+  const N_BOWLS = 5;
+
+  const foundry = document.getElementById('foundry');
+  const wrap = document.getElementById('foundryWrap');
+  const tempoEl = document.getElementById('tempo');
+  const glowEl = document.getElementById('glow');
+  const tempoVal = document.getElementById('tempoVal');
+  const glowVal = document.getElementById('glowVal');
+  const resetBtn = document.getElementById('resetBtn');
+  const castBtn = document.getElementById('castBtn');
+  const statusEl = document.getElementById('status');
+  const veil = document.getElementById('veil');
+  const closeBtn = document.getElementById('closeBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const bellName = document.getElementById('bellName');
+  const bellLine = document.getElementById('bellLine');
+  const bellSig = document.getElementById('bellSig');
+  const bellMass = document.getElementById('bellMass');
+  const paletteStrip = document.getElementById('paletteStrip');
+  const glyph = document.getElementById('glyph');
+
+  // Bowl x positions
+  const bowlXs = [];
+  const margin = 38;
+  const gap = (VIEW_W - 2 * margin) / (N_BOWLS - 1);
+  for (let i = 0; i < N_BOWLS; i++) bowlXs.push(margin + i * gap);
+
+  const TEMPO_LABELS = ['stilled', 'hushed', 'drift', 'drift', 'amble', 'amble', 'pace', 'pace', 'brisk', 'rush', 'rush'];
+  const GLOW_LABELS = ['ash', 'ember-dim', 'rose', 'amber', 'amber', 'honey', 'honey', 'noon-gold', 'noon-gold', 'molten', 'molten'];
+
+  // State
+  let counts = new Array(N_BOWLS).fill(0);
+  let droplets = []; // {x, y, vy, ay, target, born}
+  let pulses = [];   // {x, y, r, born, life}
+  let cloudPhase = Math.random() * Math.PI * 2;
+  let cloudX = VIEW_W / 2;
+  let lastT = performance.now();
+  let totalCaught = 0;
+
+  // Persistent SVG layers
+  const skyLayer = document.createElementNS(SVG, 'g');
+  const cloudLayer = document.createElementNS(SVG, 'g');
+  const dropLayer = document.createElementNS(SVG, 'g');
+  const bowlLayer = document.createElementNS(SVG, 'g');
+  const pulseLayer = document.createElementNS(SVG, 'g');
+
+  // Sky backdrop: faint rain lanes
+  function buildSky() {
+    skyLayer.innerHTML = '';
+    for (let i = 0; i < N_BOWLS; i++) {
+      const x = bowlXs[i];
+      const line = document.createElementNS(SVG, 'line');
+      line.setAttribute('x1', x);
+      line.setAttribute('y1', 100);
+      line.setAttribute('x2', x);
+      line.setAttribute('y2', BOWL_Y - 16);
+      line.setAttribute('stroke', 'rgba(255, 200, 150, 0.06)');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '2 8');
+      skyLayer.appendChild(line);
+    }
+    // sky/ground divider
+    const divider = document.createElementNS(SVG, 'line');
+    divider.setAttribute('x1', 20);
+    divider.setAttribute('x2', VIEW_W - 20);
+    divider.setAttribute('y1', BOWL_Y + 30);
+    divider.setAttribute('y2', BOWL_Y + 30);
+    divider.setAttribute('stroke', 'rgba(255, 200, 150, 0.10)');
+    divider.setAttribute('stroke-width', '0.8');
+    skyLayer.appendChild(divider);
+
+    // hint text
+    const hint = document.createElementNS(SVG, 'text');
+    hint.setAttribute('class', 'sky-tap-hint');
+    hint.setAttribute('x', VIEW_W / 2);
+    hint.setAttribute('y', 30);
+    hint.textContent = 'tap the sky';
+    skyLayer.appendChild(hint);
+  }
+
+  // Cloud (draws once, updates transform)
+  let cloudGroup = null;
+  function buildCloud() {
+    const g = document.createElementNS(SVG, 'g');
+    g.setAttribute('class', 'cloud');
+
+    const body = document.createElementNS(SVG, 'path');
+    body.setAttribute('class', 'cloud-body');
+    body.setAttribute('d', 'M -40 0 Q -56 -18 -32 -22 Q -22 -38 -2 -30 Q 8 -42 28 -32 Q 50 -34 50 -14 Q 60 -2 44 6 Q 28 14 4 10 Q -22 14 -40 6 Z');
+    g.appendChild(body);
+
+    // little mouth/spout (so the user understands where the drop comes from)
+    const mouth = document.createElementNS(SVG, 'circle');
+    mouth.setAttribute('class', 'cloud-mouth');
+    mouth.setAttribute('cx', 0);
+    mouth.setAttribute('cy', 8);
+    mouth.setAttribute('r', 4);
+    g.appendChild(mouth);
+
+    // a hanging tip just below the cloud
+    const tip = document.createElementNS(SVG, 'path');
+    tip.setAttribute('d', 'M -4 10 Q 0 18 4 10 Q 0 14 -4 10 Z');
+    tip.setAttribute('fill', 'rgba(255, 220, 190, 0.35)');
+    g.appendChild(tip);
+
+    cloudGroup = g;
+    cloudLayer.appendChild(g);
+  }
+
+  // Bowls
+  const bowlGroups = [];
+  function buildBowls() {
+    bowlLayer.innerHTML = '';
+    bowlGroups.length = 0;
+    const bowlW = 56;
+    const bowlH = 32;
+
+    for (let i = 0; i < N_BOWLS; i++) {
+      const x = bowlXs[i];
+      const g = document.createElementNS(SVG, 'g');
+      g.setAttribute('data-bowl', String(i));
+      g.setAttribute('transform', `translate(${x.toFixed(2)} ${BOWL_Y})`);
+
+      // base shadow
+      const shadow = document.createElementNS(SVG, 'ellipse');
+      shadow.setAttribute('class', 'bowl-shadow');
+      shadow.setAttribute('cx', 0);
+      shadow.setAttribute('cy', bowlH + 4);
+      shadow.setAttribute('rx', bowlW / 2 + 2);
+      shadow.setAttribute('ry', 3);
+      g.appendChild(shadow);
+
+      // bowl body — half ellipse path
+      const grad = document.createElementNS(SVG, 'linearGradient');
+      const gid = `bowl-${i}`;
+      grad.setAttribute('id', gid);
+      grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+      grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+      const s1 = document.createElementNS(SVG, 'stop');
+      s1.setAttribute('offset', '0%');
+      s1.setAttribute('stop-color', '#7a4a30');
+      const s2 = document.createElementNS(SVG, 'stop');
+      s2.setAttribute('offset', '55%');
+      s2.setAttribute('stop-color', '#b97448');
+      const s3 = document.createElementNS(SVG, 'stop');
+      s3.setAttribute('offset', '100%');
+      s3.setAttribute('stop-color', '#4a2a1a');
+      grad.appendChild(s1); grad.appendChild(s2); grad.appendChild(s3);
+      g.appendChild(grad);
+
+      const body = document.createElementNS(SVG, 'path');
+      body.setAttribute('class', 'bowl-shell');
+      body.setAttribute('fill', `url(#${gid})`);
+      body.setAttribute('d', `M ${-bowlW/2} 0 A ${bowlW/2} ${bowlH} 0 0 0 ${bowlW/2} 0 Z`);
+      g.appendChild(body);
+
+      // rim line (visible bright top)
+      const rim = document.createElementNS(SVG, 'path');
+      rim.setAttribute('class', 'bowl-rim');
+      rim.setAttribute('d', `M ${-bowlW/2} 0 Q 0 -6 ${bowlW/2} 0`);
+      g.appendChild(rim);
+
+      // inner pool (gets visible when bowl has > 0 count)
+      const pool = document.createElementNS(SVG, 'ellipse');
+      pool.setAttribute('class', 'bowl-pool');
+      pool.setAttribute('cx', 0);
+      pool.setAttribute('cy', -1);
+      pool.setAttribute('rx', bowlW / 2 - 4);
+      pool.setAttribute('ry', 3);
+      pool.setAttribute('fill', 'rgba(255, 220, 180, 0)');
+      g.appendChild(pool);
+
+      // count display under the bowl
+      const lbl = document.createElementNS(SVG, 'text');
+      lbl.setAttribute('class', 'bowl-count');
+      lbl.setAttribute('x', 0);
+      lbl.setAttribute('y', bowlH + 18);
+      lbl.textContent = '0';
+      g.appendChild(lbl);
+
+      bowlLayer.appendChild(g);
+      bowlGroups.push({ g, rim, pool, lbl, bodyEl: body });
+    }
+  }
+
+  function refreshBowls() {
+    for (let i = 0; i < N_BOWLS; i++) {
+      const { pool, lbl } = bowlGroups[i];
+      const c = counts[i];
+      lbl.textContent = String(c);
+      lbl.classList.toggle('has', c > 0);
+      const fill = Math.min(c / 6, 1);
+      pool.setAttribute('fill', `rgba(255, 200, 150, ${(0.15 + fill * 0.45).toFixed(2)})`);
+      pool.setAttribute('ry', String(2 + fill * 4));
+    }
+  }
+
+  function buildAll() {
+    foundry.innerHTML = '';
+    foundry.appendChild(skyLayer);
+    foundry.appendChild(cloudLayer);
+    foundry.appendChild(bowlLayer);
+    foundry.appendChild(dropLayer);
+    foundry.appendChild(pulseLayer);
+    buildSky();
+    buildCloud();
+    buildBowls();
+    refreshBowls();
+  }
+
+  buildAll();
+
+  // --- Coordinate helpers ---
+  function clientToSVG(clientX, clientY) {
+    const rect = foundry.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * VIEW_W;
+    const y = ((clientY - rect.top) / rect.height) * VIEW_H;
+    return { x, y };
+  }
+
+  function nearestBowl(x) {
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < N_BOWLS; i++) {
+      const d = Math.abs(bowlXs[i] - x);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  // --- Cloud drift ---
+  function tempoSpeed() {
+    const t = +tempoEl.value;
+    return 0.0007 + (t / 10) * 0.0028; // radians per ms-ish
+  }
+
+  function tickCloud(now, dt) {
+    cloudPhase += tempoSpeed() * dt;
+    const swing = 110;
+    cloudX = VIEW_W / 2 + Math.sin(cloudPhase) * swing;
+    const y = 70 + Math.sin(cloudPhase * 1.7) * 6;
+    cloudGroup.setAttribute('transform', `translate(${cloudX.toFixed(2)} ${y.toFixed(2)})`);
+  }
+
+  // --- Droplet spawn on sky tap ---
+  function spawnDroplet() {
+    const x = cloudX;
+    const y = 90;
+    droplets.push({ x, y, vy: 0.06, ay: 0.00045, born: performance.now() });
+  }
+
+  // --- Pulse on bowl catch ---
+  function spawnPulse(x, y, hue) {
+    pulses.push({ x, y, r: 8, life: 0, born: performance.now(), hue });
+  }
+
+  // --- Main tick ---
+  function tick(now) {
+    const dt = Math.min(now - lastT, 60);
+    lastT = now;
+
+    tickCloud(now, dt);
+
+    // Move droplets
+    dropLayer.innerHTML = '';
+    for (let i = droplets.length - 1; i >= 0; i--) {
+      const d = droplets[i];
+      d.vy += d.ay * dt;
+      d.y += d.vy * dt;
+
+      if (d.y >= BOWL_Y) {
+        // Catch in nearest bowl
+        const idx = nearestBowl(d.x);
+        counts[idx] = Math.min(counts[idx] + 1, 9);
+        totalCaught++;
+        spawnPulse(bowlXs[idx], BOWL_Y - 4);
+        droplets.splice(i, 1);
+        refreshBowls();
+        updateCast();
+        continue;
+      }
+
+      // draw droplet
+      const dropEl = document.createElementNS(SVG, 'path');
+      dropEl.setAttribute('class', 'droplet');
+      const px = d.x.toFixed(2);
+      const py = d.y.toFixed(2);
+      // teardrop shape, pointing down
+      dropEl.setAttribute('d', `M ${px} ${(d.y - 8).toFixed(2)} C ${(d.x - 5).toFixed(2)} ${(d.y - 2).toFixed(2)}, ${(d.x - 5).toFixed(2)} ${(d.y + 4).toFixed(2)}, ${px} ${(d.y + 6).toFixed(2)} C ${(d.x + 5).toFixed(2)} ${(d.y + 4).toFixed(2)}, ${(d.x + 5).toFixed(2)} ${(d.y - 2).toFixed(2)}, ${px} ${(d.y - 8).toFixed(2)} Z`);
+      dropLayer.appendChild(dropEl);
+    }
+
+    // Pulses
+    pulseLayer.innerHTML = '';
+    for (let i = pulses.length - 1; i >= 0; i--) {
+      const p = pulses[i];
+      p.life += dt;
+      const t = p.life / 700;
+      if (t >= 1) {
+        pulses.splice(i, 1);
+        continue;
+      }
+      const r = 6 + t * 36;
+      const op = (1 - t) * 0.75;
+      const ring = document.createElementNS(SVG, 'circle');
+      ring.setAttribute('class', 'ring-pulse');
+      ring.setAttribute('cx', p.x);
+      ring.setAttribute('cy', p.y);
+      ring.setAttribute('r', r.toFixed(2));
+      ring.setAttribute('stroke-opacity', op.toFixed(3));
+      pulseLayer.appendChild(ring);
+    }
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame((t) => { lastT = t; requestAnimationFrame(tick); });
+
+  // --- Tap handling ---
+  wrap.addEventListener('pointerdown', (e) => {
+    const p = clientToSVG(e.clientX, e.clientY);
+    // only if in the sky region
+    if (p.y < SKY_BOTTOM) {
+      spawnDroplet();
+      setStatus(`A bead falls from the cloud.`);
+    }
+  });
+
+  // --- Sliders ---
+  function updateSliderLabels() {
+    const t = +tempoEl.value;
+    const g = +glowEl.value;
+    tempoVal.textContent = TEMPO_LABELS[Math.max(0, Math.min(10, t))];
+    glowVal.textContent = GLOW_LABELS[Math.max(0, Math.min(10, g))];
+    // glow tints the bowls
+    const glowAlpha = 0.05 + (g / 10) * 0.15;
+    bowlGroups.forEach(b => {
+      // soft glow tint on body
+      b.bodyEl.setAttribute('stroke', `rgba(255, ${Math.round(200 + g * 5)}, ${Math.round(140 + g * 4)}, ${(0.4 + g * 0.04).toFixed(2)})`);
+    });
+    // hide card if open (state changed)
+    if (veil.classList.contains('is-open')) closeChart();
+  }
+  tempoEl.addEventListener('input', updateSliderLabels);
+  glowEl.addEventListener('input', updateSliderLabels);
+  updateSliderLabels();
+
+  // --- Reset / cast ---
+  resetBtn.addEventListener('click', () => {
+    counts = new Array(N_BOWLS).fill(0);
+    totalCaught = 0;
+    droplets = [];
+    pulses = [];
+    refreshBowls();
+    updateCast();
+    setStatus('Bowls emptied. The cloud keeps drifting.');
+    if (veil.classList.contains('is-open')) closeChart();
+  });
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function updateCast() {
+    castBtn.disabled = totalCaught < 3;
+  }
+
+  castBtn.addEventListener('click', () => {
+    if (castBtn.disabled) return;
+    openCard();
+  });
+
+  closeBtn.addEventListener('click', () => closeChart());
+  veil.addEventListener('click', (e) => {
+    if (e.target === veil) closeChart();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && veil.classList.contains('is-open')) closeChart();
+  });
+
+  // --- Determinism: build seed from current state ---
+  function hashString(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h;
+  }
+
+  function stateString() {
+    const t = +tempoEl.value, g = +glowEl.value;
+    return `t${t}|g${g}|c${counts.join(',')}`;
+  }
+
+  function deterministicShuffle(seed, arr) {
+    let h = seed >>> 0;
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+      const j = h % (i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  // --- Card builders ---
+  const BELL_ADJ = ['slow', 'patient', 'unhurried', 'low', 'warm', 'honest', 'careful', 'open', 'long', 'quiet'];
+  const BELL_KIND = ['Bell', 'Chime', 'Rainbell', 'Bronze', 'Toll', 'Note', 'Vesper'];
+  const BELL_PLACE = ['at dawn', 'before noon', 'over the orchard', 'across the porch', 'in the kitchen', 'at the threshold', 'over the field', 'beside the kettle', 'along the terrace'];
+  const BELL_LINES = [
+    'A %ADJ% bell. %DESC%',
+    'Cast %ADJ% — %DESC%',
+    '%DESC% A %ADJ% note.',
+    'A bell %ADJ% as a long morning. %DESC%'
+  ];
+
+  function describeCounts() {
+    const positions = ['first', 'second', 'middle', 'fourth', 'last'];
+    const ranked = counts.map((c, i) => ({ c, i })).sort((a, b) => b.c - a.c);
+    const top = ranked[0];
+    if (top.c === 0) return 'No beads pooled.';
+    const tie = ranked.filter(r => r.c === top.c).length > 1;
+    if (tie) {
+      return `${top.c} beads pooled evenly between bowls.`;
+    }
+    const second = ranked[1].c > 0 ? `, ${ranked[1].c} in the ${positions[ranked[1].i]}` : '';
+    return `${top.c} beads in the ${positions[top.i]} bowl${second}.`;
+  }
+
+  function bellNameFrom(seed) {
+    const adj = deterministicShuffle(seed ^ 0xA1, BELL_ADJ)[0];
+    const kind = deterministicShuffle(seed ^ 0xB7, BELL_KIND)[0];
+    const place = deterministicShuffle(seed ^ 0xC9, BELL_PLACE)[0];
+    return `${cap(adj)} ${kind} ${place}`;
+  }
+
+  function bellLineFrom(seed) {
+    const adj = deterministicShuffle(seed ^ 0xE3, BELL_ADJ)[0];
+    const tmpl = deterministicShuffle(seed ^ 0xF1, BELL_LINES)[0];
+    return tmpl.replace('%ADJ%', adj).replace('%DESC%', describeCounts());
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function palette(seed, glow) {
+    // Always warm dawn family — glow shifts toward more saturated/honeyed
+    const warmth = glow / 10;
+    const base = [
+      [255, 176, 109],
+      [255, 138,  90],
+      [240, 194, 103],
+      [226,  91, 111],
+      [160,  75,  98]
+    ];
+    // small deterministic permutation
+    const order = deterministicShuffle(seed ^ 0xD2, [0, 1, 2, 3, 4]);
+    return order.map((idx, k) => {
+      const [r, g, b] = base[idx];
+      const lift = 0.85 + warmth * 0.25;
+      const shade = 0.95 + (k - 2) * 0.04;
+      const rr = Math.min(255, Math.round(r * lift * shade));
+      const gg = Math.min(255, Math.round(g * lift * shade));
+      const bb = Math.min(255, Math.round(b * lift * shade));
+      return `rgb(${rr}, ${gg}, ${bb})`;
+    });
+  }
+
+  function bellMass(seed, counts, tempo, glow) {
+    // tiny deterministic "weight" for the card meta
+    const sum = counts.reduce((s, c) => s + c, 0);
+    const m = 40 + sum * 18 + tempo * 6 + glow * 4 + (seed & 0x1f);
+    return `${m} g`;
+  }
+
+  function bellSignature(counts) {
+    return counts.map(c => Math.min(c, 9)).join('·');
+  }
+
+  function drawGlyph(seed) {
+    glyph.innerHTML = '';
+    const w = 200, h = 130;
+    // baseline
+    const baseY = h - 16;
+
+    // soft band background
+    const bg = document.createElementNS(SVG, 'rect');
+    bg.setAttribute('x', 4); bg.setAttribute('y', 4);
+    bg.setAttribute('width', w - 8); bg.setAttribute('height', h - 8);
+    bg.setAttribute('rx', 8);
+    bg.setAttribute('fill', 'rgba(255, 200, 150, 0.04)');
+    bg.setAttribute('stroke', 'rgba(255, 200, 150, 0.16)');
+    glyph.appendChild(bg);
+
+    // baseline
+    const bl = document.createElementNS(SVG, 'line');
+    bl.setAttribute('x1', 14); bl.setAttribute('x2', w - 14);
+    bl.setAttribute('y1', baseY); bl.setAttribute('y2', baseY);
+    bl.setAttribute('stroke', 'rgba(255, 200, 150, 0.22)');
+    glyph.appendChild(bl);
+
+    // Five little bells whose heights = bowl count, colored by palette
+    const pal = palette(seed, +glowEl.value);
+    const slotW = (w - 32) / 5;
+    const tempo = +tempoEl.value;
+    counts.forEach((c, i) => {
+      const cx = 16 + slotW * (i + 0.5);
+      const maxH = 70;
+      const bellH = c === 0 ? 6 : 12 + (Math.min(c, 7) / 7) * maxH;
+      const bellW = 22 + (Math.min(c, 7) / 7) * 10;
+
+      // little bronze bell silhouette
+      const g = document.createElementNS(SVG, 'g');
+      const top = baseY - bellH;
+      const path = document.createElementNS(SVG, 'path');
+      path.setAttribute('d',
+        `M ${(cx - bellW/2).toFixed(2)} ${baseY} ` +
+        `Q ${(cx - bellW/2).toFixed(2)} ${(top + bellH * 0.15).toFixed(2)} ${cx.toFixed(2)} ${top.toFixed(2)} ` +
+        `Q ${(cx + bellW/2).toFixed(2)} ${(top + bellH * 0.15).toFixed(2)} ${(cx + bellW/2).toFixed(2)} ${baseY} Z`
+      );
+      const fill = pal[i];
+      path.setAttribute('fill', fill);
+      path.setAttribute('stroke', 'rgba(0,0,0,0.3)');
+      path.setAttribute('stroke-width', '0.6');
+      path.setAttribute('opacity', c === 0 ? 0.35 : 0.92);
+      g.appendChild(path);
+
+      // tiny tick on top
+      if (c > 0) {
+        const tick = document.createElementNS(SVG, 'line');
+        tick.setAttribute('x1', cx); tick.setAttribute('x2', cx);
+        tick.setAttribute('y1', top - 4); tick.setAttribute('y2', top - 1);
+        tick.setAttribute('stroke', 'rgba(255, 240, 220, 0.85)');
+        tick.setAttribute('stroke-width', '1.4');
+        tick.setAttribute('stroke-linecap', 'round');
+        g.appendChild(tick);
+      }
+
+      // rhythm dots under baseline — count of dots = c, capped at 5; pattern from tempo+seed
+      if (c > 0) {
+        const dots = Math.min(c, 5);
+        const dotSpacing = bellW / Math.max(1, dots);
+        const offset = ((seed >> (i * 3)) % 3 - 1) * 1.5;
+        for (let k = 0; k < dots; k++) {
+          const dx = cx - bellW/2 + dotSpacing * (k + 0.5) + offset;
+          const dy = baseY + 6;
+          const dot = document.createElementNS(SVG, 'circle');
+          dot.setAttribute('cx', dx.toFixed(2));
+          dot.setAttribute('cy', dy);
+          dot.setAttribute('r', 1.6);
+          dot.setAttribute('fill', fill);
+          dot.setAttribute('opacity', '0.85');
+          g.appendChild(dot);
+        }
+      }
+
+      glyph.appendChild(g);
+    });
+
+    // tempo whisper as a thin curve across the top
+    const amp = 4 + tempo * 0.8;
+    const step = 8;
+    let d = '';
+    for (let x = 16; x <= w - 16; x += step) {
+      const ph = (x / (w - 32)) * Math.PI * 2 + (seed % 32) * 0.1;
+      const y = 18 + Math.sin(ph * (1 + tempo * 0.12)) * amp * 0.4;
+      d += (d ? ' L' : 'M') + ` ${x} ${y.toFixed(2)}`;
+    }
+    const curve = document.createElementNS(SVG, 'path');
+    curve.setAttribute('d', d);
+    curve.setAttribute('fill', 'none');
+    curve.setAttribute('stroke', 'rgba(255, 220, 180, 0.5)');
+    curve.setAttribute('stroke-width', '1');
+    glyph.appendChild(curve);
+  }
+
+  function openCard() {
+    const seed = hashString(stateString());
+    const name = bellNameFrom(seed);
+    const line = bellLineFrom(seed);
+    const tempo = +tempoEl.value;
+    const glow = +glowEl.value;
+    const sigStr = bellSignature(counts);
+    const massStr = bellMass(seed, counts, tempo, glow);
+
+    bellName.textContent = name;
+    bellLine.textContent = line;
+    bellSig.textContent = `${TEMPO_LABELS[tempo]} · ${GLOW_LABELS[glow]}`;
+    bellMass.textContent = `${sigStr} · ${massStr}`;
+
+    // palette strip
+    paletteStrip.innerHTML = '';
+    const pal = palette(seed, glow);
+    pal.forEach(c => {
+      const sp = document.createElement('span');
+      sp.style.background = c;
+      paletteStrip.appendChild(sp);
+    });
+
+    drawGlyph(seed);
+
+    veil.classList.add('is-open');
+    veil.setAttribute('aria-hidden', 'false');
+    closeBtn.focus({ preventScroll: true });
+  }
+
+  function closeChart() {
+    veil.classList.remove('is-open');
+    veil.setAttribute('aria-hidden', 'true');
+    castBtn.focus({ preventScroll: true });
+  }
+
+  copyBtn.addEventListener('click', async () => {
+    const text = `${bellName.textContent}\n${bellLine.textContent}\n${bellSig.textContent} · ${bellMass.textContent}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy bell'; }, 1400);
+    } catch (_) {
+      copyBtn.textContent = 'Copy unsupported';
+      setTimeout(() => { copyBtn.textContent = 'Copy bell'; }, 1400);
+    }
+  });
+
+  // Close card on any state change after open
+  ['change', 'input'].forEach(evt => {
+    tempoEl.addEventListener(evt, () => { if (veil.classList.contains('is-open')) closeChart(); });
+    glowEl.addEventListener(evt, () => { if (veil.classList.contains('is-open')) closeChart(); });
+  });
+})();
+</script>
+</body>
+</html>
