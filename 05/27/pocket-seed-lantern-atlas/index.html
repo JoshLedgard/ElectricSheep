@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0d1322" />
+<title>Pocket Seed Lantern Atlas</title>
+<style>
+  :root {
+    --bg: #0d1322;
+    --bg-2: #141a2c;
+    --ink: #f0e6d0;
+    --ink-dim: #8e8aa3;
+    --line: rgba(240, 230, 200, 0.12);
+    --line-strong: rgba(240, 230, 200, 0.28);
+    --warm: #ffb06d;
+    --warm-2: #ffd07a;
+    --cool: #6ec3d8;
+    --plum: #a48cc0;
+    --leaf: #88c08e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 14px 28px;
+    gap: 14px;
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  header {
+    width: 100%;
+    text-align: center;
+    padding-top: 4px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(20px, 5.6vw, 24px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--warm-2);
+  }
+  .tagline {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+
+  /* Garden canvas */
+  .garden-wrap {
+    width: 100%;
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: linear-gradient(170deg, #0f1729 0%, #1a1730 60%, #2a1b2c 100%);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 32px rgba(0,0,0,0.3);
+    aspect-ratio: 1 / 1;
+    max-width: 100%;
+    touch-action: none;
+  }
+  #garden {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(240,230,200,0.55);
+    pointer-events: none;
+    background: rgba(0,0,0,0.25);
+    padding: 6px 10px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: opacity 0.6s;
+  }
+  .hint.hidden { opacity: 0; }
+  .counter {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(240,230,200,0.6);
+    background: rgba(0,0,0,0.28);
+    padding: 5px 9px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* Controls */
+  .panel {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .value {
+    font-size: 12px;
+    color: var(--warm-2);
+    letter-spacing: 0.05em;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 44px;
+    background: transparent;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, var(--cool), var(--warm));
+    border-radius: 999px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(to right, var(--cool), var(--warm));
+    border-radius: 999px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line-strong), 0 2px 6px rgba(0,0,0,0.4);
+    margin-top: -11px;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 3px solid var(--bg);
+    cursor: pointer;
+  }
+
+  .seasons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .season {
+    min-height: 48px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    padding: 4px;
+  }
+  .season .gly {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .season .nm {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .season[aria-pressed="true"] {
+    background: rgba(255, 176, 109, 0.08);
+    border-color: var(--warm);
+    color: var(--warm-2);
+  }
+  .season[aria-pressed="true"] .nm { color: var(--warm-2); }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  button.btn {
+    min-height: 48px;
+    border-radius: 10px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  }
+  button.btn:active { transform: translateY(1px); }
+  button.btn.primary {
+    background: linear-gradient(180deg, var(--warm-2), var(--warm));
+    color: #2a1a08;
+    border-color: transparent;
+    font-weight: 600;
+  }
+  button.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Card */
+  .card {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, #19132a, #100a1c);
+    padding: 16px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .card.visible { display: flex; animation: rise 0.5s ease-out both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--warm-2);
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+  }
+  .card-meta {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+  .glyph-wrap {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+    padding: 6px;
+  }
+  .glyph-wrap svg { display: block; width: 100%; height: 100%; }
+  .palette {
+    display: flex;
+    height: 18px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .palette span { flex: 1; }
+  .field-note {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    font-style: italic;
+  }
+  .stamp {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    text-align: right;
+  }
+
+  footer {
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-align: center;
+    letter-spacing: 0.04em;
+    padding-top: 4px;
+  }
+
+  @media (min-width: 420px) {
+    body { gap: 18px; padding: 20px 18px 32px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Daily Surprise · 2026-05-27</div>
+    <h1>Pocket Seed Lantern Atlas</h1>
+    <div class="tagline">Plant glowing seeds. Let wind drift them. Mint a calm map.</div>
+  </header>
+
+  <div class="garden-wrap" id="gardenWrap" aria-label="Tap the garden to plant seed lanterns">
+    <span class="counter" id="counter">0 seeds</span>
+    <canvas id="garden" width="600" height="600"></canvas>
+    <span class="hint" id="hint">Tap the garden to plant</span>
+  </div>
+
+  <section class="panel" aria-label="Controls">
+    <div class="row">
+      <div class="row-head">
+        <span class="label">Wind</span>
+        <span class="value" id="windVal">East · gentle</span>
+      </div>
+      <input type="range" id="wind" min="-100" max="100" step="1" value="20" aria-label="Wind direction and strength" />
+    </div>
+
+    <div class="row">
+      <span class="label">Season</span>
+      <div class="seasons" role="group" aria-label="Season">
+        <button class="season" data-season="spring" aria-pressed="false"><span class="gly">🌱</span><span class="nm">Spring</span></button>
+        <button class="season" data-season="summer" aria-pressed="false"><span class="gly">☀️</span><span class="nm">Summer</span></button>
+        <button class="season" data-season="dusk" aria-pressed="true"><span class="gly">🌒</span><span class="nm">Dusk</span></button>
+        <button class="season" data-season="winter" aria-pressed="false"><span class="gly">❄︎</span><span class="nm">Winter</span></button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+      <button class="btn primary" id="drawBtn" type="button" disabled>Draw atlas</button>
+    </div>
+  </section>
+
+  <article class="card" id="card" aria-live="polite">
+    <div class="card-head">
+      <div>
+        <div class="card-title" id="cardTitle"></div>
+        <div class="card-meta" id="cardMeta"></div>
+      </div>
+      <div class="glyph-wrap"><svg id="cardGlyph" viewBox="0 0 64 64" aria-hidden="true"></svg></div>
+    </div>
+    <div class="palette" id="cardPalette" aria-hidden="true"></div>
+    <p class="field-note" id="cardNote"></p>
+    <div class="stamp" id="cardStamp"></div>
+  </article>
+
+  <footer>Pocket Seed Lantern Atlas — calm pocket cartography</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Deterministic hash & RNG ----------
+  function hashStr(s) {
+    var h = 2166136261 >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    var t = seed >>> 0;
+    return function () {
+      t = (t + 0x6D2B79F5) >>> 0;
+      var r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- Season palettes ----------
+  var PALETTES = {
+    spring: {
+      sky: ["#1a2438", "#243a4a", "#3d5868"],
+      bg: ["#19233a", "#243a48"],
+      lantern: ["#fff2c0", "#ffd07a", "#ffb06d", "#f59c87"],
+      ground: "#88c08e",
+      label: "Spring"
+    },
+    summer: {
+      sky: ["#22152e", "#3a1f3a", "#5a2a3a"],
+      bg: ["#231432", "#3a1f3a"],
+      lantern: ["#fff7d2", "#ffc56a", "#ff7e57", "#e6b04a"],
+      ground: "#d49558",
+      label: "Summer"
+    },
+    dusk: {
+      sky: ["#0f1729", "#1a1730", "#2a1b2c"],
+      bg: ["#0f1729", "#2a1b2c"],
+      lantern: ["#fff0c6", "#ffd07a", "#ffb06d", "#a48cc0"],
+      ground: "#5e4d72",
+      label: "Dusk"
+    },
+    winter: {
+      sky: ["#0c1422", "#16243a", "#2a3a55"],
+      bg: ["#10182a", "#1c2a44"],
+      lantern: ["#eaf6ff", "#bfd8e8", "#a8c6dc", "#6ec3d8"],
+      ground: "#7da0b5",
+      label: "Winter"
+    }
+  };
+
+  // ---------- Atlas name parts ----------
+  var ATLAS_FIRST = [
+    "Atlas", "Field Notes", "Almanac", "Cartulary", "Notebook",
+    "Survey", "Folio", "Ledger", "Compendium", "Sketchbook"
+  ];
+  var ATLAS_OF = [
+    "Quiet Meadows", "Lantern Hollows", "Soft Drifts", "Glow Pastures",
+    "Slow Beacons", "Patient Embers", "Folded Hills", "Mira Plains",
+    "Hush Gardens", "Linden Tracts", "Marrow Vales", "Willowlight",
+    "Sable Verges", "Lambent Reach", "Tinder Commons", "Halcyon Acres",
+    "Resin Coves", "Cinder Orchards", "Moss Capitals", "Wick Lakelands"
+  ];
+  var NOTES = [
+    "A small map remembers what the wind passed over.",
+    "Every lantern is a paused breath the garden kept.",
+    "The hills here are mostly listening.",
+    "Soft weather, soft borders, soft hours.",
+    "Even the longest road would rest in this field.",
+    "The seeds learned the wind before the wind learned them.",
+    "A quiet country, kindly mapped.",
+    "These embers will outlast the rumor of dark.",
+    "Slow lanterns mark a slow promise.",
+    "The atlas closes warmer than it opened.",
+    "Light gathers where attention has been.",
+    "A pocketful of evenings, neatly catalogued.",
+    "Drift was always the first survey instrument.",
+    "Every glow is a small yes to the field.",
+    "The map keeps the kindness of its makers."
+  ];
+
+  // ---------- State ----------
+  var canvas = document.getElementById("garden");
+  var ctx = canvas.getContext("2d");
+  var wrap = document.getElementById("gardenWrap");
+  var hint = document.getElementById("hint");
+  var counter = document.getElementById("counter");
+  var windInput = document.getElementById("wind");
+  var windVal = document.getElementById("windVal");
+  var drawBtn = document.getElementById("drawBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var seasonBtns = Array.prototype.slice.call(document.querySelectorAll(".season"));
+  var card = document.getElementById("card");
+  var cardTitle = document.getElementById("cardTitle");
+  var cardMeta = document.getElementById("cardMeta");
+  var cardGlyph = document.getElementById("cardGlyph");
+  var cardPalette = document.getElementById("cardPalette");
+  var cardNote = document.getElementById("cardNote");
+  var cardStamp = document.getElementById("cardStamp");
+
+  var seeds = []; // {x,y,r,phase,hue}
+  var season = "dusk";
+  var wind = 20; // -100 .. 100, signed strength
+  var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+
+  // ---------- Canvas sizing ----------
+  function fitCanvas() {
+    var rect = wrap.getBoundingClientRect();
+    var w = Math.max(280, Math.floor(rect.width));
+    var h = Math.max(280, Math.floor(rect.height));
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+  }
+
+  // ---------- Drawing ----------
+  function drawBackdrop(now) {
+    var w = canvas.width, h = canvas.height;
+    var pal = PALETTES[season];
+
+    // sky gradient
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, pal.sky[0]);
+    grad.addColorStop(0.55, pal.sky[1]);
+    grad.addColorStop(1, pal.sky[2]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // soft stars / motes
+    var motes = 50;
+    var rng = mulberry32(hashStr(season) ^ 0x9e3779b9);
+    for (var i = 0; i < motes; i++) {
+      var x = rng() * w;
+      var y = rng() * h * 0.85;
+      var a = 0.06 + rng() * 0.14;
+      var s = (0.6 + rng() * 1.3) * dpr;
+      ctx.fillStyle = "rgba(255,240,200," + a.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(x, y, s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // distant rolling hills
+    drawHills(w, h, pal);
+
+    // ground
+    var g2 = ctx.createLinearGradient(0, h * 0.78, 0, h);
+    g2.addColorStop(0, "rgba(0,0,0,0)");
+    g2.addColorStop(1, "rgba(0,0,0,0.32)");
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, h * 0.78, w, h * 0.22);
+
+    // grid (atlas feel) — very subtle
+    ctx.strokeStyle = "rgba(255,240,200,0.05)";
+    ctx.lineWidth = 1 * dpr;
+    var step = w / 8;
+    for (var gx = step; gx < w; gx += step) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+    }
+    var stepY = h / 8;
+    for (var gy = stepY; gy < h; gy += stepY) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    }
+  }
+
+  function drawHills(w, h, pal) {
+    var layers = [
+      { y: 0.62, amp: 0.045, color: "rgba(0,0,0,0.18)" },
+      { y: 0.72, amp: 0.035, color: "rgba(0,0,0,0.28)" },
+      { y: 0.82, amp: 0.025, color: "rgba(0,0,0,0.42)" }
+    ];
+    for (var l = 0; l < layers.length; l++) {
+      var ly = layers[l];
+      ctx.fillStyle = ly.color;
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      ctx.lineTo(0, h * ly.y);
+      var phase = l * 1.7 + hashStr(season) % 100 / 30;
+      for (var x = 0; x <= w; x += 8 * dpr) {
+        var t = x / w * Math.PI * 2.2;
+        var y = h * ly.y + Math.sin(t + phase) * h * ly.amp + Math.cos(t * 1.7 + phase) * h * ly.amp * 0.5;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawLanterns(now) {
+    var w = canvas.width, h = canvas.height;
+    var pal = PALETTES[season];
+    var windNorm = wind / 100; // -1..1
+    var driftX = windNorm * 0.18 * w; // max horizontal drift
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    for (var i = 0; i < seeds.length; i++) {
+      var s = seeds[i];
+      var phase = (now / 1000 + s.phase) % 1000;
+      var sway = Math.sin(phase * 1.4) * 4 * dpr + Math.cos(phase * 0.7) * 2 * dpr;
+      var drift = driftX * (0.4 + 0.6 * Math.sin(phase * 0.6 + s.phase));
+      var pulse = 0.85 + Math.sin(phase * 2.1 + s.phase) * 0.15;
+
+      var cx = s.x + drift;
+      var cy = s.y + sway;
+      var color = pal.lantern[s.hueIdx % pal.lantern.length];
+      var r = s.r * pulse;
+
+      // halo
+      var halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 6);
+      halo.addColorStop(0, hexA(color, 0.55));
+      halo.addColorStop(0.35, hexA(color, 0.18));
+      halo.addColorStop(1, hexA(color, 0));
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // bright core
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // tiny inner spark
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.2, cy - r * 0.2, r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // gentle wind trail glyphs at top
+    if (Math.abs(windNorm) > 0.08) {
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = "rgba(255,240,200,1)";
+      ctx.lineWidth = 1.2 * dpr;
+      for (var k = 0; k < 4; k++) {
+        var ty = (h * 0.08) + k * 8 * dpr;
+        var t0 = (now / 18 + k * 80) % w;
+        var dir = windNorm >= 0 ? 1 : -1;
+        var x0 = windNorm >= 0 ? t0 : w - t0;
+        ctx.beginPath();
+        ctx.moveTo(x0, ty);
+        ctx.lineTo(x0 + 30 * dpr * dir, ty + (k % 2 ? 2 : -2) * dpr);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function hexA(hex, a) {
+    // hex like "#rrggbb"
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+
+  // ---------- Render loop ----------
+  var rafId = 0;
+  function tick(now) {
+    drawBackdrop(now);
+    drawLanterns(now);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ---------- Interactions ----------
+  function planted() {
+    counter.textContent = seeds.length + " seed" + (seeds.length === 1 ? "" : "s");
+    drawBtn.disabled = seeds.length === 0;
+    if (seeds.length >= 1) {
+      hint.classList.add("hidden");
+    } else {
+      hint.classList.remove("hidden");
+    }
+  }
+
+  function clampSeed(x, y) {
+    var w = canvas.width, h = canvas.height;
+    var pad = 14 * dpr;
+    return {
+      x: Math.max(pad, Math.min(w - pad, x)),
+      y: Math.max(pad, Math.min(h - pad, y))
+    };
+  }
+
+  function plantSeedAt(clientX, clientY) {
+    if (seeds.length >= 80) return; // cap for fps
+    var rect = canvas.getBoundingClientRect();
+    var x = (clientX - rect.left) * (canvas.width / rect.width);
+    var y = (clientY - rect.top) * (canvas.height / rect.height);
+    var c = clampSeed(x, y);
+    var rng = mulberry32(hashStr(season + "|" + seeds.length + "|" + Math.floor(x) + "x" + Math.floor(y)));
+    seeds.push({
+      x: c.x,
+      y: c.y,
+      r: (4 + rng() * 3) * dpr,
+      phase: rng() * 10,
+      hueIdx: Math.floor(rng() * 4)
+    });
+    // light haptic on supported devices
+    if (window.navigator && navigator.vibrate) {
+      try { navigator.vibrate(8); } catch (e) {}
+    }
+    planted();
+    hideCard();
+  }
+
+  // Pointer events with fallback to touch + mouse
+  var pressing = false;
+  var lastPlantAt = 0;
+  function onDown(e) {
+    var p = pointer(e);
+    if (!p) return;
+    pressing = true;
+    lastPlantAt = 0;
+    plantSeedAt(p.x, p.y);
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!pressing) return;
+    var p = pointer(e);
+    if (!p) return;
+    var now = performance.now();
+    if (now - lastPlantAt < 120) return;
+    lastPlantAt = now;
+    plantSeedAt(p.x, p.y);
+    e.preventDefault();
+  }
+  function onUp() { pressing = false; }
+  function pointer(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  if (window.PointerEvent) {
+    wrap.addEventListener("pointerdown", onDown);
+    wrap.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  } else {
+    wrap.addEventListener("touchstart", onDown, { passive: false });
+    wrap.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    wrap.addEventListener("mousedown", onDown);
+    wrap.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // Wind
+  function windLabel(v) {
+    var abs = Math.abs(v);
+    var dir = v === 0 ? "Still" : (v > 0 ? "East" : "West");
+    var strength;
+    if (abs < 12) strength = "still";
+    else if (abs < 35) strength = "gentle";
+    else if (abs < 65) strength = "steady";
+    else if (abs < 88) strength = "lively";
+    else strength = "brisk";
+    return v === 0 ? "Still" : dir + " · " + strength;
+  }
+  windInput.addEventListener("input", function () {
+    wind = parseInt(windInput.value, 10) || 0;
+    windVal.textContent = windLabel(wind);
+    hideCard();
+  });
+
+  // Season
+  seasonBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      seasonBtns.forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+      btn.setAttribute("aria-pressed", "true");
+      season = btn.getAttribute("data-season");
+      hideCard();
+    });
+  });
+
+  // Reset
+  resetBtn.addEventListener("click", function () {
+    seeds = [];
+    planted();
+    hideCard();
+  });
+
+  // ---------- Atlas card ----------
+  function hideCard() {
+    card.classList.remove("visible");
+  }
+
+  function buildSignature() {
+    var parts = [season, wind.toString()];
+    for (var i = 0; i < seeds.length; i++) {
+      var s = seeds[i];
+      parts.push(Math.round(s.x / dpr) + "," + Math.round(s.y / dpr) + "," + s.hueIdx);
+    }
+    return parts.join("|");
+  }
+
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+  function buildGlyph(rng, pal) {
+    // 8x8 grid of dots; place lanterns by mapping seed positions, plus a small route line.
+    var size = 64;
+    var cell = size / 8;
+    var dots = [];
+    for (var i = 0; i < seeds.length; i++) {
+      var s = seeds[i];
+      var gx = Math.max(0, Math.min(7, Math.floor((s.x / canvas.width) * 8)));
+      var gy = Math.max(0, Math.min(7, Math.floor((s.y / canvas.height) * 8)));
+      dots.push({ gx: gx, gy: gy, hue: pal.lantern[s.hueIdx % pal.lantern.length] });
+    }
+
+    var bg = pal.bg[1];
+    var bg2 = pal.bg[0];
+    var svg = '<rect x="0" y="0" width="64" height="64" rx="6" ry="6" fill="' + bg2 + '"/>';
+    // soft horizon
+    svg += '<rect x="0" y="40" width="64" height="24" fill="' + bg + '" opacity="0.6"/>';
+    // micro grid
+    for (var g = 1; g < 8; g++) {
+      svg += '<line x1="' + (g * cell) + '" y1="0" x2="' + (g * cell) + '" y2="64" stroke="rgba(255,240,200,0.06)" stroke-width="0.5"/>';
+      svg += '<line x1="0" y1="' + (g * cell) + '" x2="64" y2="' + (g * cell) + '" stroke="rgba(255,240,200,0.06)" stroke-width="0.5"/>';
+    }
+
+    // route — connect dots in order
+    if (dots.length > 1) {
+      var d = "M " + (dots[0].gx * cell + cell / 2) + " " + (dots[0].gy * cell + cell / 2);
+      for (var k = 1; k < dots.length; k++) {
+        d += " L " + (dots[k].gx * cell + cell / 2) + " " + (dots[k].gy * cell + cell / 2);
+      }
+      svg += '<path d="' + d + '" fill="none" stroke="rgba(255,240,200,0.35)" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+
+    // lanterns
+    for (var j = 0; j < dots.length; j++) {
+      var dx = dots[j].gx * cell + cell / 2;
+      var dy = dots[j].gy * cell + cell / 2;
+      svg += '<circle cx="' + dx + '" cy="' + dy + '" r="3.6" fill="' + dots[j].hue + '" opacity="0.28"/>';
+      svg += '<circle cx="' + dx + '" cy="' + dy + '" r="1.6" fill="' + dots[j].hue + '"/>';
+    }
+
+    // compass tick (wind direction)
+    var arrowSign = wind === 0 ? 0 : (wind > 0 ? 1 : -1);
+    if (arrowSign !== 0) {
+      var ax = 8, ay = 8;
+      var bx = ax + arrowSign * 10;
+      svg += '<line x1="' + ax + '" y1="' + ay + '" x2="' + bx + '" y2="' + ay + '" stroke="' + pal.lantern[1] + '" stroke-width="1.4" stroke-linecap="round"/>';
+      svg += '<polygon points="' + bx + ',' + (ay - 2.4) + ' ' + (bx + arrowSign * 3) + ',' + ay + ' ' + bx + ',' + (ay + 2.4) + '" fill="' + pal.lantern[1] + '"/>';
+    }
+
+    return svg;
+  }
+
+  function buildCard() {
+    if (seeds.length === 0) return;
+    var sig = buildSignature();
+    var seed = hashStr(sig);
+    var rng = mulberry32(seed);
+
+    var pal = PALETTES[season];
+
+    // atlas name
+    var first = pick(rng, ATLAS_FIRST);
+    var of = pick(rng, ATLAS_OF);
+    var title = first + " of " + of;
+
+    // note
+    var note = pick(rng, NOTES);
+
+    // palette strip — 5 swatches from season palette plus a tinted ground
+    var paletteColors = [pal.sky[0], pal.sky[2], pal.lantern[3], pal.lantern[1], pal.lantern[0]];
+    cardPalette.innerHTML = "";
+    paletteColors.forEach(function (c) {
+      var sp = document.createElement("span");
+      sp.style.background = c;
+      cardPalette.appendChild(sp);
+    });
+
+    // glyph
+    cardGlyph.innerHTML = buildGlyph(mulberry32(seed ^ 0xabcd1234), pal);
+
+    cardTitle.textContent = title;
+    cardMeta.textContent = pal.label + " · " + windLabel(wind) + " · " + seeds.length + " lantern" + (seeds.length === 1 ? "" : "s");
+    cardNote.textContent = "“" + note + "”";
+    var code = (seed >>> 0).toString(36).slice(0, 6).toUpperCase();
+    cardStamp.textContent = "Atlas №" + code + " · 2026-05-27";
+    card.classList.add("visible");
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  drawBtn.addEventListener("click", buildCard);
+
+  // ---------- Init ----------
+  function init() {
+    fitCanvas();
+    windVal.textContent = windLabel(wind);
+    planted();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+  init();
+
+  var resizeTimer = 0;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      // remap seeds proportionally
+      var oldW = canvas.width, oldH = canvas.height;
+      fitCanvas();
+      var nw = canvas.width, nh = canvas.height;
+      if (oldW && oldH) {
+        seeds.forEach(function (s) {
+          s.x = s.x / oldW * nw;
+          s.y = s.y / oldH * nh;
+          s.r = s.r / (dpr || 1) * dpr;
+        });
+      }
+    }, 120);
+  });
+})();
+</script>
+</body>
+</html>
