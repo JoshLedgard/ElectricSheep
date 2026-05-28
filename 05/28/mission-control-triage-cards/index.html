@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mission Control Triage Cards</title>
+<style>
+  :root{--bg:#080b13;--panel:#111827;--panel2:#172033;--ink:#f3f7fb;--muted:#9fb0c6;--line:#26344d;--cyan:#63e6ff;--mint:#7cffb2;--amber:#ffd166;--rose:#ff7aa2;--violet:#a78bfa;--shadow:0 22px 60px rgba(0,0,0,.32)}
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -12%,#1a2946 0,#080b13 48%,#05070c 100%);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif} body{overflow-x:hidden}.wrap{width:min(980px,100%);margin:0 auto;padding:18px 14px 34px}.hero{padding:22px 4px 14px}.eyebrow{color:var(--cyan);font-size:12px;text-transform:uppercase;letter-spacing:.2em;font-weight:800}.hero h1{font-size:clamp(31px,9vw,58px);line-height:.94;margin:10px 0 12px;letter-spacing:-.055em}.hero p{margin:0;color:var(--muted);font-size:16px;line-height:1.55;max-width:680px}.board{display:grid;grid-template-columns:1fr;gap:14px}.panel{background:linear-gradient(180deg,rgba(23,32,51,.96),rgba(14,20,33,.96));border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:14px}.panel h2{font-size:15px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.14em;color:#cfe5ff}.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.chip,button{min-height:46px;border:1px solid #32425f;border-radius:15px;background:#121c2e;color:var(--ink);font-weight:800;font-size:14px;padding:11px 12px;cursor:pointer;touch-action:manipulation}.chip:active,button:active{transform:translateY(1px)}.chip.on{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(99,230,255,.16) inset;background:#12283a}.add{display:flex;gap:8px;margin-top:12px}.add input{min-width:0;flex:1;border:1px solid #33425f;border-radius:15px;background:#0b1220;color:var(--ink);min-height:46px;padding:0 13px;font-size:16px}.cards{display:grid;gap:11px}.card{border:1px solid #31405d;border-radius:20px;background:rgba(8,13,24,.78);padding:12px}.cardTop{display:flex;align-items:center;gap:9px;margin-bottom:10px}.dot{width:13px;height:13px;border-radius:50%;background:var(--cyan);box-shadow:0 0 20px currentColor}.name{font-weight:900;flex:1}.remove{min-width:44px;min-height:44px;padding:0;border-radius:13px;color:#ffc7d6;background:#251320;border-color:#513042}.sliders{display:grid;gap:9px}.row{display:grid;grid-template-columns:76px 1fr 30px;gap:8px;align-items:center;color:var(--muted);font-size:13px;font-weight:700}.row input{width:100%;accent-color:var(--cyan)}.score{font-variant-numeric:tabular-nums;color:#fff;text-align:right}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.primary{background:linear-gradient(135deg,#1aa4c8,#7763ff);border-color:#72e5ff;color:white}.ghost{background:#111827}.results{display:none}.results.show{display:block}.lane{border:1px solid #344564;background:#0c1423;border-radius:18px;padding:12px;margin-top:10px}.laneHead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.laneTitle{font-weight:950}.badge{font-size:11px;text-transform:uppercase;letter-spacing:.12em;border-radius:999px;border:1px solid #455979;padding:4px 8px;color:#cfe5ff;white-space:nowrap}.item{padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}.item:first-of-type{border-top:0}.item strong{display:flex;justify-content:space-between;gap:10px}.why{color:var(--muted);font-size:13px;line-height:1.45;margin-top:5px}.meter{height:9px;background:#0b1020;border-radius:99px;overflow:hidden;margin-top:8px}.bar{height:100%;width:40%;background:linear-gradient(90deg,var(--mint),var(--cyan),var(--violet))}.empty{color:var(--muted);font-size:14px;padding:12px}.footer{color:#697993;font-size:12px;line-height:1.45;margin-top:18px;text-align:center}@media (min-width:820px){.board{grid-template-columns:390px 1fr}.panel{padding:18px}.chips{grid-template-columns:1fr}.results{position:sticky;top:12px}.wrap{padding-top:28px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Daily Surprise · May 28, 2026</div>
+    <h1>Mission Control<br>Triage Cards</h1>
+    <p>A tiny Scoob-style decision board: pick the work in play, score impact, certainty, and friction, then sort the queue into do now, automate, park, or probe.</p>
+  </section>
+  <section class="board">
+    <div class="panel">
+      <h2>1 · Load the queue</h2>
+      <div class="chips" id="chips"></div>
+      <div class="add"><input id="custom" maxlength="32" placeholder="Add a quick card…"><button id="addBtn">Add</button></div>
+      <h2 style="margin-top:18px">2 · Tune the cards</h2>
+      <div class="cards" id="cards"></div>
+      <div class="actions"><button class="primary" id="sortBtn">Sort the queue</button><button class="ghost" id="resetBtn">Reset sample</button></div>
+    </div>
+    <div class="panel results show" id="results">
+      <h2>3 · Morning action plan</h2>
+      <div id="out"></div>
+    </div>
+  </section>
+  <p class="footer">Runs fully offline in this page. The scoring is intentionally simple: impact plus certainty minus friction, with routing rules that favor tiny reliable wins and quick probes for uncertain work.</p>
+</main>
+<script>
+const presets=[
+ {name:'Tiny Win',impact:6,certainty:8,friction:2,color:'#7cffb2'},
+ {name:'Customer Ask',impact:8,certainty:6,friction:5,color:'#63e6ff'},
+ {name:'Risky Change',impact:7,certainty:3,friction:8,color:'#ff7aa2'},
+ {name:'Research Bet',impact:6,certainty:3,friction:4,color:'#a78bfa'},
+ {name:'Bug Fix',impact:7,certainty:7,friction:4,color:'#ffd166'}
+];
+let cards=JSON.parse(JSON.stringify(presets));
+const chips=document.getElementById('chips'), list=document.getElementById('cards'), out=document.getElementById('out');
+function clamp(n){return Math.max(1,Math.min(10,Number(n)||1))}
+function score(c){return Math.round((c.impact*1.35+c.certainty*1.1-c.friction*.9)*10)/10}
+function route(c){const s=score(c); if(c.impact>=7&&c.certainty>=6&&c.friction<=6)return ['Do Now','High value with enough confidence to move.']; if(c.certainty>=7&&c.friction<=4)return ['Delegate / Automate','Clear enough to systematize or hand off.']; if(c.impact>=6&&c.certainty<=4)return ['Probe','Worth a small experiment before committing.']; if(s<7||c.friction>=8)return ['Park','Too much drag for the current return.']; return ['Do Now','Balanced enough to advance in a focused block.']}
+function renderChips(){chips.innerHTML=''; presets.forEach(p=>{const b=document.createElement('button');b.className='chip '+(cards.some(c=>c.name===p.name)?'on':'');b.textContent=p.name;b.onclick=()=>{cards.some(c=>c.name===p.name)?cards=cards.filter(c=>c.name!==p.name):cards.push({...p});render()};chips.appendChild(b)})}
+function slider(c,k,label){return `<label class="row"><span>${label}</span><input type="range" min="1" max="10" value="${c[k]}" data-id="${c.id}" data-k="${k}"><span class="score">${c[k]}</span></label>`}
+function renderCards(){cards.forEach((c,i)=>c.id=c.id||String(Date.now()+i+Math.random())); list.innerHTML=cards.length?'':'<div class="empty">Add a card to begin.</div>'; cards.forEach(c=>{const el=document.createElement('div');el.className='card';el.innerHTML=`<div class="cardTop"><span class="dot" style="color:${c.color};background:${c.color}"></span><span class="name">${escapeHtml(c.name)}</span><button class="remove" data-remove="${c.id}" aria-label="Remove ${escapeHtml(c.name)}">×</button></div><div class="sliders">${slider(c,'impact','Impact')}${slider(c,'certainty','Certainty')}${slider(c,'friction','Friction')}</div>`;list.appendChild(el)}); list.querySelectorAll('input[type=range]').forEach(r=>r.oninput=e=>{const c=cards.find(x=>x.id===e.target.dataset.id);c[e.target.dataset.k]=clamp(e.target.value);render()}); list.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{cards=cards.filter(c=>c.id!==b.dataset.remove);render()})}
+function renderResults(){const groups={'Do Now':[],'Delegate / Automate':[],'Probe':[],'Park':[]}; cards.slice().sort((a,b)=>score(b)-score(a)).forEach(c=>groups[route(c)[0]].push(c)); out.innerHTML=''; Object.keys(groups).forEach(name=>{const div=document.createElement('div');div.className='lane';div.innerHTML=`<div class="laneHead"><span class="laneTitle">${name}</span><span class="badge">${groups[name].length} card${groups[name].length===1?'':'s'}</span></div>`; if(!groups[name].length) div.innerHTML+='<div class="empty">Nothing routed here yet.</div>'; groups[name].forEach(c=>{const [_,why]=route(c),s=score(c),pct=Math.max(6,Math.min(100,(s/22)*100)); div.innerHTML+=`<div class="item"><strong><span>${escapeHtml(c.name)}</span><span>${s}</span></strong><div class="why">${why} Impact ${c.impact}, certainty ${c.certainty}, friction ${c.friction}.</div><div class="meter"><div class="bar" style="width:${pct}%"></div></div></div>`}); out.appendChild(div)})}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(){renderChips();renderCards();renderResults()}
+document.getElementById('addBtn').onclick=()=>{const v=document.getElementById('custom').value.trim(); if(!v)return; cards.push({name:v,impact:5,certainty:5,friction:5,color:['#63e6ff','#7cffb2','#ffd166','#ff7aa2','#a78bfa'][cards.length%5]}); document.getElementById('custom').value=''; render()};
+document.getElementById('custom').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addBtn').click()});
+document.getElementById('sortBtn').onclick=()=>{renderResults();document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'})};
+document.getElementById('resetBtn').onclick=()=>{cards=JSON.parse(JSON.stringify(presets));render()};
+render();
+</script>
+</body>
+</html>
