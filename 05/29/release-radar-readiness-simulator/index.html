@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a1320">
+<title>Release Radar — Tiny Launch Readiness Simulator</title>
+<style>
+  :root {
+    --bg:        #0a1320;
+    --bg-deep:   #060c16;
+    --panel:     #0e1a2b;
+    --panel-2:   #122236;
+    --hairline:  rgba(180, 220, 255, 0.07);
+    --grid:      rgba(120, 180, 220, 0.05);
+    --phosphor:  #ffb648;
+    --phosphor-dim: #b07a26;
+    --amber-glow: rgba(255, 182, 72, 0.35);
+    --alarm:     #ff5577;
+    --alarm-glow: rgba(255, 85, 119, 0.45);
+    --cool:      #7adfff;
+    --cool-dim:  #3a7a92;
+    --green:     #6ef0a4;
+    --ink:       #e8eef6;
+    --ink-soft:  #97aac0;
+    --ink-dim:   #506578;
+    --serif:     'Iowan Old Style', 'Palatino', 'Palatino Linotype', 'Georgia', serif;
+    --mono:      ui-monospace, 'SF Mono', 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+    --sans:      -apple-system, 'Helvetica Neue', 'Inter', system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(circle at 20% -10%, rgba(255,182,72,0.05), transparent 50%),
+      radial-gradient(circle at 110% 110%, rgba(122,223,255,0.04), transparent 50%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px);
+    opacity: 0.5;
+    z-index: 100;
+    mix-blend-mode: multiply;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    z-index: 0;
+    opacity: 0.7;
+  }
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 22px 18px 60px;
+  }
+
+  /* ====== HEADER ====== */
+  header {
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(255,182,72,0.04), transparent);
+    padding: 14px 16px 12px;
+    position: relative;
+  }
+  header::before {
+    content: '◉ LIVE';
+    position: absolute;
+    top: -8px; right: 14px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--alarm);
+    text-shadow: 0 0 6px var(--alarm-glow);
+  }
+  .badge-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .badge-row span:first-child { color: var(--phosphor-dim); }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-style: italic;
+    font-size: clamp(28px, 8.5vw, 38px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 2px 0 4px;
+  }
+  h1 .accent { color: var(--phosphor); text-shadow: 0 0 14px var(--amber-glow); font-style: italic; }
+  .tagline {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 6px;
+  }
+
+  /* ====== CHIP POOL ====== */
+  .pool {
+    margin-top: 16px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 12px 14px;
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pool-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .pool-label strong {
+    display: block;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--phosphor);
+    margin-top: 2px;
+    font-weight: 600;
+    text-shadow: 0 0 10px var(--amber-glow);
+  }
+  .pool-pips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+    max-width: 60%;
+  }
+  .pip {
+    width: 10px;
+    height: 14px;
+    border-radius: 1px;
+    background: rgba(255,182,72,0.08);
+    border: 1px solid rgba(255,182,72,0.18);
+    transition: all 0.25s ease;
+  }
+  .pip.used {
+    background: var(--phosphor);
+    box-shadow: 0 0 6px var(--amber-glow);
+    border-color: var(--phosphor);
+  }
+
+  /* ====== SIGNAL ROWS ====== */
+  .signals {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .signal {
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: var(--panel);
+    padding: 12px 14px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .signal::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--phosphor-dim);
+    opacity: 0.4;
+    transition: opacity 0.3s, background 0.3s;
+  }
+  .signal[data-level="1"]::before { opacity: 0.55; background: var(--phosphor); }
+  .signal[data-level="2"]::before { opacity: 0.8; background: var(--phosphor); box-shadow: 0 0 12px var(--amber-glow); }
+  .signal[data-level="3"]::before { opacity: 1; background: var(--green); box-shadow: 0 0 14px rgba(110,240,164,0.5); }
+  .sig-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sig-code {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .sig-tier {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    color: var(--phosphor-dim);
+    text-transform: uppercase;
+  }
+  .sig-name {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 2px 0 2px;
+    letter-spacing: -0.01em;
+  }
+  .sig-state {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    min-height: 38px;
+    font-style: italic;
+    font-family: var(--serif);
+  }
+  .sig-controls {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .seg {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+  .seg-cell {
+    flex: 1;
+    height: 10px;
+    border-radius: 1px;
+    background: rgba(255,182,72,0.06);
+    border: 1px solid rgba(255,182,72,0.15);
+    transition: all 0.25s ease;
+  }
+  .seg-cell.on {
+    background: var(--phosphor);
+    box-shadow: 0 0 8px var(--amber-glow);
+    border-color: var(--phosphor);
+  }
+  .signal[data-level="3"] .seg-cell.on { background: var(--green); box-shadow: 0 0 10px rgba(110,240,164,0.5); border-color: var(--green); }
+  .btn-mini {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--hairline);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .btn-mini:hover, .btn-mini:active {
+    background: var(--panel);
+    border-color: var(--phosphor-dim);
+    color: var(--phosphor);
+  }
+  .btn-mini:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+  }
+
+  /* ====== SCAN BUTTON ====== */
+  .scan-row {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+  }
+  .btn-scan {
+    flex: 1;
+    min-height: 56px;
+    border: 1px solid var(--phosphor);
+    background: linear-gradient(180deg, rgba(255,182,72,0.18), rgba(255,182,72,0.04));
+    color: var(--phosphor);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    text-shadow: 0 0 10px var(--amber-glow);
+    box-shadow: 0 0 30px rgba(255,182,72,0.12), inset 0 0 20px rgba(255,182,72,0.05);
+    transition: all 0.2s;
+  }
+  .btn-scan:hover, .btn-scan:active {
+    background: linear-gradient(180deg, rgba(255,182,72,0.3), rgba(255,182,72,0.08));
+    box-shadow: 0 0 40px rgba(255,182,72,0.25), inset 0 0 30px rgba(255,182,72,0.1);
+  }
+  .btn-scan:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .btn-reset {
+    width: 56px;
+    border: 1px solid var(--hairline);
+    background: var(--panel-2);
+    color: var(--ink-soft);
+    font-family: var(--mono);
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-reset:active { background: var(--panel); }
+
+  /* ====== RADAR + RESULTS ====== */
+  .result-stage {
+    margin-top: 20px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    padding: 18px 16px 20px;
+    position: relative;
+    display: none;
+  }
+  .result-stage.active { display: block; }
+  .result-stage::before {
+    content: 'SCAN OUTPUT';
+    position: absolute;
+    top: -9px; left: 14px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--phosphor-dim);
+  }
+
+  .radar {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 280px;
+    margin: 4px auto 14px;
+    display: block;
+    filter: drop-shadow(0 0 18px var(--amber-glow));
+  }
+  .radar.scanning .sweep { animation: sweep 1.4s linear infinite; }
+  .radar.done .sweep { opacity: 0; transition: opacity 0.6s; }
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .radar-circle { fill: none; stroke: var(--phosphor); stroke-width: 0.4; opacity: 0.35; }
+  .radar-cross { stroke: var(--phosphor); stroke-width: 0.3; opacity: 0.25; }
+  .radar-bg { fill: rgba(255,182,72,0.025); stroke: var(--phosphor); stroke-width: 0.6; opacity: 0.5; }
+  .sweep-line { stroke: var(--phosphor); stroke-width: 0.6; }
+  .blip {
+    fill: var(--phosphor);
+    opacity: 0;
+    transition: opacity 0.5s, r 0.5s;
+  }
+  .blip.green { fill: var(--green); }
+  .blip.red   { fill: var(--alarm); }
+  .blip.show { opacity: 0.9; }
+
+  .verdict {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .verdict-eyebrow {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .verdict-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(24px, 7vw, 30px);
+    color: var(--phosphor);
+    text-shadow: 0 0 16px var(--amber-glow);
+    line-height: 1.1;
+    font-weight: 600;
+  }
+  .verdict-name.alarm { color: var(--alarm); text-shadow: 0 0 16px var(--alarm-glow); }
+  .verdict-name.green { color: var(--green); text-shadow: 0 0 16px rgba(110,240,164,0.4); }
+  .verdict-tag {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+
+  .gauge-wrap {
+    margin: 14px 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.25);
+  }
+  .gauge-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .gauge-score {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 20px;
+    color: var(--phosphor);
+    font-weight: 600;
+  }
+  .gauge-track {
+    height: 10px;
+    background: rgba(255,182,72,0.06);
+    border: 1px solid rgba(255,182,72,0.14);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .gauge-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--alarm) 0%, var(--phosphor) 50%, var(--green) 100%);
+    width: 0;
+    transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 10px var(--amber-glow);
+  }
+  .gauge-marks {
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+  }
+
+  .channels {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin: 14px 0;
+  }
+  .chan {
+    border: 1px solid var(--hairline);
+    padding: 6px 4px 8px;
+    border-radius: 3px;
+    text-align: center;
+    background: rgba(0,0,0,0.2);
+  }
+  .chan-code {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .chan-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin: 5px auto 4px;
+    background: var(--ink-dim);
+    opacity: 0.4;
+  }
+  .chan.lit-1 .chan-dot { background: var(--phosphor-dim); opacity: 0.85; }
+  .chan.lit-2 .chan-dot { background: var(--phosphor); opacity: 1; box-shadow: 0 0 8px var(--amber-glow); }
+  .chan.lit-3 .chan-dot { background: var(--green); opacity: 1; box-shadow: 0 0 10px rgba(110,240,164,0.6); }
+  .chan-mini {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+
+  .next-move {
+    border: 1px solid var(--phosphor-dim);
+    border-radius: 4px;
+    padding: 12px 14px 14px;
+    background: linear-gradient(180deg, rgba(255,182,72,0.07), rgba(255,182,72,0.01));
+    margin-top: 4px;
+  }
+  .nm-head {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.24em;
+    color: var(--phosphor);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .nm-body {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+
+  .scan-meta {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+
+  /* ====== FOOTER ====== */
+  footer {
+    margin-top: 30px;
+    padding: 14px 4px 0;
+    border-top: 1px dashed var(--hairline);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+  }
+  footer span:last-child { color: var(--phosphor-dim); }
+
+  /* hide elements while scanning */
+  .result-stage.scanning .verdict,
+  .result-stage.scanning .gauge-wrap,
+  .result-stage.scanning .channels,
+  .result-stage.scanning .next-move,
+  .result-stage.scanning .scan-meta {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .result-stage .verdict,
+  .result-stage .gauge-wrap,
+  .result-stage .channels,
+  .result-stage .next-move,
+  .result-stage .scan-meta {
+    opacity: 1;
+    transition: opacity 0.5s 0.2s;
+  }
+
+  /* tiny screens */
+  @media (max-width: 360px) {
+    .wrap { padding: 18px 14px 50px; }
+    .channels { grid-template-columns: repeat(5, 1fr); gap: 3px; }
+    .chan { padding: 5px 2px 6px; }
+    .chan-code, .chan-mini { font-size: 8px; letter-spacing: 0.1em; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="badge-row">
+    <span>Sector 5/29</span>
+    <span>Bearing 029.6°</span>
+  </div>
+  <h1>Release <span class="accent">Radar</span></h1>
+  <div class="tagline">Tiny launch readiness simulator</div>
+</header>
+
+<section class="pool" aria-label="Attention chips pool">
+  <div class="pool-label">
+    Attention chips
+    <strong><span id="poolCount">12</span> / 12</strong>
+  </div>
+  <div class="pool-pips" id="poolPips"></div>
+</section>
+
+<section class="signals" id="signals"></section>
+
+<div class="scan-row">
+  <button class="btn-scan" id="btnScan" type="button">Run readiness scan</button>
+  <button class="btn-reset" id="btnReset" type="button" aria-label="Reset">↺</button>
+</div>
+
+<section class="result-stage" id="stage" aria-live="polite">
+  <svg class="radar" viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="radar-bg" cx="50" cy="50" r="48"/>
+    <circle class="radar-circle" cx="50" cy="50" r="36"/>
+    <circle class="radar-circle" cx="50" cy="50" r="24"/>
+    <circle class="radar-circle" cx="50" cy="50" r="12"/>
+    <line class="radar-cross" x1="50" y1="2" x2="50" y2="98"/>
+    <line class="radar-cross" x1="2" y1="50" x2="98" y2="50"/>
+    <g class="sweep" style="transform-origin:50px 50px">
+      <defs>
+        <linearGradient id="sweepGrad" x1="50%" y1="50%" x2="100%" y2="50%">
+          <stop offset="0%" stop-color="#ffb648" stop-opacity="0.6"/>
+          <stop offset="100%" stop-color="#ffb648" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M50 50 L98 50 A48 48 0 0 0 78 9 Z" fill="url(#sweepGrad)" opacity="0.7"/>
+      <line class="sweep-line" x1="50" y1="50" x2="98" y2="50"/>
+    </g>
+    <g id="blips"></g>
+  </svg>
+
+  <div class="verdict">
+    <div class="verdict-eyebrow">Flight Path</div>
+    <div class="verdict-name" id="vName">—</div>
+    <div class="verdict-tag" id="vTag">awaiting scan</div>
+  </div>
+
+  <div class="gauge-wrap">
+    <div class="gauge-head">
+      <span>Readiness</span>
+      <span class="gauge-score"><span id="vScore">0</span><span style="font-size:11px;color:var(--ink-dim);letter-spacing:0.1em;"> / 100</span></span>
+    </div>
+    <div class="gauge-track"><div class="gauge-fill" id="gFill"></div></div>
+    <div class="gauge-marks"><span>HOLD</span><span>WATCH</span><span>GO</span></div>
+  </div>
+
+  <div class="channels" id="channels"></div>
+
+  <div class="next-move">
+    <div class="nm-head">▸ Next move</div>
+    <div class="nm-body" id="vMove">—</div>
+  </div>
+
+  <div class="scan-meta">
+    <span>Path <span id="vCode">———</span></span>
+    <span>Cycle <span id="vCycle">000</span></span>
+  </div>
+</section>
+
+<footer>
+  <span>2026 · 05 · 29</span>
+  <span>Electric Sheep</span>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const TOTAL_CHIPS = 12;
+
+  const SIGNALS = [
+    {
+      key: 'launch',
+      code: 'L-01',
+      name: 'Launch path',
+      tiers: [
+        'Skip the ritual. Push and pray it lands.',
+        'Verify a smoke path before flipping the switch.',
+        'Stage a hot launch with a clean watch window.',
+        'Phased rollout, named owners, watch-and-pause gates.'
+      ],
+      tags: ['DARK', 'SPOT', 'HOT', 'PHASED']
+    },
+    {
+      key: 'customers',
+      code: 'C-02',
+      name: 'Customer signal',
+      tiers: [
+        'Silent treatment. Nobody hears about it.',
+        'A two-line note in case anyone asks.',
+        'Drafted changelog and a friendly heads-up queued.',
+        'Targeted outreach to the people most likely to notice.'
+      ],
+      tags: ['MUTE', 'NOTE', 'DRAFT', 'REACH']
+    },
+    {
+      key: 'risk',
+      code: 'R-03',
+      name: 'Risk net',
+      tiers: [
+        'Flying blind. No plan for what breaks.',
+        'A quick mental list of the obvious ways it tips over.',
+        'Rollback rehearsed and a kill switch within reach.',
+        'War room dialed in: triggers, owners, dry-run done.'
+      ],
+      tags: ['BLIND', 'GLANCE', 'ROLLBK', 'WARROOM']
+    },
+    {
+      key: 'docs',
+      code: 'D-04',
+      name: 'Docs & handoff',
+      tiers: [
+        'Tribal knowledge. The map lives in one head.',
+        'A skim-friendly note for the next person on shift.',
+        'Runbook updated where it matters; links resolve.',
+        'Onboarding-grade: a new person could ship it cold.'
+      ],
+      tags: ['TRIBAL', 'SKIM', 'RUNBOOK', 'ONBRD']
+    },
+    {
+      key: 'learning',
+      code: 'M-05',
+      name: 'Learning loop',
+      tiers: [
+        'Ship and forget. Vibes only.',
+        'One chart you promise to glance at tomorrow.',
+        'A dashboard and a defined what-good-looks-like.',
+        'Live feedback loop with checkpoints and a kill rule.'
+      ],
+      tags: ['VIBES', 'CHART', 'METRIC', 'LOOP']
+    }
+  ];
+
+  const state = {
+    chips: { launch: 0, customers: 0, risk: 0, docs: 0, learning: 0 },
+    cycle: 0
+  };
+
+  // ---------- Render allocator ----------
+  const sigEl = document.getElementById('signals');
+  SIGNALS.forEach(sig => {
+    const row = document.createElement('div');
+    row.className = 'signal';
+    row.dataset.key = sig.key;
+    row.dataset.level = '0';
+    row.innerHTML = `
+      <div class="sig-head">
+        <span class="sig-code">${sig.code}</span>
+        <span class="sig-tier" data-role="tier">TIER 0 · ${sig.tags[0]}</span>
+      </div>
+      <div class="sig-name">${sig.name}</div>
+      <div class="sig-state" data-role="state">${sig.tiers[0]}</div>
+      <div class="sig-controls">
+        <button class="btn-mini" data-role="dec" aria-label="Remove chip from ${sig.name}">−</button>
+        <div class="seg" aria-hidden="true">
+          <div class="seg-cell"></div>
+          <div class="seg-cell"></div>
+          <div class="seg-cell"></div>
+        </div>
+        <button class="btn-mini" data-role="inc" aria-label="Add chip to ${sig.name}">+</button>
+      </div>
+    `;
+    sigEl.appendChild(row);
+
+    row.querySelector('[data-role="inc"]').addEventListener('click', () => adjust(sig.key, +1));
+    row.querySelector('[data-role="dec"]').addEventListener('click', () => adjust(sig.key, -1));
+  });
+
+  // chip pool pips
+  const poolPipsEl = document.getElementById('poolPips');
+  for (let i = 0; i < TOTAL_CHIPS; i++) {
+    const p = document.createElement('div');
+    p.className = 'pip';
+    poolPipsEl.appendChild(p);
+  }
+
+  function used() {
+    return Object.values(state.chips).reduce((a,b)=>a+b,0);
+  }
+
+  function adjust(key, delta) {
+    const cur = state.chips[key];
+    const next = cur + delta;
+    if (next < 0 || next > 3) return;
+    if (delta > 0 && used() >= TOTAL_CHIPS) return;
+    state.chips[key] = next;
+    render();
+  }
+
+  // ---------- Render state ----------
+  function render() {
+    const u = used();
+    document.getElementById('poolCount').textContent = (TOTAL_CHIPS - u);
+    const pips = poolPipsEl.children;
+    for (let i = 0; i < pips.length; i++) {
+      pips[i].classList.toggle('used', i < u);
+    }
+
+    SIGNALS.forEach(sig => {
+      const row = sigEl.querySelector(`[data-key="${sig.key}"]`);
+      const lvl = state.chips[sig.key];
+      row.dataset.level = String(lvl);
+      row.querySelector('[data-role="state"]').textContent = sig.tiers[lvl];
+      row.querySelector('[data-role="tier"]').textContent = `TIER ${lvl} · ${sig.tags[lvl]}`;
+      const cells = row.querySelectorAll('.seg-cell');
+      cells.forEach((c, i) => c.classList.toggle('on', i < lvl));
+      const dec = row.querySelector('[data-role="dec"]');
+      const inc = row.querySelector('[data-role="inc"]');
+      dec.disabled = lvl === 0;
+      inc.disabled = lvl === 3 || u >= TOTAL_CHIPS;
+    });
+
+    document.getElementById('btnScan').disabled = false;
+  }
+
+  // ---------- Path logic ----------
+  const PATHS = {
+    DARK_CABIN: {
+      name: 'Dark Cabin',
+      tag: 'No power on the panel',
+      tone: 'alarm',
+      move: 'Spend at least one chip before you decide anything. Even a quick smoke check beats zero signal.'
+    },
+    HOLDING_PATTERN: {
+      name: 'Holding Pattern',
+      tag: 'Circling, not landing',
+      tone: 'amber',
+      move: 'Pick the single signal you trust least right now and pour another chip into it. Conviction beats spreading thin.'
+    },
+    RECKLESS_LIFTOFF: {
+      name: 'Reckless Liftoff',
+      tag: 'Engines hot, net empty',
+      tone: 'alarm',
+      move: 'Pull one chip back from Launch and put it on Risk. A rehearsed rollback is cheaper than a midnight retro.'
+    },
+    BLACKBOX_SPRINT: {
+      name: 'Blackbox Sprint',
+      tag: 'Loud cabin, dim instruments',
+      tone: 'alarm',
+      move: 'Spend one chip on Risk or Docs before the launch window opens. If it wobbles, the room needs a flashlight.'
+    },
+    GREEN_LIGHT_GLIDE: {
+      name: 'Green Light Glide',
+      tag: 'Clean instruments, calm hands',
+      tone: 'green',
+      move: 'Run the launch as planned, but post the first watch checkpoint publicly so the safety net is visible, not just real.'
+    },
+    HOT_LAUNCH: {
+      name: 'Hot Launch',
+      tag: 'Eyes wide, hand on the lever',
+      tone: 'amber',
+      move: 'Pre-write the rollback message you would send at 2am. If you can not write it calmly now, you do not want to draft it then.'
+    },
+    AUDIT_LOOP: {
+      name: 'Audit Loop',
+      tag: 'Polished, parked',
+      tone: 'amber',
+      move: 'You are ready for review, not release. Pick the smallest shippable slice and move one chip from Docs to Launch.'
+    },
+    LAB_MODE: {
+      name: 'Lab Mode',
+      tag: 'Telescope on, runway off',
+      tone: 'amber',
+      move: 'Your dashboard is great. Define the one number that means ship and the one number that means stop. Then ship a thin slice.'
+    },
+    CROWD_PLEASER_CRUISE: {
+      name: 'Crowd Pleaser Cruise',
+      tag: 'Warm welcome, thin shell',
+      tone: 'amber',
+      move: 'You have momentum and a willing audience. Spend the next chip on Risk so the warm welcome survives a hiccup.'
+    },
+    DIAGNOSTICS_SPIN: {
+      name: 'Diagnostics Spin',
+      tag: 'All ground, no flight',
+      tone: 'amber',
+      move: 'You are debugging an unborn thing. Move one chip from Risk to Launch and let real traffic surface the real risks.'
+    },
+    FOGGY_APPROACH: {
+      name: 'Foggy Approach',
+      tag: 'Every dial half-lit',
+      tone: 'amber',
+      move: 'Concentrate. Pick the one signal a future you will thank you for and double it. Even chip spread is even chip waste.'
+    },
+    STEALTH_CRUISE: {
+      name: 'Stealth Cruise',
+      tag: 'Quiet ship, modest sky',
+      tone: 'amber',
+      move: 'You are not in danger, you are in obscurity. Add a chip to Customers so the launch you ship lands in someone real.'
+    }
+  };
+
+  function determinePath(s) {
+    const sum = s.launch + s.customers + s.risk + s.docs + s.learning;
+    const vals = [s.launch, s.customers, s.risk, s.docs, s.learning];
+    const max = Math.max(...vals);
+    const nonzero = vals.filter(v => v > 0).length;
+
+    if (sum === 0) return 'DARK_CABIN';
+    if (sum <= 3) return 'HOLDING_PATTERN';
+    if (s.launch >= 2 && s.risk === 0 && s.docs === 0) return 'RECKLESS_LIFTOFF';
+    if (s.launch >= 2 && s.customers >= 2 && s.risk <= 1 && s.docs <= 1) return 'BLACKBOX_SPRINT';
+    if (s.launch >= 2 && s.risk >= 2 && s.docs >= 2 && nonzero >= 4) return 'GREEN_LIGHT_GLIDE';
+    if (s.docs >= 2 && s.learning >= 1 && s.launch <= 1) return 'AUDIT_LOOP';
+    if (s.learning >= 2 && s.docs <= 1 && s.launch <= 1) return 'LAB_MODE';
+    if (s.customers >= 2 && s.launch >= 2) return 'CROWD_PLEASER_CRUISE';
+    if (s.risk >= 2 && s.docs >= 2 && s.launch <= 1) return 'DIAGNOSTICS_SPIN';
+    if (s.launch >= 2 && nonzero >= 3) return 'HOT_LAUNCH';
+    if (max <= 1 && nonzero === 5) return 'FOGGY_APPROACH';
+    return 'STEALTH_CRUISE';
+  }
+
+  function computeScore(s, pathKey) {
+    const sum = s.launch + s.customers + s.risk + s.docs + s.learning;
+    const vals = [s.launch, s.customers, s.risk, s.docs, s.learning];
+    const nonzero = vals.filter(v => v > 0).length;
+    const max = Math.max(...vals);
+    const min = Math.min(...vals);
+
+    let score = sum * 6; // up to 72
+    score += nonzero * 4; // up to 20 for full coverage
+    if (sum >= 6 && (max - min) <= 1) score += 6; // balance bonus
+
+    if (s.launch >= 2 && s.risk === 0) score -= 22;
+    if (s.launch >= 2 && s.docs === 0) score -= 8;
+    if (s.launch >= 2 && s.customers === 0) score -= 6;
+    if (sum >= 8 && s.learning === 0) score -= 4;
+
+    // Path-specific nudges
+    if (pathKey === 'GREEN_LIGHT_GLIDE') score += 6;
+    if (pathKey === 'RECKLESS_LIFTOFF') score = Math.min(score, 38);
+    if (pathKey === 'BLACKBOX_SPRINT') score = Math.min(score, 52);
+    if (pathKey === 'DARK_CABIN') score = 0;
+    if (pathKey === 'HOLDING_PATTERN') score = Math.min(score, 28);
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  // ---------- Scan ----------
+  const stage = document.getElementById('stage');
+  const radar = stage.querySelector('.radar');
+  const blipsG = document.getElementById('blips');
+
+  function pseudoBlips(s) {
+    // 5 blips, one per signal, placed on rings by tier
+    const positions = [];
+    SIGNALS.forEach((sig, i) => {
+      const lvl = s[sig.key];
+      // ring radius: tier 0=outer/cold, tier 3=center
+      const ringR = lvl === 0 ? 44 : (lvl === 1 ? 34 : (lvl === 2 ? 22 : 10));
+      const angle = (i / 5) * Math.PI * 2 + (lvl * 0.18);
+      const cx = 50 + Math.cos(angle) * ringR;
+      const cy = 50 + Math.sin(angle) * ringR;
+      const cls = lvl === 0 ? 'red' : (lvl >= 3 ? 'green' : '');
+      positions.push({ cx, cy, cls, r: lvl === 0 ? 1.6 : (1.4 + lvl * 0.6) });
+    });
+    return positions;
+  }
+
+  function runScan() {
+    if (stage.dataset.running === '1') return;
+    state.cycle++;
+    const path = determinePath(state.chips);
+    const score = computeScore(state.chips, path);
+    const def = PATHS[path];
+
+    // Show stage, start sweep
+    stage.classList.add('active', 'scanning');
+    stage.dataset.running = '1';
+    radar.classList.add('scanning');
+    radar.classList.remove('done');
+    blipsG.innerHTML = '';
+
+    // Clear gauge for re-anim
+    document.getElementById('gFill').style.width = '0%';
+
+    // Stagger blip reveals during the sweep
+    const blips = pseudoBlips(state.chips);
+    blips.forEach((b, i) => {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', b.cx);
+      c.setAttribute('cy', b.cy);
+      c.setAttribute('r', b.r);
+      c.setAttribute('class', 'blip ' + b.cls);
+      blipsG.appendChild(c);
+      setTimeout(() => c.classList.add('show'), 300 + i * 180);
+    });
+
+    // After sweep, settle and show verdict
+    setTimeout(() => {
+      radar.classList.remove('scanning');
+      radar.classList.add('done');
+      stage.classList.remove('scanning');
+      stage.dataset.running = '0';
+
+      const vName = document.getElementById('vName');
+      vName.textContent = def.name;
+      vName.classList.remove('alarm', 'green');
+      if (def.tone === 'alarm') vName.classList.add('alarm');
+      if (def.tone === 'green') vName.classList.add('green');
+
+      document.getElementById('vTag').textContent = def.tag;
+      document.getElementById('vMove').textContent = def.move;
+      document.getElementById('vCode').textContent = path.split('_').map(w => w.slice(0,3)).join('-');
+      document.getElementById('vCycle').textContent = String(state.cycle).padStart(3, '0');
+
+      // channels
+      const ch = document.getElementById('channels');
+      ch.innerHTML = '';
+      SIGNALS.forEach(sig => {
+        const lvl = state.chips[sig.key];
+        const el = document.createElement('div');
+        el.className = 'chan lit-' + lvl;
+        el.innerHTML = `
+          <div class="chan-code">${sig.code.split('-')[0]}</div>
+          <div class="chan-dot"></div>
+          <div class="chan-mini">${sig.tags[lvl]}</div>
+        `;
+        ch.appendChild(el);
+      });
+
+      // animate gauge
+      setTimeout(() => {
+        document.getElementById('vScore').textContent = score;
+        document.getElementById('gFill').style.width = score + '%';
+      }, 80);
+
+      // Scroll into view if off-screen
+      const rect = stage.getBoundingClientRect();
+      if (rect.top > window.innerHeight * 0.5) {
+        stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 1500);
+  }
+
+  document.getElementById('btnScan').addEventListener('click', runScan);
+  document.getElementById('btnReset').addEventListener('click', () => {
+    state.chips = { launch: 0, customers: 0, risk: 0, docs: 0, learning: 0 };
+    render();
+    stage.classList.remove('active');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
