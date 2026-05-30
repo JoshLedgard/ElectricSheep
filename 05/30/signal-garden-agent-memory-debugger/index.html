@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1612">
+<title>Signal Garden — Agent Memory Debugger</title>
+<style>
+  :root {
+    --bg-deep: #08120e;
+    --bg-soil: #0c1a14;
+    --bg-card: #102820;
+    --bg-card-2: #143427;
+    --moss: #1c4a37;
+    --moss-deep: #143628;
+    --leaf: #4ade80;
+    --bloom: #8effb5;
+    --bloom-glow: rgba(142, 255, 181, 0.42);
+    --amber: #ffc24a;
+    --amber-soft: rgba(255, 194, 74, 0.16);
+    --rust: #ff8266;
+    --rust-soft: rgba(255, 130, 102, 0.18);
+    --bone: #ecf6ef;
+    --mist: #9ec3b3;
+    --mist-dim: #6a8a7c;
+    --line: rgba(158, 195, 179, 0.16);
+    --line-strong: rgba(158, 195, 179, 0.32);
+    --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 18px 40px rgba(0,0,0,0.45);
+
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'Menlo', 'Monaco', 'Cascadia Mono', 'Consolas', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--bone);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Background atmosphere */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 18% 8%, rgba(74, 222, 128, 0.10), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 110%, rgba(255, 194, 74, 0.06), transparent 60%),
+      radial-gradient(ellipse 90% 70% at 50% 50%, rgba(0,0,0,0.35), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* SVG grain overlay — subtle texture without network */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 1  0 0 0 0 0.92  0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.14;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  main {
+    position: relative;
+    z-index: 2;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 18px 56px;
+  }
+
+  /* ─────────── Masthead ─────────── */
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--mist-dim);
+    margin-bottom: 20px;
+  }
+  .masthead .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--bloom);
+    box-shadow: 0 0 12px var(--bloom-glow);
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+  .masthead .sep { color: var(--mist-dim); opacity: 0.6; }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(38px, 11vw, 60px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--bone);
+    margin-bottom: 10px;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--bloom);
+    text-shadow: 0 0 24px var(--bloom-glow);
+  }
+  .subtitle {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--mist);
+    max-width: 56ch;
+    margin-bottom: 28px;
+  }
+  .subtitle b { color: var(--bone); font-weight: 600; }
+
+  /* ─────────── Section heads ─────────── */
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 28px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec-head .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--mist-dim);
+  }
+  .sec-head .label .acc { color: var(--leaf); }
+  .sec-head .step {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--mist);
+  }
+
+  /* ─────────── Signal rows ─────────── */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .signal {
+    background: linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .signal::before {
+    /* left tag accent */
+    content: '';
+    position: absolute;
+    left: 0; top: 14px; bottom: 14px;
+    width: 3px;
+    background: var(--moss);
+    border-radius: 0 3px 3px 0;
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+  .signal[data-active="true"]::before {
+    background: var(--bloom);
+    box-shadow: 0 0 12px var(--bloom-glow);
+  }
+  .signal-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-left: 8px;
+  }
+  .signal-meta { min-width: 0; }
+  .signal-label {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 1.05;
+    color: var(--bone);
+    letter-spacing: -0.005em;
+  }
+  .signal-desc {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--mist-dim);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+  .signal-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 400;
+    color: var(--bloom);
+    text-shadow: 0 0 10px var(--bloom-glow);
+    min-width: 1.6ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .signal[data-kind="noise"] .signal-value { color: var(--rust); text-shadow: 0 0 10px var(--rust-soft); }
+
+  .signal-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 8px;
+  }
+  .signal-bar {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+    height: 14px;
+  }
+  .seg {
+    background: var(--moss-deep);
+    border-radius: 2px;
+    transition: background 0.18s, box-shadow 0.18s;
+  }
+  .seg.on {
+    background: var(--leaf);
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+  }
+  .signal[data-kind="noise"] .seg.on {
+    background: var(--rust);
+    box-shadow: 0 0 6px rgba(255, 130, 102, 0.55);
+  }
+
+  .step-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--bg-soil);
+    border: 1px solid var(--line);
+    color: var(--bone);
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.05s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .step-btn:hover, .step-btn:focus-visible {
+    border-color: var(--leaf);
+    color: var(--bloom);
+    outline: none;
+  }
+  .step-btn:active {
+    transform: translateY(1px);
+    background: var(--moss-deep);
+  }
+  .step-btn[disabled] {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  /* ─────────── Actions bar ─────────── */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    margin: 22px 0 16px;
+  }
+  .btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--line-strong);
+    background: var(--bg-card);
+    color: var(--bone);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0 18px;
+    min-height: 52px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn.primary {
+    background:
+      radial-gradient(ellipse 100% 80% at 50% 0%, rgba(142,255,181,0.18), transparent 70%),
+      linear-gradient(180deg, #1a4d3a, #112e22);
+    border-color: var(--leaf);
+    color: var(--bloom);
+    text-shadow: 0 0 14px var(--bloom-glow);
+    font-family: var(--font-display);
+    font-size: 17px;
+    letter-spacing: 0.03em;
+    text-transform: none;
+    font-style: italic;
+  }
+  .btn.primary:hover, .btn.primary:focus-visible {
+    box-shadow: 0 0 0 1px var(--bloom), 0 10px 30px rgba(74, 222, 128, 0.18);
+    outline: none;
+  }
+  .btn.ghost {
+    width: 52px;
+    padding: 0;
+  }
+  .btn.ghost:hover, .btn.ghost:focus-visible {
+    border-color: var(--leaf);
+    color: var(--bloom);
+    outline: none;
+  }
+  .btn.ghost svg { width: 18px; height: 18px; display: block; margin: auto; }
+
+  /* ─────────── Results: Memory Stack ─────────── */
+  .results {
+    margin-top: 6px;
+  }
+  .stack-wrap {
+    display: grid;
+    gap: 12px;
+  }
+  .stack {
+    background:
+      linear-gradient(180deg, rgba(16,40,32,0.6), rgba(8,18,14,0.6));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stack::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 35px,
+      rgba(158, 195, 179, 0.04) 35px,
+      rgba(158, 195, 179, 0.04) 36px
+    );
+    pointer-events: none;
+  }
+  .stack-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .stack-title {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--bone);
+  }
+  .stack-fill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--mist-dim);
+    letter-spacing: 0.12em;
+  }
+  .stack-fill b {
+    color: var(--bloom);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .slots {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    position: relative;
+  }
+  .slot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(8,18,14,0.5);
+    border: 1px dashed rgba(158, 195, 179, 0.18);
+    border-radius: 8px;
+    min-height: 44px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--mist-dim);
+    position: relative;
+    overflow: hidden;
+  }
+  .slot[data-state="empty"] .slot-idx { color: var(--mist-dim); }
+  .slot[data-state="filled"] {
+    background: linear-gradient(90deg, rgba(74, 222, 128, 0.08), rgba(74, 222, 128, 0.02));
+    border: 1px solid rgba(74, 222, 128, 0.32);
+    color: var(--bone);
+  }
+  .slot[data-state="filled"][data-kind="noise"] {
+    background: linear-gradient(90deg, rgba(255, 130, 102, 0.10), rgba(255, 130, 102, 0.02));
+    border: 1px solid rgba(255, 130, 102, 0.38);
+  }
+  .slot[data-state="filled"][data-kind="noise"] .slot-token {
+    text-decoration: line-through;
+    text-decoration-color: rgba(255, 130, 102, 0.55);
+    color: var(--rust);
+  }
+  .slot-idx {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--mist-dim);
+    width: 22px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .slot-kind {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    text-align: center;
+    line-height: 22px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--bg-deep);
+    background: var(--bloom);
+    box-shadow: 0 0 8px var(--bloom-glow);
+  }
+  .slot[data-kind="freshness"]    .slot-kind { background: #8effb5; }
+  .slot[data-kind="trust"]        .slot-kind { background: #cdebff; }
+  .slot[data-kind="specificity"]  .slot-kind { background: #ffe0a3; }
+  .slot[data-kind="recency"]      .slot-kind { background: #b6f8d4; }
+  .slot[data-kind="actionability"].slot-kind { background: #ffd07a; }
+  .slot[data-kind="noise"]        .slot-kind { background: var(--rust); color: #fff; box-shadow: 0 0 8px rgba(255,130,102,0.45); }
+  .slot-token {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .slot-weight {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--mist-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Slot reveal animation */
+  .slot[data-state="filled"] {
+    animation: bloom 0.5s ease both;
+  }
+  @keyframes bloom {
+    0%   { transform: translateY(6px) scale(0.985); opacity: 0; }
+    60%  { opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  /* ─────────── Diagnostics ─────────── */
+  .diag {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .diag-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--line);
+  }
+  .diag-row:last-child { border-bottom: 0; }
+  .diag-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mist-dim);
+  }
+  .diag-val {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--bone);
+  }
+  .diag-val.ok { color: var(--bloom); }
+  .diag-val.warn { color: var(--amber); }
+  .diag-val.bad { color: var(--rust); }
+
+  .conflicts {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .conflict {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--amber-soft);
+    border: 1px solid rgba(255, 194, 74, 0.32);
+    border-radius: 8px;
+    align-items: start;
+  }
+  .conflict[data-sev="hard"] {
+    background: var(--rust-soft);
+    border-color: rgba(255, 130, 102, 0.42);
+  }
+  .conflict-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--amber);
+    background: rgba(255, 194, 74, 0.16);
+    padding: 4px 8px;
+    border-radius: 5px;
+    height: fit-content;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .conflict[data-sev="hard"] .conflict-tag {
+    color: var(--rust);
+    background: rgba(255, 130, 102, 0.16);
+  }
+  .conflict-msg {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--bone);
+    line-height: 1.5;
+  }
+  .no-conflict {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--mist);
+    text-align: center;
+    padding: 14px 8px 4px;
+  }
+
+  /* ─────────── Next move ─────────── */
+  .next-move {
+    background:
+      radial-gradient(ellipse 60% 120% at 0% 0%, rgba(142,255,181,0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg-card), var(--bg-card-2));
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    padding: 18px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .next-move::before {
+    content: '→';
+    position: absolute;
+    top: 14px; right: 14px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 28px;
+    color: var(--bloom);
+    text-shadow: 0 0 12px var(--bloom-glow);
+    opacity: 0.7;
+  }
+  .next-move-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--mist-dim);
+    margin-bottom: 10px;
+  }
+  .next-move-text {
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 1.4;
+    color: var(--bone);
+    padding-right: 28px;
+  }
+
+  /* ─────────── Footer ─────────── */
+  footer {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--mist-dim);
+    text-transform: uppercase;
+  }
+  footer em {
+    font-family: var(--font-display);
+    font-style: italic;
+    text-transform: none;
+    color: var(--mist);
+    letter-spacing: 0.01em;
+  }
+
+  /* ─────────── Tablet+ ─────────── */
+  @media (min-width: 640px) {
+    main { padding: 40px 28px 64px; }
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .signal-label { font-size: 19px; }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .masthead .dot { animation: none; }
+    .slot { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="masthead">
+    <span class="dot" aria-hidden="true"></span>
+    <span>Scoob field tool</span>
+    <span class="sep">·</span>
+    <span>2026.05.30</span>
+  </div>
+
+  <h1>Signal <em>Garden</em></h1>
+  <p class="subtitle">
+    An <b>agent memory debugger</b>. Tune six signals, compile the context,
+    and watch which ones take root inside an eight-slot memory buffer. Some
+    bloom. Some wilt. Noise crowds out the rest.
+  </p>
+
+  <!-- ─────────── SIGNALS ─────────── -->
+  <div class="sec-head">
+    <span class="label">01 <span class="acc">·</span> Tune the signals</span>
+    <span class="step">six dials</span>
+  </div>
+
+  <section class="panel" id="panel" aria-label="Signal controls"></section>
+
+  <!-- ─────────── ACTIONS ─────────── -->
+  <div class="actions">
+    <button class="btn primary" id="compile" type="button">Compile context →</button>
+    <button class="btn ghost" id="shuffle" type="button" aria-label="Shuffle signals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>
+      </svg>
+    </button>
+    <button class="btn ghost" id="reset" type="button" aria-label="Reset signals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ─────────── RESULTS ─────────── -->
+  <div class="sec-head">
+    <span class="label">02 <span class="acc">·</span> Compiled memory stack</span>
+    <span class="step" id="run-meta">run 0</span>
+  </div>
+
+  <section class="results" aria-live="polite">
+    <div class="stack-wrap">
+      <div class="stack">
+        <div class="stack-head">
+          <span class="stack-title">8 slots, weighted</span>
+          <span class="stack-fill"><b id="fill-count">0</b> / 8 bloomed</span>
+        </div>
+        <div class="slots" id="slots"></div>
+      </div>
+
+      <div class="diag">
+        <div class="diag-row">
+          <span class="diag-label">Signal-to-noise</span>
+          <span class="diag-val" id="snr">—</span>
+        </div>
+        <div class="diag-row">
+          <span class="diag-label">Effective context</span>
+          <span class="diag-val" id="effective">—</span>
+        </div>
+        <div class="diag-row">
+          <span class="diag-label">Health</span>
+          <span class="diag-val" id="health">—</span>
+        </div>
+        <div class="conflicts" id="conflicts"></div>
+      </div>
+
+      <div class="next-move">
+        <div class="next-move-label">Next move</div>
+        <div class="next-move-text" id="next-move">Compile to see a recommendation.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Deterministic. Self-contained. <em>Yours to grow.</em>
+  </footer>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  // ─────────── Signal definitions ───────────
+  const SIGNALS = [
+    { key: 'freshness',     label: 'Freshness',     desc: 'newness of input — has the world moved?', kind: 'freshness',     tag: 'F' },
+    { key: 'trust',         label: 'Trust',         desc: 'how much you stake on each source',        kind: 'trust',         tag: 'T' },
+    { key: 'specificity',   label: 'Specificity',   desc: 'precise artifacts vs. vague pointers',     kind: 'specificity',   tag: 'S' },
+    { key: 'recency',       label: 'Recency',       desc: 'how lately the context was touched',       kind: 'recency',       tag: 'R' },
+    { key: 'actionability', label: 'Actionability', desc: 'verbs you can act on this turn',           kind: 'actionability', tag: 'A' },
+    { key: 'noise',         label: 'Noise',         desc: 'filler that crowds the good seeds',        kind: 'noise',         tag: 'N' },
+  ];
+
+  const DEFAULTS = {
+    freshness: 5, trust: 6, specificity: 5,
+    recency: 5, actionability: 5, noise: 3,
+  };
+
+  // ─────────── Token pool (deterministic vocabulary) ───────────
+  const TOKEN_POOL = {
+    freshness: ['user-prompt', 'today’s-msg', 'live-input', 'fresh-event', 'now-state'],
+    trust: ['verified-fact', 'stable-rule', 'pinned-pref', 'sworn-truth', 'gold-doc'],
+    specificity: ['file:line', 'exact-name', 'flag:value', 'arg:type', 'sha:abcd'],
+    recency: ['this-turn', 'last-edit', 'recent-diff', 'open-tab', 'just-said'],
+    actionability: ['do:next', 'run:cmd', 'apply-edit', 'open-PR', 'verify-step'],
+    noise: ['stale-blip', 'tangent', 'noisy-quote', 'old-task', 'side-thread', 'filler-line', 'half-thought'],
+  };
+
+  const KIND_TAG = Object.fromEntries(SIGNALS.map(s => [s.key, s.tag]));
+
+  // ─────────── State ───────────
+  const state = { ...DEFAULTS };
+  let runCount = 0;
+
+  // ─────────── Deterministic RNG ───────────
+  function hashState(s) {
+    // simple integer hash from state
+    let h = 2166136261 >>> 0;
+    for (const k of Object.keys(s).sort()) {
+      const val = s[k] | 0;
+      h ^= k.charCodeAt(0); h = Math.imul(h, 16777619);
+      h ^= val; h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function() {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ─────────── Compile algorithm ───────────
+  function compile(s) {
+    const rng = mulberry32(hashState(s));
+    const noisePenalty = s.noise / 12; // 0..0.83
+    const candidates = [];
+
+    // Signal candidates
+    for (const key of ['freshness', 'trust', 'specificity', 'recency', 'actionability']) {
+      const v = s[key];
+      // Number of candidates ~ value * (1 - noisePenalty * 0.5)
+      const n = Math.max(0, Math.round(v * (1 - noisePenalty * 0.4)));
+      for (let i = 0; i < n; i++) {
+        const pool = TOKEN_POOL[key];
+        const label = pool[(i + Math.floor(rng() * pool.length)) % pool.length];
+        const weight = v * 1.0 - noisePenalty * 3 + rng() * 1.4;
+        candidates.push({ kind: key, label, weight });
+      }
+    }
+
+    // Noise candidates
+    const noiseN = Math.round(s.noise * 0.9);
+    for (let i = 0; i < noiseN; i++) {
+      const pool = TOKEN_POOL.noise;
+      const label = pool[(i + Math.floor(rng() * pool.length)) % pool.length];
+      const weight = s.noise * 0.6 + rng() * 1.1;
+      candidates.push({ kind: 'noise', label, weight });
+    }
+
+    // Sort, take top 8
+    candidates.sort((a, b) => b.weight - a.weight);
+
+    // De-duplicate by label so stack reads cleanly
+    const seen = new Set();
+    const top = [];
+    for (const c of candidates) {
+      const key = c.kind + ':' + c.label;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      top.push(c);
+      if (top.length >= 8) break;
+    }
+
+    // ── Diagnostics ──
+    const goodInStack = top.filter(t => t.kind !== 'noise').length;
+    const noiseInStack = top.filter(t => t.kind === 'noise').length;
+    const snr = noiseInStack === 0 ? (goodInStack >= 6 ? '∞' : (goodInStack * 2).toFixed(1))
+                                    : (goodInStack / Math.max(1, noiseInStack)).toFixed(1);
+
+    // ── Conflicts ──
+    const conflicts = [];
+    if (s.freshness >= 7 && s.recency <= 3) {
+      conflicts.push({ tag: 'STALE-DEP', sev: 'hard',
+        msg: 'Fresh input layered onto stale context. The agent will argue with itself.' });
+    }
+    if (s.specificity >= 7 && s.actionability <= 3) {
+      conflicts.push({ tag: 'INFO-ONLY', sev: 'soft',
+        msg: 'Precise facts with no verbs. Add a "do X" before the next compile.' });
+    }
+    if (s.noise >= 7) {
+      conflicts.push({ tag: 'NOISE-FLOOR', sev: 'hard',
+        msg: 'Signal is drowning. Strip filler before tuning anything else.' });
+    }
+    if (s.trust <= 3 && s.actionability >= 7) {
+      conflicts.push({ tag: 'BLIND-ACTION', sev: 'hard',
+        msg: 'Confident action on shaky ground. Verify a source before you commit.' });
+    }
+    if (s.recency >= 8 && s.specificity <= 3) {
+      conflicts.push({ tag: 'VAGUE-NOW', sev: 'soft',
+        msg: 'Recent but blurry. Pin the actual file, flag, or fact.' });
+    }
+    if (s.trust >= 8 && s.freshness <= 3) {
+      conflicts.push({ tag: 'STALE-GOLD', sev: 'soft',
+        msg: 'Trusted source, but old. Confirm it still holds today.' });
+    }
+
+    // ── Health ──
+    let health;
+    if (s.noise >= 7 || conflicts.some(c => c.sev === 'hard')) health = { label: 'unstable', cls: 'bad' };
+    else if (conflicts.length > 0 || goodInStack < 5) health = { label: 'tilted', cls: 'warn' };
+    else health = { label: 'lush', cls: 'ok' };
+
+    // ── Effective context label ──
+    const totalGood = (s.freshness + s.trust + s.specificity + s.recency + s.actionability) / 5;
+    const effRaw = Math.max(0, totalGood - s.noise * 0.6);
+    let effective;
+    if (effRaw >= 6) effective = 'rich';
+    else if (effRaw >= 4) effective = 'workable';
+    else if (effRaw >= 2) effective = 'thin';
+    else effective = 'starved';
+
+    // ── Next move ──
+    let nextMove;
+    if (s.noise >= 6) {
+      nextMove = 'Strip the noise first. One filler token starves three good ones.';
+    } else if (conflicts.some(c => c.sev === 'hard')) {
+      const c = conflicts.find(x => x.sev === 'hard');
+      nextMove = `Resolve ${c.tag}: ${c.msg.split('.')[0].toLowerCase()}.`;
+    } else if (goodInStack < 4) {
+      nextMove = 'Add at least one verifiable, recent, specific input before the next run.';
+    } else {
+      // Lowest non-noise signal
+      const order = ['freshness', 'trust', 'specificity', 'recency', 'actionability'];
+      const lowest = order.reduce((a, b) => s[b] < s[a] ? b : a, order[0]);
+      const labels = {
+        freshness: 'add a fresher input',
+        trust: 'pin a trusted source',
+        specificity: 'tighten one vague pointer',
+        recency: 'reach for a more recent artifact',
+        actionability: 'name a next action verb',
+      };
+      nextMove = `Healthy. To gain a slot, ${labels[lowest]}.`;
+    }
+
+    return { stack: top, conflicts, snr, effective, health, nextMove,
+             counts: { good: goodInStack, noise: noiseInStack } };
+  }
+
+  // ─────────── Render: control panel ───────────
+  const panelEl = document.getElementById('panel');
+  function renderPanel() {
+    panelEl.innerHTML = SIGNALS.map(sig => {
+      const v = state[sig.key];
+      const segs = Array.from({ length: 10 }, (_, i) =>
+        `<span class="seg ${i < v ? 'on' : ''}"></span>`
+      ).join('');
+      const active = v > 0 && sig.kind !== 'noise' ? 'true' : (sig.kind === 'noise' && v > 0 ? 'true' : 'false');
+      return `
+        <div class="signal" data-key="${sig.key}" data-kind="${sig.kind}" data-active="${active}">
+          <div class="signal-top">
+            <div class="signal-meta">
+              <div class="signal-label">${sig.label}</div>
+              <div class="signal-desc">${sig.desc}</div>
+            </div>
+            <div class="signal-value" id="val-${sig.key}">${v}</div>
+          </div>
+          <div class="signal-bottom">
+            <button class="step-btn" data-act="dec" data-key="${sig.key}" aria-label="Decrease ${sig.label}">−</button>
+            <div class="signal-bar" id="bar-${sig.key}">${segs}</div>
+            <button class="step-btn" data-act="inc" data-key="${sig.key}" aria-label="Increase ${sig.label}">+</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    panelEl.querySelectorAll('.step-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        const act = btn.dataset.act;
+        const cur = state[key];
+        if (act === 'inc' && cur < 10) state[key] = cur + 1;
+        if (act === 'dec' && cur > 0) state[key] = cur - 1;
+        updateSignal(key);
+      });
+    });
+  }
+
+  function updateSignal(key) {
+    const v = state[key];
+    const sig = SIGNALS.find(s => s.key === key);
+    document.getElementById('val-' + key).textContent = v;
+    const segs = document.getElementById('bar-' + key).children;
+    for (let i = 0; i < segs.length; i++) {
+      segs[i].classList.toggle('on', i < v);
+    }
+    const card = panelEl.querySelector(`.signal[data-key="${key}"]`);
+    card.dataset.active = v > 0 ? 'true' : 'false';
+  }
+
+  // ─────────── Render: results ───────────
+  const slotsEl = document.getElementById('slots');
+  const fillCountEl = document.getElementById('fill-count');
+  const snrEl = document.getElementById('snr');
+  const effectiveEl = document.getElementById('effective');
+  const healthEl = document.getElementById('health');
+  const conflictsEl = document.getElementById('conflicts');
+  const nextMoveEl = document.getElementById('next-move');
+  const runMetaEl = document.getElementById('run-meta');
+
+  function renderEmptyStack() {
+    slotsEl.innerHTML = Array.from({ length: 8 }, (_, i) => `
+      <div class="slot" data-state="empty">
+        <span class="slot-idx">${String(i + 1).padStart(2, '0')}</span>
+        <span class="slot-token" style="opacity:0.55">— empty slot —</span>
+      </div>
+    `).join('');
+  }
+
+  function renderResults(result) {
+    // Stack
+    const slotsHtml = [];
+    for (let i = 0; i < 8; i++) {
+      const item = result.stack[i];
+      if (!item) {
+        slotsHtml.push(`
+          <div class="slot" data-state="empty">
+            <span class="slot-idx">${String(i + 1).padStart(2, '0')}</span>
+            <span class="slot-token" style="opacity:0.55">— empty slot —</span>
+          </div>
+        `);
+      } else {
+        slotsHtml.push(`
+          <div class="slot" data-state="filled" data-kind="${item.kind}" style="animation-delay:${i * 40}ms">
+            <span class="slot-idx">${String(i + 1).padStart(2, '0')}</span>
+            <span class="slot-kind" title="${item.kind}">${KIND_TAG[item.kind]}</span>
+            <span class="slot-token">${item.label}</span>
+            <span class="slot-weight">w ${item.weight.toFixed(1)}</span>
+          </div>
+        `);
+      }
+    }
+    slotsEl.innerHTML = slotsHtml.join('');
+
+    fillCountEl.textContent = result.counts.good;
+    snrEl.textContent = result.snr;
+    snrEl.className = 'diag-val ' + (
+      result.counts.noise === 0 ? 'ok'
+      : result.counts.good > result.counts.noise * 1.5 ? 'warn'
+      : 'bad'
+    );
+    effectiveEl.textContent = result.effective;
+    effectiveEl.className = 'diag-val ' + (
+      result.effective === 'rich' || result.effective === 'workable' ? 'ok'
+      : result.effective === 'thin' ? 'warn' : 'bad'
+    );
+    healthEl.textContent = result.health.label;
+    healthEl.className = 'diag-val ' + result.health.cls;
+
+    // Conflicts
+    if (result.conflicts.length === 0) {
+      conflictsEl.innerHTML = `<div class="no-conflict">No conflicts. The garden is quiet.</div>`;
+    } else {
+      conflictsEl.innerHTML = result.conflicts.map(c => `
+        <div class="conflict" data-sev="${c.sev}">
+          <span class="conflict-tag">${c.tag}</span>
+          <span class="conflict-msg">${c.msg}</span>
+        </div>
+      `).join('');
+    }
+
+    nextMoveEl.textContent = result.nextMove;
+    runMetaEl.textContent = 'run ' + runCount;
+  }
+
+  // ─────────── Event wiring ───────────
+  document.getElementById('compile').addEventListener('click', () => {
+    runCount += 1;
+    renderResults(compile(state));
+  });
+
+  document.getElementById('shuffle').addEventListener('click', () => {
+    // Deterministic-ish shuffle using current state as seed for novelty
+    const seed = (Date.now() ^ hashState(state)) >>> 0;
+    const rng = mulberry32(seed);
+    for (const sig of SIGNALS) {
+      // Bias noise toward lower values so shuffle stays playable
+      const max = sig.kind === 'noise' ? 7 : 10;
+      state[sig.key] = Math.floor(rng() * (max + 1));
+      updateSignal(sig.key);
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const sig of SIGNALS) {
+      state[sig.key] = DEFAULTS[sig.key];
+      updateSignal(sig.key);
+    }
+    runCount = 0;
+    renderEmptyStack();
+    fillCountEl.textContent = '0';
+    snrEl.textContent = '—'; snrEl.className = 'diag-val';
+    effectiveEl.textContent = '—'; effectiveEl.className = 'diag-val';
+    healthEl.textContent = '—'; healthEl.className = 'diag-val';
+    conflictsEl.innerHTML = '';
+    nextMoveEl.textContent = 'Compile to see a recommendation.';
+    runMetaEl.textContent = 'run 0';
+  });
+
+  // ─────────── Boot ───────────
+  renderPanel();
+  renderEmptyStack();
+  // Run an initial compile so first-paint is meaningful.
+  runCount = 1;
+  renderResults(compile(state));
+})();
+</script>
+</body>
+</html>
