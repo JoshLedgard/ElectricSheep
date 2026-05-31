@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Reply Forge — Tiny Tone Calibration Studio</title>
+<title>Reply Forge — AI Reply Prompt Studio</title>
 <style>
   :root {
     --bg: #f5f1ea;
@@ -40,6 +40,7 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
   body {
     font-family: var(--sans);
@@ -296,6 +297,29 @@
   .preset:active { transform: scale(0.98); }
   .preset.match { border-style: solid; border-color: var(--accent); background: var(--paper); }
 
+  /* Source context */
+  .context-label {
+    display: block;
+    margin: -2px 0 8px;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+  .context-box {
+    width: 100%;
+    resize: vertical;
+    min-height: 132px;
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--bg-deep);
+    color: var(--ink);
+    padding: 12px 14px;
+    font: 14px/1.45 var(--sans);
+  }
+  .context-box:focus {
+    outline: 2px solid rgba(177, 74, 42, 0.28);
+    border-color: var(--accent);
+  }
+
   /* Actions */
   .actions {
     display: flex;
@@ -499,7 +523,7 @@
   <header>
     <p class="eyebrow">Daily Surprise · 2026-05-31</p>
     <h1>Reply Forge</h1>
-    <p class="sub">A tiny tone calibration studio. Set the dials, pick the move, get a reply skeleton you can paste &amp; finish.</p>
+    <p class="sub">A tiny tone calibration studio. Paste the source context, set the dials, then copy a complete prompt into Claude, ChatGPT, or any AI tool.</p>
   </header>
 
   <section class="panel" aria-labelledby="h-scen">
@@ -517,28 +541,34 @@
     <div class="dials" id="dials"></div>
   </section>
 
+  <section class="panel" aria-labelledby="h-context">
+    <h2 id="h-context"><span class="num">4</span> Paste source context</h2>
+    <label class="context-label" for="sourceContext">The email, chat thread, notes, or situation the AI should answer from.</label>
+    <textarea id="sourceContext" class="context-box" rows="7" placeholder="Example: Paste the message you received, relevant background, constraints, and any must-include details."></textarea>
+  </section>
+
   <section class="panel" aria-labelledby="h-moves">
-    <h2 id="h-moves"><span class="num">4</span> Required moves</h2>
+    <h2 id="h-moves"><span class="num">5</span> Required moves</h2>
     <div class="chips" id="chips" role="group" aria-label="Reply must include"></div>
   </section>
 
   <div class="actions">
-    <button class="btn" id="forge">Forge reply</button>
+    <button class="btn" id="forge">Forge prompt</button>
     <button class="btn ghost" id="reset">Reset</button>
   </div>
 
   <section class="panel out" aria-labelledby="h-out" id="outPanel" hidden>
-    <h2 id="h-out"><span class="num">5</span> Your reply recipe</h2>
+    <h2 id="h-out"><span class="num">6</span> Prompt to paste into an AI tool</h2>
 
     <div class="badges" id="badges"></div>
 
     <div class="recipe">
-      <h3>Structure</h3>
+      <h3>Prompt strategy</h3>
       <ol id="recipeList"></ol>
     </div>
 
     <div>
-      <h3 style="margin:0 0 6px;font-size:13px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">Skeleton</h3>
+      <h3 style="margin:0 0 6px;font-size:13px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">AI prompt</h3>
       <div class="skel" id="skel" aria-live="polite"></div>
     </div>
 
@@ -553,12 +583,12 @@
     </div>
 
     <div class="actions">
-      <button class="btn" id="copy">Copy skeleton</button>
-      <button class="btn ghost" id="copyAll">Copy full brief</button>
+      <button class="btn" id="copy">Copy prompt</button>
+      <button class="btn ghost" id="copyAll">Copy calibration brief</button>
     </div>
   </section>
 
-  <p class="foot">Calibrated locally <span class="dot-sep">·</span> nothing leaves your device <span class="dot-sep">·</span> Reply Forge v1</p>
+  <p class="foot">Prompt generated locally <span class="dot-sep">·</span> nothing leaves your device <span class="dot-sep">·</span> Reply Forge v2</p>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
@@ -916,15 +946,67 @@
       .replace(/<[^>]+>/g, "");
   }
 
+  function sourceContext() {
+    const node = $("sourceContext");
+    const val = node ? node.value.trim() : "";
+    return val || "[Paste the source message/thread/context here before sending this prompt.]";
+  }
+
+  function dialDirective(id, val) {
+    const high = val >= 75;
+    const midHigh = val >= 55;
+    const midLow = val >= 35;
+    if (id === "warmth") return high ? "noticeably warm and human" : midHigh ? "warm but not gushy" : midLow ? "neutral and courteous" : "cool, minimal, but not rude";
+    if (id === "direct") return high ? "very direct; do not bury the point" : midHigh ? "clear and straightforward" : midLow ? "gentle and diplomatic" : "softened and careful";
+    if (id === "formal") return high ? "formal/professional" : midHigh ? "polished but natural" : midLow ? "conversational" : "casual";
+    if (id === "urgency") return high ? "time-sensitive; include a concrete deadline or reason" : midHigh ? "moderately timely" : midLow ? "not urgent" : "low-pressure";
+    if (id === "brevity") return high ? "very concise" : midHigh ? "brief, but complete" : midLow ? "moderate detail" : "allow a little more context";
+    return String(val);
+  }
+
+  function buildAiPrompt() {
+    const sc = SCENARIOS.find(s => s.id === state.scenario);
+    const dialLines = DIALS.map(d => `- ${d.lab}: ${state.dials[d.id]}/100 — ${dialDirective(d.id, state.dials[d.id])} (${d.left} → ${d.right})`).join("\n");
+    const moveLines = MOVES.filter(m => state.moves.has(m.id)).map(m => `- ${m.lab}`).join("\n") || "- No special moves selected; use judgment.";
+    const recipe = buildRecipe().map((r, i) => `${i + 1}. ${r}`).join("\n") || "Use the source context to choose the simplest complete reply.";
+    const checks = buildChecks().map(c => `- ${c.t}`).join("\n");
+
+    return [
+      "Write a complete reply using the source context below.",
+      "",
+      "Source context:",
+      "<<<SOURCE_CONTEXT",
+      sourceContext(),
+      "SOURCE_CONTEXT",
+      "",
+      "Task:",
+      `- Scenario: ${sc ? sc.lab : state.scenario}${sc ? ` — ${sc.desc}` : ""}`,
+      "- Produce the final reply only, ready to send. Do not include analysis, options, labels, or commentary.",
+      "- Preserve facts from the source context. Do not invent commitments, dates, names, or reasons.",
+      "- If a required detail is missing, write the reply so it asks for exactly that missing detail rather than guessing.",
+      "",
+      "Tone calibration:",
+      dialLines,
+      "",
+      "Required moves to include:",
+      moveLines,
+      "",
+      "Preferred structure:",
+      recipe,
+      "",
+      "Quality checks before finalizing:",
+      checks,
+    ].join("\n");
+  }
+
   function fullBrief() {
     const sc = SCENARIOS.find(s => s.id === state.scenario);
-    const dialLines = DIALS.map(d => `  ${d.lab.padEnd(11)} ${String(state.dials[d.id]).padStart(3)}  (${d.left} → ${d.right})`).join("\n");
+    const dialLines = DIALS.map(d => `  ${d.lab.padEnd(11)} ${String(state.dials[d.id]).padStart(3)}  (${d.left} → ${d.right}) — ${dialDirective(d.id, state.dials[d.id])}`).join("\n");
     const moveLines = MOVES.filter(m => state.moves.has(m.id)).map(m => `  • ${m.lab}`).join("\n") || "  (none)";
     const recipe = buildRecipe().map((r, i) => `  ${i + 1}. ${r}`).join("\n") || "  (none)";
-    const skel = plainSkeleton(buildSkeleton());
     const checks = buildChecks().map(c => `  ${c.ok ? "[✓]" : "[!]"} ${c.t}`).join("\n");
     return [
-      "REPLY FORGE — calibration brief",
+      "REPLY FORGE — AI prompt calibration brief",
       "",
       `Scenario: ${sc ? sc.lab : state.scenario}`,
       "",
@@ -937,8 +1019,8 @@
       "Structure:",
       recipe,
       "",
-      "Skeleton:",
-      skel.split("\n").map(l => "  " + l).join("\n"),
+      "Generated prompt:",
+      buildAiPrompt().split("\n").map(l => "  " + l).join("\n"),
       "",
       "Before you hit send:",
       checks,
@@ -976,8 +1058,8 @@
       });
     }
 
-    // Skeleton
-    $("skel").innerHTML = buildSkeleton();
+    // AI prompt
+    $("skel").textContent = buildAiPrompt();
 
     // Meter
     const m = $("meter");
@@ -1065,7 +1147,7 @@
     renderAll();
     $("forge").addEventListener("click", forge);
     $("reset").addEventListener("click", reset);
-    $("copy").addEventListener("click", () => copyText(plainSkeleton(buildSkeleton()), "Skeleton copied"));
+    $("copy").addEventListener("click", () => copyText(buildAiPrompt(), "Prompt copied"));
     $("copyAll").addEventListener("click", () => copyText(fullBrief(), "Brief copied"));
   });
 })();
