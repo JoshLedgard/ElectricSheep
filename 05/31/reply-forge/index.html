@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Reply Forge — Tiny Tone Calibration Studio</title>
+<style>
+  :root {
+    --bg: #f5f1ea;
+    --bg-deep: #ebe4d6;
+    --ink: #1f1a17;
+    --ink-soft: #4a3f37;
+    --paper: #fffdf7;
+    --rule: #d8cdb8;
+    --accent: #b14a2a;
+    --accent-soft: #e6856a;
+    --cool: #2f5d6c;
+    --warm: #c98c2c;
+    --green: #4a7a3e;
+    --shadow: 0 1px 0 rgba(31, 26, 23, 0.06), 0 8px 24px rgba(31, 26, 23, 0.08);
+    --radius: 14px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1714;
+      --bg-deep: #14110f;
+      --ink: #f1ece2;
+      --ink-soft: #c8bdac;
+      --paper: #221d18;
+      --rule: #3a322a;
+      --accent: #e6856a;
+      --accent-soft: #b14a2a;
+      --cool: #74a8b8;
+      --warm: #e6b558;
+      --green: #88b377;
+      --shadow: 0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(177, 74, 42, 0.06), transparent 40%),
+      radial-gradient(circle at 92% 88%, rgba(47, 93, 108, 0.06), transparent 45%);
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 18px 16px 56px;
+  }
+  header {
+    margin: 6px 0 14px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 4px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1.1;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--ink-soft);
+    margin: 0;
+    font-size: 14.5px;
+  }
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 14px 0;
+    box-shadow: var(--shadow);
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  /* Scenario picker */
+  .scenarios {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .scenario {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--bg-deep);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 10px 12px;
+    text-align: left;
+    border-radius: 10px;
+    font: inherit;
+    cursor: pointer;
+    min-height: 56px;
+    line-height: 1.25;
+    transition: transform 0.05s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .scenario:active { transform: scale(0.98); }
+  .scenario .lab {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .scenario .desc {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .scenario.on {
+    background: var(--paper);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  /* Dials */
+  .dials {
+    display: grid;
+    gap: 14px;
+  }
+  .dial {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 12px;
+    row-gap: 4px;
+    align-items: center;
+  }
+  .dial label {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .dial .endlbl {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .dial output {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--bg-deep);
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    min-width: 44px;
+    text-align: center;
+  }
+  .dial .scale {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: -2px;
+  }
+  input[type="range"] {
+    grid-column: 1 / -1;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    background: transparent;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+  }
+  input[type="range"]:focus { outline: none; }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(to right, var(--cool), var(--accent));
+    border-radius: 6px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    background: linear-gradient(to right, var(--cool), var(--accent));
+    border-radius: 6px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    margin-top: -10px;
+    cursor: grab;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    cursor: grab;
+  }
+
+  /* Constraint chips */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--rule);
+    background: var(--bg-deep);
+    color: var(--ink);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    min-height: 36px;
+    line-height: 1.1;
+  }
+  .chip.on {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* Presets */
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .preset {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--bg-deep);
+    border: 1px dashed var(--rule);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    min-height: 56px;
+  }
+  .preset .pname {
+    display: block;
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+  .preset .pmeta {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.02em;
+  }
+  .preset:active { transform: scale(0.98); }
+  .preset.match { border-style: solid; border-color: var(--accent); background: var(--paper); }
+
+  /* Actions */
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 999px;
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+    flex: 1 1 auto;
+  }
+  .btn.ghost {
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn:active { transform: scale(0.98); }
+
+  /* Output */
+  .out {
+    display: grid;
+    gap: 14px;
+  }
+  .recipe {
+    background: var(--bg-deep);
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--rule);
+  }
+  .recipe h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .recipe ol {
+    padding-left: 18px;
+    margin: 0;
+  }
+  .recipe ol li {
+    margin: 4px 0;
+    font-size: 14.5px;
+  }
+  .skel {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--serif);
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .skel .slot {
+    background: rgba(177, 74, 42, 0.12);
+    border-bottom: 1px dashed var(--accent);
+    padding: 0 3px;
+    border-radius: 3px;
+    font-style: italic;
+    color: var(--accent);
+  }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--bg-deep);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+  }
+  .badge.good { background: rgba(74, 122, 62, 0.12); color: var(--green); border-color: rgba(74, 122, 62, 0.35); }
+  .badge.warn { background: rgba(201, 140, 44, 0.14); color: var(--warm); border-color: rgba(201, 140, 44, 0.4); }
+  .badge.alert { background: rgba(177, 74, 42, 0.14); color: var(--accent); border-color: rgba(177, 74, 42, 0.4); }
+
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+  }
+  .checklist .dot {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--ink);
+  }
+  .checklist .dot.tick { background: var(--ink); color: var(--paper); }
+  .checklist .dot.warn { border-color: var(--accent); color: var(--accent); }
+
+  /* Tone meter */
+  .meter {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .meter-row { display: contents; }
+  .meter .lab {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .meter .bar {
+    grid-column: 1 / -1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--bg-deep);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    position: relative;
+  }
+  .meter .fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--cool), var(--accent));
+    transition: width 0.25s ease;
+  }
+  .meter .val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 50;
+  }
+  .toast.on {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .foot {
+    margin: 18px 4px 0;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+  .foot .dot-sep { margin: 0 6px; opacity: 0.5; }
+
+  @media (min-width: 560px) {
+    .scenarios { grid-template-columns: repeat(3, 1fr); }
+    .presets { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 720px) {
+    h1 { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Daily Surprise · 2026-05-31</p>
+    <h1>Reply Forge</h1>
+    <p class="sub">A tiny tone calibration studio. Set the dials, pick the move, get a reply skeleton you can paste &amp; finish.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="h-scen">
+    <h2 id="h-scen"><span class="num">1</span> Pick a scenario</h2>
+    <div class="scenarios" id="scenarios" role="radiogroup" aria-label="Scenario type"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-presets">
+    <h2 id="h-presets"><span class="num">2</span> Start from a preset <span style="font-weight:400;font-size:12px;color:var(--ink-soft);font-family:var(--mono)">(optional)</span></h2>
+    <div class="presets" id="presets"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-dials">
+    <h2 id="h-dials"><span class="num">3</span> Calibrate the dials</h2>
+    <div class="dials" id="dials"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-moves">
+    <h2 id="h-moves"><span class="num">4</span> Required moves</h2>
+    <div class="chips" id="chips" role="group" aria-label="Reply must include"></div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="forge">Forge reply</button>
+    <button class="btn ghost" id="reset">Reset</button>
+  </div>
+
+  <section class="panel out" aria-labelledby="h-out" id="outPanel" hidden>
+    <h2 id="h-out"><span class="num">5</span> Your reply recipe</h2>
+
+    <div class="badges" id="badges"></div>
+
+    <div class="recipe">
+      <h3>Structure</h3>
+      <ol id="recipeList"></ol>
+    </div>
+
+    <div>
+      <h3 style="margin:0 0 6px;font-size:13px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">Skeleton</h3>
+      <div class="skel" id="skel" aria-live="polite"></div>
+    </div>
+
+    <div>
+      <h3 style="margin:0 0 6px;font-size:13px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">Tone read</h3>
+      <div class="meter" id="meter"></div>
+    </div>
+
+    <div>
+      <h3 style="margin:0 0 6px;font-size:13px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)">Before you hit send</h3>
+      <ul class="checklist" id="checks"></ul>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="copy">Copy skeleton</button>
+      <button class="btn ghost" id="copyAll">Copy full brief</button>
+    </div>
+  </section>
+
+  <p class="foot">Calibrated locally <span class="dot-sep">·</span> nothing leaves your device <span class="dot-sep">·</span> Reply Forge v1</p>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Data ----------
+  const SCENARIOS = [
+    { id: "ack", lab: "Acknowledge", desc: "Receipt + thanks, no decision yet" },
+    { id: "decide", lab: "Make a call", desc: "Yes / no / pick a path" },
+    { id: "decline", lab: "Decline", desc: "Pass, with care" },
+    { id: "ask", lab: "Ask for info", desc: "Need a thing to move on" },
+    { id: "deliver", lab: "Deliver an update", desc: "Status / progress / change" },
+    { id: "boundary", lab: "Hold a line", desc: "Push back, stay respectful" },
+  ];
+
+  const DIALS = [
+    { id: "warmth",     lab: "Warmth",      left: "cool",    right: "warm",      def: 55 },
+    { id: "direct",     lab: "Directness",  left: "soft",    right: "blunt",     def: 55 },
+    { id: "formal",     lab: "Formality",   left: "casual",  right: "formal",    def: 45 },
+    { id: "urgency",    lab: "Urgency",     left: "later",   right: "now",       def: 35 },
+    { id: "brevity",    lab: "Brevity",     left: "long",    right: "tight",     def: 65 },
+  ];
+
+  const MOVES = [
+    { id: "open",      lab: "Open warmly" },
+    { id: "summary",   lab: "Mirror what you heard" },
+    { id: "decision",  lab: "State the decision" },
+    { id: "reason",    lab: "Give one reason" },
+    { id: "ask",       lab: "Ask a question" },
+    { id: "next",      lab: "Propose a next step" },
+    { id: "time",      lab: "Set a timeframe" },
+    { id: "thanks",    lab: "Close with thanks" },
+  ];
+
+  const PRESETS = [
+    {
+      id: "warm-ack", name: "Warm Acknowledge",
+      meta: "warm · soft · casual",
+      scenario: "ack",
+      dials: { warmth: 80, direct: 30, formal: 30, urgency: 25, brevity: 60 },
+      moves: ["open", "summary", "time", "thanks"],
+    },
+    {
+      id: "crisp-decline", name: "Crisp Decline",
+      meta: "neutral · blunt · formal",
+      scenario: "decline",
+      dials: { warmth: 45, direct: 80, formal: 65, urgency: 45, brevity: 75 },
+      moves: ["open", "decision", "reason", "thanks"],
+    },
+    {
+      id: "curious-probe", name: "Curious Probe",
+      meta: "warm · soft · casual",
+      scenario: "ask",
+      dials: { warmth: 65, direct: 50, formal: 35, urgency: 35, brevity: 55 },
+      moves: ["open", "ask", "next"],
+    },
+    {
+      id: "brief-confirm", name: "Brief Confirm",
+      meta: "cool · blunt · tight",
+      scenario: "decide",
+      dials: { warmth: 35, direct: 85, formal: 50, urgency: 60, brevity: 90 },
+      moves: ["decision", "next"],
+    },
+    {
+      id: "empath-delay", name: "Empathetic Delay",
+      meta: "warm · soft · medium",
+      scenario: "deliver",
+      dials: { warmth: 80, direct: 40, formal: 45, urgency: 30, brevity: 50 },
+      moves: ["open", "summary", "decision", "reason", "time", "thanks"],
+    },
+    {
+      id: "firm-line", name: "Firm Line",
+      meta: "neutral · blunt · formal",
+      scenario: "boundary",
+      dials: { warmth: 40, direct: 80, formal: 70, urgency: 50, brevity: 65 },
+      moves: ["open", "decision", "reason", "next"],
+    },
+  ];
+
+  // ---------- State ----------
+  const state = {
+    scenario: "ack",
+    dials: Object.fromEntries(DIALS.map(d => [d.id, d.def])),
+    moves: new Set(["open", "thanks"]),
+  };
+
+  // ---------- Renderers ----------
+  const $ = (id) => document.getElementById(id);
+
+  function renderScenarios() {
+    const root = $("scenarios");
+    root.innerHTML = "";
+    SCENARIOS.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "scenario" + (state.scenario === s.id ? " on" : "");
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", state.scenario === s.id ? "true" : "false");
+      b.dataset.id = s.id;
+      b.innerHTML = `<span class="lab">${s.lab}</span><span class="desc">${s.desc}</span>`;
+      b.addEventListener("click", () => {
+        state.scenario = s.id;
+        renderScenarios();
+        markPresetMatch();
+      });
+      root.appendChild(b);
+    });
+  }
+
+  function renderDials() {
+    const root = $("dials");
+    root.innerHTML = "";
+    DIALS.forEach(d => {
+      const wrap = document.createElement("div");
+      wrap.className = "dial";
+      wrap.innerHTML = `
+        <label for="dial-${d.id}">${d.lab}</label>
+        <output for="dial-${d.id}" id="out-${d.id}">${state.dials[d.id]}</output>
+        <input type="range" min="0" max="100" step="1" value="${state.dials[d.id]}" id="dial-${d.id}" aria-label="${d.lab} (${d.left} to ${d.right})">
+        <div class="scale"><span>${d.left}</span><span>${d.right}</span></div>
+      `;
+      root.appendChild(wrap);
+      const input = wrap.querySelector("input");
+      const out = wrap.querySelector("output");
+      input.addEventListener("input", () => {
+        state.dials[d.id] = parseInt(input.value, 10);
+        out.textContent = input.value;
+        markPresetMatch();
+      });
+    });
+  }
+
+  function renderChips() {
+    const root = $("chips");
+    root.innerHTML = "";
+    MOVES.forEach(m => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (state.moves.has(m.id) ? " on" : "");
+      b.setAttribute("aria-pressed", state.moves.has(m.id) ? "true" : "false");
+      b.textContent = m.lab;
+      b.addEventListener("click", () => {
+        if (state.moves.has(m.id)) state.moves.delete(m.id);
+        else state.moves.add(m.id);
+        renderChips();
+        markPresetMatch();
+      });
+      root.appendChild(b);
+    });
+  }
+
+  function renderPresets() {
+    const root = $("presets");
+    root.innerHTML = "";
+    PRESETS.forEach(p => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "preset";
+      b.dataset.id = p.id;
+      b.innerHTML = `<span class="pname">${p.name}</span><span class="pmeta">${p.meta}</span>`;
+      b.addEventListener("click", () => {
+        state.scenario = p.scenario;
+        Object.entries(p.dials).forEach(([k, v]) => (state.dials[k] = v));
+        state.moves = new Set(p.moves);
+        renderAll();
+      });
+      root.appendChild(b);
+    });
+    markPresetMatch();
+  }
+
+  function markPresetMatch() {
+    const cards = document.querySelectorAll(".preset");
+    cards.forEach(c => c.classList.remove("match"));
+    const moves = Array.from(state.moves).sort().join(",");
+    const match = PRESETS.find(p => {
+      if (p.scenario !== state.scenario) return false;
+      if (Array.from(p.moves).sort().join(",") !== moves) return false;
+      return Object.entries(p.dials).every(([k, v]) => Math.abs(v - state.dials[k]) <= 6);
+    });
+    if (match) {
+      const node = document.querySelector(`.preset[data-id="${match.id}"]`);
+      if (node) node.classList.add("match");
+    }
+  }
+
+  function renderAll() {
+    renderScenarios();
+    renderDials();
+    renderChips();
+    markPresetMatch();
+  }
+
+  // ---------- Forge logic ----------
+  function band(v) {
+    if (v < 25) return 0;
+    if (v < 50) return 1;
+    if (v < 75) return 2;
+    return 3;
+  }
+
+  function openLine() {
+    const w = state.dials.warmth;
+    const f = state.dials.formal;
+    if (f >= 70) return w >= 60 ? "Thank you for the thoughtful note" : "Thank you for writing in";
+    if (f <= 30) return w >= 60 ? "Hey — thanks for the note" : "Hey, got your note";
+    return w >= 60 ? "Thanks so much for the note" : "Thanks for the note";
+  }
+
+  function closeLine() {
+    const w = state.dials.warmth;
+    const f = state.dials.formal;
+    if (f >= 70) return "Sincerely";
+    if (f <= 30) return w >= 60 ? "Cheers" : "Thanks";
+    return w >= 60 ? "Warmly" : "Thanks";
+  }
+
+  function buildSkeleton() {
+    const scen = state.scenario;
+    const b = state.dials.brevity;
+    const moves = state.moves;
+    const lines = [];
+
+    if (moves.has("open")) {
+      lines.push(`${openLine()}${b >= 70 ? "." : " — ${TIME_OR_CONTEXT}."}`.replace("${TIME_OR_CONTEXT}", "<span class=\"slot\">brief context</span>"));
+    }
+
+    if (moves.has("summary")) {
+      lines.push(`To make sure I have it right: <span class="slot">one-line mirror of what they said</span>.`);
+    }
+
+    if (moves.has("decision")) {
+      if (scen === "decline") {
+        lines.push(`I'm going to pass on <span class="slot">the thing</span> this time.`);
+      } else if (scen === "boundary") {
+        lines.push(`I can do <span class="slot">what I can offer</span>, but not <span class="slot">what's outside the line</span>.`);
+      } else if (scen === "decide") {
+        lines.push(`Let's go with <span class="slot">option / path</span>.`);
+      } else if (scen === "deliver") {
+        lines.push(`Quick update: <span class="slot">the new status</span>.`);
+      } else {
+        lines.push(`Here's where I land: <span class="slot">the call</span>.`);
+      }
+    }
+
+    if (moves.has("reason")) {
+      const intro = state.dials.direct >= 65 ? "Reason:" : "The main reason —";
+      lines.push(`${intro} <span class="slot">one honest reason, not three</span>.`);
+    }
+
+    if (moves.has("ask")) {
+      lines.push(`One question so I can move on this: <span class="slot">a single, answerable ask</span>?`);
+    }
+
+    if (moves.has("next")) {
+      lines.push(state.dials.direct >= 65
+        ? `Next step: <span class="slot">the smallest concrete action</span>.`
+        : `If it works, I'd suggest <span class="slot">a gentle next step</span>.`);
+    }
+
+    if (moves.has("time")) {
+      lines.push(state.dials.urgency >= 65
+        ? `I'll have <span class="slot">the thing</span> by <span class="slot">end of day</span>.`
+        : `I'll circle back by <span class="slot">a specific day</span>.`);
+    }
+
+    if (moves.has("thanks")) {
+      lines.push(state.dials.warmth >= 60
+        ? `Really appreciate the patience here.`
+        : `Appreciate it.`);
+    }
+
+    if (lines.length === 0) {
+      lines.push(`<span class="slot">No moves selected — pick at least one above.</span>`);
+    }
+
+    const sep = b >= 70 ? " " : "\n\n";
+    const body = lines.join(sep);
+    return `${body}\n\n${closeLine()},\n<span class="slot">you</span>`;
+  }
+
+  function buildRecipe() {
+    const order = ["open", "summary", "decision", "reason", "ask", "next", "time", "thanks"];
+    const labMap = {
+      open: "Open — set the temperature in one line.",
+      summary: "Mirror — show you actually read it.",
+      decision: "Land the call — clearly, in its own sentence.",
+      reason: "One reason — resist stacking three.",
+      ask: "One question — singular and answerable.",
+      next: "Next step — concrete and small.",
+      time: "Timeframe — pin it to a real moment.",
+      thanks: "Close — match warmth to the open.",
+    };
+    return order.filter(k => state.moves.has(k)).map(k => labMap[k]);
+  }
+
+  function buildBadges() {
+    const out = [];
+    const { warmth, direct, formal, urgency, brevity } = state.dials;
+    const ms = state.moves;
+
+    // Composite reads
+    if (warmth >= 70 && direct <= 35) out.push({ t: "cushion-heavy", k: "warn" });
+    if (warmth <= 30 && direct >= 70) out.push({ t: "edge-risk", k: "alert" });
+    if (formal >= 70 && warmth <= 30) out.push({ t: "stiff", k: "warn" });
+    if (formal <= 25 && (state.scenario === "decline" || state.scenario === "boundary")) out.push({ t: "too-casual?", k: "warn" });
+    if (urgency >= 75 && !ms.has("time")) out.push({ t: "urgent w/o deadline", k: "alert" });
+    if (ms.has("ask") && Array.from(ms).length >= 5 && brevity < 60) out.push({ t: "ask may get lost", k: "warn" });
+    if (brevity >= 80 && ms.size >= 5) out.push({ t: "too tight for moves", k: "warn" });
+    if (state.scenario === "decline" && !ms.has("reason") && !ms.has("decision")) out.push({ t: "decline w/o the no", k: "alert" });
+    if (state.scenario === "ask" && !ms.has("ask")) out.push({ t: "no question in an ask", k: "alert" });
+
+    // Compliments
+    if (out.length === 0) out.push({ t: "calibrated", k: "good" });
+    if (ms.has("decision") && ms.has("reason") && direct >= 55 && warmth >= 45) out.push({ t: "clear + kind", k: "good" });
+
+    return out;
+  }
+
+  function buildChecks() {
+    const c = [];
+    const { warmth, direct, formal, urgency, brevity } = state.dials;
+    const ms = state.moves;
+
+    c.push({ t: "Re-read the open out loud — does it match the warmth dial?", ok: ms.has("open") });
+    if (ms.has("decision")) c.push({ t: "Is the decision in one short sentence, not buried?", ok: true });
+    if (ms.has("reason")) c.push({ t: "Cut to one reason. Three reasons read defensive.", ok: true });
+    if (ms.has("ask")) c.push({ t: "Is the ask a single question with a question mark?", ok: true });
+    if (ms.has("time")) c.push({ t: "Does the timeframe name a real day, not 'soon'?", ok: true });
+    if (urgency >= 70) c.push({ t: "Urgency is high — say why it's urgent or it reads pushy.", ok: false });
+    if (warmth <= 30 && (state.scenario === "ack" || state.scenario === "decline")) c.push({ t: "Low warmth on a sensitive scenario — add one human line.", ok: false });
+    if (brevity >= 80) c.push({ t: "Tight mode — delete any sentence that isn't doing work.", ok: true });
+    if (formal >= 70 && state.scenario !== "decline" && state.scenario !== "boundary") c.push({ t: "Formal register is high — is that the relationship?", ok: false });
+    if (!ms.has("thanks") && warmth >= 60) c.push({ t: "High warmth but no closing thanks — adds a beat of grace.", ok: false });
+
+    return c;
+  }
+
+  function buildMeter() {
+    return DIALS.map(d => ({
+      lab: d.lab,
+      val: state.dials[d.id],
+      left: d.left,
+      right: d.right,
+    }));
+  }
+
+  function plainSkeleton(html) {
+    return html
+      .replace(/<span class="slot">/g, "[")
+      .replace(/<\/span>/g, "]")
+      .replace(/<[^>]+>/g, "");
+  }
+
+  function fullBrief() {
+    const sc = SCENARIOS.find(s => s.id === state.scenario);
+    const dialLines = DIALS.map(d => `  ${d.lab.padEnd(11)} ${String(state.dials[d.id]).padStart(3)}  (${d.left} → ${d.right})`).join("\n");
+    const moveLines = MOVES.filter(m => state.moves.has(m.id)).map(m => `  • ${m.lab}`).join("\n") || "  (none)";
+    const recipe = buildRecipe().map((r, i) => `  ${i + 1}. ${r}`).join("\n") || "  (none)";
+    const skel = plainSkeleton(buildSkeleton());
+    const checks = buildChecks().map(c => `  ${c.ok ? "[✓]" : "[!]"} ${c.t}`).join("\n");
+    return [
+      "REPLY FORGE — calibration brief",
+      "",
+      `Scenario: ${sc ? sc.lab : state.scenario}`,
+      "",
+      "Dials:",
+      dialLines,
+      "",
+      "Required moves:",
+      moveLines,
+      "",
+      "Structure:",
+      recipe,
+      "",
+      "Skeleton:",
+      skel.split("\n").map(l => "  " + l).join("\n"),
+      "",
+      "Before you hit send:",
+      checks,
+    ].join("\n");
+  }
+
+  // ---------- Forge ----------
+  function forge() {
+    const panel = $("outPanel");
+    panel.hidden = false;
+
+    // Badges
+    const bWrap = $("badges");
+    bWrap.innerHTML = "";
+    buildBadges().forEach(b => {
+      const el = document.createElement("span");
+      el.className = "badge " + (b.k || "");
+      el.textContent = b.t;
+      bWrap.appendChild(el);
+    });
+
+    // Recipe
+    const rList = $("recipeList");
+    rList.innerHTML = "";
+    const recipe = buildRecipe();
+    if (recipe.length === 0) {
+      const li = document.createElement("li");
+      li.innerHTML = `<em>Pick at least one move above.</em>`;
+      rList.appendChild(li);
+    } else {
+      recipe.forEach(r => {
+        const li = document.createElement("li");
+        li.textContent = r;
+        rList.appendChild(li);
+      });
+    }
+
+    // Skeleton
+    $("skel").innerHTML = buildSkeleton();
+
+    // Meter
+    const m = $("meter");
+    m.innerHTML = "";
+    buildMeter().forEach(row => {
+      const lab = document.createElement("span");
+      lab.className = "lab";
+      lab.textContent = `${row.lab} · ${row.left} → ${row.right}`;
+      const val = document.createElement("span");
+      val.className = "val";
+      val.textContent = row.val;
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const fill = document.createElement("div");
+      fill.className = "fill";
+      fill.style.width = row.val + "%";
+      bar.appendChild(fill);
+      m.appendChild(lab);
+      m.appendChild(val);
+      m.appendChild(bar);
+    });
+
+    // Checks
+    const cList = $("checks");
+    cList.innerHTML = "";
+    buildChecks().forEach(c => {
+      const li = document.createElement("li");
+      const dot = document.createElement("span");
+      dot.className = "dot " + (c.ok ? "tick" : "warn");
+      dot.textContent = c.ok ? "✓" : "!";
+      const t = document.createElement("span");
+      t.textContent = c.t;
+      li.appendChild(dot);
+      li.appendChild(t);
+      cList.appendChild(li);
+    });
+
+    // Smooth-scroll the output into view
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- Reset ----------
+  function reset() {
+    state.scenario = "ack";
+    DIALS.forEach(d => (state.dials[d.id] = d.def));
+    state.moves = new Set(["open", "thanks"]);
+    $("outPanel").hidden = true;
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ---------- Copy ----------
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("on"), 1400);
+  }
+
+  async function copyText(text, msg) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "absolute";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      showToast(msg);
+    } catch (e) {
+      showToast("Copy blocked — long-press to select");
+    }
+  }
+
+  // ---------- Wire up ----------
+  document.addEventListener("DOMContentLoaded", () => {
+    renderAll();
+    $("forge").addEventListener("click", forge);
+    $("reset").addEventListener("click", reset);
+    $("copy").addEventListener("click", () => copyText(plainSkeleton(buildSkeleton()), "Skeleton copied"));
+    $("copyAll").addEventListener("click", () => copyText(fullBrief(), "Brief copied"));
+  });
+})();
+</script>
+</body>
+</html>
