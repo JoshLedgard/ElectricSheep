@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Clarity Cartographer — Support Site Triage Map</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #0d1117;
+    color: #e8eef5;
+    line-height: 1.5;
+    padding: 16px;
+    padding-bottom: 80px;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(94, 138, 255, 0.12), transparent 35%),
+      radial-gradient(circle at 88% 92%, rgba(255, 138, 200, 0.10), transparent 40%);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7a8aa3;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    font-weight: 700;
+    background: linear-gradient(135deg, #c5d3ff 10%, #ffd6e8 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 8px;
+  }
+  .lede {
+    font-size: 14px;
+    color: #97a3b8;
+    margin-bottom: 10px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 14px 0 22px;
+  }
+  button {
+    font: inherit;
+    background: #1c2330;
+    color: #d7dfee;
+    border: 1px solid #2a3344;
+    padding: 10px 14px;
+    border-radius: 10px;
+    min-height: 44px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.18s ease, border-color 0.18s ease;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary {
+    background: linear-gradient(135deg, #5e8aff, #7a5cff);
+    border-color: transparent;
+    color: white;
+    font-weight: 600;
+  }
+  button.ghost { background: transparent; }
+
+  section { margin-bottom: 22px; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  h2 {
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #7a8aa3;
+    font-weight: 600;
+  }
+  .hint { font-size: 12px; color: #5d6a80; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 560px) {
+    .cards { grid-template-columns: 1fr 1fr; }
+  }
+  .card {
+    background: linear-gradient(160deg, #161c27, #131824);
+    border: 1px solid #232c3d;
+    border-radius: 14px;
+    padding: 14px;
+    position: relative;
+    transition: border-color 0.2s ease;
+  }
+  .card.is-top { border-color: #5e8aff; box-shadow: 0 0 0 1px rgba(94, 138, 255, 0.25); }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+  .card-name {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .card-emoji { font-size: 18px; line-height: 1; }
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #1f273a;
+    color: #97a3b8;
+  }
+  .badge.priority-1 { background: rgba(255, 99, 132, 0.18); color: #ffb0c1; }
+  .badge.priority-2 { background: rgba(255, 180, 90, 0.18); color: #ffd296; }
+  .badge.priority-3 { background: rgba(94, 138, 255, 0.18); color: #b8caff; }
+  .badge.priority-4 { background: rgba(120, 220, 160, 0.16); color: #aff0c8; }
+  .badge.priority-5 { background: rgba(140, 150, 170, 0.18); color: #b8c3d4; }
+  .badge.priority-6 { background: rgba(140, 150, 170, 0.12); color: #8a96aa; }
+
+  .slider-row {
+    display: grid;
+    grid-template-columns: 76px 1fr 28px;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+  }
+  .slider-row label {
+    font-size: 11px;
+    color: #8a97ad;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .slider-row output {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: #d7dfee;
+    font-weight: 600;
+    text-align: right;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    width: 100%;
+    height: 30px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2a3344, #3a4561);
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2a3344, #3a4561);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    margin-top: -8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7aa3ff, #b58aff);
+    border: 2px solid #0d1117;
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7aa3ff, #b58aff);
+    border: 2px solid #0d1117;
+    cursor: pointer;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(122, 163, 255, 0.25);
+  }
+
+  .score-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #232c3d;
+    font-size: 12px;
+    color: #8a97ad;
+  }
+  .score-num {
+    font-variant-numeric: tabular-nums;
+    font-size: 20px;
+    font-weight: 700;
+    color: #d7dfee;
+    letter-spacing: -0.01em;
+  }
+
+  /* Map */
+  .map-wrap {
+    background: linear-gradient(160deg, #141a26, #10141e);
+    border: 1px solid #232c3d;
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+  }
+  .map-grid {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    background:
+      linear-gradient(135deg, rgba(94, 138, 255, 0.06), rgba(255, 138, 200, 0.06));
+    overflow: hidden;
+    margin: 4px 0 10px;
+  }
+  .quadrant-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: 10px;
+    color: #5d6a80;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ql { position: absolute; padding: 6px 8px; font-weight: 600; }
+  .ql-tl { top: 4px; left: 6px; color: #ffb0c1; }
+  .ql-tr { top: 4px; right: 6px; color: #aff0c8; }
+  .ql-bl { bottom: 4px; left: 6px; color: #b8c3d4; }
+  .ql-br { bottom: 4px; right: 6px; color: #b8caff; }
+  .axis-line {
+    position: absolute;
+    background: rgba(255,255,255,0.06);
+  }
+  .axis-h { left: 0; right: 0; top: 50%; height: 1px; }
+  .axis-v { top: 0; bottom: 0; left: 50%; width: 1px; }
+  .dot {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: left 0.5s cubic-bezier(.2,.8,.2,1), top 0.5s cubic-bezier(.2,.8,.2,1), transform 0.2s ease;
+    background: rgba(20, 26, 38, 0.8);
+    border: 1.5px solid #5e8aff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    cursor: pointer;
+    z-index: 2;
+  }
+  .dot.is-top {
+    border-color: #ffd6e8;
+    background: linear-gradient(135deg, rgba(255, 138, 200, 0.4), rgba(94, 138, 255, 0.4));
+    box-shadow: 0 0 0 4px rgba(255, 138, 200, 0.15), 0 6px 20px rgba(0,0,0,0.5);
+    z-index: 3;
+  }
+  .dot:active { transform: translate(-50%, -50%) scale(0.92); }
+  .axis-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #5d6a80;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0 4px;
+  }
+
+  /* Priority list */
+  .plan {
+    background: linear-gradient(160deg, #161c27, #131824);
+    border: 1px solid #232c3d;
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .plan ol { list-style: none; counter-reset: rank; }
+  .plan li {
+    counter-increment: rank;
+    display: grid;
+    grid-template-columns: 30px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #1f2734;
+    font-size: 13px;
+  }
+  .plan li:last-child { border-bottom: none; }
+  .plan li::before {
+    content: counter(rank);
+    background: #1f2734;
+    color: #97a3b8;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .plan li:first-child::before {
+    background: linear-gradient(135deg, #ffb0c1, #ffd296);
+    color: #1a1a2e;
+  }
+  .plan-name { font-weight: 600; color: #d7dfee; }
+  .plan-action { font-size: 11px; color: #7a8aa3; margin-top: 2px; }
+  .plan-score {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: #b8caff;
+    font-weight: 700;
+  }
+
+  .copy-status {
+    font-size: 12px;
+    color: #aff0c8;
+    margin-left: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .copy-status.show { opacity: 1; }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: #5d6a80;
+    margin-top: 30px;
+    padding-top: 14px;
+    border-top: 1px solid #1c2330;
+  }
+  footer strong { color: #97a3b8; }
+
+  details {
+    margin-top: 12px;
+    background: #131824;
+    border: 1px solid #1f2734;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  details summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: #97a3b8;
+    letter-spacing: 0.04em;
+    list-style: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before {
+    content: "▸ ";
+    color: #5d6a80;
+  }
+  details[open] summary::before { content: "▾ "; }
+  details p {
+    font-size: 12px;
+    color: #97a3b8;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 380px) {
+    .slider-row { grid-template-columns: 64px 1fr 26px; gap: 6px; }
+    h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Daily Surprise · 2026-06-01</div>
+  <h1>Clarity Cartographer</h1>
+  <p class="lede">A tiny triage map for fuzzy support-site critique. Adjust the dials on six abstract surface cards and watch a deterministic priority map emerge.</p>
+</header>
+
+<div class="toolbar">
+  <button class="primary" id="copyBtn">Copy action plan</button>
+  <button class="ghost" id="presetBalanced">Preset · Balanced</button>
+  <button class="ghost" id="presetMessy">Preset · Messy</button>
+  <button class="ghost" id="resetBtn">Reset</button>
+  <span class="copy-status" id="copyStatus">Copied to clipboard</span>
+</div>
+
+<section>
+  <div class="section-head">
+    <h2>The Map</h2>
+    <span class="hint">Impact × Effort</span>
+  </div>
+  <div class="map-wrap">
+    <div class="map-grid" id="mapGrid" aria-label="Triage quadrant map">
+      <div class="axis-line axis-h"></div>
+      <div class="axis-line axis-v"></div>
+      <div class="quadrant-labels">
+        <div class="ql ql-tl">Big swings</div>
+        <div class="ql ql-tr">Quick wins</div>
+        <div class="ql ql-bl">Defer</div>
+        <div class="ql ql-br">Nice fills</div>
+      </div>
+    </div>
+    <div class="axis-labels">
+      <span>← High effort</span>
+      <span>Low effort →</span>
+    </div>
+    <div class="axis-labels" style="margin-top:2px">
+      <span>Low impact ↓</span>
+      <span>↑ High impact</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Surface Cards</h2>
+    <span class="hint">tap to adjust</span>
+  </div>
+  <div class="cards" id="cardsContainer"></div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Triage Order</h2>
+    <span class="hint">by priority score</span>
+  </div>
+  <div class="plan">
+    <ol id="planList"></ol>
+  </div>
+  <details>
+    <summary>How the score works</summary>
+    <p><strong>Priority = (Reach × Pain × Confidence) ÷ Effort</strong>. Reach is how many visitors touch this surface. Pain is how much friction lives there. Confidence is how sure you are the fix will land. Effort is what shipping it costs. Higher score = ship sooner.</p>
+  </details>
+</section>
+
+<footer>
+  Made for the curiosity of fuzzy support-site critique becoming <strong>concrete priorities</strong>. Self-contained, no network.
+</footer>
+
+</div>
+
+<script>
+const SURFACES = [
+  { id: "landing",   name: "Landing Surface",   emoji: "🚪", action: "Tighten the first scroll and the primary CTA copy." },
+  { id: "search",    name: "Search & Find",     emoji: "🔎", action: "Audit top empty-result queries and the ranking signals." },
+  { id: "article",   name: "Article Body",      emoji: "📄", action: "Shorten lead paragraphs and add scannable subheads." },
+  { id: "onboard",   name: "Onboarding Flow",   emoji: "🌱", action: "Remove one step from the longest task and add a sample value." },
+  { id: "escalate",  name: "Contact / Escalate", emoji: "📨", action: "Make the path to a human shorter and the form fewer fields." },
+  { id: "account",   name: "Account & Settings", emoji: "⚙️", action: "Cluster related toggles and label the destructive ones clearly." }
+];
+
+const DEFAULT_STATE = {
+  landing:  { reach: 9, pain: 6, conf: 4, effort: 4 },
+  search:   { reach: 7, pain: 8, conf: 3, effort: 6 },
+  article:  { reach: 8, pain: 5, conf: 5, effort: 3 },
+  onboard:  { reach: 6, pain: 7, conf: 4, effort: 7 },
+  escalate: { reach: 4, pain: 9, conf: 4, effort: 5 },
+  account:  { reach: 3, pain: 4, conf: 3, effort: 6 }
+};
+
+const PRESETS = {
+  balanced: DEFAULT_STATE,
+  messy: {
+    landing:  { reach: 10, pain: 9, conf: 2, effort: 8 },
+    search:   { reach: 5, pain: 10, conf: 3, effort: 9 },
+    article:  { reach: 9, pain: 7, conf: 4, effort: 2 },
+    onboard:  { reach: 8, pain: 8, conf: 5, effort: 5 },
+    escalate: { reach: 6, pain: 10, conf: 4, effort: 4 },
+    account:  { reach: 2, pain: 6, conf: 2, effort: 7 }
+  }
+};
+
+const FIELDS = [
+  { key: "reach",  label: "Reach",      min: 1, max: 10 },
+  { key: "pain",   label: "Pain",       min: 1, max: 10 },
+  { key: "conf",   label: "Confidence", min: 1, max: 5  },
+  { key: "effort", label: "Effort",     min: 1, max: 10 }
+];
+
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+function scoreFor(s) {
+  return (s.reach * s.pain * s.conf) / Math.max(1, s.effort);
+}
+
+function impactFor(s) {
+  // 0..1 normalized impact (Reach * Pain * Conf / max possible)
+  return (s.reach * s.pain * s.conf) / (10 * 10 * 5);
+}
+
+function effortFor(s) {
+  return s.effort / 10;
+}
+
+function actionFor(surface, s) {
+  const score = scoreFor(s);
+  const impact = impactFor(s);
+  const effort = effortFor(s);
+  if (impact >= 0.55 && effort <= 0.5) return "Quick win — ship this week.";
+  if (impact >= 0.55 && effort > 0.5)  return "Big swing — scope and stage it.";
+  if (impact <  0.55 && effort <= 0.5) return "Nice fill — bundle with adjacent work.";
+  return "Defer — revisit after the bigger fixes land.";
+}
+
+function buildCards() {
+  const root = document.getElementById("cardsContainer");
+  root.innerHTML = "";
+  SURFACES.forEach(surface => {
+    const s = state[surface.id];
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = "card-" + surface.id;
+    let html = `
+      <div class="card-head">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="card-emoji">${surface.emoji}</span>
+          <span class="card-name">${surface.name}</span>
+        </div>
+        <span class="badge" id="badge-${surface.id}">—</span>
+      </div>
+    `;
+    FIELDS.forEach(f => {
+      html += `
+        <div class="slider-row">
+          <label for="${surface.id}-${f.key}">${f.label}</label>
+          <input type="range" min="${f.min}" max="${f.max}" step="1" value="${s[f.key]}" id="${surface.id}-${f.key}" data-surface="${surface.id}" data-key="${f.key}">
+          <output for="${surface.id}-${f.key}" id="out-${surface.id}-${f.key}">${s[f.key]}</output>
+        </div>
+      `;
+    });
+    html += `
+      <div class="score-bar">
+        <span>Priority score</span>
+        <span class="score-num" id="score-${surface.id}">0</span>
+      </div>
+    `;
+    card.innerHTML = html;
+    root.appendChild(card);
+  });
+
+  root.querySelectorAll("input[type=range]").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const sid = e.target.dataset.surface;
+      const key = e.target.dataset.key;
+      state[sid][key] = parseInt(e.target.value, 10);
+      document.getElementById(`out-${sid}-${key}`).textContent = state[sid][key];
+      render();
+    });
+  });
+}
+
+function render() {
+  // Compute scores
+  const rows = SURFACES.map(surface => {
+    const s = state[surface.id];
+    return {
+      surface,
+      s,
+      score: scoreFor(s),
+      impact: impactFor(s),
+      effort: effortFor(s),
+      action: actionFor(surface, s)
+    };
+  });
+
+  const sorted = [...rows].sort((a, b) => b.score - a.score);
+  const topId = sorted[0].surface.id;
+
+  // Update card score + badge + highlight
+  rows.forEach(r => {
+    document.getElementById(`score-${r.surface.id}`).textContent = r.score.toFixed(1);
+    const rank = sorted.findIndex(x => x.surface.id === r.surface.id) + 1;
+    const badge = document.getElementById(`badge-${r.surface.id}`);
+    badge.textContent = "#" + rank;
+    badge.className = "badge priority-" + rank;
+    const card = document.getElementById(`card-${r.surface.id}`);
+    card.classList.toggle("is-top", r.surface.id === topId);
+  });
+
+  // Render map dots
+  const map = document.getElementById("mapGrid");
+  // Remove existing dots
+  map.querySelectorAll(".dot").forEach(d => d.remove());
+  rows.forEach(r => {
+    const dot = document.createElement("div");
+    dot.className = "dot" + (r.surface.id === topId ? " is-top" : "");
+    // x axis: effort (low effort = right, high effort = left), so x = 100 - effort*100
+    // padding 8% in from edges
+    const xPct = 8 + (1 - r.effort) * 84;
+    // y axis: impact (high impact = top), so y = 100 - impact*100
+    const yPct = 8 + (1 - r.impact) * 84;
+    dot.style.left = xPct + "%";
+    dot.style.top = yPct + "%";
+    dot.textContent = r.surface.emoji;
+    dot.title = `${r.surface.name} · Priority ${r.score.toFixed(1)}`;
+    map.appendChild(dot);
+  });
+
+  // Render plan list
+  const list = document.getElementById("planList");
+  list.innerHTML = "";
+  sorted.forEach(r => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span></span>
+      <div>
+        <div class="plan-name">${r.surface.emoji} ${r.surface.name}</div>
+        <div class="plan-action">${r.action}</div>
+      </div>
+      <div class="plan-score">${r.score.toFixed(1)}</div>
+    `;
+    list.appendChild(li);
+  });
+
+  // Stash for copy
+  window.__lastPlan = sorted;
+}
+
+function applyPreset(name) {
+  state = JSON.parse(JSON.stringify(PRESETS[name]));
+  syncInputs();
+  render();
+}
+
+function syncInputs() {
+  SURFACES.forEach(surface => {
+    FIELDS.forEach(f => {
+      const inp = document.getElementById(`${surface.id}-${f.key}`);
+      const out = document.getElementById(`out-${surface.id}-${f.key}`);
+      const v = state[surface.id][f.key];
+      if (inp) inp.value = v;
+      if (out) out.textContent = v;
+    });
+  });
+}
+
+function buildPlanText() {
+  const sorted = window.__lastPlan || [];
+  const date = new Date().toISOString().slice(0, 10);
+  let txt = `Clarity Cartographer — Triage Plan (${date})\n`;
+  txt += `\nPriority = (Reach × Pain × Confidence) ÷ Effort\n\n`;
+  sorted.forEach((r, i) => {
+    txt += `${i + 1}. ${r.surface.name}  [${r.score.toFixed(1)}]\n`;
+    txt += `   Reach ${r.s.reach} · Pain ${r.s.pain} · Confidence ${r.s.conf} · Effort ${r.s.effort}\n`;
+    txt += `   → ${r.action}\n\n`;
+  });
+  txt += `— Mapped with Clarity Cartographer.\n`;
+  return txt;
+}
+
+function copyPlan() {
+  const text = buildPlanText();
+  const status = document.getElementById("copyStatus");
+  const showOk = () => {
+    status.classList.add("show");
+    setTimeout(() => status.classList.remove("show"), 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(showOk).catch(() => fallback(text, showOk));
+  } else {
+    fallback(text, showOk);
+  }
+}
+
+function fallback(text, onDone) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); onDone(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+document.getElementById("copyBtn").addEventListener("click", copyPlan);
+document.getElementById("presetBalanced").addEventListener("click", () => applyPreset("balanced"));
+document.getElementById("presetMessy").addEventListener("click", () => applyPreset("messy"));
+document.getElementById("resetBtn").addEventListener("click", () => applyPreset("balanced"));
+
+buildCards();
+render();
+</script>
+</body>
+</html>
