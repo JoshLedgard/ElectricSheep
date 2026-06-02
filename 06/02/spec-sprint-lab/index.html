@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1322">
+<title>Spec Sprint Lab — Tiny Acceptance-Criteria Game</title>
+<style>
+  :root {
+    --bg: #0a1322;
+    --bg2: #0d1828;
+    --paper: #0f1f33;
+    --paper2: #122740;
+    --line: rgba(110, 231, 255, 0.10);
+    --line-strong: rgba(110, 231, 255, 0.22);
+    --ink: #d8e6f0;
+    --ink-dim: #7a9bb4;
+    --ink-faint: #4a6a82;
+    --cyan: #6ee7ff;
+    --amber: #ffc266;
+    --red: #ff8a90;
+    --green: #84e0a4;
+    --violet: #c3a6ff;
+    --shadow: 0 18px 50px rgba(0,0,0,0.45);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px),
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(110,231,255,0.05), transparent 60%);
+    background-size: 24px 24px, 24px 24px, 100% 100%;
+    background-position: 0 0, 0 0, 0 0;
+  }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+
+  /* Clipboard frame */
+  .frame {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Header */
+  header {
+    padding: 22px 0 14px;
+    position: relative;
+  }
+  .binder {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .binder span {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #5d7894, #1a2a3c);
+    box-shadow: inset 0 -1px 2px rgba(0,0,0,0.6), 0 1px 1px rgba(255,255,255,0.04);
+  }
+  .label-tab {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 4px;
+    background: rgba(110,231,255,0.04);
+  }
+  h1 {
+    font-size: clamp(1.55rem, 5.5vw, 2.05rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 10px 0 6px;
+    color: #f0f6fa;
+  }
+  h1 .sub {
+    color: var(--amber);
+  }
+  .tagline {
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    margin: 0 0 4px;
+  }
+
+  /* Section card */
+  section.card {
+    background: linear-gradient(180deg, var(--paper), var(--paper2));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 16px 16px 18px;
+    margin: 14px 0;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  section.card::before {
+    content: '';
+    position: absolute;
+    left: 10px; top: 14px; bottom: 14px;
+    width: 2px;
+    border-left: 2px dotted var(--line-strong);
+  }
+  section.card .inner {
+    padding-left: 8px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+  }
+  .step-num {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--cyan);
+    padding: 3px 7px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: rgba(110,231,255,0.04);
+  }
+  .step-title {
+    font-weight: 600;
+    color: #f0f6fa;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+  }
+
+  /* Project picker */
+  .proj-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .proj-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    padding: 12px 14px;
+    background: rgba(110,231,255,0.03);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    color: var(--ink);
+    cursor: pointer;
+    min-height: 56px;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .proj-btn:active { transform: scale(0.99); }
+  .proj-btn .pcode {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+  .proj-btn .pname { font-weight: 600; color: #f0f6fa; font-size: 14.5px; }
+  .proj-btn .pbrief { color: var(--ink-dim); font-size: 12.5px; }
+  .proj-btn.active {
+    border-color: var(--cyan);
+    background: rgba(110,231,255,0.08);
+    box-shadow: 0 0 0 1px rgba(110,231,255,0.25), 0 8px 22px rgba(0,0,0,0.35);
+  }
+  .proj-btn.active .pcode { color: var(--cyan); }
+
+  /* Budget meter */
+  .budget {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: rgba(255,194,102,0.04);
+    margin-top: 12px;
+  }
+  .budget-bar {
+    flex: 1 1 100%;
+    height: 8px;
+    background: rgba(255,194,102,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    margin-top: 4px;
+  }
+  .budget-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--amber));
+    width: 0%;
+    transition: width 0.25s;
+  }
+  .budget-fill.over {
+    background: linear-gradient(90deg, var(--amber), var(--red));
+  }
+  .budget-label { font-size: 12px; color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; }
+  .budget-num { font-weight: 700; color: #f0f6fa; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+  .budget-num.over { color: var(--red); }
+
+  /* Chip list */
+  .chip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .chip {
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 12px 12px 10px;
+    background: linear-gradient(180deg, rgba(110,231,255,0.025), rgba(110,231,255,0.01));
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .chip-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .chip-code {
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    color: var(--amber);
+    text-transform: uppercase;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  .chip-cost {
+    margin-left: auto;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .chip-cost .pts { color: var(--ink-dim); font-weight: 600; }
+  .chip-label {
+    color: #f0f6fa;
+    font-size: 14.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .chip-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .chip-btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.015);
+    color: var(--ink-dim);
+    padding: 0 6px;
+    height: 38px;
+    min-height: 38px;
+    border-radius: 6px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .chip-btn:active { transform: scale(0.96); }
+  .chip-btn[data-lane="must"]:hover { border-color: var(--cyan); color: var(--cyan); }
+  .chip-btn[data-lane="nice"]:hover { border-color: var(--green); color: var(--green); }
+  .chip-btn[data-lane="risk"]:hover { border-color: var(--red); color: var(--red); }
+  .chip-btn[data-lane="skip"]:hover { border-color: var(--ink-faint); color: var(--ink-dim); }
+
+  .chip.assigned-must {
+    border-color: rgba(110,231,255,0.45);
+    background: linear-gradient(180deg, rgba(110,231,255,0.08), rgba(110,231,255,0.02));
+  }
+  .chip.assigned-must .chip-btn[data-lane="must"] {
+    background: var(--cyan); color: #06121d; border-color: var(--cyan); font-weight: 700;
+  }
+  .chip.assigned-nice {
+    border-color: rgba(132,224,164,0.45);
+    background: linear-gradient(180deg, rgba(132,224,164,0.07), rgba(132,224,164,0.015));
+  }
+  .chip.assigned-nice .chip-btn[data-lane="nice"] {
+    background: var(--green); color: #062014; border-color: var(--green); font-weight: 700;
+  }
+  .chip.assigned-risk {
+    border-color: rgba(255,138,144,0.45);
+    background: linear-gradient(180deg, rgba(255,138,144,0.07), rgba(255,138,144,0.015));
+  }
+  .chip.assigned-risk .chip-btn[data-lane="risk"] {
+    background: var(--red); color: #20060a; border-color: var(--red); font-weight: 700;
+  }
+  .chip.assigned-skip {
+    opacity: 0.55;
+    border-color: rgba(110,231,255,0.06);
+  }
+  .chip.assigned-skip .chip-btn[data-lane="skip"] {
+    background: rgba(255,255,255,0.05);
+    color: var(--ink-dim);
+    border-color: var(--ink-faint);
+    font-weight: 700;
+  }
+
+  /* Lane summary strip */
+  .lanes {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .lane {
+    padding: 10px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    text-align: center;
+    background: rgba(255,255,255,0.01);
+  }
+  .lane .ll {
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .lane.must .ll { color: var(--cyan); }
+  .lane.nice .ll { color: var(--green); }
+  .lane.risk .ll { color: var(--red); }
+  .lane .lc { font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: #f0f6fa; font-weight: 700; font-size: 16px; }
+  .lane .ld { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+  /* Action row */
+  .action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: rgba(110,231,255,0.05);
+    color: var(--ink);
+    padding: 0 16px;
+    min-height: 48px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary {
+    flex: 2;
+    background: linear-gradient(135deg, var(--cyan), var(--amber));
+    color: #06121d;
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(110,231,255,0.18);
+  }
+  .btn.primary:disabled {
+    background: rgba(110,231,255,0.06);
+    color: var(--ink-faint);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .btn.ghost {
+    flex: 1;
+    color: var(--ink-dim);
+  }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--line-strong); }
+
+  /* Result panel */
+  #result {
+    display: none;
+    margin-top: 16px;
+  }
+  #result.show { display: block; }
+  .dial-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .dial {
+    width: 100px; height: 100px;
+    position: relative;
+  }
+  .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .dial .track {
+    fill: none;
+    stroke: rgba(110,231,255,0.1);
+    stroke-width: 8;
+  }
+  .dial .fill {
+    fill: none;
+    stroke: url(#dialGrad);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease-out;
+  }
+  .dial .num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: #f0f6fa;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1;
+  }
+  .dial .num span {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .verdict {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .verdict.tier-ship { color: var(--green); }
+  .verdict.tier-defend { color: var(--cyan); }
+  .verdict.tier-draft { color: var(--amber); }
+  .verdict.tier-spec { color: var(--red); }
+  .verdict-line {
+    color: #f0f6fa;
+    font-size: 15px;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+  .breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    margin: 14px 0 8px;
+    padding: 10px 12px;
+    background: rgba(110,231,255,0.03);
+    border: 1px dashed var(--line-strong);
+    border-radius: 6px;
+  }
+  .br-row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-dim); }
+  .br-row span:last-child { font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: #f0f6fa; font-weight: 600; }
+
+  .judge-note {
+    margin: 12px 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--amber);
+    background: rgba(255,194,102,0.05);
+    color: #f0f6fa;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 0 6px 6px 0;
+  }
+  .judge-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .checklist {
+    margin: 12px 0 8px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 280px;
+    overflow: auto;
+  }
+  .checklist-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0 6px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    font-weight: 600;
+  }
+
+  .copy-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .copy-btn {
+    appearance: none;
+    flex: 1 1 auto;
+    min-width: 140px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--ink);
+    padding: 0 14px;
+    min-height: 44px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .copy-btn:active { transform: scale(0.98); }
+  .copy-btn.ok { border-color: var(--green); color: var(--green); background: rgba(132,224,164,0.05); }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    margin-top: 28px;
+    padding: 14px 8px 0;
+    color: var(--ink-faint);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  footer .dot { color: var(--cyan); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--paper);
+    color: #f0f6fa;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--line-strong);
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Tablet+ */
+  @media (min-width: 640px) {
+    .proj-grid { grid-template-columns: 1fr 1fr; }
+    h1 { font-size: 2.1rem; }
+    .frame { padding: 0 24px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6ee7ff"/>
+      <stop offset="100%" stop-color="#ffc266"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="frame">
+
+  <header>
+    <div class="binder"><span></span><span></span><span></span></div>
+    <div style="text-align:center">
+      <span class="label-tab mono">SPRINT-LAB · 06/02</span>
+      <h1>Spec Sprint <span class="sub">Lab</span></h1>
+      <p class="tagline">A tiny acceptance-criteria game. Pick a project, sort the chips, ship the spec.</p>
+    </div>
+  </header>
+
+  <!-- Step 1: Project -->
+  <section class="card">
+    <div class="inner">
+      <div class="step">
+        <span class="step-num mono">STEP 01</span>
+        <span class="step-title">Pick a project</span>
+      </div>
+      <div class="proj-grid" id="projGrid"></div>
+      <div id="projBrief" style="margin-top:12px;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:6px;background:rgba(110,231,255,0.03);font-size:13px;color:var(--ink-dim);line-height:1.5"></div>
+    </div>
+  </section>
+
+  <!-- Step 2: Sort chips -->
+  <section class="card">
+    <div class="inner">
+      <div class="step">
+        <span class="step-num mono">STEP 02</span>
+        <span class="step-title">Sort each chip into a lane</span>
+      </div>
+      <p style="margin:0 0 6px;font-size:12.5px;color:var(--ink-dim);line-height:1.5">
+        <span style="color:var(--cyan)">M = Must prove</span> · <span style="color:var(--green)">N = Nice signal</span> · <span style="color:var(--red)">R = Risk watch</span> · <span style="color:var(--ink-dim)">X = Skip</span>
+      </p>
+      <div class="lanes" id="laneSummary">
+        <div class="lane must"><span class="ll">Must prove</span><span class="lc" id="lc-must">0</span><div class="ld">criteria</div></div>
+        <div class="lane nice"><span class="ll">Nice signal</span><span class="lc" id="lc-nice">0</span><div class="ld">indicators</div></div>
+        <div class="lane risk"><span class="ll">Risk watch</span><span class="lc" id="lc-risk">0</span><div class="ld">watchpoints</div></div>
+      </div>
+      <div class="budget">
+        <span class="budget-label mono">Scope budget</span>
+        <span class="budget-num mono"><span id="b-used">0</span> / <span id="b-total">10</span></span>
+        <div class="budget-bar"><div class="budget-fill" id="budgetFill"></div></div>
+      </div>
+      <div class="chip-list" id="chipList"></div>
+    </div>
+  </section>
+
+  <!-- Step 3: Run -->
+  <section class="card">
+    <div class="inner">
+      <div class="step">
+        <span class="step-num mono">STEP 03</span>
+        <span class="step-title">Run the ship check</span>
+      </div>
+      <div class="action-row">
+        <button class="btn primary" id="runBtn" disabled>Run ship check ▸</button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+      </div>
+
+      <div id="result">
+        <div class="dial-row">
+          <div class="dial">
+            <svg viewBox="0 0 100 100">
+              <circle class="track" cx="50" cy="50" r="42"/>
+              <circle class="fill" id="dialFill" cx="50" cy="50" r="42"
+                stroke-dasharray="263.9"
+                stroke-dashoffset="263.9"/>
+            </svg>
+            <div class="num"><span id="dialScore">0</span><span>SHIP SCORE</span></div>
+          </div>
+          <div>
+            <div class="verdict mono" id="verdict">—</div>
+            <div class="verdict-line" id="verdictLine">—</div>
+          </div>
+        </div>
+
+        <div class="breakdown" id="breakdown"></div>
+
+        <div class="judge-note">
+          <span class="judge-label mono">Judge note</span>
+          <div id="judgeNote">—</div>
+        </div>
+
+        <div class="checklist-label">
+          <span>Acceptance checklist</span>
+          <span style="color:var(--ink-faint);font-family:ui-monospace,'SF Mono',Menlo,monospace" id="checklistMeta"></span>
+        </div>
+        <div class="checklist" id="checklist"></div>
+
+        <div class="copy-row">
+          <button class="copy-btn" id="copyChecklistBtn">Copy checklist</button>
+          <button class="copy-btn" id="copyReportBtn">Copy full report</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Daily Surprise <span class="dot">·</span> 2026 · 06 · 02 <span class="dot">·</span> No deps
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ---- Data: projects + chips ----
+// idealLane: 'must' | 'nice' | 'risk' | 'skip' (skip = distractor)
+const PROJECTS = [
+  {
+    id: "atlas",
+    code: "P-01",
+    name: "Atlas Builder",
+    brief: "Turn a folder of loose meeting notes into a navigable map a teammate can use without a tour.",
+    budget: 10,
+    chips: [
+      { id:"a1", code:"ATL-01", label:"Any note can be opened from the map in one tap.",                  cost:2, ideal:"must" },
+      { id:"a2", code:"ATL-02", label:"Map view has a sweeping intro animation on every open.",            cost:1, ideal:"skip" },
+      { id:"a3", code:"ATL-03", label:"Search returns a matching note within 200ms on 500 notes.",         cost:2, ideal:"must" },
+      { id:"a4", code:"ATL-04", label:"Dogfood testers describe the map as useful unprompted.",            cost:1, ideal:"nice" },
+      { id:"a5", code:"ATL-05", label:"Orphan notes never disappear silently when the map rebuilds.",      cost:2, ideal:"risk" },
+      { id:"a6", code:"ATL-06", label:"Map first paint completes within 2 seconds on a cold load.",        cost:2, ideal:"must" },
+      { id:"a7", code:"ATL-07", label:"Atlas Builder has its own embossed logo on launch.",                cost:1, ideal:"skip" },
+      { id:"a8", code:"ATL-08", label:"Pilot testers open the map view more than three times per session.",cost:1, ideal:"nice" },
+      { id:"a9", code:"ATL-09", label:"Duplicate detection never merges two unrelated notes silently.",    cost:2, ideal:"risk" },
+      { id:"a10",code:"ATL-10", label:"Every node on the map has a human-readable label.",                 cost:1, ideal:"must" },
+    ],
+  },
+  {
+    id: "loop",
+    code: "P-02",
+    name: "Loop Tamer",
+    brief: "Add safe limits to an autonomous agent loop without preventing genuinely long, useful runs.",
+    budget: 10,
+    chips: [
+      { id:"l1", code:"LT-01", label:"The loop stops within a minute of meeting a verifiable goal.",       cost:2, ideal:"must" },
+      { id:"l2", code:"LT-02", label:"There is a cap on consecutive identical tool calls.",                cost:2, ideal:"must" },
+      { id:"l3", code:"LT-03", label:"Total token spend is bounded by a configurable per-task cap.",       cost:1, ideal:"must" },
+      { id:"l4", code:"LT-04", label:"The stop button has a soft pulsing glow.",                           cost:1, ideal:"skip" },
+      { id:"l5", code:"LT-05", label:"Pilot long runs over thirty minutes still complete successfully.",   cost:1, ideal:"nice" },
+      { id:"l6", code:"LT-06", label:"False-positive stops on legitimate long runs stay under five percent.",cost:2, ideal:"risk" },
+      { id:"l7", code:"LT-07", label:"Pilot users report fewer abandoned chats week-over-week.",           cost:1, ideal:"nice" },
+      { id:"l8", code:"LT-08", label:"A queued user message is never silently dropped when the loop stops.",cost:2, ideal:"risk" },
+      { id:"l9", code:"LT-09", label:"The control panel ships with a fresh dark theme.",                   cost:1, ideal:"skip" },
+      { id:"l10",code:"LT-10", label:"Every stop reason is logged with a unique tag.",                     cost:1, ideal:"must" },
+    ],
+  },
+  {
+    id: "sieve",
+    code: "P-03",
+    name: "Inbox Sieve",
+    brief: "Auto-sort a noisy queue into three buckets while staying easy to audit and easy to override.",
+    budget: 10,
+    chips: [
+      { id:"s1", code:"INB-01", label:"Each routing decision shows which rule fired.",                     cost:2, ideal:"must" },
+      { id:"s2", code:"INB-02", label:"A manual override always wins over the auto-route, every time.",    cost:2, ideal:"must" },
+      { id:"s3", code:"INB-03", label:"Auto-routing accuracy is at least 90 percent on a frozen sample.",  cost:2, ideal:"must" },
+      { id:"s4", code:"INB-04", label:"Items glide into the correct column with a satisfying sort animation.",cost:1, ideal:"skip" },
+      { id:"s5", code:"INB-05", label:"A rule change never silently re-routes items already handled.",     cost:2, ideal:"risk" },
+      { id:"s6", code:"INB-06", label:"Triagers report less rework day-over-day in pilot.",                cost:1, ideal:"nice" },
+      { id:"s7", code:"INB-07", label:"Twenty consecutive mis-routes to the same bucket trigger an alert.", cost:2, ideal:"risk" },
+      { id:"s8", code:"INB-08", label:"Each bucket gets its own playful icon.",                            cost:1, ideal:"skip" },
+      { id:"s9", code:"INB-09", label:"The audit log retains at least 90 days of routing decisions.",      cost:1, ideal:"must" },
+      { id:"s10",code:"INB-10", label:"Average time-to-first-touch trends down across pilot week.",        cost:1, ideal:"nice" },
+    ],
+  },
+  {
+    id: "ledger",
+    code: "P-04",
+    name: "Ledger Lens",
+    brief: "Surface what a long-running batch is actually doing right now, so on-call can decide whether to keep waiting.",
+    budget: 10,
+    chips: [
+      { id:"d1", code:"LDG-01", label:"The current step name is visible within three seconds of opening.", cost:2, ideal:"must" },
+      { id:"d2", code:"LDG-02", label:"Step completion ETA refreshes at least every ten seconds.",         cost:2, ideal:"must" },
+      { id:"d3", code:"LDG-03", label:"Progress bar pulses through a rainbow gradient.",                   cost:1, ideal:"skip" },
+      { id:"d4", code:"LDG-04", label:"On-call surveys say they no longer kill jobs just to check status.",cost:1, ideal:"nice" },
+      { id:"d5", code:"LDG-05", label:"Stale data older than 30 seconds is shown explicitly, never hidden.",cost:2, ideal:"risk" },
+      { id:"d6", code:"LDG-06", label:"Dashboard reads never slow down or block the running job.",         cost:2, ideal:"risk" },
+      { id:"d7", code:"LDG-07", label:"A confetti burst plays whenever any step finishes.",                cost:1, ideal:"skip" },
+      { id:"d8", code:"LDG-08", label:"Time-to-first-useful-glance stays under two seconds on slow links.",cost:1, ideal:"must" },
+      { id:"d9", code:"LDG-09", label:"The page survives a 12-hour run without crashing or memory bloat.", cost:1, ideal:"nice" },
+      { id:"d10",code:"LDG-10", label:"The top-line state is visible above the fold, not buried in a log.",cost:1, ideal:"must" },
+    ],
+  },
+  {
+    id: "pulse",
+    code: "P-05",
+    name: "Pulse Walker",
+    brief: "Generate a daily summary that reflects today's actual signals, not yesterday's filler template.",
+    budget: 10,
+    chips: [
+      { id:"p1", code:"PLS-01", label:"Two consecutive empty days never render identical summaries.",      cost:2, ideal:"must" },
+      { id:"p2", code:"PLS-02", label:"The summary cites at least one fresh signal from today by default.",cost:2, ideal:"must" },
+      { id:"p3", code:"PLS-03", label:"The headline is set in a hand-drawn cursive font.",                 cost:1, ideal:"skip" },
+      { id:"p4", code:"PLS-04", label:"When today brings nothing new, the summary plainly says so.",       cost:2, ideal:"risk" },
+      { id:"p5", code:"PLS-05", label:"Signals older than 72 hours never lead the summary.",               cost:2, ideal:"risk" },
+      { id:"p6", code:"PLS-06", label:"Pilot users open the summary more than once on most days.",         cost:1, ideal:"nice" },
+      { id:"p7", code:"PLS-07", label:"Pull-to-refresh fires a small celebratory haptic.",                 cost:1, ideal:"skip" },
+      { id:"p8", code:"PLS-08", label:"The summary never invents a signal that was not in the sources.",   cost:2, ideal:"must" },
+      { id:"p9", code:"PLS-09", label:"Summary length stays under 120 words on quiet days.",               cost:1, ideal:"must" },
+      { id:"p10",code:"PLS-10", label:"Qualitative pilot feedback prefers this to the previous template.", cost:1, ideal:"nice" },
+    ],
+  },
+];
+
+// ---- State ----
+const state = {
+  projectId: PROJECTS[0].id,
+  assignments: {}, // chipId -> 'must' | 'nice' | 'risk' | 'skip'
+};
+
+// ---- Helpers ----
+const $ = (id) => document.getElementById(id);
+const currentProject = () => PROJECTS.find(p => p.id === state.projectId);
+
+function resetAssignments() {
+  state.assignments = {};
+}
+
+function laneCount(lane) {
+  const p = currentProject();
+  return p.chips.filter(c => state.assignments[c.id] === lane).length;
+}
+
+function usedCost() {
+  const p = currentProject();
+  return p.chips.reduce((sum, c) => {
+    const lane = state.assignments[c.id];
+    if (lane === "must" || lane === "nice" || lane === "risk") return sum + c.cost;
+    return sum;
+  }, 0);
+}
+
+function totalPlaced() {
+  return Object.values(state.assignments).filter(v => v && v !== "skip").length;
+}
+
+// ---- Rendering ----
+function renderProjectGrid() {
+  const grid = $("projGrid");
+  grid.innerHTML = "";
+  PROJECTS.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "proj-btn" + (p.id === state.projectId ? " active" : "");
+    b.type = "button";
+    b.innerHTML = `
+      <span class="pcode mono">${p.code}</span>
+      <span class="pname">${p.name}</span>
+      <span class="pbrief">${p.brief}</span>
+    `;
+    b.addEventListener("click", () => {
+      if (p.id === state.projectId) return;
+      if (totalPlaced() > 0 && !confirm("Switch project? This clears your current chip assignments.")) return;
+      state.projectId = p.id;
+      resetAssignments();
+      renderAll();
+      hideResult();
+    });
+    grid.appendChild(b);
+  });
+}
+
+function renderBrief() {
+  const p = currentProject();
+  $("projBrief").innerHTML = `<strong style="color:var(--cyan)">${p.code} — ${p.name}.</strong> ${p.brief}`;
+  $("b-total").textContent = p.budget;
+}
+
+function renderChips() {
+  const p = currentProject();
+  const list = $("chipList");
+  list.innerHTML = "";
+  p.chips.forEach(c => {
+    const assigned = state.assignments[c.id] || null;
+    const wrap = document.createElement("div");
+    wrap.className = "chip" + (assigned ? ` assigned-${assigned}` : "");
+    wrap.innerHTML = `
+      <div class="chip-head">
+        <span class="chip-code mono">${c.code}</span>
+        <span class="chip-cost mono"><span class="pts">${c.cost}</span> pt</span>
+      </div>
+      <div class="chip-label">${c.label}</div>
+      <div class="chip-actions">
+        <button class="chip-btn" data-lane="must" aria-label="Must prove">M</button>
+        <button class="chip-btn" data-lane="nice" aria-label="Nice signal">N</button>
+        <button class="chip-btn" data-lane="risk" aria-label="Risk watch">R</button>
+        <button class="chip-btn" data-lane="skip" aria-label="Skip">X</button>
+      </div>
+    `;
+    wrap.querySelectorAll(".chip-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const lane = btn.getAttribute("data-lane");
+        if (state.assignments[c.id] === lane) {
+          delete state.assignments[c.id];
+        } else {
+          state.assignments[c.id] = lane;
+        }
+        renderLanes();
+        renderBudget();
+        renderRunBtn();
+        // refresh just this chip
+        const next = wrap.cloneNode(false);
+        wrap.replaceWith(next);
+        renderOneChip(c, next);
+      });
+    });
+    list.appendChild(wrap);
+  });
+}
+
+function renderOneChip(c, wrap) {
+  const assigned = state.assignments[c.id] || null;
+  wrap.className = "chip" + (assigned ? ` assigned-${assigned}` : "");
+  wrap.innerHTML = `
+    <div class="chip-head">
+      <span class="chip-code mono">${c.code}</span>
+      <span class="chip-cost mono"><span class="pts">${c.cost}</span> pt</span>
+    </div>
+    <div class="chip-label">${c.label}</div>
+    <div class="chip-actions">
+      <button class="chip-btn" data-lane="must" aria-label="Must prove">M</button>
+      <button class="chip-btn" data-lane="nice" aria-label="Nice signal">N</button>
+      <button class="chip-btn" data-lane="risk" aria-label="Risk watch">R</button>
+      <button class="chip-btn" data-lane="skip" aria-label="Skip">X</button>
+    </div>
+  `;
+  wrap.querySelectorAll(".chip-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const lane = btn.getAttribute("data-lane");
+      if (state.assignments[c.id] === lane) delete state.assignments[c.id];
+      else state.assignments[c.id] = lane;
+      renderLanes();
+      renderBudget();
+      renderRunBtn();
+      renderOneChip(c, wrap);
+    });
+  });
+}
+
+function renderLanes() {
+  $("lc-must").textContent = laneCount("must");
+  $("lc-nice").textContent = laneCount("nice");
+  $("lc-risk").textContent = laneCount("risk");
+}
+
+function renderBudget() {
+  const p = currentProject();
+  const used = usedCost();
+  $("b-used").textContent = used;
+  const pct = Math.min(100, (used / p.budget) * 100);
+  const fill = $("budgetFill");
+  fill.style.width = pct + "%";
+  fill.classList.toggle("over", used > p.budget);
+  $("b-used").classList.toggle("over", used > p.budget);
+}
+
+function renderRunBtn() {
+  $("runBtn").disabled = totalPlaced() === 0;
+}
+
+function renderAll() {
+  renderProjectGrid();
+  renderBrief();
+  renderChips();
+  renderLanes();
+  renderBudget();
+  renderRunBtn();
+}
+
+// ---- Scoring ----
+function score() {
+  const p = currentProject();
+  const ideal = { must: [], nice: [], risk: [], skip: [] };
+  p.chips.forEach(c => ideal[c.ideal].push(c));
+
+  let clarity = 0; // 0-30
+  const mustChips = p.chips.filter(c => state.assignments[c.id] === "must");
+  mustChips.forEach(c => {
+    if (c.ideal === "must") clarity += 6;
+    else if (c.ideal === "nice") clarity += 1;
+    else if (c.ideal === "skip") clarity -= 4;
+    // risk in must -> 0
+  });
+  clarity = Math.max(0, Math.min(30, clarity));
+
+  // Verifiability: how many of the ideal must chips are correctly placed?
+  const correctMust = ideal.must.filter(c => state.assignments[c.id] === "must").length;
+  const verifiability = Math.round((correctMust / ideal.must.length) * 25);
+
+  // Risk coverage
+  const correctRisk = ideal.risk.filter(c => state.assignments[c.id] === "risk").length;
+  let riskCov = (correctRisk / ideal.risk.length) * 20;
+  if (correctRisk === ideal.risk.length) riskCov += 5; // full sweep bonus
+  riskCov = Math.round(Math.min(25, riskCov));
+
+  // Scope discipline
+  const used = usedCost();
+  let scope = 0;
+  const anyPlaced = totalPlaced() > 0;
+  if (!anyPlaced) scope = 0;
+  else if (used <= p.budget) scope = 20;
+  else scope = Math.max(0, 20 - (used - p.budget) * 4);
+
+  const total = clarity + verifiability + riskCov + scope;
+
+  // Diagnostic flags
+  const distractorsPlaced = p.chips.filter(c =>
+    c.ideal === "skip" && ["must","nice","risk"].includes(state.assignments[c.id])
+  );
+  const missedRisks = ideal.risk.filter(c => state.assignments[c.id] !== "risk");
+  const missedMusts = ideal.must.filter(c => state.assignments[c.id] !== "must");
+  const niceInMust = ideal.nice.filter(c => state.assignments[c.id] === "must");
+
+  return {
+    clarity, verifiability, riskCov, scope, total,
+    used, budget: p.budget,
+    correctMust, totalMust: ideal.must.length,
+    correctRisk, totalRisk: ideal.risk.length,
+    distractorsPlaced, missedRisks, missedMusts, niceInMust,
+    mustChips,
+  };
+}
+
+function verdictFor(total) {
+  if (total >= 85) return { tier: "ship",   label: "SHIP-GRADE",  line: "This would actually stop an autonomous agent loop." };
+  if (total >= 70) return { tier: "defend", label: "DEFENDABLE",  line: "Close. A pass of sharpening and a loop could land it." };
+  if (total >= 50) return { tier: "draft",  label: "DRAFTY",      line: "An agent would still need to guess what 'done' means." };
+  return            { tier: "spec",   label: "SPECULATIVE", line: "No acceptance hooks yet — the loop has nothing to grab." };
+}
+
+function buildJudgeNote(s) {
+  const p = currentProject();
+  const lines = [];
+  const mustRate = s.correctMust / s.totalMust;
+  const riskRate = s.correctRisk / s.totalRisk;
+
+  // opener: project name + headline takeaway
+  if (mustRate >= 0.75 && riskRate >= 0.75) {
+    lines.push(`${p.name} reads like a brief you could hand to a loop and walk away from.`);
+  } else if (mustRate >= 0.75) {
+    lines.push(`${p.name} has sharp success conditions but the risk surface is still soft.`);
+  } else if (riskRate >= 0.75) {
+    lines.push(`${p.name} watches the right risks, but a loop could ship something that meets every line and still misses the point.`);
+  } else if (mustRate >= 0.4) {
+    lines.push(`${p.name} is drafty — half of what would prove it's done is missing or filed as a nice-to-have.`);
+  } else {
+    lines.push(`${p.name} has no real spine yet. An agent would burn cycles guessing.`);
+  }
+
+  // distractors
+  if (s.distractorsPlaced.length > 0) {
+    const labels = s.distractorsPlaced.slice(0, 2).map(c => c.code).join(", ");
+    lines.push(`${labels} ${s.distractorsPlaced.length === 1 ? "is" : "are"} a polish item — leave ${s.distractorsPlaced.length === 1 ? "it" : "them"} out of the spec so the loop does not optimize for them.`);
+  }
+
+  // missed musts
+  if (s.missedMusts.length >= 2) {
+    const first = s.missedMusts[0];
+    lines.push(`Without ${first.code} in Must prove, "done" has wiggle room.`);
+  } else if (s.niceInMust.length > 0) {
+    lines.push(`Nice-to-have signals filed under Must prove will look like requirements to an agent and quietly inflate scope.`);
+  }
+
+  // risk gaps
+  if (s.missedRisks.length >= 2) {
+    const first = s.missedRisks[0];
+    lines.push(`Risks like ${first.code} need a Risk watch line, or a confident-looking run could ship the bug.`);
+  } else if (s.missedRisks.length === 1) {
+    lines.push(`One risk (${s.missedRisks[0].code}) is still uncovered — a quick watchpoint closes the loop.`);
+  }
+
+  // scope
+  if (s.used > s.budget) {
+    lines.push(`Scope is ${s.used - s.budget} pt over the ${s.budget}-pt budget — trim before kickoff or the loop will too.`);
+  } else if (s.used >= s.budget - 1 && s.used <= s.budget) {
+    lines.push(`Scope lands right on budget — tight, but defensible.`);
+  } else if (s.used > 0 && s.used <= 4) {
+    lines.push(`Scope is light, which can mean lean or can mean half-finished — make sure it is the first.`);
+  }
+
+  return lines.join(" ");
+}
+
+function buildChecklist(s) {
+  const p = currentProject();
+  const date = "2026-06-02";
+  const lines = [];
+  lines.push(`# ${p.name} — Acceptance Checklist`);
+  lines.push(`Drafted ${date} via Spec Sprint Lab.`);
+  lines.push(`Scope budget: ${s.used} / ${s.budget} pt.`);
+  lines.push(``);
+  lines.push(`## Must prove (${s.mustChips.length})`);
+  if (s.mustChips.length === 0) {
+    lines.push(`- (none yet — nothing to verify against)`);
+  } else {
+    s.mustChips.forEach(c => lines.push(`- [ ] ${c.label}  _(${c.code}, ${c.cost} pt)_`));
+  }
+  lines.push(``);
+  const niceChips = p.chips.filter(c => state.assignments[c.id] === "nice");
+  lines.push(`## Nice signal (${niceChips.length})`);
+  if (niceChips.length === 0) lines.push(`- (none)`);
+  else niceChips.forEach(c => lines.push(`- ${c.label}  _(${c.code}, ${c.cost} pt)_`));
+  lines.push(``);
+  const riskChips = p.chips.filter(c => state.assignments[c.id] === "risk");
+  lines.push(`## Risk watch (${riskChips.length})`);
+  if (riskChips.length === 0) lines.push(`- (none — nothing being monitored)`);
+  else riskChips.forEach(c => lines.push(`- ⚠︎ ${c.label}  _(${c.code}, ${c.cost} pt)_`));
+  return lines.join("\n");
+}
+
+function buildFullReport(s) {
+  const p = currentProject();
+  const v = verdictFor(s.total);
+  const judge = buildJudgeNote(s);
+  const list = buildChecklist(s);
+  return [
+    `# Spec Sprint Lab — Ship Check`,
+    `Project: ${p.name} (${p.code})`,
+    `Date: 2026-06-02`,
+    ``,
+    `Ship score: ${s.total} / 100 — ${v.label}`,
+    `${v.line}`,
+    ``,
+    `Breakdown:`,
+    `- Clarity:        ${s.clarity} / 30`,
+    `- Verifiability:  ${s.verifiability} / 25  (${s.correctMust}/${s.totalMust} must-prove chips placed)`,
+    `- Risk coverage:  ${s.riskCov} / 25  (${s.correctRisk}/${s.totalRisk} risks watched)`,
+    `- Scope:          ${s.scope} / 20  (${s.used} / ${s.budget} pt)`,
+    ``,
+    `Judge note:`,
+    judge,
+    ``,
+    list,
+  ].join("\n");
+}
+
+// ---- Result rendering ----
+function renderResult() {
+  const s = score();
+  const v = verdictFor(s.total);
+
+  // dial
+  $("dialScore").textContent = s.total;
+  const circumference = 2 * Math.PI * 42;
+  const offset = circumference - (s.total / 100) * circumference;
+  const fill = $("dialFill");
+  fill.setAttribute("stroke-dasharray", circumference.toFixed(2));
+  fill.setAttribute("stroke-dashoffset", offset.toFixed(2));
+
+  // verdict
+  const verd = $("verdict");
+  verd.textContent = v.label;
+  verd.className = "verdict mono tier-" + v.tier;
+  $("verdictLine").textContent = v.line;
+
+  // breakdown
+  const br = $("breakdown");
+  br.innerHTML = `
+    <div class="br-row"><span>Clarity</span><span>${s.clarity} / 30</span></div>
+    <div class="br-row"><span>Verifiability</span><span>${s.verifiability} / 25</span></div>
+    <div class="br-row"><span>Risk coverage</span><span>${s.riskCov} / 25</span></div>
+    <div class="br-row"><span>Scope</span><span>${s.scope} / 20</span></div>
+  `;
+
+  // judge + checklist
+  $("judgeNote").textContent = buildJudgeNote(s);
+  const list = buildChecklist(s);
+  $("checklist").textContent = list;
+  $("checklistMeta").textContent = `${s.used}/${s.budget} pt`;
+
+  // stash data for copy
+  $("copyChecklistBtn").dataset.payload = list;
+  $("copyReportBtn").dataset.payload = buildFullReport(s);
+
+  $("result").classList.add("show");
+  setTimeout(() => $("result").scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+}
+
+function hideResult() {
+  $("result").classList.remove("show");
+}
+
+// ---- Copy ----
+function showToast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1700);
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(text); return true; } catch {}
+  }
+  // fallback
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand && document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch { return false; }
+}
+
+function wireCopyButton(btn, label) {
+  btn.addEventListener("click", async () => {
+    const text = btn.dataset.payload || "";
+    const ok = await copyText(text);
+    if (ok) {
+      btn.classList.add("ok");
+      const orig = btn.textContent;
+      btn.textContent = "Copied ✓";
+      showToast(`${label} copied to clipboard`);
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove("ok"); }, 1700);
+    } else {
+      showToast("Copy blocked — long-press the text box to copy");
+    }
+  });
+}
+
+// ---- Wire up ----
+$("runBtn").addEventListener("click", renderResult);
+$("resetBtn").addEventListener("click", () => {
+  if (totalPlaced() === 0) { hideResult(); return; }
+  if (!confirm("Reset chip assignments for this project?")) return;
+  resetAssignments();
+  renderAll();
+  hideResult();
+});
+wireCopyButton($("copyChecklistBtn"), "Checklist");
+wireCopyButton($("copyReportBtn"), "Full report");
+
+renderAll();
+</script>
+</body>
+</html>
