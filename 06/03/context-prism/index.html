@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Context Prism · Brief-to-Artifact Lens</title>
+<meta name="description" content="A tiny instrument for turning fuzzy project context into a crisp, copyable build brief. Pick a source, tune four focus dials, set constraints, and shape an artifact you could actually build today.">
+<style>
+  :root {
+    --bg: #07090f;
+    --bg-2: #0b1018;
+    --panel: #0f1622;
+    --panel-2: #131c2a;
+    --border: rgba(110,160,200,0.14);
+    --border-bright: rgba(140,210,255,0.32);
+    --text: #cbd9e6;
+    --text-dim: #6e8095;
+    --text-bright: #f1f6fb;
+    --accent: #7adfff;
+    --magenta: #ff6dc4;
+    --amber: #ffc266;
+    --lime: #b6f062;
+    --violet: #b08bff;
+    --shadow: 0 8px 28px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); }
+  body {
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 16px 14px 96px;
+    max-width: 540px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+  h1, h2, h3 { color: var(--text-bright); letter-spacing: -0.01em; font-weight: 700; }
+  h1 { font-size: 22px; line-height: 1.2; }
+  h2 { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); font-weight: 600; }
+  h3 { font-size: 16px; }
+  p { color: var(--text); }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* Header with prism strip */
+  header {
+    padding: 6px 4px 18px;
+    position: relative;
+  }
+  .crumb {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .crumb b { color: var(--accent); font-weight: 600; }
+  .prism-bar {
+    height: 4px;
+    border-radius: 4px;
+    margin: 14px 0 10px;
+    background: linear-gradient(90deg, #ff6d6d, #ffc266, #b6f062, #7adfff, #b08bff, #ff6dc4);
+    opacity: 0.85;
+    box-shadow: 0 0 14px rgba(122,223,255,0.18);
+  }
+  .tagline { font-size: 14px; color: var(--text-dim); }
+
+  /* Sections */
+  section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 14px;
+    margin-top: 14px;
+    box-shadow: var(--shadow);
+  }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .hint { font-size: 12px; color: var(--text-dim); }
+
+  /* Source picker */
+  .sources {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .src {
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    border-radius: 10px;
+    padding: 11px 10px;
+    text-align: left;
+    color: var(--text);
+    min-height: 64px;
+    transition: border-color .15s, transform .1s, background .15s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .src:active { transform: scale(0.985); }
+  .src .src-title {
+    font-size: 14px;
+    color: var(--text-bright);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .src .src-sub { font-size: 11.5px; color: var(--text-dim); line-height: 1.4; }
+  .src.is-on {
+    border-color: var(--accent);
+    background: rgba(122,223,255,0.07);
+    box-shadow: inset 0 0 0 1px rgba(122,223,255,0.25);
+  }
+  .src .glyph { font-size: 14px; opacity: 0.95; }
+
+  /* Sliders / dials */
+  .dials {
+    display: grid;
+    gap: 12px;
+  }
+  .dial {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .dial label {
+    grid-column: 1 / 2;
+    grid-row: 1;
+    font-size: 13px;
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+  .dial .val {
+    grid-column: 2 / 3;
+    grid-row: 1;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+  .dial input[type=range] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
+    height: 44px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    margin: 0;
+    touch-action: pan-y;
+  }
+  .dial input[type=range]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--track-a, #7adfff), var(--track-b, #b08bff));
+    opacity: 0.85;
+  }
+  .dial input[type=range]::-moz-range-track {
+    height: 6px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--track-a, #7adfff), var(--track-b, #b08bff));
+    opacity: 0.85;
+  }
+  .dial input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #f1f6fb;
+    border: 2px solid #0b1018;
+    margin-top: -8px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.5);
+    cursor: pointer;
+  }
+  .dial input[type=range]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #f1f6fb;
+    border: 2px solid #0b1018;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.2);
+    cursor: pointer;
+  }
+  .dial-clarity { --track-a: #7adfff; --track-b: #b6f062; }
+  .dial-proof   { --track-a: #ffc266; --track-b: #ff6dc4; }
+  .dial-risk    { --track-a: #ff6d6d; --track-b: #ffc266; }
+  .dial-delight { --track-a: #b08bff; --track-b: #7adfff; }
+
+  .budget {
+    margin-top: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .budget b { color: var(--text-bright); }
+  .budget.is-tight b { color: var(--magenta); }
+  .budget.is-balanced b { color: var(--lime); }
+
+  /* Chips */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    min-height: 36px;
+    line-height: 1.1;
+    display: inline-flex;
+    align-items: center;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .chip.is-on {
+    background: rgba(176,139,255,0.12);
+    border-color: var(--violet);
+    color: var(--text-bright);
+  }
+  .chip:active { transform: scale(0.97); }
+
+  /* Action row */
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .btn {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--border-bright);
+    background: linear-gradient(180deg, #11202e, #0b1422);
+    color: var(--text-bright);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: transform .1s, border-color .15s, background .15s;
+  }
+  .btn:active { transform: scale(0.985); }
+  .btn.primary {
+    background: linear-gradient(180deg, #1a4150, #102a3a);
+    border-color: var(--accent);
+    color: #eaf9ff;
+  }
+  .btn.ghost {
+    background: var(--panel-2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  /* Brief output */
+  .brief {
+    background: linear-gradient(180deg, #0c1422, #0a1018);
+    border: 1px solid var(--border-bright);
+    border-radius: 14px;
+    padding: 16px 14px 12px;
+    margin-top: 14px;
+    box-shadow: var(--shadow);
+  }
+  .brief.is-empty { opacity: 0.65; }
+  .brief-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .brief-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-bright);
+    line-height: 1.25;
+  }
+  .brief-meta {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    background: rgba(122,223,255,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(122,223,255,0.35);
+    white-space: nowrap;
+  }
+  .badge.warn { background: rgba(255,109,109,0.1); color: #ff8d8d; border-color: rgba(255,109,109,0.35); }
+  .badge.ok   { background: rgba(182,240,98,0.1); color: var(--lime); border-color: rgba(182,240,98,0.35); }
+  .badge.cool { background: rgba(176,139,255,0.1); color: var(--violet); border-color: rgba(176,139,255,0.35); }
+
+  .brief-section { margin-top: 12px; }
+  .brief-section h4 {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .brief-section p { font-size: 14px; color: var(--text); line-height: 1.5; }
+  .brief-section ul {
+    list-style: none;
+    padding: 0;
+  }
+  .brief-section li {
+    position: relative;
+    padding: 5px 0 5px 18px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text);
+  }
+  .brief-section li::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 12px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.7;
+  }
+  .brief-section.risks li::before { background: #ff8d8d; }
+  .brief-section.proofs li::before { background: var(--amber); }
+  .brief-section.slice li::before { background: var(--lime); }
+  .brief-section.nono li::before { background: var(--violet); }
+
+  .slice-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(182,240,98,0.1);
+    color: var(--lime);
+    border: 1px solid rgba(182,240,98,0.35);
+  }
+
+  .brief-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .copy-status {
+    font-size: 11px;
+    color: var(--lime);
+    text-align: center;
+    margin-top: 6px;
+    min-height: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .copy-status.is-on { opacity: 1; }
+
+  /* Sample row */
+  .samples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .samples .chip { font-size: 11.5px; padding: 6px 9px; min-height: 32px; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 22px 6px 6px;
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  footer a { color: var(--text-dim); text-decoration: none; }
+
+  /* Small-screen tweaks */
+  @media (max-width: 360px) {
+    body { padding: 12px 10px 96px; }
+    h1 { font-size: 20px; }
+    .src .src-title { font-size: 13px; }
+    .src .src-sub { font-size: 11px; }
+    .sources { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="crumb"><b>⚡ Electric Sheep</b> · Jun 3, 2026</div>
+  <h1>Context Prism</h1>
+  <div class="prism-bar"></div>
+  <p class="tagline">A tiny lens that turns fuzzy context into a buildable brief. Pick a source, tune four dials, lock the constraints, and read what you'd actually ship.</p>
+</header>
+
+<section aria-labelledby="src-head">
+  <div class="section-head">
+    <h2 id="src-head">1 · Source</h2>
+    <span class="hint">Pick one</span>
+  </div>
+  <div class="sources" id="sources">
+    <button class="src" data-source="docs">
+      <div class="src-title"><span class="glyph">📚</span>Docs import</div>
+      <div class="src-sub">Scattered notes, wikis, or threads you want to compress.</div>
+    </button>
+    <button class="src" data-source="support">
+      <div class="src-title"><span class="glyph">🛟</span>Support critique</div>
+      <div class="src-sub">Tickets or complaints pointing at a missing UX.</div>
+    </button>
+    <button class="src" data-source="agent">
+      <div class="src-title"><span class="glyph">🤖</span>Agent task</div>
+      <div class="src-sub">A loop or tool you want Claude or a coworker to run.</div>
+    </button>
+    <button class="src" data-source="experiment">
+      <div class="src-title"><span class="glyph">🧪</span>Experiment idea</div>
+      <div class="src-sub">A hunch worth a small, learnable prototype.</div>
+    </button>
+  </div>
+  <div class="samples" aria-label="Quick presets">
+    <button class="chip" data-preset="quick">Quick sketch</button>
+    <button class="chip" data-preset="proofy">Proof-heavy</button>
+    <button class="chip" data-preset="delight">Delight-forward</button>
+    <button class="chip" data-preset="random">Surprise me</button>
+  </div>
+</section>
+
+<section aria-labelledby="focus-head">
+  <div class="section-head">
+    <h2 id="focus-head">2 · Focus dials</h2>
+    <span class="hint">0 – 10 each</span>
+  </div>
+  <div class="dials">
+    <div class="dial dial-clarity">
+      <label for="d-clarity">Clarity</label>
+      <span class="val" id="v-clarity">5</span>
+      <input id="d-clarity" type="range" min="0" max="10" value="5" data-dial="clarity">
+    </div>
+    <div class="dial dial-proof">
+      <label for="d-proof">Proof</label>
+      <span class="val" id="v-proof">5</span>
+      <input id="d-proof" type="range" min="0" max="10" value="5" data-dial="proof">
+    </div>
+    <div class="dial dial-risk">
+      <label for="d-risk">Risk appetite</label>
+      <span class="val" id="v-risk">3</span>
+      <input id="d-risk" type="range" min="0" max="10" value="3" data-dial="risk">
+    </div>
+    <div class="dial dial-delight">
+      <label for="d-delight">Delight</label>
+      <span class="val" id="v-delight">4</span>
+      <input id="d-delight" type="range" min="0" max="10" value="4" data-dial="delight">
+    </div>
+  </div>
+  <div class="budget" id="budget">
+    <span>Focus budget</span>
+    <span><b id="b-total">17</b> · <span id="b-shape">balanced</span></span>
+  </div>
+</section>
+
+<section aria-labelledby="con-head">
+  <div class="section-head">
+    <h2 id="con-head">3 · Constraints &amp; signals</h2>
+    <span class="hint">Tap any</span>
+  </div>
+  <div class="chips" id="chips">
+    <button class="chip" data-chip="mobile">mobile-first</button>
+    <button class="chip" data-chip="timeboxed">time-boxed</button>
+    <button class="chip" data-chip="lowrisk">low-risk</button>
+    <button class="chip" data-chip="noinfra">no new infra</button>
+    <button class="chip" data-chip="offline">offline-friendly</button>
+    <button class="chip" data-chip="async">async-friendly</button>
+    <button class="chip" data-chip="demoable">demoable</button>
+    <button class="chip" data-chip="reversible">reversible</button>
+    <button class="chip" data-chip="single">single-author</button>
+    <button class="chip" data-chip="evergreen">evergreen</button>
+    <button class="chip" data-chip="learnloop">learning loop</button>
+    <button class="chip" data-chip="privacy">privacy-safe</button>
+  </div>
+</section>
+
+<div class="actions">
+  <button class="btn primary" id="lens">Pass through the prism</button>
+  <button class="btn ghost" id="reset">Reset</button>
+</div>
+
+<article class="brief is-empty" id="brief" aria-live="polite">
+  <div class="brief-head">
+    <div>
+      <div class="brief-meta" id="brief-meta">Awaiting context</div>
+      <div class="brief-title" id="brief-title">Pick a source and tap the prism.</div>
+    </div>
+    <span class="badge" id="brief-badge">—</span>
+  </div>
+
+  <div class="brief-section">
+    <h4>Intent</h4>
+    <p id="brief-intent">Your one-line build statement appears here.</p>
+  </div>
+
+  <div class="brief-section nono">
+    <h4>Non-negotiables</h4>
+    <ul id="brief-nono"><li>Driven by the constraints you select.</li></ul>
+  </div>
+
+  <div class="brief-section proofs">
+    <h4>Acceptance signals</h4>
+    <ul id="brief-proofs"><li>What you'd point at and say it works.</li></ul>
+  </div>
+
+  <div class="brief-section risks">
+    <h4>Risks to watch</h4>
+    <ul id="brief-risks"><li>Where this could quietly go wrong.</li></ul>
+  </div>
+
+  <div class="brief-section slice">
+    <h4>First build slice <span class="slice-tag" id="slice-size">small</span></h4>
+    <ul id="brief-slice"><li>What you'd attempt in the first hour.</li></ul>
+  </div>
+
+  <div class="brief-actions">
+    <button class="btn ghost" id="copyBtn">Copy brief</button>
+    <button class="btn ghost" id="copyMdBtn">Copy as markdown</button>
+  </div>
+  <div class="copy-status" id="copyStatus">copied</div>
+</article>
+
+<footer>
+  Built by Scoob 🐾 for Josh · <a href="../index.html">all surprises</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- State ----------
+  var state = {
+    source: null,
+    dials: { clarity: 5, proof: 5, risk: 3, delight: 4 },
+    chips: {}
+  };
+
+  // ---------- Source picker ----------
+  var sourcesEl = document.getElementById('sources');
+  sourcesEl.addEventListener('click', function(e){
+    var b = e.target.closest('.src');
+    if (!b) return;
+    state.source = b.dataset.source;
+    Array.prototype.forEach.call(sourcesEl.querySelectorAll('.src'), function(el){
+      el.classList.toggle('is-on', el === b);
+    });
+  });
+
+  // ---------- Dials ----------
+  ['clarity','proof','risk','delight'].forEach(function(k){
+    var slider = document.querySelector('[data-dial="'+k+'"]');
+    var label = document.getElementById('v-'+k);
+    slider.addEventListener('input', function(){
+      state.dials[k] = parseInt(slider.value, 10);
+      label.textContent = state.dials[k];
+      updateBudget();
+    });
+  });
+
+  function updateBudget(){
+    var total = state.dials.clarity + state.dials.proof + state.dials.risk + state.dials.delight;
+    var shape = 'balanced';
+    var klass = 'is-balanced';
+    if (total <= 10) { shape = 'sketch-mode'; klass = 'is-tight'; }
+    else if (total >= 32) { shape = 'overpacked'; klass = 'is-tight'; }
+    else if (total >= 26) { shape = 'rich'; klass = ''; }
+    else if (total <= 16) { shape = 'lean'; klass = ''; }
+    document.getElementById('b-total').textContent = total;
+    document.getElementById('b-shape').textContent = shape;
+    var bud = document.getElementById('budget');
+    bud.classList.remove('is-balanced','is-tight');
+    if (klass) bud.classList.add(klass);
+  }
+  updateBudget();
+
+  // ---------- Chips ----------
+  var chipsEl = document.getElementById('chips');
+  chipsEl.addEventListener('click', function(e){
+    var c = e.target.closest('.chip');
+    if (!c) return;
+    var key = c.dataset.chip;
+    state.chips[key] = !state.chips[key];
+    c.classList.toggle('is-on', !!state.chips[key]);
+  });
+
+  // ---------- Presets ----------
+  var presetSeed = 0;
+  document.querySelectorAll('[data-preset]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      applyPreset(btn.dataset.preset);
+    });
+  });
+
+  function applyPreset(name){
+    // Random preset gets a rotating seed for variety
+    if (name === 'random') { presetSeed = (presetSeed + 1) % 7; }
+    var p = PRESETS[name];
+    if (!p) return;
+    var resolved = (typeof p === 'function') ? p(presetSeed) : p;
+    if (resolved.source) {
+      state.source = resolved.source;
+      Array.prototype.forEach.call(sourcesEl.querySelectorAll('.src'), function(el){
+        el.classList.toggle('is-on', el.dataset.source === resolved.source);
+      });
+    }
+    if (resolved.dials) {
+      Object.keys(resolved.dials).forEach(function(k){
+        state.dials[k] = resolved.dials[k];
+        document.querySelector('[data-dial="'+k+'"]').value = resolved.dials[k];
+        document.getElementById('v-'+k).textContent = resolved.dials[k];
+      });
+      updateBudget();
+    }
+    if (resolved.chips) {
+      state.chips = {};
+      Array.prototype.forEach.call(chipsEl.querySelectorAll('.chip'), function(c){
+        var on = resolved.chips.indexOf(c.dataset.chip) !== -1;
+        state.chips[c.dataset.chip] = on;
+        c.classList.toggle('is-on', on);
+      });
+    }
+    generateBrief();
+  }
+
+  var PRESETS = {
+    quick: {
+      source: 'experiment',
+      dials: { clarity: 6, proof: 3, risk: 6, delight: 5 },
+      chips: ['timeboxed','single','reversible','demoable']
+    },
+    proofy: {
+      source: 'docs',
+      dials: { clarity: 8, proof: 9, risk: 2, delight: 3 },
+      chips: ['mobile','privacy','evergreen','learnloop']
+    },
+    delight: {
+      source: 'support',
+      dials: { clarity: 6, proof: 4, risk: 5, delight: 9 },
+      chips: ['mobile','demoable','async','single']
+    },
+    random: function(seed){
+      var sources = ['docs','support','agent','experiment'];
+      var allChips = ['mobile','timeboxed','lowrisk','noinfra','offline','async','demoable','reversible','single','evergreen','learnloop','privacy'];
+      var s = sources[seed % sources.length];
+      var pick = [];
+      for (var i = 0; i < 4; i++) {
+        pick.push(allChips[(seed * 5 + i * 3 + 2) % allChips.length]);
+      }
+      return {
+        source: s,
+        dials: {
+          clarity: 3 + ((seed * 2) % 7),
+          proof:   2 + ((seed * 3 + 1) % 7),
+          risk:    1 + ((seed * 5 + 2) % 6),
+          delight: 2 + ((seed * 7 + 3) % 7)
+        },
+        chips: pick.filter(function(v,i,a){ return a.indexOf(v) === i; })
+      };
+    }
+  };
+
+  // ---------- Brief generation ----------
+  var SOURCE_META = {
+    docs: {
+      label: 'Docs import',
+      intent: function(d){
+        return 'Compress the source material into a single page someone could act on in '
+          + sliceWindow(d) + ', without losing the load-bearing details.';
+      }
+    },
+    support: {
+      label: 'Support critique',
+      intent: function(d){
+        return 'Translate the recurring pain into a small UX change that an on-call person could ship in '
+          + sliceWindow(d) + ' without breaking the happy path.';
+      }
+    },
+    agent: {
+      label: 'Agent task',
+      intent: function(d){
+        return 'Specify the loop tightly enough that an agent (or coworker) can complete it in '
+          + sliceWindow(d) + ' with no hidden context required.';
+      }
+    },
+    experiment: {
+      label: 'Experiment idea',
+      intent: function(d){
+        return 'Stand up the smallest version of the idea that produces a real signal in '
+          + sliceWindow(d) + ' and is cheap to throw away.';
+      }
+    }
+  };
+
+  function sliceWindow(d){
+    var total = d.clarity + d.proof + d.risk + d.delight;
+    if (total <= 12) return 'one focused sitting';
+    if (total <= 20) return 'a half day';
+    if (total <= 28) return 'a day, end to end';
+    return 'a short, deliberate sprint';
+  }
+
+  var CHIP_RULES = {
+    mobile:     'Works one-thumb on a phone; no horizontal scroll at 390px wide.',
+    timeboxed:  'Hard stop on the clock; cut scope before extending time.',
+    lowrisk:    'No change touches production data or shared state.',
+    noinfra:    'Reuse the runtime, store, and auth you already have today.',
+    offline:    'Stays usable with the network off; sync is a follow-up.',
+    async:      'Anyone can pick it up cold from this brief alone, no live call needed.',
+    demoable:   'Has a 60-second on-screen story you can show without setup.',
+    reversible: 'Every change is undoable in under a minute, including data.',
+    single:     'One author owns it end-to-end; no review queue blocks the loop.',
+    evergreen:  'Avoids dated specifics so it does not rot inside a month.',
+    learnloop:  'Captures one measurable thing you did not know before.',
+    privacy:    'No real names, identifiers, or sensitive payloads in artifacts.'
+  };
+
+  var CHIP_PROOF = {
+    mobile:     'A 390px-wide screenshot looks honest and tappable.',
+    timeboxed:  'The clock ran out and the artifact still ships.',
+    lowrisk:    'Rollback is one revert, with no data migration.',
+    noinfra:    'Zero new dependencies appear in the lockfile.',
+    offline:    'Devtools "Offline" mode does not break the core flow.',
+    async:      'A new reader can act on the brief in under five minutes.',
+    demoable:   'You can record a clean 60-second screencap on first try.',
+    reversible: 'Undo restores both UI and data state.',
+    single:     'No pull request approval is needed to land it.',
+    evergreen:  'It reads cleanly with no edits 30 days later.',
+    learnloop:  'You can name the one number that moved.',
+    privacy:    'A privacy pass finds nothing to redact.'
+  };
+
+  var CHIP_RISKS = {
+    mobile:     'Hidden controls behind hover states no one taps.',
+    timeboxed:  'Scope creep dressed up as "just one more thing".',
+    lowrisk:    'Quiet drift between staging and prod assumptions.',
+    noinfra:    'Reusing the wrong store because it was already there.',
+    offline:    'Edge cases on reconnect overwrite local work.',
+    async:      'Tone goes flat without a live read of the room.',
+    demoable:   'A demo path that diverges from the real path.',
+    reversible: 'Pretending undo exists when it actually only re-hides.',
+    single:     'Bus factor of one, no second opinion before merge.',
+    evergreen:  'Genericness eats the specifics that made it useful.',
+    learnloop:  'Vanity metric instead of a behavior change.',
+    privacy:    'Logs and screenshots leaking what the UI hid.'
+  };
+
+  var SOURCE_PROOFS = {
+    docs: [
+      'A reader who has never seen the source can act inside 5 minutes.',
+      'The page fits one scroll on a phone with nothing hidden.',
+      'Removing any single line makes the artifact measurably weaker.'
+    ],
+    support: [
+      'The original complaint reads as already addressed after the change.',
+      'On-call sees fewer of the same ticket the next cycle.',
+      'A new user hits the fixed state on the default path.'
+    ],
+    agent: [
+      'The agent finishes the loop with no clarifying question.',
+      'The output passes the same gate a human review would.',
+      'A re-run with the same inputs lands the same artifact.'
+    ],
+    experiment: [
+      'The first run produces a result you can show, even if it is wrong.',
+      'You can name what you learned in one sentence.',
+      'Throwing the prototype away costs less than an afternoon.'
+    ]
+  };
+
+  var SOURCE_RISKS = {
+    docs:       ['The page becomes another doc no one opens.', 'Compression strips the why behind a tricky decision.'],
+    support:    ['Fixing the loud case while the silent majority stays stuck.', 'A UX nudge that masks a deeper data issue.'],
+    agent:      ['Prompt that works once and drifts on the second run.', 'Tool surface so small the agent has to invent steps.'],
+    experiment: ['Building enough to be loved but not enough to be tested.', 'Confounding signal from the prototype quality itself.']
+  };
+
+  var SOURCE_SLICES = {
+    docs: [
+      'Skim the source and write the single sentence the page is really about.',
+      'Draft the headings only, with no body copy, and check the shape.',
+      'Fill one section end-to-end before any other; cut anything that crowds it.'
+    ],
+    support: [
+      'Read three real-feeling complaint shapes; name the shared moment of friction.',
+      'Sketch the smallest UI change that removes that moment.',
+      'Stub the change with a static prop or flag and walk through it on a phone.'
+    ],
+    agent: [
+      'Write the task in one paragraph an outsider could execute by hand.',
+      'List the tools the agent is allowed to touch, and nothing more.',
+      'Define the acceptance signal as a string the agent can self-check.'
+    ],
+    experiment: [
+      'Name the question the prototype answers in a single sentence.',
+      'Build the cheapest version that can produce a yes/no on that question.',
+      'Run it once, write what surprised you, decide stop or expand.'
+    ]
+  };
+
+  // Deterministic "lens clarity" score: higher when shape is coherent
+  function lensScore(s){
+    var d = s.dials;
+    var total = d.clarity + d.proof + d.risk + d.delight;
+    var chipCount = Object.keys(s.chips).filter(function(k){ return s.chips[k]; }).length;
+
+    // Base from clarity-heavy mix
+    var score = 30 + d.clarity * 3 + d.proof * 2 + d.delight * 1;
+    // Constraints help — up to a point
+    if (chipCount === 0) score -= 14;
+    else if (chipCount <= 3) score += chipCount * 4;
+    else if (chipCount <= 6) score += 12 + (chipCount - 3) * 2;
+    else score += 18 - (chipCount - 6) * 3; // too many constraints muddy the lens
+    // Punish overpacking
+    if (total >= 32) score -= 10;
+    if (total <= 8) score -= 8;
+    // Risk asymmetry: a little is fine, lots without constraints is scary
+    if (d.risk >= 7 && chipCount < 3) score -= 6;
+    // Delight without clarity reads as decoration
+    if (d.delight >= 7 && d.clarity <= 3) score -= 5;
+    if (score < 0) score = 0;
+    if (score > 100) score = 100;
+    return Math.round(score);
+  }
+
+  function badgeFor(score, s){
+    var chipCount = Object.keys(s.chips).filter(function(k){ return s.chips[k]; }).length;
+    var d = s.dials;
+    if (score >= 80) return { text: 'crisp lens', cls: 'ok' };
+    if (score >= 65) return { text: 'usable lens', cls: '' };
+    if (d.risk >= 7 && chipCount < 3) return { text: 'wide aperture', cls: 'warn' };
+    if (chipCount === 0) return { text: 'unfocused', cls: 'warn' };
+    if (d.clarity <= 2) return { text: 'soft focus', cls: 'cool' };
+    return { text: 'rough cut', cls: 'cool' };
+  }
+
+  function titleFor(s){
+    var d = s.dials;
+    var top = ['clarity', 'proof', 'risk', 'delight'].sort(function(a, b){
+      return d[b] - d[a];
+    })[0];
+    var sm = SOURCE_META[s.source];
+    var leading = {
+      clarity: 'A clearer cut of',
+      proof:   'Proof-first take on',
+      risk:    'A bold pass at',
+      delight: 'A delightful slice of'
+    };
+    return leading[top] + ' your ' + sm.label.toLowerCase();
+  }
+
+  function generateBrief(){
+    if (!state.source) {
+      flashHint('Pick a source first.');
+      return;
+    }
+    var s = state;
+    var d = s.dials;
+    var sm = SOURCE_META[s.source];
+    var chosenChips = Object.keys(s.chips).filter(function(k){ return s.chips[k]; });
+
+    // Non-negotiables — limited by clarity (max 5)
+    var nonoMax = Math.max(2, Math.min(5, Math.floor(d.clarity / 2) + 2));
+    var nono = chosenChips.slice(0, nonoMax).map(function(k){ return CHIP_RULES[k]; });
+    if (nono.length === 0) nono = ['Name what "done" means before writing any code.'];
+
+    // Acceptance signals — driven by proof
+    var proofCount = Math.max(2, Math.min(5, Math.floor(d.proof / 2) + 2));
+    var proofs = SOURCE_PROOFS[s.source].slice();
+    chosenChips.forEach(function(k){ proofs.push(CHIP_PROOF[k]); });
+    proofs = proofs.slice(0, proofCount);
+
+    // Risks — driven by (10 - risk appetite) + base
+    var riskCount = Math.max(2, Math.min(5, Math.floor((10 - d.risk) / 2) + 2));
+    var risks = SOURCE_RISKS[s.source].slice();
+    chosenChips.forEach(function(k){ risks.push(CHIP_RISKS[k]); });
+    risks = risks.slice(0, riskCount);
+
+    // First slice — small unless delight is high
+    var sliceSteps = SOURCE_SLICES[s.source].slice();
+    var sliceCount = d.delight >= 7 ? 3 : 2;
+    sliceSteps = sliceSteps.slice(0, sliceCount);
+
+    var sliceSize = 'small';
+    var total = d.clarity + d.proof + d.risk + d.delight;
+    if (total >= 26) sliceSize = 'medium';
+    if (total >= 32) sliceSize = 'wide';
+    if (total <= 12) sliceSize = 'sketch';
+
+    var score = lensScore(s);
+    var badge = badgeFor(score, s);
+
+    // Render
+    var brief = document.getElementById('brief');
+    brief.classList.remove('is-empty');
+    document.getElementById('brief-meta').textContent = sm.label + ' · ' + sliceSize + ' slice · lens ' + score;
+    document.getElementById('brief-title').textContent = titleFor(s);
+    var badgeEl = document.getElementById('brief-badge');
+    badgeEl.className = 'badge ' + badge.cls;
+    badgeEl.textContent = badge.text;
+    document.getElementById('brief-intent').textContent = sm.intent(d);
+    renderList('brief-nono', nono);
+    renderList('brief-proofs', proofs);
+    renderList('brief-risks', risks);
+    renderList('brief-slice', sliceSteps);
+    document.getElementById('slice-size').textContent = sliceSize;
+
+    // Smooth-scroll the brief into view
+    setTimeout(function(){
+      brief.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 30);
+  }
+
+  function renderList(id, items){
+    var el = document.getElementById(id);
+    el.innerHTML = '';
+    items.forEach(function(t){
+      var li = document.createElement('li');
+      li.textContent = t;
+      el.appendChild(li);
+    });
+  }
+
+  function flashHint(msg){
+    var t = document.getElementById('brief-title');
+    var prev = t.textContent;
+    t.textContent = msg;
+    t.style.color = '#ff8d8d';
+    setTimeout(function(){
+      t.textContent = prev;
+      t.style.color = '';
+    }, 1400);
+  }
+
+  // ---------- Actions ----------
+  document.getElementById('lens').addEventListener('click', generateBrief);
+
+  document.getElementById('reset').addEventListener('click', function(){
+    state.source = null;
+    state.chips = {};
+    state.dials = { clarity: 5, proof: 5, risk: 3, delight: 4 };
+    Array.prototype.forEach.call(sourcesEl.querySelectorAll('.src'), function(el){ el.classList.remove('is-on'); });
+    Array.prototype.forEach.call(chipsEl.querySelectorAll('.chip'), function(el){ el.classList.remove('is-on'); });
+    ['clarity','proof','risk','delight'].forEach(function(k){
+      document.querySelector('[data-dial="'+k+'"]').value = state.dials[k];
+      document.getElementById('v-'+k).textContent = state.dials[k];
+    });
+    updateBudget();
+    var brief = document.getElementById('brief');
+    brief.classList.add('is-empty');
+    document.getElementById('brief-meta').textContent = 'Awaiting context';
+    document.getElementById('brief-title').textContent = 'Pick a source and tap the prism.';
+    document.getElementById('brief-title').style.color = '';
+    document.getElementById('brief-badge').textContent = '—';
+    document.getElementById('brief-badge').className = 'badge';
+    document.getElementById('brief-intent').textContent = 'Your one-line build statement appears here.';
+    renderList('brief-nono', ['Driven by the constraints you select.']);
+    renderList('brief-proofs', ['What you\'d point at and say it works.']);
+    renderList('brief-risks', ['Where this could quietly go wrong.']);
+    renderList('brief-slice', ['What you\'d attempt in the first hour.']);
+    document.getElementById('slice-size').textContent = 'small';
+  });
+
+  // ---------- Copy ----------
+  function briefAsText(useMarkdown){
+    var brief = document.getElementById('brief');
+    if (brief.classList.contains('is-empty')) return '';
+    var title = document.getElementById('brief-title').textContent;
+    var meta = document.getElementById('brief-meta').textContent;
+    var badge = document.getElementById('brief-badge').textContent;
+    var intent = document.getElementById('brief-intent').textContent;
+    var sections = [
+      ['Non-negotiables', 'brief-nono'],
+      ['Acceptance signals', 'brief-proofs'],
+      ['Risks to watch', 'brief-risks'],
+      ['First build slice (' + document.getElementById('slice-size').textContent + ')', 'brief-slice']
+    ];
+    var lines = [];
+    if (useMarkdown) {
+      lines.push('# ' + title);
+      lines.push('');
+      lines.push('_' + meta + ' · ' + badge + '_');
+      lines.push('');
+      lines.push('**Intent.** ' + intent);
+      lines.push('');
+      sections.forEach(function(s){
+        lines.push('## ' + s[0]);
+        var items = document.getElementById(s[1]).querySelectorAll('li');
+        Array.prototype.forEach.call(items, function(li){ lines.push('- ' + li.textContent); });
+        lines.push('');
+      });
+    } else {
+      lines.push(title.toUpperCase());
+      lines.push(meta + ' · ' + badge);
+      lines.push('');
+      lines.push('INTENT');
+      lines.push(intent);
+      lines.push('');
+      sections.forEach(function(s){
+        lines.push(s[0].toUpperCase());
+        var items = document.getElementById(s[1]).querySelectorAll('li');
+        Array.prototype.forEach.call(items, function(li){ lines.push('· ' + li.textContent); });
+        lines.push('');
+      });
+    }
+    return lines.join('\n').trim() + '\n';
+  }
+
+  function copyToClipboard(text, label){
+    if (!text) {
+      flashHint('Generate a brief first.');
+      return;
+    }
+    var done = function(){
+      var status = document.getElementById('copyStatus');
+      status.textContent = label + ' copied';
+      status.classList.add('is-on');
+      clearTimeout(copyToClipboard._t);
+      copyToClipboard._t = setTimeout(function(){ status.classList.remove('is-on'); }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+      fallback();
+    }
+    function fallback(){
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+      } catch(_) {
+        flashHint('Copy not supported; long-press to select.');
+      }
+    }
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    copyToClipboard(briefAsText(false), 'brief');
+  });
+  document.getElementById('copyMdBtn').addEventListener('click', function(){
+    copyToClipboard(briefAsText(true), 'markdown');
+  });
+
+})();
+</script>
+</body>
+</html>
