@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Signal Runway — Preflight for Risky Tiny Ships</title>
+<style>
+  :root {
+    --bg: #07091a;
+    --bg2: #0e1230;
+    --panel: #131a3a;
+    --panel2: #1a2350;
+    --line: rgba(140,170,255,0.16);
+    --line2: rgba(140,170,255,0.32);
+    --ink: #e7ecff;
+    --dim: #8590c4;
+    --muted: #5b6499;
+    --go: #5ef0a6;
+    --warn: #ffd166;
+    --stop: #ff7a8a;
+    --beam: #6ee0ff;
+    --beam2: #b48bff;
+    --accent: #ffb45a;
+    --tap: 44px;
+  }
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    padding: 16px 14px 80px;
+    max-width: 520px;
+    margin: 0 auto;
+    background:
+      radial-gradient(ellipse 80% 40% at 50% -5%, rgba(110,224,255,0.10), transparent),
+      radial-gradient(ellipse 60% 30% at 90% 110%, rgba(180,139,255,0.10), transparent),
+      var(--bg);
+  }
+  .stack > * + * { margin-top: 14px; }
+
+  header {
+    text-align: left;
+    padding: 6px 4px 4px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-top: 6px;
+    line-height: 1.15;
+  }
+  h1 .accent { color: var(--beam); }
+  .lede {
+    font-size: 14px;
+    color: var(--dim);
+    margin-top: 6px;
+    max-width: 44ch;
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .card h2 {
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* Ship picker */
+  .ships {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .ship {
+    min-height: var(--tap);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .1s;
+    font: inherit;
+  }
+  .ship:active { transform: scale(0.98); }
+  .ship[aria-pressed="true"] {
+    border-color: var(--beam);
+    background: rgba(110,224,255,0.10);
+  }
+  .ship .name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .ship .meta {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+
+  /* Runway visual */
+  .runway {
+    position: relative;
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    background:
+      linear-gradient(180deg, rgba(110,224,255,0.05), rgba(180,139,255,0.04));
+    overflow: hidden;
+  }
+  .runway::before {
+    content: "";
+    position: absolute;
+    inset: 50% 8px auto 8px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--beam), var(--beam2), transparent);
+    opacity: 0.55;
+    transform: translateY(-50%);
+  }
+  .lights {
+    position: absolute;
+    inset: 50% 8px auto 8px;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .lights span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(110,224,255,0.4);
+    box-shadow: 0 0 8px rgba(110,224,255,0.5);
+  }
+  .runway-label {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    z-index: 1;
+  }
+  .runway-stage {
+    position: relative;
+    z-index: 1;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 0;
+    text-align: center;
+  }
+  .runway-stage .ship-mark {
+    font-size: 28px;
+    line-height: 1;
+    transition: transform .35s ease;
+  }
+  .runway-stage .ship-mark.go { transform: translateX(38%); }
+  .runway-stage .ship-mark.hold { transform: translateX(-10%); }
+  .runway-stage .ship-mark.stop { transform: translateX(-38%); }
+
+  /* Checks */
+  .checks {
+    display: grid;
+    gap: 10px;
+  }
+  .check {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.015);
+  }
+  .check-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .check-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .check-desc {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+  .seg {
+    display: inline-grid;
+    grid-template-columns: repeat(3, minmax(58px, 1fr));
+    gap: 4px;
+    background: rgba(255,255,255,0.04);
+    padding: 4px;
+    border-radius: 10px;
+    margin-top: 10px;
+  }
+  .seg button {
+    min-height: 36px;
+    border: 0;
+    background: transparent;
+    color: var(--dim);
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .seg button[aria-pressed="true"] {
+    background: rgba(110,224,255,0.16);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px rgba(110,224,255,0.3);
+  }
+  .seg.go button[aria-pressed="true"] { background: rgba(94,240,166,0.16); box-shadow: inset 0 0 0 1px rgba(94,240,166,0.5); color: var(--go); }
+  .seg.hold button[aria-pressed="true"] { background: rgba(255,209,102,0.16); box-shadow: inset 0 0 0 1px rgba(255,209,102,0.5); color: var(--warn); }
+  .seg.stop button[aria-pressed="true"] { background: rgba(255,122,138,0.16); box-shadow: inset 0 0 0 1px rgba(255,122,138,0.5); color: var(--stop); }
+
+  /* Actions */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn {
+    min-height: var(--tap);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    padding: 0 12px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(180deg, #2e5cff, #1a3bd6);
+    border-color: rgba(255,255,255,0.18);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--dim);
+  }
+
+  /* Verdict */
+  .verdict {
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel2), var(--bg2));
+  }
+  .verdict-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .badge {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line2);
+    font-weight: 700;
+  }
+  .badge.go { color: var(--go); border-color: rgba(94,240,166,0.4); background: rgba(94,240,166,0.08); }
+  .badge.hold { color: var(--warn); border-color: rgba(255,209,102,0.4); background: rgba(255,209,102,0.08); }
+  .badge.stop { color: var(--stop); border-color: rgba(255,122,138,0.4); background: rgba(255,122,138,0.08); }
+  .verdict h3 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .score {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+  .meter {
+    height: 8px;
+    margin-top: 10px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--stop), var(--warn) 50%, var(--go));
+    transition: width .4s ease;
+  }
+  .breakdown {
+    list-style: none;
+    padding: 0;
+    margin-top: 12px;
+    display: grid;
+    gap: 6px;
+  }
+  .breakdown li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--ink);
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line);
+  }
+  .breakdown .lbl { color: var(--dim); font-size: 12px; }
+  .breakdown .val { font-weight: 700; }
+  .breakdown .val.go { color: var(--go); }
+  .breakdown .val.hold { color: var(--warn); }
+  .breakdown .val.stop { color: var(--stop); }
+
+  .runbook {
+    margin-top: 12px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: #cfd8ff;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .copy-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .copy-row .btn { flex: 1; }
+  .copy-row .status {
+    font-size: 12px;
+    color: var(--go);
+    align-self: center;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 18px;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+
+  /* Hidden until ready */
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="stack">
+  <header>
+    <div class="eyebrow">Daily Surprise · 2026-06-04</div>
+    <h1>Signal <span class="accent">Runway</span><br>Preflight for risky tiny ships</h1>
+    <p class="lede">Pick a tiny thing you're about to ship. Mark each preflight gate. Get a deterministic verdict and a copyable runbook for the actual launch.</p>
+  </header>
+
+  <section class="card" aria-labelledby="ship-h">
+    <h2 id="ship-h">1 · Choose a ship</h2>
+    <div class="ships" id="ships" role="group" aria-label="Ship type">
+      <button class="ship" type="button" data-ship="agent" aria-pressed="false">
+        <div class="name">🤖 Tiny agent</div>
+        <div class="meta">runs unattended</div>
+      </button>
+      <button class="ship" type="button" data-ship="page" aria-pressed="false">
+        <div class="name">📄 Public page</div>
+        <div class="meta">visible to many</div>
+      </button>
+      <button class="ship" type="button" data-ship="script" aria-pressed="false">
+        <div class="name">⚙️ One-shot script</div>
+        <div class="meta">touches real data</div>
+      </button>
+      <button class="ship" type="button" data-ship="copy" aria-pressed="false">
+        <div class="name">✉️ Outbound copy</div>
+        <div class="meta">goes to humans</div>
+      </button>
+    </div>
+
+    <div class="runway" aria-hidden="false">
+      <div class="runway-label"><span>Hangar</span><span>Mid</span><span>Liftoff</span></div>
+      <div class="runway-stage">
+        <div class="ship-mark" id="shipMark">·</div>
+      </div>
+      <div class="lights" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <p class="hint" id="shipHint">Pick a ship to wake the runway.</p>
+  </section>
+
+  <section class="card" aria-labelledby="gates-h">
+    <h2 id="gates-h">2 · Mark each gate</h2>
+    <div class="checks" id="checks"></div>
+  </section>
+
+  <section class="actions">
+    <button class="btn btn-primary" id="runBtn" type="button">Run preflight</button>
+    <button class="btn btn-ghost" id="resetBtn" type="button">Reset gates</button>
+  </section>
+
+  <section class="verdict" id="verdictCard" hidden aria-live="polite">
+    <div class="verdict-head">
+      <div>
+        <h3 id="verdictTitle">—</h3>
+        <div class="score" id="verdictScore">—</div>
+      </div>
+      <div class="badge" id="verdictBadge">—</div>
+    </div>
+    <div class="meter"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+    <ul class="breakdown" id="breakdown"></ul>
+
+    <div class="runbook" id="runbook" aria-label="Copyable runbook">—</div>
+    <div class="copy-row">
+      <button class="btn" id="copyBtn" type="button">Copy runbook</button>
+      <div class="status" id="copyStatus" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <footer>Self-contained · works offline · built as a tiny preflight ritual</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const SHIPS = {
+    agent: {
+      label: "Tiny agent",
+      icon: "🤖",
+      blurb: "It will act without you watching. Trust depends on guardrails.",
+      tone: "agent"
+    },
+    page: {
+      label: "Public page",
+      icon: "📄",
+      blurb: "Lots of eyes. First impressions stick.",
+      tone: "page"
+    },
+    script: {
+      label: "One-shot script",
+      icon: "⚙️",
+      blurb: "Real data, irreversible by default.",
+      tone: "script"
+    },
+    copy: {
+      label: "Outbound copy",
+      icon: "✉️",
+      blurb: "Sent words can't be unsent. Aim before you fire.",
+      tone: "copy"
+    }
+  };
+
+  // Gate library, with per-ship copy. Weights are fixed for determinism.
+  const GATES = [
+    {
+      id: "evidence",
+      title: "Evidence",
+      desc: "You can name the smallest proof it works end to end.",
+      weight: 22,
+      tips: {
+        agent: "Replay one full task end-to-end on a dry run.",
+        page:  "Open the page on a phone you don't usually use.",
+        script:"Run against a copy of the data first; diff before/after.",
+        copy:  "Read it aloud once; one trusted reader skims it."
+      }
+    },
+    {
+      id: "rollback",
+      title: "Rollback",
+      desc: "A clear way to undo the next 60 minutes of effects.",
+      weight: 22,
+      tips: {
+        agent: "Kill switch + a 'last-known-good' branch to redeploy.",
+        page:  "Previous build is one click away; cache TTL is short.",
+        script:"Snapshot first; idempotent or wrapped in a transaction.",
+        copy:  "Schedule send, not instant; follow-up template ready."
+      }
+    },
+    {
+      id: "scope",
+      title: "Scope",
+      desc: "One change, one reason, sized to a single sitting.",
+      weight: 16,
+      tips: {
+        agent: "One task type. Stash the next-step ideas in a list.",
+        page:  "One headline message; cut the second CTA.",
+        script:"One transform. Other cleanup goes in a second pass.",
+        copy:  "One ask. Move secondary asks to a follow-up."
+      }
+    },
+    {
+      id: "comms",
+      title: "Comms",
+      desc: "Audience knows it's coming and what 'good' looks like.",
+      weight: 18,
+      tips: {
+        agent: "Quiet log channel that you'll actually check.",
+        page:  "One-liner ready for the channel if someone asks.",
+        script:"Heads-up to whoever owns the downstream data.",
+        copy:  "Reply path is set: who handles each likely response."
+      }
+    },
+    {
+      id: "verify",
+      title: "Verify",
+      desc: "A specific signal you'll look at within an hour of launch.",
+      weight: 22,
+      tips: {
+        agent: "Eyeball the first three runs end-to-end. Not just logs.",
+        page:  "Load it on cellular. Tap the primary action yourself.",
+        script:"Spot-check 5 affected rows by hand against expectations.",
+        copy:  "Open the sent copy in the recipient's likely client."
+      }
+    }
+  ];
+
+  const STATES = {
+    go:   { label: "Ready",   weight: 1.0,  tone: "go" },
+    hold: { label: "Soft",    weight: 0.45, tone: "hold" },
+    stop: { label: "Missing", weight: 0.0,  tone: "stop" }
+  };
+
+  let selectedShip = null;
+  // gateState[gateId] = "go" | "hold" | "stop"
+  const gateState = Object.fromEntries(GATES.map(g => [g.id, "hold"]));
+
+  // --- Build ship picker behavior ---
+  const shipsEl = document.getElementById("ships");
+  shipsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".ship");
+    if (!btn) return;
+    const id = btn.dataset.ship;
+    selectShip(id);
+  });
+
+  function selectShip(id){
+    selectedShip = id;
+    [...shipsEl.querySelectorAll(".ship")].forEach(b => {
+      b.setAttribute("aria-pressed", String(b.dataset.ship === id));
+    });
+    const s = SHIPS[id];
+    document.getElementById("shipMark").textContent = s.icon;
+    document.getElementById("shipMark").className = "ship-mark hold";
+    document.getElementById("shipHint").textContent = s.blurb;
+    renderChecks();
+    hideVerdict();
+  }
+
+  // --- Checks ---
+  const checksEl = document.getElementById("checks");
+  function renderChecks(){
+    checksEl.innerHTML = "";
+    for (const g of GATES) {
+      const tip = selectedShip ? g.tips[selectedShip] : "Pick a ship for tailored guidance.";
+      const wrap = document.createElement("div");
+      wrap.className = "check";
+      wrap.innerHTML = `
+        <div class="check-top">
+          <div>
+            <div class="check-title">${g.title}</div>
+            <div class="check-desc">${g.desc}</div>
+          </div>
+        </div>
+        <div class="check-desc" style="margin-top:6px;color:var(--muted)">↳ ${tip}</div>
+        <div class="seg" role="group" aria-label="${g.title} state" data-gate="${g.id}">
+          <button type="button" data-state="stop" aria-pressed="false">Missing</button>
+          <button type="button" data-state="hold" aria-pressed="false">Soft</button>
+          <button type="button" data-state="go"   aria-pressed="false">Ready</button>
+        </div>
+      `;
+      // Apply current state
+      const seg = wrap.querySelector(".seg");
+      const cur = gateState[g.id];
+      seg.classList.add(cur);
+      [...seg.querySelectorAll("button")].forEach(b => {
+        b.setAttribute("aria-pressed", String(b.dataset.state === cur));
+      });
+      seg.addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-state]");
+        if (!b) return;
+        const st = b.dataset.state;
+        gateState[g.id] = st;
+        seg.classList.remove("go","hold","stop");
+        seg.classList.add(st);
+        [...seg.querySelectorAll("button")].forEach(x => {
+          x.setAttribute("aria-pressed", String(x.dataset.state === st));
+        });
+        hideVerdict();
+      });
+      checksEl.appendChild(wrap);
+    }
+  }
+  // initial render with default state
+  renderChecks();
+
+  // --- Reset ---
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    for (const g of GATES) gateState[g.id] = "hold";
+    renderChecks();
+    hideVerdict();
+  });
+
+  // --- Run preflight ---
+  document.getElementById("runBtn").addEventListener("click", () => {
+    if (!selectedShip) {
+      document.getElementById("shipHint").textContent = "Pick a ship first — the runway needs a thing to launch.";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    showVerdict();
+  });
+
+  function calcScore(){
+    let total = 0, max = 0;
+    const parts = GATES.map(g => {
+      const st = gateState[g.id];
+      const w = STATES[st].weight;
+      total += g.weight * w;
+      max += g.weight;
+      return { id: g.id, title: g.title, state: st, weight: g.weight };
+    });
+    const pct = Math.round((total / max) * 100);
+    return { pct, parts };
+  }
+
+  function verdictFor(pct, parts){
+    const hasStop = parts.some(p => p.state === "stop");
+    if (hasStop) {
+      return { tone: "stop", label: "Hold", title: "Hold the launch", line: "One gate is missing — fix it first, even if the rest are ready." };
+    }
+    if (pct >= 80) return { tone: "go",   label: "Cleared", title: "Cleared for liftoff", line: "Take the shot. Watch the first hour like you mean it." };
+    if (pct >= 60) return { tone: "hold", label: "Tighten", title: "Tighten one gate", line: "Close to ready. Pick the weakest gate and harden it before launch." };
+    return { tone: "stop", label: "Stand down", title: "Stand the ship down", line: "Too many soft spots. Don't ship this one today." };
+  }
+
+  function showVerdict(){
+    const { pct, parts } = calcScore();
+    const v = verdictFor(pct, parts);
+    const card = document.getElementById("verdictCard");
+    card.hidden = false;
+
+    document.getElementById("verdictTitle").textContent = v.title;
+    document.getElementById("verdictScore").textContent = v.line;
+    const badge = document.getElementById("verdictBadge");
+    badge.textContent = v.label;
+    badge.className = "badge " + v.tone;
+
+    document.getElementById("meterFill").style.width = pct + "%";
+
+    // Runway visual
+    const mark = document.getElementById("shipMark");
+    mark.className = "ship-mark " + (v.tone === "go" ? "go" : v.tone === "stop" ? "stop" : "hold");
+
+    // Breakdown
+    const bd = document.getElementById("breakdown");
+    bd.innerHTML = "";
+    for (const p of parts) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="lbl">${p.title}</span><span class="val ${p.state}">${STATES[p.state].label}</span>`;
+      bd.appendChild(li);
+    }
+
+    // Runbook
+    document.getElementById("runbook").textContent = buildRunbook(pct, parts, v);
+    document.getElementById("copyStatus").textContent = "";
+
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function hideVerdict(){
+    const card = document.getElementById("verdictCard");
+    card.hidden = true;
+    document.getElementById("copyStatus").textContent = "";
+  }
+
+  function buildRunbook(pct, parts, v){
+    const s = SHIPS[selectedShip];
+    const stamp = "2026-06-04";
+    const order = ["evidence","rollback","verify","comms","scope"];
+    const sortedParts = parts.slice().sort((a,b) => order.indexOf(a.id) - order.indexOf(b.id));
+
+    const gateLine = (p) => {
+      const g = GATES.find(x => x.id === p.id);
+      const tip = g.tips[selectedShip];
+      const mark = p.state === "go" ? "[x]" : p.state === "hold" ? "[~]" : "[ ]";
+      return `${mark} ${g.title}: ${tip}`;
+    };
+
+    const fixes = sortedParts
+      .filter(p => p.state !== "go")
+      .map(p => {
+        const g = GATES.find(x => x.id === p.id);
+        return `- ${g.title}: ${g.tips[selectedShip]}`;
+      });
+
+    const headerLine = `Signal Runway · ${stamp}
+Ship: ${s.icon} ${s.label}
+Verdict: ${v.label.toUpperCase()} — ${v.title} (${pct}/100)`;
+
+    const gateBlock = `Preflight gates:
+${sortedParts.map(gateLine).join("\n")}`;
+
+    const fixBlock = fixes.length
+      ? `Before liftoff:
+${fixes.join("\n")}`
+      : `Before liftoff:
+- All gates ready. Set a timer for the first verify pass.`;
+
+    const afterBlock = `In the first hour after launch:
+- Watch the verify signal you named above.
+- Note one thing that surprised you (good or bad).
+- If anything wobbles, pull the rollback you wrote down.
+
+If you ship: write one line about what you learned.
+If you don't: write one line about which gate to harden first.`;
+
+    return [headerLine, "", gateBlock, "", fixBlock, "", afterBlock].join("\n");
+  }
+
+  // --- Copy ---
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const text = document.getElementById("runbook").textContent;
+    const status = document.getElementById("copyStatus");
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      status.textContent = "Copied ✓";
+      setTimeout(() => { status.textContent = ""; }, 2200);
+    } catch (e) {
+      status.textContent = "Copy failed";
+    }
+  });
+
+  // Default ship selection for first visit
+  selectShip("agent");
+})();
+</script>
+
+</body>
+</html>
