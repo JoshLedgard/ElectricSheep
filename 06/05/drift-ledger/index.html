@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Drift Ledger — A Tiny Cost Constellation</title>
+<style>
+  :root {
+    --bg: #060814;
+    --bg2: #0a0f24;
+    --panel: #101630;
+    --panel2: #161e42;
+    --line: rgba(150,180,240,0.14);
+    --line2: rgba(150,180,240,0.30);
+    --ink: #e9eeff;
+    --dim: #93a0d2;
+    --muted: #59648f;
+    --pebble: #ffe7a7;
+    --pool: #6ee0ff;
+    --flow: #b48bff;
+    --accent: #ffb45a;
+    --good: #7df0b8;
+    --tap: 44px;
+  }
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    padding: 14px 12px 60px;
+    max-width: 520px;
+    margin: 0 auto;
+    background:
+      radial-gradient(ellipse 80% 40% at 50% -5%, rgba(110,224,255,0.10), transparent),
+      radial-gradient(ellipse 70% 35% at 50% 110%, rgba(180,139,255,0.10), transparent),
+      var(--bg);
+    overflow-x: hidden;
+  }
+  .stack > * + * { margin-top: 12px; }
+
+  header { padding: 4px 4px 0; }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-top: 6px;
+    line-height: 1.12;
+  }
+  h1 .accent { color: var(--pool); }
+  .lede {
+    font-size: 13.5px;
+    color: var(--dim);
+    margin-top: 6px;
+    max-width: 44ch;
+  }
+
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+  }
+  .card h2 {
+    font-size: 11.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  /* Mode picker */
+  .modes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .mode {
+    min-height: var(--tap);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color .15s, background .15s, transform .1s;
+  }
+  .mode .icon { display: block; font-size: 16px; margin-bottom: 2px; }
+  .mode:active { transform: scale(0.97); }
+  .mode.on {
+    border-color: var(--line2);
+    background: rgba(110,224,255,0.08);
+    color: #fff;
+  }
+  .mode.on .icon { filter: drop-shadow(0 0 4px rgba(110,224,255,0.6)); }
+
+  /* Sky */
+  .sky-wrap {
+    position: relative;
+    background: linear-gradient(180deg, #050a1e 0%, #0a0f28 60%, #0d1336 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .sky-wrap svg { display: block; width: 100%; height: auto; }
+  .pattern-name {
+    position: absolute;
+    top: 10px; left: 12px; right: 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .pattern-name .name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .pattern-name .total {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pattern-name .total strong { color: var(--pebble); font-weight: 700; }
+
+  /* Streams */
+  .streams { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .stream {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.015);
+  }
+  .stream-meta { min-width: 0; }
+  .stream-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .stream-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+    flex: 0 0 auto;
+  }
+  .stream-blurb {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 1px;
+    line-height: 1.3;
+  }
+  .pebble-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pbtn {
+    width: var(--tap);
+    height: var(--tap);
+    min-width: var(--tap);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink);
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .12s, transform .08s, border-color .12s;
+    line-height: 1;
+  }
+  .pbtn:active { transform: scale(0.92); background: rgba(110,224,255,0.10); }
+  .pbtn:disabled { opacity: 0.35; cursor: default; }
+  .pcount {
+    min-width: 26px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--pebble);
+  }
+
+  /* Reflection */
+  .reflection {
+    background: linear-gradient(180deg, #0e1432, #0a0f28);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .reflection h2 {
+    font-size: 11.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .reflect-text {
+    font-size: 13.5px;
+    color: var(--ink);
+    line-height: 1.55;
+    white-space: pre-wrap;
+    font-feature-settings: "ss01";
+  }
+  .reflect-text .lab {
+    color: var(--pool);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 8px;
+  }
+  .reflect-text .lab:first-child { margin-top: 0; }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .btn {
+    flex: 1;
+    min-height: var(--tap);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    color: var(--ink);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .12s, border-color .12s, transform .08s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: rgba(110,224,255,0.10);
+    border-color: rgba(110,224,255,0.40);
+    color: #d9f4ff;
+  }
+  .btn.primary.copied {
+    background: rgba(125,240,184,0.12);
+    border-color: rgba(125,240,184,0.45);
+    color: var(--good);
+  }
+
+  .about {
+    font-size: 11.5px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+    padding: 6px 8px;
+  }
+  .about span { color: var(--dim); }
+
+  /* Twinkle keyframe */
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.45; }
+  }
+  .twinkle { animation: twinkle 3.6s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="stack">
+  <header>
+    <div class="eyebrow">Daily Surprise · Jun 5</div>
+    <h1>Drift <span class="accent">Ledger</span></h1>
+    <p class="lede">A tiny cost constellation. Hand pebbles to five fictional streams, pick a day mode, and watch a private night-sky flow map appear. Nothing real is counted here.</p>
+  </header>
+
+  <section class="card stack">
+    <h2>Day mode</h2>
+    <div class="modes" id="modes" role="tablist" aria-label="Day mode">
+      <button class="mode on" data-mode="calm"     role="tab" aria-selected="true"><span class="icon">◐</span>Calm</button>
+      <button class="mode"    data-mode="explore"  role="tab" aria-selected="false"><span class="icon">✦</span>Explore</button>
+      <button class="mode"    data-mode="ship"     role="tab" aria-selected="false"><span class="icon">▲</span>Ship</button>
+      <button class="mode"    data-mode="restore"  role="tab" aria-selected="false"><span class="icon">◯</span>Restore</button>
+    </div>
+    <p class="hint">Mode shapes the sky's palette and the field note tone. It never tallies real anything.</p>
+  </section>
+
+  <section class="sky-wrap" aria-label="Constellation visualization">
+    <svg id="sky" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+    <div class="pattern-name">
+      <div class="name" id="patternName">—</div>
+      <div class="total"><strong id="totalCount">0</strong> pebbles</div>
+    </div>
+  </section>
+
+  <section class="card stack">
+    <h2>Streams</h2>
+    <div class="streams" id="streams"></div>
+    <p class="hint">Tap − / + to move pebbles. Each stream holds 0 to 7. Same allocation always makes the same sky.</p>
+  </section>
+
+  <section class="reflection">
+    <h2>Field note</h2>
+    <div class="reflect-text" id="reflectText"></div>
+    <div class="row">
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+      <button class="btn primary" id="copyBtn" type="button">Copy field note</button>
+    </div>
+  </section>
+
+  <p class="about">
+    <span>Fictional streams, abstract pebbles, no real ledgers.</span><br>
+    A private ritual for noticing where attention drifts — nothing here leaves your phone.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STREAMS = [
+    { key:"spark",  label:"Spark",  blurb:"first sparks, sketches, fresh ideas",  color:"#ffd166", emoji:"✦" },
+    { key:"build",  label:"Build",  blurb:"making the thing, hands on the loom",  color:"#7df0b8", emoji:"▲" },
+    { key:"review", label:"Review", blurb:"squinting at what already exists",      color:"#6ee0ff", emoji:"◇" },
+    { key:"care",   label:"Care",   blurb:"tending people, answering, listening", color:"#ff9ec7", emoji:"♡" },
+    { key:"drift",  label:"Drift",  blurb:"wandering, resting, half-thinking",    color:"#b48bff", emoji:"~" }
+  ];
+
+  const MODES = {
+    calm:    { label:"Calm",    sky1:"#070d22", sky2:"#0c1338", flow:"#8aa6ff", pool:"#6ee0ff", star:"#ffe7a7", glow:"#a7c8ff" },
+    explore: { label:"Explore", sky1:"#0b0a26", sky2:"#1a1145", flow:"#c084fc", pool:"#7df0b8", star:"#ffd166", glow:"#ffd6e8" },
+    ship:    { label:"Ship",    sky1:"#0a1224", sky2:"#101a3a", flow:"#ffb45a", pool:"#ff7a8a", star:"#ffe7a7", glow:"#ffb45a" },
+    restore: { label:"Restore", sky1:"#080d1c", sky2:"#0d1428", flow:"#8be5d6", pool:"#a7c8ff", star:"#fbecb1", glow:"#8be5d6" }
+  };
+
+  const MAX_PEBBLES = 7;
+
+  const ADJ = {
+    calm:    ["Calm","Hush","Soft","Slow","Held","Folded","Lull"],
+    explore: ["Open","Roaming","Lit","Wandering","Drifting","Curious","Tilted"],
+    ship:    ["Steady","Sharp","Bright","Tight","Lean","Trim","Honed"],
+    restore: ["Quiet","Mended","Folded","Slow","Held","Soft","Slack"]
+  };
+
+  const SHAPES = {
+    spark:  ["Kindler","Ember","Match","Pilot","Wick"],
+    build:  ["Anvil","Bench","Loom","Mast","Bridge"],
+    review: ["Lens","Mirror","Scale","Beacon","Compass"],
+    care:   ["Hearth","Lantern","Cradle","Hammock","Vessel"],
+    drift:  ["Wake","Sail","Tide","Current","Eddy"],
+    even:   ["Wheel","Arc","Crown","Halo","Atlas"]
+  };
+
+  const QUALITY = {
+    none: ["Hush","Pause","Blank","Rest"],
+    low:  ["Spark","Sketch","Seed","Ember"],
+    mid:  ["Arc","Loom","Field","Path","Web"],
+    high: ["Constellation","Atlas","Sky","Web","Tide"]
+  };
+
+  const NOTES = {
+    calm: {
+      bright:[
+        "The bright pair is enough. Don't crowd them.",
+        "Let the brightest one glow a while before adding more.",
+        "Nothing here is owed a follow-up tonight."
+      ],
+      dim:[
+        "The dim streams are not a debt — they're space.",
+        "What's quiet can stay quiet a little longer.",
+        "Empty streams are part of the sky."
+      ]
+    },
+    explore: {
+      bright:[
+        "Send a small pebble somewhere it never goes.",
+        "Look for the unfamiliar edge in the bright cluster.",
+        "Trade one bright pebble for a stranger one."
+      ],
+      dim:[
+        "Wander toward the dim corner once.",
+        "The map is allowed to be incomplete.",
+        "Curiosity is fine without a return trip."
+      ]
+    },
+    ship: {
+      bright:[
+        "Pull one bright star toward the pool first.",
+        "Bright pairs travel faster than bright solos.",
+        "Pick the brightest, finish it, then look up."
+      ],
+      dim:[
+        "Let the dimmest streams stay dim tonight.",
+        "Trim before you tend.",
+        "Not everything bright needs landing tonight."
+      ]
+    },
+    restore: {
+      bright:[
+        "Even a bright star can be set down.",
+        "What glows tonight will glow tomorrow too.",
+        "Hold the brightest gently — don't grip."
+      ],
+      dim:[
+        "The quiet streams are earning their place.",
+        "A dim sky is still a sky.",
+        "Soft pebbles still count."
+      ]
+    }
+  };
+
+  // simple deterministic string hash → unsigned int
+  function hash(str){
+    let h = 5381 >>> 0;
+    for (let i = 0; i < str.length; i++){
+      h = (((h << 5) + h) + str.charCodeAt(i)) >>> 0;
+    }
+    return h >>> 0;
+  }
+  function pick(arr, seed){
+    return arr[hash(seed) % arr.length];
+  }
+  // small seeded rng (mulberry32)
+  function rng(seed){
+    let s = seed >>> 0;
+    return function(){
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return (((t ^ (t >>> 14)) >>> 0) / 4294967296);
+    };
+  }
+
+  // State
+  const state = {
+    mode: "calm",
+    counts: { spark: 1, build: 2, review: 1, care: 0, drift: 1 }
+  };
+
+  // Build streams UI
+  const streamsEl = document.getElementById("streams");
+  STREAMS.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "stream";
+    row.innerHTML = `
+      <div class="stream-meta">
+        <div class="stream-name"><span class="stream-dot" style="background:${s.color};color:${s.color}"></span>${s.label}</div>
+        <div class="stream-blurb">${s.blurb}</div>
+      </div>
+      <div class="pebble-ctrl" role="group" aria-label="${s.label} pebbles">
+        <button class="pbtn" data-act="-" data-key="${s.key}" aria-label="Remove pebble from ${s.label}">−</button>
+        <div class="pcount" id="cnt-${s.key}">0</div>
+        <button class="pbtn" data-act="+" data-key="${s.key}" aria-label="Add pebble to ${s.label}">+</button>
+      </div>
+    `;
+    streamsEl.appendChild(row);
+  });
+
+  streamsEl.addEventListener("click", (e) => {
+    const b = e.target.closest("button.pbtn");
+    if (!b) return;
+    const key = b.dataset.key;
+    const act = b.dataset.act;
+    const cur = state.counts[key] || 0;
+    if (act === "+" && cur < MAX_PEBBLES) state.counts[key] = cur + 1;
+    if (act === "-" && cur > 0) state.counts[key] = cur - 1;
+    render();
+  });
+
+  // Mode buttons
+  document.getElementById("modes").addEventListener("click", (e) => {
+    const b = e.target.closest("button.mode");
+    if (!b) return;
+    document.querySelectorAll(".mode").forEach(m => {
+      m.classList.toggle("on", m === b);
+      m.setAttribute("aria-selected", m === b ? "true" : "false");
+    });
+    state.mode = b.dataset.mode;
+    render();
+  });
+
+  // Reset
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    state.counts = { spark: 0, build: 0, review: 0, care: 0, drift: 0 };
+    render();
+  });
+
+  // Copy
+  const copyBtn = document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", async () => {
+    const txt = buildFieldNoteText();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(txt);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      copyBtn.classList.add("copied");
+      const prev = copyBtn.textContent;
+      copyBtn.textContent = "Copied ✓";
+      setTimeout(() => {
+        copyBtn.classList.remove("copied");
+        copyBtn.textContent = prev;
+      }, 1400);
+    } catch (_) { /* ignore */ }
+  });
+
+  // Pattern name
+  function patternName(counts, mode){
+    const total = sum(counts);
+    const seed = mode + ":" + STREAMS.map(s => counts[s.key]).join(",");
+    const adj = pick(ADJ[mode], seed + "|adj");
+    let shapeKey;
+    const max = Math.max(...STREAMS.map(s => counts[s.key]));
+    if (max === 0) { shapeKey = "even"; }
+    else {
+      const tops = STREAMS.filter(s => counts[s.key] === max).map(s => s.key);
+      if (tops.length === 1) shapeKey = tops[0];
+      else shapeKey = "even";
+    }
+    const shape = pick(SHAPES[shapeKey], seed + "|shape");
+    let qualKey;
+    if (total === 0) qualKey = "none";
+    else if (total <= 5) qualKey = "low";
+    else if (total <= 15) qualKey = "mid";
+    else qualKey = "high";
+    const qual = pick(QUALITY[qualKey], seed + "|qual");
+    return `${adj} ${shape} ${qual}`;
+  }
+
+  function sum(c){
+    return STREAMS.reduce((a,s) => a + (c[s.key]||0), 0);
+  }
+
+  function topStream(counts){
+    let best = null, n = -1;
+    STREAMS.forEach(s => {
+      const v = counts[s.key]||0;
+      if (v > n) { n = v; best = s; }
+    });
+    return n > 0 ? best : null;
+  }
+  function quietStream(counts){
+    let best = null, n = Infinity;
+    STREAMS.forEach(s => {
+      const v = counts[s.key]||0;
+      if (v < n) { n = v; best = s; }
+    });
+    return best;
+  }
+
+  function buildFieldNoteText(){
+    const counts = state.counts;
+    const mode = state.mode;
+    const total = sum(counts);
+    const name = patternName(counts, mode);
+    const seed = mode + ":" + STREAMS.map(s => counts[s.key]).join(",");
+    const lines = [];
+    lines.push(`Drift Ledger — ${name}`);
+    lines.push(`Mode: ${MODES[mode].label} · Pebbles: ${total}`);
+    lines.push("");
+    STREAMS.forEach(s => {
+      const v = counts[s.key]||0;
+      const bar = "•".repeat(v) + "·".repeat(MAX_PEBBLES - v);
+      lines.push(`  ${s.label.padEnd(7," ")} ${bar}  ${v}`);
+    });
+    lines.push("");
+    const top = topStream(counts);
+    const quiet = quietStream(counts);
+    if (total === 0){
+      lines.push("Field note:");
+      lines.push("  The sky is empty tonight. That is allowed.");
+    } else {
+      const brightNote = pick(NOTES[mode].bright, seed + "|bright");
+      const dimNote = pick(NOTES[mode].dim, seed + "|dim");
+      lines.push("Field note:");
+      if (top) lines.push(`  Brightest tonight: ${top.label}. ${brightNote}`);
+      if (quiet && (counts[quiet.key]||0) === 0){
+        lines.push(`  Quietest: ${quiet.label} (empty). ${dimNote}`);
+      } else if (quiet) {
+        lines.push(`  Quietest: ${quiet.label}. ${dimNote}`);
+      }
+    }
+    lines.push("");
+    lines.push("Nothing here is real. The streams are fictional. The pebbles are abstract.");
+    return lines.join("\n");
+  }
+
+  // SVG rendering
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const sky = document.getElementById("sky");
+
+  function el(tag, attrs){
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function render(){
+    // update count displays
+    STREAMS.forEach(s => {
+      const v = state.counts[s.key]||0;
+      const cnt = document.getElementById("cnt-"+s.key);
+      if (cnt) cnt.textContent = v;
+      // disable buttons at extremes
+      document.querySelectorAll(`.pbtn[data-key="${s.key}"]`).forEach(b => {
+        if (b.dataset.act === "+") b.disabled = (v >= MAX_PEBBLES);
+        if (b.dataset.act === "-") b.disabled = (v <= 0);
+      });
+    });
+
+    const total = sum(state.counts);
+    document.getElementById("totalCount").textContent = total;
+
+    const mode = MODES[state.mode];
+    const name = patternName(state.counts, state.mode);
+    document.getElementById("patternName").textContent = name;
+
+    // Update body backgrounds subtly via the sky-wrap gradient
+    const skyWrap = document.querySelector(".sky-wrap");
+    skyWrap.style.background = `linear-gradient(180deg, ${mode.sky1} 0%, ${mode.sky2} 100%)`;
+
+    // Draw SVG
+    sky.innerHTML = "";
+
+    // backdrop stars (deterministic from mode + count signature)
+    const seedStr = state.mode + ":" + STREAMS.map(s => state.counts[s.key]).join(",");
+    const r = rng(hash(seedStr + "|bg"));
+    const bgGroup = el("g", { opacity: "0.6" });
+    for (let i = 0; i < 40; i++){
+      const x = r() * 400;
+      const y = 30 + r() * 200;
+      const rad = 0.4 + r() * 1.0;
+      const op = 0.15 + r() * 0.5;
+      const s = el("circle", { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(2), fill: mode.glow, "fill-opacity": op.toFixed(2) });
+      bgGroup.appendChild(s);
+    }
+    sky.appendChild(bgGroup);
+
+    // Pool at bottom center
+    const poolX = 200, poolY = 252;
+    const poolR = 36 + Math.min(total, 25) * 1.5;
+
+    // gradient defs for pool
+    const defs = el("defs", {});
+    const grad = el("radialGradient", { id: "poolGrad", cx: "50%", cy: "50%", r: "50%" });
+    grad.appendChild(el("stop", { offset:"0%", "stop-color": mode.pool, "stop-opacity":"0.55" }));
+    grad.appendChild(el("stop", { offset:"60%", "stop-color": mode.pool, "stop-opacity":"0.14" }));
+    grad.appendChild(el("stop", { offset:"100%", "stop-color": mode.pool, "stop-opacity":"0" }));
+    defs.appendChild(grad);
+    sky.appendChild(defs);
+
+    // Anchor points: 5 streams in an arc across top
+    // Use arc from x=50 to x=350, y varying gently
+    const anchors = STREAMS.map((s, i) => {
+      const t = STREAMS.length === 1 ? 0.5 : i / (STREAMS.length - 1);
+      const x = 50 + t * 300;
+      // gentle U arc
+      const y = 80 + Math.sin(t * Math.PI) * -20 + Math.cos((t - 0.5) * Math.PI) * 12;
+      return { stream: s, x, y };
+    });
+
+    // Flow paths (Sankey-ish curves from anchor → pool)
+    const flowGroup = el("g", {});
+    anchors.forEach((a, i) => {
+      const v = state.counts[a.stream.key] || 0;
+      // baseline curve always drawn (very faint)
+      const baseW = 0.4;
+      const w = baseW + v * 1.1;
+      const opacity = 0.10 + Math.min(v, 7) * 0.10;
+      // cubic bezier control points
+      const c1x = a.x;
+      const c1y = a.y + 90;
+      const c2x = poolX + (a.x - poolX) * 0.20;
+      const c2y = poolY - 60;
+      const d = `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${poolX} ${poolY}`;
+      const path = el("path", {
+        d,
+        fill: "none",
+        stroke: a.stream.color,
+        "stroke-width": w.toFixed(2),
+        "stroke-linecap": "round",
+        opacity: opacity.toFixed(2)
+      });
+      flowGroup.appendChild(path);
+
+      // soft glow underlay for streams with pebbles
+      if (v > 0){
+        const glow = el("path", {
+          d,
+          fill: "none",
+          stroke: a.stream.color,
+          "stroke-width": (w + 4).toFixed(2),
+          "stroke-linecap": "round",
+          opacity: (0.08 + v * 0.02).toFixed(2)
+        });
+        flowGroup.insertBefore(glow, path);
+      }
+    });
+    sky.appendChild(flowGroup);
+
+    // Pool glow
+    const poolGlow = el("circle", {
+      cx: poolX, cy: poolY, r: poolR.toFixed(1),
+      fill: "url(#poolGrad)"
+    });
+    sky.appendChild(poolGlow);
+    // pool ring
+    const poolRing = el("ellipse", {
+      cx: poolX, cy: poolY, rx: 24, ry: 7,
+      fill: "none", stroke: mode.pool, "stroke-width": "1.2", opacity: "0.65"
+    });
+    sky.appendChild(poolRing);
+    const poolCore = el("ellipse", {
+      cx: poolX, cy: poolY, rx: 12, ry: 3,
+      fill: mode.pool, opacity: "0.85"
+    });
+    sky.appendChild(poolCore);
+
+    // Anchor stars and pebble cluster around each
+    anchors.forEach((a, i) => {
+      const v = state.counts[a.stream.key] || 0;
+      // anchor star (larger if pebbles > 0)
+      const anchorR = 2.4 + Math.min(v, 7) * 0.45;
+      const anchorOpacity = v === 0 ? 0.40 : 0.95;
+      // soft halo
+      const halo = el("circle", {
+        cx: a.x.toFixed(1), cy: a.y.toFixed(1),
+        r: (anchorR + 5).toFixed(1),
+        fill: a.stream.color, opacity: (v === 0 ? 0.06 : 0.15).toFixed(2)
+      });
+      sky.appendChild(halo);
+      const anchorStar = el("circle", {
+        cx: a.x.toFixed(1), cy: a.y.toFixed(1),
+        r: anchorR.toFixed(2),
+        fill: a.stream.color, opacity: anchorOpacity.toFixed(2)
+      });
+      sky.appendChild(anchorStar);
+
+      // Pebble stars around anchor
+      const pr = rng(hash(seedStr + "|" + a.stream.key + "|pebble"));
+      for (let p = 0; p < v; p++){
+        // deterministic placement: golden-ratio spiral around anchor
+        const ang = (p * 2.39996) + pr() * 0.8;
+        const radius = 10 + p * 3.5 + pr() * 4;
+        const px = a.x + Math.cos(ang) * radius;
+        const py = a.y + Math.sin(ang) * radius * 0.78;
+        // clamp y so pebbles stay in upper sky
+        const cy = Math.max(28, Math.min(170, py));
+        const cx = Math.max(8, Math.min(392, px));
+        const starR = 1.6 + pr() * 1.4;
+        // outer glow
+        const g = el("circle", {
+          cx: cx.toFixed(1), cy: cy.toFixed(1),
+          r: (starR + 2).toFixed(2),
+          fill: mode.star, opacity: "0.15"
+        });
+        sky.appendChild(g);
+        // star core
+        const star = el("circle", {
+          cx: cx.toFixed(1), cy: cy.toFixed(1),
+          r: starR.toFixed(2),
+          fill: mode.star, opacity: (0.75 + pr() * 0.25).toFixed(2)
+        });
+        // sprinkle a twinkle on some
+        if (pr() < 0.55) star.setAttribute("class","twinkle");
+        sky.appendChild(star);
+        // small cross-spike for some
+        if (pr() < 0.30){
+          const spike = el("path", {
+            d: `M ${cx.toFixed(1)} ${(cy - starR - 1.4).toFixed(1)} L ${cx.toFixed(1)} ${(cy + starR + 1.4).toFixed(1)} M ${(cx - starR - 1.4).toFixed(1)} ${cy.toFixed(1)} L ${(cx + starR + 1.4).toFixed(1)} ${cy.toFixed(1)}`,
+            stroke: mode.star, "stroke-width": "0.6", opacity: "0.55"
+          });
+          sky.appendChild(spike);
+        }
+      }
+
+      // Stream label
+      const label = el("text", {
+        x: a.x.toFixed(1),
+        y: (a.y - anchorR - 9).toFixed(1),
+        "text-anchor": "middle",
+        "font-family": "-apple-system, system-ui, sans-serif",
+        "font-size": "9.5",
+        "font-weight": "600",
+        "letter-spacing": "0.16em",
+        fill: a.stream.color,
+        opacity: v === 0 ? "0.45" : "0.90"
+      });
+      label.textContent = a.stream.label.toUpperCase();
+      sky.appendChild(label);
+    });
+
+    // Horizon line (subtle)
+    const horizon = el("path", {
+      d: `M 20 ${poolY + 8} Q 200 ${poolY + 14} 380 ${poolY + 8}`,
+      stroke: mode.pool, "stroke-width": "0.6", opacity: "0.18", fill: "none"
+    });
+    sky.appendChild(horizon);
+
+    // Render reflection text panel
+    renderReflection(name);
+  }
+
+  function renderReflection(name){
+    const counts = state.counts;
+    const mode = state.mode;
+    const total = sum(counts);
+    const seed = mode + ":" + STREAMS.map(s => counts[s.key]).join(",");
+    const target = document.getElementById("reflectText");
+    target.innerHTML = "";
+
+    function span(text, cls){
+      const e = document.createElement("span");
+      if (cls) e.className = cls;
+      e.textContent = text;
+      return e;
+    }
+    function block(label, body){
+      target.appendChild(span(label, "lab"));
+      const p = document.createElement("div");
+      p.textContent = body;
+      target.appendChild(p);
+    }
+
+    block("Pattern", `${name}`);
+    block("Mode", `${MODES[mode].label} · ${total} pebble${total===1?"":"s"} placed`);
+
+    if (total === 0){
+      block("Field note", "The sky is empty tonight. That is allowed.");
+      return;
+    }
+
+    const top = topStream(counts);
+    const quiet = quietStream(counts);
+
+    const brightNote = pick(NOTES[mode].bright, seed + "|bright");
+    let bright = "";
+    if (top) bright = `Brightest: ${top.label}. ${brightNote}`;
+    let dim = "";
+    if (quiet) {
+      const dimNote = pick(NOTES[mode].dim, seed + "|dim");
+      if ((counts[quiet.key]||0) === 0){
+        dim = `Quietest: ${quiet.label} (empty). ${dimNote}`;
+      } else {
+        dim = `Quietest: ${quiet.label}. ${dimNote}`;
+      }
+    }
+    block("Field note", `${bright}\n${dim}`);
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
