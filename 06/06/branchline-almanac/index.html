@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Branchline Almanac — A Tiny Choose-Your-Own Zine</title>
+<style>
+  :root{
+    --bg:#091018;--panel:#111d2a;--ink:#eaf6f3;--muted:#95b0ad;--line:#284257;
+    --gold:#ffd166;--mint:#6ff3c4;--rose:#ff7aa2;--sky:#78c7ff;--violet:#bda0ff;
+  }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% 0%,#17324a 0,#091018 34rem);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow-x:hidden}
+  body{padding:18px 14px 30px}.wrap{width:min(560px,100%);margin:0 auto}.mast{padding:20px 0 14px}.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--mint);font-weight:800}.mast h1{font-size:clamp(32px,9vw,54px);line-height:.92;margin:8px 0 10px;letter-spacing:-.06em}.lede{color:var(--muted);font-size:16px;line-height:1.5;margin:0}.book{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));border:1px solid rgba(120,199,255,.22);border-radius:28px;box-shadow:0 24px 60px rgba(0,0,0,.32);overflow:hidden}.progress{display:flex;gap:7px;padding:14px 14px 0}.dot{height:7px;flex:1;border-radius:999px;background:#203447}.dot.on{background:linear-gradient(90deg,var(--mint),var(--gold))}.panel{padding:16px}.comic{border-radius:22px;background:#f8ecd2;color:#1d2830;min-height:314px;position:relative;overflow:hidden;border:3px solid #182532;box-shadow:inset 0 0 0 4px rgba(255,255,255,.22)}
+  .sky{height:112px;background:linear-gradient(#86d7ff,#f7dfaa);position:relative}.sun{position:absolute;width:62px;height:62px;border-radius:50%;background:var(--gold);right:24px;top:18px;box-shadow:0 0 0 12px rgba(255,209,102,.22)}.cloud{position:absolute;background:white;border:3px solid #1d2830;border-radius:999px;height:28px;width:82px;left:18px;top:42px}.cloud:before,.cloud:after{content:"";position:absolute;background:white;border:3px solid #1d2830;border-bottom:0;border-radius:999px 999px 0 0}.cloud:before{width:28px;height:28px;left:10px;top:-16px}.cloud:after{width:34px;height:34px;right:12px;top:-21px}.ground{height:202px;position:relative;background:linear-gradient(#e9c48a,#d39b5e)}.road{position:absolute;inset:0;clip-path:polygon(42% 0,58% 0,85% 100%,15% 100%);background:#3b4650}.road:after{content:"";position:absolute;left:49%;top:10px;bottom:0;border-left:4px dashed #f6d87d}.figure{position:absolute;left:42%;top:54px;width:62px;height:92px}.head{width:28px;height:28px;border-radius:50%;background:#ffe2ad;border:3px solid #1d2830;margin:auto}.body{width:40px;height:46px;background:#58c4a4;border:3px solid #1d2830;border-radius:14px 14px 8px 8px;margin:-2px auto 0}.bag{position:absolute;width:28px;height:22px;background:#ff7aa2;border:3px solid #1d2830;border-radius:7px;left:2px;top:48px}.prop{position:absolute;border:3px solid #1d2830;background:white}.sign{left:22px;top:18px;width:94px;min-height:54px;border-radius:8px;padding:7px;font-weight:900;font-size:13px;transform:rotate(-3deg)}.sign:after{content:"";position:absolute;width:8px;height:42px;background:#1d2830;left:42px;top:50px}.object{right:24px;top:74px;width:90px;height:76px;border-radius:16px;display:grid;place-items:center;font-size:38px;background:#d9fff2}.caption{position:absolute;left:14px;right:14px;bottom:12px;background:#fff7df;border:3px solid #1d2830;border-radius:14px;padding:10px 12px;font-weight:750;line-height:1.28;box-shadow:3px 3px 0 #1d2830}.choicebox{display:grid;gap:10px;margin-top:14px}.choice{min-height:50px;text-align:left;border:1px solid rgba(255,255,255,.18);border-radius:16px;background:#13283a;color:var(--ink);padding:12px 14px;font-weight:800;font-size:15px;touch-action:manipulation}.choice span{display:block;color:var(--muted);font-weight:600;font-size:12px;margin-top:3px}.choice:active{transform:translateY(1px)}.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.tool{min-height:44px;border:0;border-radius:14px;padding:11px 14px;background:linear-gradient(135deg,var(--mint),var(--sky));color:#061018;font-weight:900}.tool.secondary{background:#1c3044;color:var(--ink);border:1px solid rgba(255,255,255,.16)}.almanac{display:none;margin-top:14px;padding:16px;border-radius:22px;background:#101b27;border:1px solid rgba(255,255,255,.12)}.almanac.show{display:block}.almanac h2{margin:0 0 8px;font-size:22px}.page{background:#fff8e9;color:#182532;border:2px solid #182532;border-radius:16px;padding:14px;line-height:1.45}.stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.stamp{aspect-ratio:1;border:2px solid #182532;border-radius:12px;display:grid;place-items:center;font-size:28px;background:#e9fbff}.note{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;margin:0}.toast{min-height:20px;color:var(--gold);font-weight:800;margin-top:8px;font-size:13px}@media(max-width:390px){body{padding:12px 10px}.panel{padding:12px}.comic{min-height:300px}.object{right:14px;width:74px}.sign{width:82px}.caption{font-size:14px}.mast h1{font-size:36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Daily Surprise · Jun 6</div>
+    <h1>Branchline Almanac</h1>
+    <p class="lede">A tiny choose-your-own comic for a fresh-start morning. Pick three small routes, then fold the path into a pocket almanac page.</p>
+  </header>
+  <main class="book" aria-live="polite">
+    <div class="progress" id="progress"></div>
+    <section class="panel">
+      <div class="comic" id="comic" role="img" aria-label="A comic panel showing the current branch of the story">
+        <div class="sky"><div class="sun"></div><div class="cloud"></div></div>
+        <div class="ground"><div class="road"></div><div class="prop sign" id="sign">Start</div><div class="figure"><div class="head"></div><div class="body"></div><div class="bag"></div></div><div class="prop object" id="object">🗺️</div><div class="caption" id="caption"></div></div>
+      </div>
+      <div class="choicebox" id="choices"></div>
+      <div class="tools"><button class="tool secondary" id="reset">Reset route</button><button class="tool" id="copy" disabled>Copy almanac page</button></div>
+      <div class="toast" id="toast"></div>
+      <aside class="almanac" id="almanac"><h2 id="pageTitle">Pocket Almanac</h2><div class="page"><div class="stamps" id="stamps"></div><p class="note" id="note"></p></div></aside>
+    </section>
+  </main>
+</div>
+<script>
+(function(){
+  const chapters=[
+    {title:'Bench',text:'The morning workbench has three quiet doors. Which one do you open first?',sign:'Bench',obj:'🧰',choices:[['spark','Lift the brass latch','Start with curiosity and a small unknown.'],['map','Unroll the blue map','Start by seeing the shape of the day.'],['seed','Pocket the seed tin','Start by planting one durable tiny thing.']]},
+    {title:'Crossing',text:'A friendly fork appears. The path asks for a travel style, not a destination.',sign:'Fork',obj:'🪧',choices:[['lantern','Carry a lantern','Make the next step visible before it is perfect.'],['kite','Launch a paper kite','Let a playful test tug the route forward.'],['stone','Set a stepping stone','Make one stable place to return to.']]},
+    {title:'Archive',text:'At noon the branchline offers one way to remember the trip.',sign:'Archive',obj:'📚',choices:[['ribbon','Tie a ribbon around the useful bit','Save the small lesson in plain language.'],['window','Open a tiny window','Share a glimpse without exposing the whole room.'],['bell','Ring the desk bell','Mark the finish so the loop can rest.']]}
+  ];
+  const palette={spark:['#ffd166','✨'],map:['#78c7ff','🗺️'],seed:['#6ff3c4','🌱'],lantern:['#ffb347','🏮'],kite:['#bda0ff','🪁'],stone:['#b9c6cf','◼'],ribbon:['#ff7aa2','🎀'],window:['#8ee6ff','▣'],bell:['#ffe27a','🔔']};
+  const lines={spark:'a question polished into a handle',map:'a map folded small enough to use',seed:'a seed with a patient label',lantern:'a lantern hung low over the next step',kite:'a kite that reports which breeze is real',stone:'a stepping stone that makes return easy',ribbon:'a ribbon around the part worth keeping',window:'a small window: enough light, not the whole room',bell:'a clear bell for ending the loop'};
+  let step=0,path=[];
+  const progress=document.getElementById('progress'), choices=document.getElementById('choices'), caption=document.getElementById('caption'), sign=document.getElementById('sign'), object=document.getElementById('object'), almanac=document.getElementById('almanac'), stamps=document.getElementById('stamps'), note=document.getElementById('note'), pageTitle=document.getElementById('pageTitle'), copy=document.getElementById('copy'), toast=document.getElementById('toast');
+  function renderProgress(){progress.innerHTML='';for(let i=0;i<3;i++){let d=document.createElement('div');d.className='dot '+(i<path.length?'on':'');progress.appendChild(d)}}
+  function render(){renderProgress();toast.textContent='';if(step<chapters.length){let c=chapters[step];caption.textContent=c.text;sign.textContent=c.title;object.textContent=c.obj;choices.innerHTML='';c.choices.forEach(([id,label,sub])=>{let b=document.createElement('button');b.className='choice';b.innerHTML=label+'<span>'+sub+'</span>';b.onclick=()=>{path[step]=id;step++;render()};choices.appendChild(b)});almanac.classList.remove('show');copy.disabled=true;}else finish();}
+  function finish(){renderProgress();choices.innerHTML='';const name=makeName();caption.textContent='The branchline folds itself into an almanac page: '+name+'.';sign.textContent='Kept';object.textContent='📖';const chosen=path.map(id=>palette[id]);stamps.innerHTML=chosen.map(p=>'<div class="stamp" style="background:'+p[0]+'22">'+p[1]+'</div>').join('');pageTitle.textContent=name;note.textContent=pageText(name);almanac.classList.add('show');copy.disabled=false;}
+  function makeName(){const a={spark:'Curiosity',map:'Blue-Map',seed:'Seedling'}[path[0]],b={lantern:'Lantern',kite:'Kite',stone:'Stepping-Stone'}[path[1]],c={ribbon:'Ribbon',window:'Window',bell:'Bell'}[path[2]];return a+' '+b+' '+c+' Almanac'}
+  function pageText(name){return name+'\n\nToday\'s branch kept:\n• '+lines[path[0]]+'\n• '+lines[path[1]]+'\n• '+lines[path[2]]+'\n\nTiny field rule: choose the route that leaves one useful trace and one clean ending.\n\nBuilt as a private, fictional zine page; no real projects or personal details included.'}
+  document.getElementById('reset').onclick=()=>{step=0;path=[];render()};
+  copy.onclick=async()=>{try{await navigator.clipboard.writeText(note.textContent);toast.textContent='Copied the almanac page.'}catch(e){toast.textContent='Copy unavailable — select the page text manually.'}};
+  render();
+})();
+</script>
+</body>
+</html>
