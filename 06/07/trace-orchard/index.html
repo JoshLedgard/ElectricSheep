@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trace Orchard — A Living Timeline Toy</title>
+<style>
+:root{--bg:#070b13;--panel:#0d1724;--ink:#d8f1ff;--muted:#8eb2c8;--line:rgba(136,210,255,.22);--cyan:#62e6ff;--gold:#ffd166;--pink:#ff6fb1;--green:#7cffb2;--violet:#b995ff}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% -5%,rgba(98,230,255,.16),transparent 34%),radial-gradient(circle at 80% 0,rgba(255,111,177,.12),transparent 30%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}main{width:min(960px,100%);margin:0 auto;padding:22px 14px 34px}.hero{border:1px solid var(--line);background:linear-gradient(180deg,rgba(13,23,36,.9),rgba(8,13,22,.86));border-radius:24px;padding:22px;box-shadow:0 22px 70px rgba(0,0,0,.35)}.kicker{color:var(--cyan);text-transform:uppercase;letter-spacing:.18em;font-size:12px;font-weight:800}h1{margin:8px 0 8px;font-size:clamp(2rem,9vw,4.8rem);line-height:.95;letter-spacing:-.055em}.sub{max-width:680px;color:var(--muted);font-size:16px;line-height:1.55}.layout{display:grid;grid-template-columns:310px 1fr;gap:14px;margin-top:14px}.panel{border:1px solid var(--line);border-radius:20px;background:rgba(8,15,25,.78);padding:14px}.controls{display:grid;gap:12px}.label{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#91bed3;font-weight:800}.swatches,.types{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}button,.chip{min-height:44px;border:1px solid rgba(142,178,200,.28);border-radius:14px;background:#101e2e;color:var(--ink);font-weight:800;font-size:13px;cursor:pointer}button:active{transform:translateY(1px)}button.active,.chip.active{outline:2px solid var(--cyan);border-color:transparent;box-shadow:0 0 0 4px rgba(98,230,255,.1)}.swatch{font-size:0}.swatch[data-c="#62e6ff"]{background:linear-gradient(135deg,#123,#62e6ff)}.swatch[data-c="#ffd166"]{background:linear-gradient(135deg,#31240a,#ffd166)}.swatch[data-c="#ff6fb1"]{background:linear-gradient(135deg,#2c1020,#ff6fb1)}.swatch[data-c="#7cffb2"]{background:linear-gradient(135deg,#0d2d20,#7cffb2)}.orchard{position:relative;min-height:520px;overflow:hidden}.sky{position:absolute;inset:0;background:linear-gradient(180deg,rgba(98,230,255,.05),rgba(255,209,102,.035));border-radius:17px}.axis{position:absolute;left:34px;right:34px;top:50%;height:2px;background:linear-gradient(90deg,transparent,var(--line),transparent)}.era{position:absolute;top:12px;bottom:12px;width:1px;background:rgba(255,255,255,.08)}.era span{position:absolute;top:8px;left:8px;color:#668ca1;font-size:11px;writing-mode:vertical-rl}.node{position:absolute;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-50%);border:2px solid currentColor;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.45),rgba(255,255,255,.08) 30%,rgba(0,0,0,.22));box-shadow:0 0 26px currentColor;color:var(--cyan);animation:pop .28s ease-out}.node small{font-size:22px;filter:drop-shadow(0 2px 4px #000)}.node.selected{outline:3px solid #fff;outline-offset:4px}.vine{position:absolute;height:3px;transform-origin:left center;border-radius:99px;opacity:.8;box-shadow:0 0 12px currentColor}.hint{position:absolute;inset:auto 16px 14px 16px;text-align:center;color:#9bc0d4;font-size:13px;background:rgba(5,9,15,.62);padding:10px;border-radius:14px}.note{white-space:pre-wrap;min-height:150px;color:#caeaff;background:rgba(2,6,12,.45);border:1px solid rgba(142,178,200,.18);border-radius:16px;padding:12px;font-size:13px;line-height:1.45}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ghost{background:transparent}.full{grid-column:1/-1}.tiny{color:#79a1b6;font-size:12px;line-height:1.4}.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#d8f1ff;color:#06101a;padding:10px 14px;border-radius:999px;font-weight:900;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}@keyframes pop{from{transform:translate(-50%,-50%) scale(.2);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}@media(max-width:760px){main{padding:10px}.hero{padding:16px;border-radius:20px}.layout{grid-template-columns:1fr}.orchard{min-height:430px}.swatches,.types{grid-template-columns:repeat(2,1fr)}.node{width:48px;height:48px}.actions{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+<section class="hero">
+<div class="kicker">Daily Surprise · June 7, 2026</div>
+<h1>Trace Orchard</h1>
+<p class="sub">A tiny living timeline: plant abstract traces, link them into paths, and watch a private orchard of motion turn into a copyable field note. No scores, no readiness check — just a useful map of what left a mark.</p>
+<div class="layout">
+<aside class="panel controls">
+<div><div class="label">Trace color</div><div class="swatches" id="swatches"><button class="swatch active" data-c="#62e6ff">cyan</button><button class="swatch" data-c="#ffd166">gold</button><button class="swatch" data-c="#ff6fb1">pink</button><button class="swatch" data-c="#7cffb2">green</button></div></div>
+<div><div class="label">Trace type</div><div class="types" id="types"><button class="chip active" data-t="spark">✦ Spark</button><button class="chip" data-t="build">▣ Build</button><button class="chip" data-t="learn">◎ Learn</button><button class="chip" data-t="care">☘ Care</button></div></div>
+<div class="actions"><button id="link">Link mode</button><button class="ghost" id="undo">Undo</button><button class="ghost" id="reset">Reset</button><button id="copy">Copy note</button></div>
+<div><div class="label">Orchard note</div><div class="note" id="note"></div></div>
+<p class="tiny">Tap the orchard to plant. Turn on Link mode, then tap two traces to connect them. Everything stays in this page.</p>
+</aside>
+<section class="panel orchard" id="orchard" aria-label="interactive trace orchard">
+<div class="sky"></div><div class="axis"></div>
+<div class="era" style="left:25%"><span>first light</span></div><div class="era" style="left:50%"><span>midday</span></div><div class="era" style="left:75%"><span>afterglow</span></div>
+<div class="hint">Tap anywhere in the field to plant a trace.</div>
+</section>
+</div>
+</section>
+</main><div class="toast" id="toast">Copied</div>
+<script>
+const orchard=document.getElementById('orchard'), note=document.getElementById('note'), toast=document.getElementById('toast');
+let color='#62e6ff', type='spark', linkMode=false, selected=null;
+let nodes=[{x:19,y:54,c:'#62e6ff',t:'spark'},{x:38,y:37,c:'#ffd166',t:'learn'},{x:61,y:60,c:'#ff6fb1',t:'build'},{x:82,y:43,c:'#7cffb2',t:'care'}];
+let links=[[0,1],[1,2],[2,3]];
+const glyph={spark:'✦',build:'▣',learn:'◎',care:'☘'};
+document.getElementById('swatches').onclick=e=>{if(!e.target.dataset.c)return;color=e.target.dataset.c;setActive(e.target)};
+document.getElementById('types').onclick=e=>{if(!e.target.dataset.t)return;type=e.target.dataset.t;setActive(e.target)};
+function setActive(el){[...el.parentNode.children].forEach(b=>b.classList.remove('active'));el.classList.add('active')}
+document.getElementById('link').onclick=e=>{linkMode=!linkMode;e.target.classList.toggle('active',linkMode);selected=null;render()};
+document.getElementById('undo').onclick=()=>{ if(links.length) links.pop(); else nodes.pop(); selected=null; render() };
+document.getElementById('reset').onclick=()=>{nodes=[];links=[];selected=null;render()};
+orchard.addEventListener('click',e=>{const hit=e.target.closest('.node'); if(hit){tapNode(+hit.dataset.i); return} if(e.target.closest('button')) return; const r=orchard.getBoundingClientRect(); const x=Math.max(6,Math.min(94,(e.clientX-r.left)/r.width*100)); const y=Math.max(12,Math.min(88,(e.clientY-r.top)/r.height*100)); nodes.push({x,y,c:color,t:type}); selected=null; render()});
+function tapNode(i){ if(!linkMode){selected=i; render(); return} if(selected===null){selected=i} else if(selected!==i && !links.some(l=>l.includes(i)&&l.includes(selected))){links.push([selected,i]); selected=i} render() }
+function render(){orchard.querySelectorAll('.node,.vine').forEach(el=>el.remove()); links.forEach(([a,b])=>{const A=nodes[a],B=nodes[b]; if(!A||!B)return; const dx=B.x-A.x,dy=B.y-A.y,len=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)*180/Math.PI; const v=document.createElement('div'); v.className='vine'; v.style.left=A.x+'%'; v.style.top=A.y+'%'; v.style.width=len+'%'; v.style.transform=`rotate(${ang}deg)`; v.style.color=B.c; v.style.background=`linear-gradient(90deg,${A.c},${B.c})`; orchard.appendChild(v)}); nodes.forEach((n,i)=>{const d=document.createElement('button'); d.className='node'+(selected===i?' selected':''); d.dataset.i=i; d.style.left=n.x+'%'; d.style.top=n.y+'%'; d.style.color=n.c; d.innerHTML='<small>'+glyph[n.t]+'</small>'; d.setAttribute('aria-label',n.t+' trace'); orchard.appendChild(d)}); note.textContent=makeNote() }
+function makeNote(){ if(!nodes.length)return 'No traces planted yet. Add a few marks and the orchard will write its field note.'; const counts=nodes.reduce((m,n)=>(m[n.t]=(m[n.t]||0)+1,m),{}); const lead=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]; const spread=Math.round(Math.max(...nodes.map(n=>n.x))-Math.min(...nodes.map(n=>n.x))); const names={spark:'Sparkline Orchard',build:'Scaffold Grove',learn:'Learning Canopy',care:'Carepath Copse'}; return `${names[lead]}\n${nodes.length} traces · ${links.length} vines · ${spread}% timeline spread\n\nPattern: ${Object.entries(counts).map(([k,v])=>`${v} ${k}`).join(', ')}.\nField note: begin with the brightest visible mark, follow one linked path, and leave the next useful trace where the map feels thinnest.` }
+document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(note.textContent);toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1200)}catch{alert(note.textContent)}};
+render();
+</script>
+</body>
+</html>
