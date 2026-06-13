@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0b1020" />
+<title>Signal Cartographer</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #141b33;
+    --panel-2: #1b2444;
+    --ink: #e8edff;
+    --muted: #9aa6cf;
+    --line: #2b3666;
+    --signal: #51e6a8;
+    --signal-dim: #1f5f48;
+    --noise: #ff6b8b;
+    --noise-dim: #4a2030;
+    --route: #6ea8ff;
+    --start: #ffd166;
+    --finish: #c08bff;
+    --accent: #6ea8ff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #16203f 0%, var(--bg) 60%);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 460px;
+    padding: 18px 16px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  header { text-align: center; }
+  h1 {
+    margin: 4px 0 2px;
+    font-size: 1.5rem;
+    letter-spacing: 0.2px;
+    background: linear-gradient(90deg, var(--signal), var(--route), var(--finish));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tag { color: var(--muted); font-size: 0.82rem; margin: 0; }
+
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 14px;
+  }
+  .level-chip {
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+  .level-chip b { color: var(--ink); font-size: 0.95rem; }
+  .signal-count { display: flex; align-items: center; gap: 7px; font-size: 0.9rem; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 10px var(--signal); }
+
+  .board-frame {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 12px;
+  }
+  .board {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    touch-action: none;
+  }
+  .cell {
+    position: relative;
+    border-radius: 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.15rem;
+    user-select: none;
+    transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+  }
+  .cell .glyph { pointer-events: none; z-index: 2; }
+  .cell.on-route { background: var(--route); border-color: #a9c7ff; box-shadow: 0 0 14px rgba(110,168,255,0.45); }
+  .cell.head { transform: scale(1.04); box-shadow: 0 0 18px rgba(110,168,255,0.7); }
+
+  .cell.start { background: linear-gradient(160deg, #6b5a1f, #2a2410); border-color: var(--start); }
+  .cell.start.on-route { background: linear-gradient(160deg, #8a7426, #4a3f18); }
+  .cell.finish { background: linear-gradient(160deg, #3d2a63, #1c1330); border-color: var(--finish); }
+  .cell.finish.reached { box-shadow: 0 0 20px rgba(192,139,255,0.7); }
+
+  .cell.signal { background: var(--signal-dim); border-color: var(--signal); }
+  .cell.signal.collected { background: var(--signal); border-color: #b6ffe2; }
+  .cell.signal.collected .glyph { color: #07301f; }
+  .cell.signal .glyph { color: var(--signal); }
+
+  .cell.noise { background: var(--noise-dim); border-color: var(--noise); }
+  .cell.noise .glyph { color: var(--noise); }
+  .cell.noise.bump { animation: shake 0.3s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  .msg {
+    text-align: center;
+    min-height: 1.2em;
+    font-size: 0.9rem;
+    color: var(--muted);
+    transition: color 0.2s ease;
+  }
+  .msg.win { color: var(--signal); font-weight: 600; }
+  .msg.warn { color: var(--noise); }
+
+  .controls { display: flex; gap: 10px; }
+  button {
+    flex: 1;
+    min-height: 48px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.06s ease, background 0.15s ease, opacity 0.15s ease;
+  }
+  button:active { transform: translateY(1px); }
+  button.primary { background: linear-gradient(120deg, var(--accent), #8a7bff); border-color: transparent; color: #08122c; }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .how {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .how b { color: var(--ink); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); }
+  .sw-signal { background: var(--signal); }
+  .sw-noise { background: var(--noise); }
+  .sw-start { background: var(--start); }
+  .sw-finish { background: var(--finish); }
+  .footnote { text-align: center; color: var(--muted); font-size: 0.72rem; opacity: 0.8; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Signal Cartographer</h1>
+      <p class="tag">Map one clean route through the noise.</p>
+    </header>
+
+    <div class="statusbar">
+      <div class="level-chip">
+        Level <b id="levelName">1 of 3</b>
+      </div>
+      <div class="signal-count">
+        <span class="dot"></span>
+        <span>Signals <b id="signalCount">0 / 0</b></span>
+      </div>
+    </div>
+
+    <div class="board-frame">
+      <div class="board" id="board" role="grid" aria-label="Signal grid"></div>
+    </div>
+
+    <p class="msg" id="msg">Drag from Start to Finish, pick up every signal.</p>
+
+    <div class="controls">
+      <button id="resetBtn">Reset</button>
+      <button id="nextBtn" class="primary" disabled>Next</button>
+    </div>
+
+    <div class="how">
+      <b>How to play.</b> Start at the glowing tile and trace a route to the finish by
+      dragging across neighboring cells (or tap them one by one). Collect every
+      <b>signal</b> and route around the <b>noise</b>. Back up by dragging onto your own trail.
+      <div class="legend">
+        <span><span class="swatch sw-start"></span> Start</span>
+        <span><span class="swatch sw-finish"></span> Finish</span>
+        <span><span class="swatch sw-signal"></span> Signal</span>
+        <span><span class="swatch sw-noise"></span> Noise</span>
+      </div>
+      <div style="margin-top:8px">
+        <b>Keyboard.</b> Arrow keys extend the route, Backspace undoes,
+        R resets, Enter goes to the next level.
+      </div>
+    </div>
+
+    <p class="footnote">A tiny morning puzzle for Josh. No accounts, no network, just one route.</p>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  // Legend: . empty  S start  F finish  *signal  #noise
+  const LEVELS = [
+    {
+      name: "1 of 3",
+      grid: [
+        "S . * . .",
+        ". # # . .",
+        ". . . . *",
+        "* . # # .",
+        ". . . . F"
+      ]
+    },
+    {
+      name: "2 of 3",
+      grid: [
+        "S . . * . .",
+        ". . . . . .",
+        "* . * . * .",
+        ". . . . # .",
+        "# # # . * #",
+        "# # . . . F"
+      ]
+    },
+    {
+      name: "3 of 3",
+      grid: [
+        "# # # # . .",
+        ". . * # # #",
+        "S . . . . *",
+        "* . . . . .",
+        ". . . * # .",
+        ". . * . . F"
+      ]
+    }
+  ];
+
+  const boardEl = document.getElementById("board");
+  const msgEl = document.getElementById("msg");
+  const levelNameEl = document.getElementById("levelName");
+  const signalCountEl = document.getElementById("signalCount");
+  const resetBtn = document.getElementById("resetBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  let levelIndex = 0;
+  let model = null;   // { rows, cols, cells:[{type,r,c}], start, finish, signals:Set }
+  let route = [];     // array of cell indices, route[0] is always start
+  let cellEls = [];
+  let dragging = false;
+  let solved = false;
+
+  function parseLevel(def) {
+    const rows = def.grid.length;
+    const cols = def.grid[0].trim().split(/\s+/).length;
+    const cells = [];
+    let start = -1, finish = -1;
+    const signals = new Set();
+    def.grid.forEach((line, r) => {
+      const toks = line.trim().split(/\s+/);
+      toks.forEach((tok, c) => {
+        const idx = r * cols + c;
+        let type = "empty";
+        if (tok === "S") { type = "start"; start = idx; }
+        else if (tok === "F") { type = "finish"; finish = idx; }
+        else if (tok === "*") { type = "signal"; signals.add(idx); }
+        else if (tok === "#") { type = "noise"; }
+        cells.push({ type: type, r: r, c: c });
+      });
+    });
+    return { rows, cols, cells, start, finish, signals };
+  }
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    boardEl.style.gridTemplateColumns = "repeat(" + model.cols + ", 1fr)";
+    cellEls = model.cells.map((cell, idx) => {
+      const el = document.createElement("div");
+      el.className = "cell " + cell.type;
+      el.dataset.idx = String(idx);
+      el.setAttribute("role", "gridcell");
+      const glyph = document.createElement("span");
+      glyph.className = "glyph";
+      if (cell.type === "start") glyph.textContent = "◉";
+      else if (cell.type === "finish") glyph.textContent = "⚑";
+      else if (cell.type === "signal") glyph.textContent = "◇";
+      else if (cell.type === "noise") glyph.textContent = "✕";
+      el.appendChild(glyph);
+      return el;
+    });
+    cellEls.forEach((el) => boardEl.appendChild(el));
+  }
+
+  function loadLevel(i) {
+    levelIndex = i;
+    model = parseLevel(LEVELS[i]);
+    route = [model.start];
+    solved = false;
+    buildBoard();
+    levelNameEl.textContent = LEVELS[i].name;
+    nextBtn.disabled = true;
+    nextBtn.textContent = (i === LEVELS.length - 1) ? "Replay" : "Next";
+    setMsg("Drag from Start to Finish, pick up every signal.", "");
+    render();
+  }
+
+  function setMsg(text, cls) {
+    msgEl.textContent = text;
+    msgEl.className = "msg" + (cls ? " " + cls : "");
+  }
+
+  function adjacent(a, b) {
+    const ca = model.cells[a], cb = model.cells[b];
+    return Math.abs(ca.r - cb.r) + Math.abs(ca.c - cb.c) === 1;
+  }
+
+  function tryExtend(idx) {
+    if (solved) return;
+    const head = route[route.length - 1];
+    if (idx === head) return;
+
+    // Backtrack: dragging onto the previous cell trims the route.
+    if (route.length >= 2 && idx === route[route.length - 2]) {
+      route.pop();
+      render();
+      return;
+    }
+    if (route.indexOf(idx) !== -1) return;     // no crossing own trail
+    if (!adjacent(head, idx)) return;          // only orthogonal neighbors
+    if (model.cells[idx].type === "noise") {   // noise blocks the route
+      flashNoise(idx);
+      return;
+    }
+    route.push(idx);
+    render();
+  }
+
+  function flashNoise(idx) {
+    const el = cellEls[idx];
+    el.classList.add("bump");
+    setMsg("That tile is noise — route around it.", "warn");
+    setTimeout(() => el.classList.remove("bump"), 320);
+  }
+
+  function collectedSignals() {
+    let n = 0;
+    model.signals.forEach((s) => { if (route.indexOf(s) !== -1) n++; });
+    return n;
+  }
+
+  function render() {
+    cellEls.forEach((el, idx) => {
+      el.classList.remove("on-route", "head", "collected", "reached");
+      const pos = route.indexOf(idx);
+      if (pos !== -1) {
+        el.classList.add("on-route");
+        if (idx === route[route.length - 1]) el.classList.add("head");
+        if (model.signals.has(idx)) el.classList.add("collected");
+        if (idx === model.finish) el.classList.add("reached");
+      }
+    });
+
+    const got = collectedSignals();
+    const total = model.signals.size;
+    signalCountEl.textContent = got + " / " + total;
+
+    const head = route[route.length - 1];
+    if (head === model.finish && got === total && !solved) {
+      win();
+    } else if (head === model.finish && got < total) {
+      setMsg("Reached the finish, but " + (total - got) + " signal(s) still out there.", "warn");
+    } else if (msgEl.className.indexOf("warn") === -1) {
+      setMsg("Route length " + route.length + " — keep mapping.", "");
+    }
+  }
+
+  function win() {
+    solved = true;
+    dragging = false;
+    setMsg("Clear route mapped — every signal collected!", "win");
+    nextBtn.disabled = false;
+    // Pulse the route.
+    route.forEach((idx, k) => {
+      const el = cellEls[idx];
+      setTimeout(() => {
+        el.animate(
+          [{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }],
+          { duration: 260, easing: "ease-out" }
+        );
+      }, k * 45);
+    });
+  }
+
+  // ---- Pointer input (touch + mouse unified) ----
+  function idxFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return -1;
+    const cell = el.closest(".cell");
+    if (!cell || !boardEl.contains(cell)) return -1;
+    return Number(cell.dataset.idx);
+  }
+
+  function onDown(e) {
+    if (solved) return;
+    const p = e.touches ? e.touches[0] : e;
+    const idx = idxFromPoint(p.clientX, p.clientY);
+    if (idx === -1) return;
+    const head = route[route.length - 1];
+    // Begin a drag only when touching the current head or an extendable neighbor.
+    if (idx === head || adjacent(head, idx) || route.indexOf(idx) !== -1) {
+      dragging = true;
+      tryExtend(idx);
+      e.preventDefault();
+    }
+  }
+  function onMove(e) {
+    if (!dragging || solved) return;
+    const p = e.touches ? e.touches[0] : e;
+    const idx = idxFromPoint(p.clientX, p.clientY);
+    if (idx !== -1) tryExtend(idx);
+    e.preventDefault();
+  }
+  function onUp() { dragging = false; }
+
+  boardEl.addEventListener("mousedown", onDown);
+  boardEl.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  boardEl.addEventListener("touchstart", onDown, { passive: false });
+  boardEl.addEventListener("touchmove", onMove, { passive: false });
+  window.addEventListener("touchend", onUp);
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+    if (key === "r") { resetLevel(); return; }
+    if (e.key === "Enter" && !nextBtn.disabled) { goNext(); return; }
+    if (e.key === "Backspace") {
+      if (route.length >= 2 && !solved) { route.pop(); render(); }
+      e.preventDefault();
+      return;
+    }
+    if (solved) return;
+    const head = model.cells[route[route.length - 1]];
+    let dr = 0, dc = 0;
+    if (e.key === "ArrowUp") dr = -1;
+    else if (e.key === "ArrowDown") dr = 1;
+    else if (e.key === "ArrowLeft") dc = -1;
+    else if (e.key === "ArrowRight") dc = 1;
+    else return;
+    e.preventDefault();
+    const nr = head.r + dr, nc = head.c + dc;
+    if (nr < 0 || nc < 0 || nr >= model.rows || nc >= model.cols) return;
+    tryExtend(nr * model.cols + nc);
+  });
+
+  function resetLevel() {
+    route = [model.start];
+    solved = false;
+    nextBtn.disabled = true;
+    setMsg("Route cleared — start again from Start.", "");
+    render();
+  }
+
+  function goNext() {
+    const next = (levelIndex + 1) % LEVELS.length;
+    loadLevel(next);
+  }
+
+  resetBtn.addEventListener("click", resetLevel);
+  nextBtn.addEventListener("click", goNext);
+
+  loadLevel(0);
+})();
+</script>
+</body>
+</html>
