@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#040a0e">
+<title>Signal Garden</title>
+<meta name="description" content="A tap-to-rotate light-routing puzzle. Turn tangled connectors into one clean path from the signal source to the bloom. Three small levels.">
+<style>
+  :root{
+    --bg:#040a0e;
+    --panel:#0a151b;
+    --panel2:#0d1c24;
+    --line:rgba(80,150,170,0.16);
+    --dim:#3a5a68;
+    --text:#9fc6d6;
+    --bright:#dff2f8;
+    --pipe-off:#1d2e38;
+    --node-off:#27414e;
+    --signal:#4ce6b0;
+    --signal2:#46c8ff;
+    --gold:#ffd071;
+    --source:#7af0d0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -8%, rgba(20,120,120,0.16), transparent),
+      radial-gradient(ellipse 70% 40% at 50% 112%, rgba(40,90,160,0.12), transparent),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:max(18px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom));
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  .wrap{width:100%;max-width:420px;display:flex;flex-direction:column;flex:1;}
+
+  /* Header */
+  header{text-align:center;padding:4px 0 14px;}
+  .kicker{font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;}
+  h1{font-size:clamp(1.6rem,8vw,2.1rem);font-weight:700;color:var(--bright);letter-spacing:-0.02em;}
+  h1 span{color:var(--signal);}
+  .tag{font-size:13px;color:var(--dim);margin-top:6px;max-width:320px;margin-left:auto;margin-right:auto;}
+
+  /* Status bar */
+  .status{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin:6px 0 14px;padding:10px 14px;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:13px;
+  }
+  .level-pips{display:flex;gap:7px;align-items:center;}
+  .pip{width:22px;height:6px;border-radius:3px;background:var(--node-off);transition:background .3s,box-shadow .3s;}
+  .pip.done{background:var(--signal);box-shadow:0 0 8px rgba(76,230,176,.6);}
+  .pip.active{background:var(--signal2);box-shadow:0 0 8px rgba(70,200,255,.6);}
+  .status .meta{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2;}
+  .status .lvl{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);}
+  .status .taps{font-size:15px;color:var(--bright);font-weight:600;font-variant-numeric:tabular-nums;}
+
+  /* Board */
+  .board-shell{position:relative;width:100%;}
+  .board{
+    display:grid;gap:7px;width:100%;aspect-ratio:1/1;
+    padding:12px;border-radius:18px;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(40,120,120,0.10), transparent 60%),
+      linear-gradient(160deg,var(--panel2),#071117);
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 50px rgba(0,0,0,0.45);
+    touch-action:manipulation;
+  }
+  .tile{
+    position:relative;border:0;padding:0;cursor:pointer;
+    background:var(--panel);
+    border:1px solid rgba(80,150,170,0.10);
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    min-width:44px;min-height:44px;width:100%;height:100%;
+    transition:background .25s, border-color .25s, transform .08s;
+    overflow:hidden;
+  }
+  .tile:active{transform:scale(0.93);}
+  .tile.lit{
+    background:radial-gradient(circle at 50% 50%, rgba(76,230,176,0.14), rgba(76,230,176,0.04));
+    border-color:rgba(76,230,176,0.30);
+  }
+  .tile.fixed{cursor:default;}
+  .tile svg{width:100%;height:100%;transition:transform .32s cubic-bezier(.34,1.45,.5,1);display:block;}
+  .tile .pipe{stroke:var(--pipe-off);stroke-width:13;stroke-linecap:round;fill:none;transition:stroke .25s;}
+  .tile .node{fill:var(--node-off);transition:fill .25s;}
+  .tile.lit .pipe{stroke:var(--signal);}
+  .tile.lit .node{fill:var(--signal);}
+  .tile.lit svg{filter:drop-shadow(0 0 5px rgba(76,230,176,0.55));}
+
+  /* signal flow dashes on lit pipes */
+  .tile.lit .flow{
+    stroke:var(--signal2);stroke-width:4;fill:none;stroke-linecap:round;
+    stroke-dasharray:2 16;opacity:0.9;
+    animation:flow 1.1s linear infinite;
+  }
+  .flow{stroke:transparent;stroke-width:4;fill:none;}
+  @keyframes flow{to{stroke-dashoffset:-36;}}
+
+  /* source + sink cores */
+  .tile.src .core{fill:var(--source);}
+  .tile.src svg{filter:drop-shadow(0 0 7px rgba(122,240,208,0.8));}
+  .tile.src .pipe{stroke:var(--signal);}
+  .tile.src .ray{stroke:var(--source);stroke-width:5;stroke-linecap:round;opacity:.85;}
+
+  .tile.sink .petal{fill:var(--node-off);transition:fill .3s,transform .4s;transform-origin:50px 50px;}
+  .tile.sink .pistil{fill:#16242b;transition:fill .3s;}
+  .tile.sink.lit .petal{fill:var(--gold);}
+  .tile.sink.lit .pistil{fill:#fff3d6;}
+  .tile.sink.lit svg{filter:drop-shadow(0 0 8px rgba(255,208,113,0.75));}
+  .tile.sink.lit .bloom{animation:bloom .55s cubic-bezier(.34,1.56,.5,1);}
+  @keyframes bloom{0%{transform:scale(.5) rotate(-30deg);}100%{transform:scale(1) rotate(0);}}
+
+  /* Controls */
+  .controls{display:flex;gap:10px;margin-top:16px;}
+  button.ctl{
+    flex:1;min-height:50px;border-radius:13px;border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    color:var(--text);font-size:15px;font-weight:600;letter-spacing:.01em;
+    cursor:pointer;transition:transform .08s,border-color .2s,color .2s,background .2s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  button.ctl:active{transform:scale(0.97);}
+  button.ctl:hover{border-color:var(--border-hover,rgba(76,230,176,0.4));color:var(--bright);}
+  button.primary{
+    background:linear-gradient(180deg,#0e3a31,#0a2a26);
+    border-color:rgba(76,230,176,0.45);color:var(--signal);
+  }
+  button.primary:hover{color:#bdfce6;}
+
+  .hint{text-align:center;font-size:12.5px;color:var(--dim);margin-top:13px;min-height:18px;transition:color .3s;}
+
+  /* Win overlay */
+  .overlay{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:rgba(4,10,14,0.74);backdrop-filter:blur(5px);
+    opacity:0;pointer-events:none;transition:opacity .35s;z-index:20;
+  }
+  .overlay.show{opacity:1;pointer-events:auto;}
+  .card{
+    background:linear-gradient(165deg,var(--panel2),#071318);
+    border:1px solid rgba(76,230,176,0.3);border-radius:20px;
+    padding:30px 26px;text-align:center;max-width:330px;width:100%;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);transform:translateY(14px) scale(.96);transition:transform .4s cubic-bezier(.34,1.5,.5,1);
+  }
+  .overlay.show .card{transform:none;}
+  .card .em{font-size:46px;line-height:1;margin-bottom:10px;}
+  .card h2{color:var(--bright);font-size:1.4rem;margin-bottom:8px;letter-spacing:-0.01em;}
+  .card p{font-size:14px;color:var(--text);margin-bottom:8px;}
+  .card .stat{font-size:13px;color:var(--dim);margin-bottom:20px;}
+  .card .stat b{color:var(--signal);}
+  .card .ctl{width:100%;}
+
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  footer{margin-top:auto;padding-top:20px;text-align:center;font-size:11px;color:var(--dim);letter-spacing:.04em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">⚡ Electric Sheep · Daily Surprise</div>
+    <h1>Signal <span>Garden</span></h1>
+    <p class="tag">Tap connectors to rotate them. Route the signal from the source into the bloom.</p>
+  </header>
+
+  <div class="status" role="group" aria-label="Progress">
+    <div class="level-pips" id="pips" aria-hidden="true"></div>
+    <div class="meta">
+      <div class="lvl" id="lvlLabel">Level 1 of 3</div>
+      <div class="taps"><span id="taps">0</span> taps</div>
+    </div>
+  </div>
+
+  <div class="board-shell">
+    <div class="board" id="board" role="grid" aria-label="Signal routing grid"></div>
+  </div>
+
+  <div class="controls">
+    <button class="ctl" id="resetBtn" type="button">↺ Reset</button>
+    <button class="ctl primary" id="nextBtn" type="button" hidden>Next level →</button>
+  </div>
+
+  <p class="hint" id="hint">Three small gardens. Light them all.</p>
+
+  <footer>Made by Scoob 🐾 for Josh · runs offline, no setup</footer>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+  <div class="card">
+    <div class="em" id="winEm">🌸</div>
+    <h2 id="winTitle">Signal routed</h2>
+    <p id="winMsg">The garden is in full bloom.</p>
+    <div class="stat" id="winStat"></div>
+    <button class="ctl primary" id="overlayBtn" type="button">Next level →</button>
+  </div>
+</div>
+
+<div class="sr" aria-live="polite" id="live"></div>
+
+<script>
+(function(){
+  "use strict";
+  // Directions: N=1 E=2 S=4 W=8
+  var N=1,E=2,S=4,W=8;
+  var DIRS=[N,E,S,W];
+  var DELTA={1:[-1,0],2:[0,1],4:[1,0],8:[0,-1]};
+  var OPP={1:4,2:8,4:1,8:2};
+  var EDGE={1:[50,7],2:[93,50],4:[50,93],8:[7,50]};
+
+  function rotCW(m){ return ((m<<1)|(m>>3))&15; }
+
+  // ---- Puzzle generation: random spanning tree -> masks -> scramble ----
+  function makePuzzle(size){
+    var n=size*size;
+    var mask=new Array(n).fill(0);
+    var visited=new Array(n).fill(false);
+    var start=0;                 // source at top-left
+    visited[start]=true;
+    var frontier=[start];
+    // randomized Prim-style growth covering every cell
+    while(frontier.length){
+      var fi=Math.floor(Math.random()*frontier.length);
+      var cell=frontier[fi];
+      var r=Math.floor(cell/size), c=cell%size;
+      var opts=[];
+      for(var k=0;k<4;k++){
+        var d=DIRS[k], nr=r+DELTA[d][0], nc=c+DELTA[d][1];
+        if(nr<0||nc<0||nr>=size||nc>=size) continue;
+        var ni=nr*size+nc;
+        if(!visited[ni]) opts.push([d,ni]);
+      }
+      if(!opts.length){ frontier.splice(fi,1); continue; }
+      var pick=opts[Math.floor(Math.random()*opts.length)];
+      var dir=pick[0], ni2=pick[1];
+      mask[cell]|=dir;
+      mask[ni2]|=OPP[dir];
+      visited[ni2]=true;
+      frontier.push(ni2);
+    }
+    var sink=n-1;               // bloom at bottom-right
+    // scramble interior orientations (source & sink stay solved/fixed)
+    var solved=mask.slice();
+    function scramble(){
+      var sc=solved.slice();
+      for(var i=0;i<n;i++){
+        if(i===start||i===sink) continue;
+        var turns=Math.floor(Math.random()*4);
+        for(var t=0;t<turns;t++) sc[i]=rotCW(sc[i]);
+      }
+      return sc;
+    }
+    var scrambled=scramble();
+    // ensure not already solved at the sink
+    var guard=0;
+    while(litReaches(scrambled,size,start,sink) && guard++<12) scrambled=scramble();
+    return {size:size,start:start,sink:sink,solved:solved,init:scrambled};
+  }
+
+  function litSet(masks,size,start){
+    var n=size*size, lit=new Array(n).fill(false), stack=[start];
+    lit[start]=true;
+    while(stack.length){
+      var cell=stack.pop();
+      var r=Math.floor(cell/size), c=cell%size, m=masks[cell];
+      for(var k=0;k<4;k++){
+        var d=DIRS[k]; if(!(m&d)) continue;
+        var nr=r+DELTA[d][0], nc=c+DELTA[d][1];
+        if(nr<0||nc<0||nr>=size||nc>=size) continue;
+        var ni=nr*size+nc;
+        if(lit[ni]) continue;
+        if(masks[ni]&OPP[d]){ lit[ni]=true; stack.push(ni); }
+      }
+    }
+    return lit;
+  }
+  function litReaches(masks,size,start,sink){ return litSet(masks,size,start)[sink]; }
+
+  // ---- SVG drawing ----
+  function petalsSVG(){
+    var s='<g class="bloom">';
+    for(var i=0;i<6;i++){
+      var a=i*60;
+      s+='<ellipse class="petal" cx="50" cy="30" rx="9" ry="15" transform="rotate('+a+' 50 50)"/>';
+    }
+    s+='<circle class="pistil" cx="50" cy="50" r="9"/></g>';
+    return s;
+  }
+  function tileSVG(cell,mask,kind){
+    var segs='', flow='';
+    for(var k=0;k<4;k++){
+      var d=DIRS[k]; if(!(mask&d)) continue;
+      var e=EDGE[d];
+      segs+='<line class="pipe" x1="50" y1="50" x2="'+e[0]+'" y2="'+e[1]+'"/>';
+      flow+='<line class="flow" x1="50" y1="50" x2="'+e[0]+'" y2="'+e[1]+'"/>';
+    }
+    var core;
+    if(kind==='src'){
+      core='<g><line class="ray" x1="50" y1="50" x2="50" y2="32"/><line class="ray" x1="50" y1="50" x2="66" y2="60"/><line class="ray" x1="50" y1="50" x2="34" y2="60"/><circle class="core" cx="50" cy="50" r="13"/></g>';
+    } else if(kind==='sink'){
+      core=petalsSVG();
+    } else {
+      core='<circle class="node" cx="50" cy="50" r="8"/>';
+    }
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">'+segs+core+flow+'</svg>';
+  }
+
+  function dirName(d){return d===N?'north':d===E?'east':d===S?'south':'west';}
+  function describe(mask){
+    var parts=[];
+    for(var k=0;k<4;k++){ if(mask&DIRS[k]) parts.push(dirName(DIRS[k])); }
+    if(!parts.length) return 'no openings';
+    if(parts.length===1) return 'opens '+parts[0];
+    return 'connects '+parts.slice(0,-1).join(', ')+' and '+parts[parts.length-1];
+  }
+
+  // ---- Game state ----
+  var SIZES=[3,4,5];
+  var board=document.getElementById('board');
+  var pipsEl=document.getElementById('pips');
+  var lvlLabel=document.getElementById('lvlLabel');
+  var tapsEl=document.getElementById('taps');
+  var hint=document.getElementById('hint');
+  var nextBtn=document.getElementById('nextBtn');
+  var resetBtn=document.getElementById('resetBtn');
+  var overlay=document.getElementById('overlay');
+  var overlayBtn=document.getElementById('overlayBtn');
+  var live=document.getElementById('live');
+
+  var levelIdx=0, puzzle=null, cells=[], masks=[], rots=[], taps=0, solvedFlag=false;
+  var HINTS=['Each tap turns a piece 90°.','Follow the glow — it spreads from the source.','Dead ends are fine; you only need to feed the bloom.'];
+
+  function buildPips(){
+    pipsEl.innerHTML='';
+    for(var i=0;i<SIZES.length;i++){
+      var p=document.createElement('div');
+      p.className='pip'+(i<levelIdx?' done':(i===levelIdx?' active':''));
+      pipsEl.appendChild(p);
+    }
+  }
+
+  function loadLevel(idx){
+    levelIdx=idx;
+    puzzle=makePuzzle(SIZES[idx]);
+    masks=puzzle.init.slice();
+    rots=new Array(masks.length).fill(0);
+    taps=0; solvedFlag=false;
+    renderBoard();
+    update();
+    buildPips();
+    lvlLabel.textContent='Level '+(idx+1)+' of '+SIZES.length;
+    tapsEl.textContent='0';
+    nextBtn.hidden=true;
+    hint.textContent=HINTS[idx]||HINTS[0];
+    hint.style.color='';
+    live.textContent='Level '+(idx+1)+' loaded. A '+SIZES[idx]+' by '+SIZES[idx]+' garden.';
+  }
+
+  function renderBoard(){
+    var size=puzzle.size;
+    board.style.gridTemplateColumns='repeat('+size+',1fr)';
+    board.innerHTML='';
+    cells=[];
+    for(var i=0;i<masks.length;i++){
+      var kind = i===puzzle.start?'src' : (i===puzzle.sink?'sink':'pipe');
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='tile'+(kind==='src'?' src fixed':'')+(kind==='sink'?' sink':'');
+      b.setAttribute('role','gridcell');
+      b.innerHTML=tileSVG(i,masks[i],kind);
+      b.dataset.idx=i;
+      if(kind==='pipe'){
+        b.addEventListener('click', onTap);   // only connectors rotate; source & bloom stay fixed
+      } else {
+        b.classList.add('fixed');
+        b.setAttribute('aria-disabled','true');
+        b.style.cursor='default';
+      }
+      cells.push(b);
+      board.appendChild(b);
+    }
+  }
+
+  function onTap(e){
+    if(solvedFlag) return;
+    var b=e.currentTarget, i=+b.dataset.idx;
+    rots[i]+=90;
+    masks[i]=rotCW(masks[i]);
+    var svg=b.querySelector('svg');
+    svg.style.transform='rotate('+rots[i]+'deg)';
+    taps++; tapsEl.textContent=taps;
+    if(navigator.vibrate){ try{navigator.vibrate(12);}catch(_){} }
+    update();
+  }
+
+  function update(){
+    var lit=litSet(masks,puzzle.size,puzzle.start);
+    for(var i=0;i<cells.length;i++){
+      var b=cells[i];
+      if(lit[i]) b.classList.add('lit'); else b.classList.remove('lit');
+      // accessible label
+      var kind=i===puzzle.start?'Signal source':(i===puzzle.sink?'Bloom':'Connector');
+      var state=lit[i]?'powered':'dark';
+      var act=(i===puzzle.start||i===puzzle.sink)?'':' Tap to rotate.';
+      b.setAttribute('aria-label',kind+', '+describe(masks[i])+', '+state+'.'+act);
+    }
+    if(lit[puzzle.sink] && !solvedFlag){ win(); }
+  }
+
+  function win(){
+    solvedFlag=true;
+    var last = levelIdx>=SIZES.length-1;
+    var pips=pipsEl.children;
+    if(pips[levelIdx]){ pips[levelIdx].classList.remove('active'); pips[levelIdx].classList.add('done'); }
+    hint.textContent = last ? 'Every garden is in bloom. 🌿' : 'Bloom lit — next garden ready.';
+    hint.style.color='var(--signal)';
+    if(navigator.vibrate){ try{navigator.vibrate([18,40,28]);}catch(_){} }
+    if(!last){ nextBtn.hidden=false; }
+    var statHtml='Routed in <b>'+taps+'</b> tap'+(taps===1?'':'s')+'.';
+    document.getElementById('winStat').innerHTML=statHtml;
+    document.getElementById('winEm').textContent= last ? '🌷' : '🌸';
+    document.getElementById('winTitle').textContent= last ? 'Garden complete' : 'Signal routed';
+    document.getElementById('winMsg').textContent= last
+      ? 'All three gardens are glowing. A tangle made legible.'
+      : 'The bloom drinks the signal.';
+    overlayBtn.textContent= last ? 'Play again ↺' : 'Next level →';
+    live.textContent=(last?'All levels complete. ':'Level cleared. ')+'Routed in '+taps+' taps.';
+    setTimeout(function(){ overlay.classList.add('show'); }, 480);
+  }
+
+  function advance(){
+    overlay.classList.remove('show');
+    if(levelIdx>=SIZES.length-1){ loadLevel(0); }
+    else { loadLevel(levelIdx+1); }
+  }
+
+  function reset(){
+    if(solvedFlag) return; // finished levels reset via overlay/next
+    masks=puzzle.init.slice();
+    rots=new Array(masks.length).fill(0);
+    taps=0; tapsEl.textContent='0';
+    for(var i=0;i<cells.length;i++){
+      var svg=cells[i].querySelector('svg');
+      if(svg) svg.style.transform='rotate(0deg)';
+    }
+    update();
+    hint.textContent='Back to the tangle. Try again.';
+    live.textContent='Level reset.';
+  }
+
+  nextBtn.addEventListener('click', advance);
+  overlayBtn.addEventListener('click', advance);
+  resetBtn.addEventListener('click', reset);
+
+  loadLevel(0);
+})();
+</script>
+</body>
+</html>
