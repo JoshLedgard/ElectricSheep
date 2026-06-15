@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f1e7d6" />
+<title>Signal to Story Desk</title>
+<style>
+  :root{
+    --paper:#f1e7d6;
+    --paper-2:#e9dcc4;
+    --ink:#23232e;
+    --ink-soft:#54515c;
+    --coral:#e0533c;
+    --teal:#2f8d83;
+    --mustard:#d99326;
+    --line:#c9b896;
+    --shadow:rgba(35,35,46,.18);
+    --font-display:"Baskerville","Palatino Linotype","Palatino","Book Antiqua",Georgia,serif;
+    --font-body:"Iowan Old Style","Charter","Georgia","Times New Roman",serif;
+    --font-label:"Avenir Next Condensed","Futura","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font-body);
+    color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(217,147,38,.10), transparent 60%),
+      radial-gradient(var(--line) .6px, transparent .7px);
+    background-size:auto, 7px 7px;
+    background-attachment:fixed;
+    line-height:1.5;
+    overflow-x:hidden;
+    -webkit-text-size-adjust:100%;
+  }
+  /* faint grain overlay */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.05;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .wrap{
+    max-width:680px;margin:0 auto;
+    padding:max(16px,env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+    position:relative;z-index:2;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{text-align:center;padding:14px 0 4px}
+  .kicker{
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.34em;
+    font-size:11px;color:var(--coral);font-weight:600;margin:0 0 6px;padding-left:.34em;
+  }
+  h1{
+    font-family:var(--font-display);font-style:italic;font-weight:400;
+    font-size:clamp(34px,10vw,52px);line-height:.98;margin:0;letter-spacing:-.01em;
+  }
+  h1 .amp{font-style:normal;color:var(--mustard)}
+  .rule{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin:14px auto 0;color:var(--ink-soft);
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.18em;font-size:10.5px;
+  }
+  .rule::before,.rule::after{content:"";height:1px;width:46px;background:var(--line)}
+
+  /* ---------- shared panel chrome ---------- */
+  .scene{margin-top:22px}
+  .hidden{display:none !important}
+
+  /* ---------- comic ---------- */
+  .comic{
+    background:#fffaf0;
+    border:1.5px solid var(--ink);
+    border-radius:4px;
+    box-shadow:6px 7px 0 var(--shadow);
+    padding:22px 20px 18px;
+    position:relative;
+    transform:rotate(-.5deg);
+  }
+  .comic .panel-no{
+    position:absolute;top:-13px;left:16px;
+    font-family:var(--font-label);font-weight:600;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    background:var(--ink);color:var(--paper);padding:3px 9px;border-radius:2px;
+  }
+  .frame{
+    border:1.5px solid var(--ink);border-radius:3px;background:var(--paper);
+    aspect-ratio:5/3;display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;margin-bottom:14px;
+  }
+  .frame .art{font-size:clamp(48px,17vw,82px);line-height:1;filter:drop-shadow(2px 3px 0 var(--shadow))}
+  /* art backdrops */
+  .bg-mess{background:
+    repeating-linear-gradient(48deg, rgba(224,83,60,.10) 0 8px, transparent 8px 18px),
+    repeating-linear-gradient(-37deg, rgba(47,141,131,.10) 0 6px, transparent 6px 16px),
+    var(--paper);}
+  .bg-fork{background:radial-gradient(circle at 50% 120%, rgba(217,147,38,.22), transparent 62%), var(--paper);}
+  .bg-desk{background:
+    linear-gradient(0deg, rgba(47,141,131,.14), transparent 55%),
+    repeating-linear-gradient(90deg, rgba(35,35,46,.05) 0 1px, transparent 1px 26px),
+    var(--paper);}
+  .floaty span{position:absolute;font-size:22px;opacity:.85;animation:bob 3.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-7px) rotate(4deg)}}
+
+  .caption{
+    font-family:var(--font-display);font-size:clamp(18px,5vw,22px);line-height:1.35;margin:0 0 4px;
+  }
+  .caption b{font-style:italic;color:var(--coral);font-weight:400}
+  .sub{font-size:14.5px;color:var(--ink-soft);margin:6px 0 0}
+
+  .branch{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  .branch-q{font-family:var(--font-label);text-transform:uppercase;letter-spacing:.16em;font-size:11px;color:var(--ink-soft)}
+
+  /* ---------- buttons ---------- */
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  .btn{
+    appearance:none;border:1.5px solid var(--ink);background:var(--paper);
+    border-radius:3px;padding:13px 16px;min-height:48px;font-size:15.5px;
+    font-family:var(--font-body);text-align:left;
+    box-shadow:3px 3px 0 var(--shadow);transition:transform .08s ease, box-shadow .08s ease, background .15s;
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+  .btn .b-lead{font-family:var(--font-label);text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;color:var(--coral);display:block;margin-bottom:3px}
+  .btn-primary{
+    background:var(--ink);color:var(--paper);border-color:var(--ink);text-align:center;
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.18em;font-size:13px;font-weight:600;
+  }
+  .btn-primary[disabled]{opacity:.4;cursor:not-allowed}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn-row .btn{flex:1;min-width:120px;text-align:center}
+  .nav{display:flex;justify-content:flex-end;margin-top:16px}
+  .tapcue{
+    text-align:center;font-family:var(--font-label);text-transform:uppercase;letter-spacing:.2em;
+    font-size:10.5px;color:var(--ink-soft);margin-top:14px;
+  }
+  .tapcue::before{content:"› ";color:var(--coral)}
+
+  /* progress dots */
+  .dots{display:flex;gap:7px;justify-content:center;margin:16px 0 0}
+  .dots i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;transition:background .2s}
+  .dots i.on{background:var(--coral);border-color:var(--coral)}
+
+  /* ---------- desk ---------- */
+  .desk-head{text-align:center;margin-bottom:6px}
+  .desk-head h2{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:26px;margin:0}
+  .desk-head p{font-size:14px;color:var(--ink-soft);margin:6px 0 0}
+
+  .tray-label,.lanes-label{
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.18em;font-size:11px;
+    color:var(--ink-soft);margin:20px 0 8px;display:flex;align-items:center;gap:8px;
+  }
+  .tray-label::after,.lanes-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .tray{display:flex;flex-direction:column;gap:9px;min-height:8px}
+  .tray.empty-note::after{
+    content:"All signals filed. Compose the brief below.";
+    display:block;font-style:italic;color:var(--ink-soft);font-size:14px;padding:6px 2px;
+  }
+
+  .card{
+    position:relative;background:#fffaf0;border:1.5px solid var(--ink);border-radius:3px;
+    padding:12px 14px;font-size:15px;line-height:1.4;box-shadow:3px 3px 0 var(--shadow);
+    display:flex;gap:10px;align-items:flex-start;cursor:grab;touch-action:none;
+    transition:transform .1s ease, box-shadow .1s ease, border-color .12s;
+    min-height:48px;user-select:none;-webkit-user-select:none;
+  }
+  .card:active{cursor:grabbing}
+  .card .grip{font-family:var(--font-label);color:var(--line);font-size:16px;line-height:1.2;margin-top:1px;flex:0 0 auto}
+  .card .ctext{flex:1}
+  .card.picked{border-color:var(--coral);box-shadow:0 0 0 2px rgba(224,83,60,.25),3px 3px 0 var(--shadow);transform:translateY(-2px)}
+  .card.dragging{opacity:.25}
+  .card.ghost{
+    position:fixed;z-index:50;pointer-events:none;box-shadow:5px 8px 0 var(--shadow);
+    transform:rotate(-2deg) scale(1.02);margin:0;width:auto;
+  }
+
+  .lanes{display:flex;flex-direction:column;gap:14px}
+  .lane{
+    border:1.5px dashed var(--line);border-radius:4px;background:rgba(255,250,240,.55);
+    padding:10px 11px 12px;transition:border-color .12s, background .12s, box-shadow .12s;
+  }
+  .lane.armed{border-style:solid;border-color:var(--teal);background:rgba(47,141,131,.10)}
+  .lane.over{border-style:solid;border-color:var(--coral);background:rgba(224,83,60,.12);box-shadow:inset 0 0 0 2px rgba(224,83,60,.18)}
+  .lane-top{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+  .lane-tag{
+    font-family:var(--font-label);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--paper);padding:3px 8px;border-radius:2px;flex:0 0 auto;
+  }
+  .lane:nth-child(1) .lane-tag{background:var(--coral)}
+  .lane:nth-child(2) .lane-tag{background:var(--mustard)}
+  .lane:nth-child(3) .lane-tag{background:var(--teal)}
+  .lane-name{font-family:var(--font-display);font-size:16px}
+  .lane-hint{font-size:12.5px;color:var(--ink-soft);margin-left:auto;font-style:italic}
+  .lane-cards{display:flex;flex-direction:column;gap:8px;min-height:26px}
+  .lane-cards:empty::after{
+    content:"drop a signal here";display:block;text-align:center;color:var(--line);
+    font-style:italic;font-size:13px;padding:8px 0;
+  }
+  .lane .card{background:var(--paper-2);cursor:pointer}
+
+  .compose-wrap{margin-top:22px}
+  .count-note{text-align:center;font-size:13px;color:var(--ink-soft);margin:0 0 10px;font-style:italic}
+
+  /* ---------- postcard ---------- */
+  .postcard-scene{margin-top:24px}
+  .postcard{
+    background:#fffaf0;border:2px solid var(--ink);border-radius:5px;
+    box-shadow:8px 9px 0 var(--shadow);padding:0;overflow:hidden;transform:rotate(.4deg);
+  }
+  .pc-stamp{
+    position:absolute;top:14px;right:14px;width:54px;height:62px;border:1.5px dashed var(--coral);
+    border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:26px;
+    background:repeating-linear-gradient(45deg,rgba(224,83,60,.08) 0 4px,transparent 4px 8px);
+    transform:rotate(4deg);
+  }
+  .pc-head{position:relative;padding:18px 18px 12px;border-bottom:1.5px solid var(--ink);background:var(--paper-2)}
+  .pc-head .pc-kick{font-family:var(--font-label);text-transform:uppercase;letter-spacing:.24em;font-size:10.5px;color:var(--coral);margin-bottom:5px}
+  .pc-head h2{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:30px;margin:0;max-width:78%}
+  .pc-date{font-family:var(--font-label);font-size:11px;letter-spacing:.1em;color:var(--ink-soft);margin-top:6px;text-transform:uppercase}
+  .pc-body{padding:16px 18px 4px}
+  .pc-block{margin-bottom:14px}
+  .pc-block h3{
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.16em;font-size:11px;
+    margin:0 0 5px;display:flex;align-items:center;gap:7px;
+  }
+  .pc-block h3 .swatch{width:11px;height:11px;border-radius:2px;flex:0 0 auto}
+  .pc-block p{margin:0;font-size:15.5px;line-height:1.5}
+  .pc-foot{padding:6px 18px 18px;border-top:1px dotted var(--line);margin-top:4px}
+  .pc-foot p{font-style:italic;color:var(--ink-soft);font-size:13.5px;margin:10px 0 0}
+  .pc-sign{font-family:var(--font-display);font-style:italic;font-size:16px;margin-top:8px}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:30px;font-family:var(--font-label);
+    text-transform:uppercase;letter-spacing:.14em;font-size:11px;opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;z-index:60;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- why note ---------- */
+  .why{
+    margin-top:26px;border:1px solid var(--line);border-radius:4px;background:rgba(255,250,240,.6);
+    padding:0;overflow:hidden;
+  }
+  .why summary{
+    list-style:none;cursor:pointer;padding:13px 15px;min-height:48px;display:flex;align-items:center;gap:9px;
+    font-family:var(--font-label);text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--ink-soft);
+  }
+  .why summary::-webkit-details-marker{display:none}
+  .why summary .mk{color:var(--coral);transition:transform .2s}
+  .why[open] summary .mk{transform:rotate(90deg)}
+  .why .why-body{padding:0 16px 16px;font-size:14px;line-height:1.55;color:var(--ink-soft)}
+  .why .why-body p{margin:0 0 9px}
+
+  footer{text-align:center;margin-top:24px;font-family:var(--font-label);text-transform:uppercase;letter-spacing:.2em;font-size:10px;color:var(--ink-soft)}
+
+  .fade-in{animation:fade .4s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  @media (min-width:560px){
+    .lanes{flex-direction:row}
+    .lane{flex:1}
+    .lane-hint{display:block}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+    .floaty span{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">The Daily Surprise · No. 86</p>
+    <h1>Signal <span class="amp">to</span> Story Desk</h1>
+    <div class="rule">a tiny zine for tidying the inbox</div>
+  </header>
+
+  <!-- ================= COMIC ================= -->
+  <section id="comicScene" class="scene" aria-label="Opening comic">
+    <article class="comic" id="comicCard">
+      <div class="panel-no" id="panelNo">Panel 1</div>
+      <div class="frame" id="frame">
+        <div class="art" id="frameArt">📥</div>
+      </div>
+      <p class="caption" id="caption"></p>
+      <p class="sub" id="subcap"></p>
+
+      <div class="branch hidden" id="branchBox">
+        <div class="branch-q" id="branchQ"></div>
+      </div>
+
+      <div class="nav" id="navBox">
+        <button class="btn btn-primary" id="comicNext" style="min-width:140px">Next ›</button>
+      </div>
+      <p class="tapcue" id="tapcue">tap the picture to turn the page</p>
+    </article>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+  </section>
+
+  <!-- ================= DESK ================= -->
+  <section id="deskScene" class="scene hidden" aria-label="Storyboard desk">
+    <div class="desk-head">
+      <h2>The Story Desk</h2>
+      <p>Six raw signals came in overnight. File each one onto the storyboard — tap a card, then tap a lane, or just drag it across.</p>
+    </div>
+
+    <div class="tray-label">Inbox · raw signals</div>
+    <div class="tray" id="tray" aria-label="Unfiled signals"></div>
+
+    <div class="lanes-label">Storyboard · three columns of the story</div>
+    <div class="lanes" id="lanes"></div>
+
+    <div class="compose-wrap">
+      <p class="count-note" id="countNote">0 of 6 filed</p>
+      <div class="btn-row">
+        <button class="btn" id="deskReset">↺ Clear the desk</button>
+        <button class="btn btn-primary" id="composeBtn" disabled>Compose the brief →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= POSTCARD ================= -->
+  <section id="cardScene" class="postcard-scene hidden" aria-label="Morning brief">
+    <article class="postcard">
+      <div class="pc-head">
+        <div class="pc-stamp">📮</div>
+        <div class="pc-kick">Morning Brief</div>
+        <h2>From mess to one clear page.</h2>
+        <div class="pc-date" id="pcDate"></div>
+      </div>
+      <div class="pc-body" id="pcBody"></div>
+      <div class="pc-foot">
+        <p>That's the whole trick: catch the signals, sort them into a shape someone can read, and the workflow tells its own story.</p>
+        <div class="pc-sign">— the Story Desk</div>
+      </div>
+    </article>
+    <div class="btn-row">
+      <button class="btn" id="copyBrief">⧉ Copy brief</button>
+      <button class="btn" id="startOver">↺ Start over</button>
+    </div>
+  </section>
+
+  <!-- ================= WHY ================= -->
+  <details class="why">
+    <summary><span class="mk">▸</span> Why this little thing exists</summary>
+    <div class="why-body">
+      <p>Most days the work starts as a pile of half-formed notes — scraps, half-answered questions, things three people mentioned in passing. The hard part isn't the writing; it's deciding what each scrap <em>is</em> and where it belongs.</p>
+      <p>This zine turns that quiet sorting move into something you can touch: pull the raw signals onto a desk, drop them into the part of the story they serve, and watch a clear, customer-facing brief assemble itself. No scores, no rubric — just the satisfying click of a mess becoming a page.</p>
+      <p>Everything here is invented. No real names, messages, or details — only the shape of the habit.</p>
+    </div>
+  </details>
+
+  <footer>self-contained · offline · one html file</footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(s,r){return (r||document).querySelector(s);};
+  var haptic=function(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
+
+  /* ---------------- COMIC ---------------- */
+  var panels=[
+    {no:"Panel 1", art:"📥", bg:"bg-mess",
+     cap:"Monday. The inbox is a <b>weather system.</b>",
+     sub:"Tickets, asides, half-questions, a note you wrote to yourself and no longer trust.",
+     floaty:["💬","❓","📎","🔁"]},
+    {no:"Panel 2", art:"🍴", bg:"bg-fork",
+     cap:"You could start two ways.",
+     sub:"Same pile, different instinct. Pick one — both roads reach the desk.",
+     branch:{q:"Where do you grab first?", opts:[
+        {lead:"The instinct", txt:"By who's loudest — answer the squeakiest thread first.",
+         echo:"Loud first, then. You quiet the noise — but you still have to find what's actually true underneath it."},
+        {lead:"The instinct", txt:"By what's true — find the one thing the noise keeps circling.",
+         echo:"True first, then. You go looking for the signal the whole pile keeps pointing at."}
+     ]}},
+    {no:"Panel 3", art:"🗂️", bg:"bg-desk",
+     cap:"So you clear a desk and lay the <b>signals</b> out.",
+     sub:"Six of them surfaced overnight. Each one belongs to some part of the story — you just have to say which.",
+     cta:"Open the desk →"}
+  ];
+  var pi=0, comicCard=$("#comicCard");
+  function paintFloaty(arr){
+    if(!arr) return "";
+    var pos=[[12,18],[70,22],[20,64],[64,60]];
+    return '<div class="floaty">'+arr.map(function(e,i){
+      var p=pos[i%pos.length];
+      return '<span style="left:'+p[0]+'%;top:'+p[1]+'%;animation-delay:'+(i*0.5)+'s">'+e+'</span>';
+    }).join("")+'</div>';
+  }
+  function renderPanel(){
+    var p=panels[pi];
+    $("#panelNo").textContent=p.no;
+    var frame=$("#frame");
+    frame.className="frame "+(p.bg||"");
+    frame.innerHTML=paintFloaty(p.floaty)+'<div class="art">'+p.art+'</div>';
+    $("#caption").innerHTML=p.cap;
+    $("#subcap").innerHTML=p.sub||"";
+    var bb=$("#branchBox"), nav=$("#navBox"), next=$("#comicNext");
+    bb.innerHTML='<div class="branch-q"></div>';
+    if(p.branch){
+      bb.classList.remove("hidden");
+      $(".branch-q",bb).textContent=p.branch.q;
+      p.branch.opts.forEach(function(o){
+        var b=document.createElement("button");
+        b.className="btn";
+        b.innerHTML='<span class="b-lead">'+o.lead+'</span>'+o.txt;
+        b.addEventListener("click",function(){chooseBranch(o);});
+        bb.appendChild(b);
+      });
+      nav.classList.add("hidden");
+    }else{
+      bb.classList.add("hidden");
+      nav.classList.remove("hidden");
+      next.textContent=p.cta||"Next ›";
+    }
+    // dots
+    var dots=$("#dots"); dots.innerHTML="";
+    panels.forEach(function(_,i){var d=document.createElement("i");if(i<=pi)d.className="on";dots.appendChild(d);});
+    comicCard.classList.remove("fade-in"); void comicCard.offsetWidth; comicCard.classList.add("fade-in");
+  }
+  function chooseBranch(o){
+    haptic(8);
+    var p=panels[pi];
+    p.branch=null; p.cap="You make the call."; p.sub=o.echo; p.cta="Next ›"; p.art="🧭"; p.floaty=null;
+    renderPanel();
+  }
+  function advance(){
+    haptic(6);
+    if(panels[pi].branch) return; // must choose
+    if(pi<panels.length-1){ pi++; renderPanel(); }
+    else { openDesk(); }
+  }
+  $("#comicNext").addEventListener("click",advance);
+  $("#frame").addEventListener("click",function(){ if(!panels[pi].branch) advance(); });
+
+  /* ---------------- DESK DATA ---------------- */
+  var lanesDef=[
+    {tag:"Now", name:"What's happening", hint:"the facts on the ground", color:"var(--coral)"},
+    {tag:"So what", name:"Why it matters", hint:"the reason to care", color:"var(--mustard)"},
+    {tag:"Next", name:"What we'll do", hint:"the move we make", color:"var(--teal)"}
+  ];
+  var signals=[
+    {id:"s1", text:"Three different people asked the same question this week."},
+    {id:"s2", text:"The old help page still points at a button we removed."},
+    {id:"s3", text:"Someone buried a clean workaround at the bottom of a long thread."},
+    {id:"s4", text:"Two separate reports turned out to share one root cause."},
+    {id:"s5", text:"Everyone bounces off the same step before they finish."},
+    {id:"s6", text:"A quiet fix shipped last night and nobody's been told yet."}
+  ];
+  // state: lane index or null
+  var state={};
+  signals.forEach(function(s){state[s.id]=null;});
+  var picked=null; // id currently selected for tap-to-place
+
+  var tray=$("#tray"), lanesEl=$("#lanes");
+
+  function buildLanes(){
+    lanesEl.innerHTML="";
+    lanesDef.forEach(function(L,i){
+      var div=document.createElement("div");
+      div.className="lane"; div.dataset.lane=i;
+      div.innerHTML='<div class="lane-top">'+
+          '<span class="lane-tag">'+L.tag+'</span>'+
+          '<span class="lane-name">'+L.name+'</span>'+
+          '<span class="lane-hint">'+L.hint+'</span>'+
+        '</div><div class="lane-cards" data-lane="'+i+'"></div>';
+      lanesEl.appendChild(div);
+    });
+  }
+
+  function cardEl(s){
+    var c=document.createElement("div");
+    c.className="card"; c.dataset.id=s.id;
+    c.setAttribute("role","button"); c.tabIndex=0;
+    c.setAttribute("aria-label", s.text+". Press Enter to pick up, then 1, 2 or 3 to file.");
+    c.innerHTML='<span class="grip" aria-hidden="true">⣿</span><span class="ctext">'+s.text+'</span>';
+    if(picked===s.id) c.classList.add("picked");
+    attachPointer(c,s.id);
+    c.addEventListener("keydown",function(e){
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();togglePick(s.id);}
+      else if(picked===s.id && (e.key==="1"||e.key==="2"||e.key==="3")){
+        e.preventDefault(); place(s.id, parseInt(e.key,10)-1);
+      }
+      else if(picked===s.id && e.key==="0"){ e.preventDefault(); place(s.id,null); }
+    });
+    return c;
+  }
+
+  function render(){
+    tray.innerHTML="";
+    var unfiled=signals.filter(function(s){return state[s.id]===null;});
+    unfiled.forEach(function(s){tray.appendChild(cardEl(s));});
+    tray.classList.toggle("empty-note", unfiled.length===0 && countFiled()>0);
+
+    lanesDef.forEach(function(_,i){
+      var box=$('.lane-cards[data-lane="'+i+'"]');
+      box.innerHTML="";
+      signals.filter(function(s){return state[s.id]===i;}).forEach(function(s){
+        box.appendChild(cardEl(s));
+      });
+    });
+    var n=countFiled();
+    $("#countNote").textContent=n+" of "+signals.length+" filed";
+    $("#composeBtn").disabled = n<signals.length;
+    // arm lanes when a card is picked
+    document.querySelectorAll(".lane").forEach(function(l){l.classList.toggle("armed", picked!==null);});
+  }
+  function countFiled(){var n=0;signals.forEach(function(s){if(state[s.id]!==null)n++;});return n;}
+
+  function togglePick(id){
+    picked = (picked===id)? null : id;
+    haptic(5);
+    render();
+    if(picked) toast("Now tap a column to file it");
+  }
+  function place(id, lane){
+    state[id]=lane; picked=null; haptic(10);
+    render();
+  }
+
+  // tap a lane (when something is picked) to file it there
+  lanesEl.addEventListener("click",function(e){
+    if(picked===null) return;
+    var lane=e.target.closest(".lane");
+    // if they tapped an existing card in the lane, let card handler manage; only fire on empty lane area
+    if(lane && !e.target.closest(".card")){ place(picked, parseInt(lane.dataset.lane,10)); }
+  });
+  // tapping a filed card sends it back to tray (when nothing picked) or selects it
+  function attachPointer(el, id){
+    var sx=0, sy=0, moved=false, ghost=null, started=false, curLane=null;
+    var DRAG=8;
+    el.addEventListener("pointerdown",function(e){
+      if(e.button!==undefined && e.button!==0) return;
+      sx=e.clientX; sy=e.clientY; moved=false; started=false; curLane=null;
+      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove",function(e){
+      if(sx===0&&sy===0) return;
+      var dx=e.clientX-sx, dy=e.clientY-sy;
+      if(!started && Math.hypot(dx,dy)<DRAG) return;
+      if(!started){
+        started=true; moved=true;
+        var r=el.getBoundingClientRect();
+        ghost=el.cloneNode(true);
+        ghost.classList.add("ghost");
+        ghost.style.width=r.width+"px";
+        ghost.style.left=r.left+"px"; ghost.style.top=r.top+"px";
+        ghost._ox=e.clientX-r.left; ghost._oy=e.clientY-r.top;
+        document.body.appendChild(ghost);
+        el.classList.add("dragging");
+        haptic(5);
+      }
+      ghost.style.left=(e.clientX-ghost._ox)+"px";
+      ghost.style.top=(e.clientY-ghost._oy)+"px";
+      ghost.style.visibility="hidden";
+      var under=document.elementFromPoint(e.clientX,e.clientY);
+      ghost.style.visibility="";
+      var lane=under&&under.closest?under.closest(".lane"):null;
+      if(lane!==curLane){
+        if(curLane) curLane.classList.remove("over");
+        curLane=lane;
+        if(curLane) curLane.classList.add("over");
+      }
+    });
+    function end(e){
+      if(sx===0&&sy===0) return;
+      if(started){
+        el.classList.remove("dragging");
+        if(ghost){ghost.remove();ghost=null;}
+        if(curLane){
+          curLane.classList.remove("over");
+          place(id, parseInt(curLane.dataset.lane,10));
+        }else{
+          // dropped on tray / outside -> unfile
+          var under=document.elementFromPoint(e.clientX,e.clientY);
+          if(under && under.closest && under.closest("#tray")) place(id,null);
+          else render();
+        }
+        curLane=null;
+      }else{
+        // treat as tap
+        if(state[id]!==null){ place(id,null); } // filed card tapped -> back to inbox
+        else { togglePick(id); }
+      }
+      sx=0;sy=0;moved=false;started=false;
+    }
+    el.addEventListener("pointerup",end);
+    el.addEventListener("pointercancel",function(){
+      if(ghost){ghost.remove();ghost=null;}
+      el.classList.remove("dragging");
+      if(curLane){curLane.classList.remove("over");curLane=null;}
+      sx=0;sy=0;started=false;
+    });
+  }
+
+  function openDesk(){
+    $("#comicScene").classList.add("hidden");
+    $("#cardScene").classList.add("hidden");
+    var ds=$("#deskScene");
+    ds.classList.remove("hidden"); ds.classList.add("fade-in");
+    buildLanes(); render();
+    ds.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  $("#deskReset").addEventListener("click",function(){
+    signals.forEach(function(s){state[s.id]=null;}); picked=null; render(); toast("Desk cleared");
+  });
+
+  /* ---------------- POSTCARD ---------------- */
+  var laneJoin=function(idx){
+    var items=signals.filter(function(s){return state[s.id]===idx;}).map(function(s){
+      return s.text.replace(/\.$/,"").replace(/^[A-Z]/,function(c){return c.toLowerCase();});
+    });
+    if(items.length===0) return null;
+    if(items.length===1) return items[0]+".";
+    if(items.length===2) return items[0]+", and "+items[1]+".";
+    return items.slice(0,-1).join("; ")+"; and "+items[items.length-1]+".";
+  };
+  var openers=[
+    "Here's the picture: ",
+    "Why it lands: ",
+    "So the plan is simple — "
+  ];
+  function compose(){
+    var body=$("#pcBody"); body.innerHTML="";
+    $("#pcDate").textContent="Tuesday · June 15, 2026";
+    lanesDef.forEach(function(L,i){
+      var joined=laneJoin(i);
+      var block=document.createElement("div");
+      block.className="pc-block";
+      var text = joined ? (openers[i]+joined.charAt(0).toUpperCase()+joined.slice(1))
+                        : "Nothing filed here yet — and that's a fine thing to notice too.";
+      block.innerHTML='<h3><span class="swatch" style="background:'+L.color+'"></span>'+L.tag+' · '+L.name+'</h3>'+
+                      '<p>'+text+'</p>';
+      body.appendChild(block);
+    });
+    $("#deskScene").classList.add("hidden");
+    var cs=$("#cardScene");
+    cs.classList.remove("hidden"); cs.classList.add("fade-in");
+    cs.scrollIntoView({behavior:"smooth",block:"start"});
+    haptic([8,40,8]);
+  }
+  $("#composeBtn").addEventListener("click",function(){ if(!this.disabled) compose(); });
+
+  function briefText(){
+    var lines=["MORNING BRIEF — Tue, June 15, 2026",""];
+    lanesDef.forEach(function(L,i){
+      var j=laneJoin(i);
+      lines.push("["+L.tag.toUpperCase()+"] "+L.name);
+      lines.push("  "+(j? (openers[i]+j) : "(nothing filed)"));
+      lines.push("");
+    });
+    lines.push("— assembled at the Signal to Story Desk");
+    return lines.join("\n");
+  }
+  $("#copyBrief").addEventListener("click",function(){
+    var t=briefText();
+    function done(){toast("Brief copied");}
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done,fallback);
+    }else fallback();
+    function fallback(){
+      try{
+        var ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.top="-1000px";
+        document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove();done();
+      }catch(e){toast("Copy not supported");}
+    }
+  });
+  $("#startOver").addEventListener("click",function(){
+    pi=0;
+    // reset comic panel 2 branch (rebuild fresh copies)
+    panels[1].branch={q:"Where do you grab first?", opts:[
+        {lead:"The instinct", txt:"By who's loudest — answer the squeakiest thread first.",
+         echo:"Loud first, then. You quiet the noise — but you still have to find what's actually true underneath it."},
+        {lead:"The instinct", txt:"By what's true — find the one thing the noise keeps circling.",
+         echo:"True first, then. You go looking for the signal the whole pile keeps pointing at."}
+     ]};
+    panels[1].cap="You could start two ways."; panels[1].sub="Same pile, different instinct. Pick one — both roads reach the desk.";
+    panels[1].art="🍴"; panels[1].bg="bg-fork";
+    panels[1].floaty=null;
+    signals.forEach(function(s){state[s.id]=null;}); picked=null;
+    $("#cardScene").classList.add("hidden");
+    $("#deskScene").classList.add("hidden");
+    var c=$("#comicScene"); c.classList.remove("hidden");
+    renderPanel();
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
+
+  /* ---------------- toast ---------------- */
+  var toastT;
+  function toast(msg){
+    var el=$("#toast"); el.textContent=msg; el.classList.add("show");
+    clearTimeout(toastT); toastT=setTimeout(function(){el.classList.remove("show");},1600);
+  }
+
+  /* init */
+  renderPanel();
+})();
+</script>
+</body>
+</html>
