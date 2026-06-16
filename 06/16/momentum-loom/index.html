@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Momentum Loom</title>
+<style>
+  :root{
+    --bg:#1c1410;
+    --panel:#241a14;
+    --panel-2:#2c2018;
+    --ink:#f5e9dc;
+    --ink-soft:#cdb9a6;
+    --line:#473325;
+    --anchor:#d2553a;   /* terracotta */
+    --tend:#e6a93c;     /* amber gold */
+    --roam:#6fae8f;     /* sage */
+    --focus:#f3c98b;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(120% 90% at 50% -10%, #2a1d15 0%, var(--bg) 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+    min-height:100dvh;
+    padding:18px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+  header{margin-bottom:14px;}
+  .kicker{
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--tend);margin:0 0 6px;
+  }
+  h1{
+    font-size:30px;line-height:1.05;margin:0 0 8px;
+    letter-spacing:.4px;font-weight:600;
+  }
+  .lede{margin:0;color:var(--ink-soft);font-size:15px;}
+
+  .loom{
+    margin:16px 0 8px;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:10px 10px 6px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+    overflow:hidden;
+  }
+  svg{display:block;width:100%;height:auto;}
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 16px 18px;
+    margin-bottom:14px;
+  }
+  .panel h2{
+    font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-soft);margin:0 0 14px;font-weight:600;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+
+  .thread{margin-bottom:18px;}
+  .thread:last-child{margin-bottom:4px;}
+  .thread-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px;}
+  .thread-name{display:flex;align-items:center;gap:9px;font-size:17px;}
+  .swatch{width:14px;height:14px;border-radius:4px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset;}
+  .thread-sub{font-size:12.5px;color:var(--ink-soft);font-style:italic;}
+  .pct{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:15px;color:var(--ink);min-width:42px;text-align:right;}
+
+  input[type="range"]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:44px;background:transparent;margin:0;cursor:pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:10px;border-radius:999px;background:#3a2a1f;
+    border:1px solid rgba(0,0,0,.3);
+  }
+  input[type="range"]::-moz-range-track{
+    height:10px;border-radius:999px;background:#3a2a1f;border:1px solid rgba(0,0,0,.3);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:30px;height:30px;margin-top:-11px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff6 0 18%, var(--thumb) 60%);
+    border:2px solid #1c1410;box-shadow:0 3px 8px rgba(0,0,0,.5);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:28px;height:28px;border-radius:50%;
+    background:var(--thumb);border:2px solid #1c1410;box-shadow:0 3px 8px rgba(0,0,0,.5);
+  }
+  .t-anchor input{--thumb:var(--anchor);}
+  .t-tend input{--thumb:var(--tend);}
+  .t-roam input{--thumb:var(--roam);}
+
+  .lead-row{margin-top:4px;}
+  .lead-label{font-size:12.5px;color:var(--ink-soft);margin:0 0 9px;}
+  .chips{display:flex;gap:8px;}
+  .chip{
+    flex:1;min-height:46px;border-radius:12px;cursor:pointer;
+    border:1.5px solid var(--line);background:#2a1f17;color:var(--ink-soft);
+    font-family:inherit;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:border-color .2s, background .2s, color .2s, transform .08s;
+  }
+  .chip:active{transform:scale(.97);}
+  .chip .swatch{width:11px;height:11px;}
+  .chip[aria-pressed="true"]{color:var(--ink);background:#3a2a1f;}
+  .chip[data-lead="anchor"][aria-pressed="true"]{border-color:var(--anchor);}
+  .chip[data-lead="tend"][aria-pressed="true"]{border-color:var(--tend);}
+  .chip[data-lead="roam"][aria-pressed="true"]{border-color:var(--roam);}
+
+  .actions{display:flex;gap:10px;margin:2px 0 16px;}
+  .btn{
+    flex:1;min-height:48px;border-radius:13px;cursor:pointer;
+    font-family:inherit;font-size:15px;font-weight:600;
+    border:1.5px solid var(--line);background:#2a1f17;color:var(--ink);
+    transition:transform .08s, background .2s;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--tend);color:#241a10;border-color:var(--tend);}
+
+  .card{
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg,#2e2118,#271c14);
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;position:relative;
+  }
+  .card h2{margin-top:0;}
+  .ribbon{height:5px;border-radius:3px;margin:-2px 0 14px;
+    background:linear-gradient(90deg,var(--anchor),var(--tend),var(--roam));}
+  .card-lines{font-size:16.5px;line-height:1.6;margin:0;}
+  .card-lines .l1{color:var(--focus);font-style:italic;}
+  .card-lines .l2{color:var(--ink-soft);font-size:14.5px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+  .card-lines .l3{color:var(--ink);}
+  .copybtn{width:100%;min-height:48px;margin-top:16px;border-radius:13px;cursor:pointer;
+    font-family:inherit;font-size:15px;font-weight:600;border:1.5px solid var(--line);
+    background:#2a1f17;color:var(--ink);transition:transform .08s,background .2s;}
+  .copybtn:active{transform:scale(.97);}
+  .copybtn.ok{background:var(--roam);color:#13231b;border-color:var(--roam);}
+
+  footer{text-align:center;color:#7d6655;font-size:12px;margin-top:18px;}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">Daily Surprise · Jun 16</p>
+    <h1>Momentum Loom</h1>
+    <p class="lede">Weave your morning energy across three threads. Slide to set the balance, tap which thread leads, and the loom braids you a small ritual card for the day.</p>
+  </header>
+
+  <div class="loom" aria-hidden="false">
+    <svg id="weave" viewBox="0 0 360 170" role="img" aria-label="A woven ribbon of three colored threads showing the chosen morning balance."></svg>
+  </div>
+
+  <section class="panel" aria-label="Thread balance">
+    <h2>Set the threads</h2>
+
+    <div class="thread t-anchor">
+      <div class="thread-top">
+        <span class="thread-name"><span class="swatch" style="background:var(--anchor)"></span>Anchor</span>
+        <span class="pct" id="pct-anchor">—</span>
+      </div>
+      <p class="thread-sub">one deep, unhurried thing</p>
+      <input type="range" id="anchor" min="0" max="100" value="55" step="1"
+             aria-label="Anchor energy: one deep, unhurried thing" />
+    </div>
+
+    <div class="thread t-tend">
+      <div class="thread-top">
+        <span class="thread-name"><span class="swatch" style="background:var(--tend)"></span>Tend</span>
+        <span class="pct" id="pct-tend">—</span>
+      </div>
+      <p class="thread-sub">gather the loose ends &amp; handoffs</p>
+      <input type="range" id="tend" min="0" max="100" value="35" step="1"
+             aria-label="Tend energy: gather the loose ends and handoffs" />
+    </div>
+
+    <div class="thread t-roam">
+      <div class="thread-top">
+        <span class="thread-name"><span class="swatch" style="background:var(--roam)"></span>Roam</span>
+        <span class="pct" id="pct-roam">—</span>
+      </div>
+      <p class="thread-sub">curiosity, a fresh question</p>
+      <input type="range" id="roam" min="0" max="100" value="20" step="1"
+             aria-label="Roam energy: curiosity and a fresh question" />
+    </div>
+
+    <div class="lead-row">
+      <p class="lead-label">Which thread leads the braid?</p>
+      <div class="chips" role="group" aria-label="Lead thread">
+        <button class="chip" data-lead="anchor" aria-pressed="true"><span class="swatch" style="background:var(--anchor)"></span>Anchor</button>
+        <button class="chip" data-lead="tend" aria-pressed="false"><span class="swatch" style="background:var(--tend)"></span>Tend</button>
+        <button class="chip" data-lead="roam" aria-pressed="false"><span class="swatch" style="background:var(--roam)"></span>Roam</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="reset">Reset</button>
+    <button class="btn btn-primary" id="shuffle">Shuffle weave</button>
+  </div>
+
+  <section class="card" aria-label="Momentum card">
+    <h2>Today's Momentum Card</h2>
+    <div class="ribbon"></div>
+    <p class="card-lines" id="card" aria-live="polite">
+      <span class="l1" id="line1"></span><br/>
+      <span class="l2" id="line2"></span><br/>
+      <span class="l3" id="line3"></span>
+    </p>
+    <button class="copybtn" id="copy">Copy card</button>
+  </section>
+
+  <footer>Made for a fresh morning · no accounts, no scores, runs offline.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var THREADS = {
+    anchor:{ color:"#d2553a", name:"Anchor" },
+    tend:{   color:"#e6a93c", name:"Tend" },
+    roam:{   color:"#6fae8f", name:"Roam" }
+  };
+  var order = ["anchor","tend","roam"];
+  var sliders = {
+    anchor: document.getElementById("anchor"),
+    tend:   document.getElementById("tend"),
+    roam:   document.getElementById("roam")
+  };
+  var pctEls = {
+    anchor: document.getElementById("pct-anchor"),
+    tend:   document.getElementById("pct-tend"),
+    roam:   document.getElementById("pct-roam")
+  };
+  var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+  var svg = document.getElementById("weave");
+  var line1 = document.getElementById("line1");
+  var line2 = document.getElementById("line2");
+  var line3 = document.getElementById("line3");
+  var lead = "anchor";
+
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var W = 360, H = 170, CY = 85;
+
+  // ---- build static warp (faint vertical loom threads) ----
+  var warp = document.createElementNS(SVGNS,"g");
+  warp.setAttribute("stroke","#ffffff");
+  warp.setAttribute("stroke-opacity","0.05");
+  warp.setAttribute("stroke-width","1");
+  for(var x=12; x<=W-12; x+=14){
+    var ln = document.createElementNS(SVGNS,"line");
+    ln.setAttribute("x1",x); ln.setAttribute("y1",18);
+    ln.setAttribute("x2",x); ln.setAttribute("y2",H-18);
+    warp.appendChild(ln);
+  }
+  svg.appendChild(warp);
+
+  // ---- create one path per strand ----
+  var paths = {};
+  order.forEach(function(key){
+    var p = document.createElementNS(SVGNS,"path");
+    p.setAttribute("fill","none");
+    p.setAttribute("stroke",THREADS[key].color);
+    p.setAttribute("stroke-linecap","round");
+    p.setAttribute("stroke-linejoin","round");
+    svg.appendChild(p);
+    paths[key] = p;
+  });
+
+  function values(){
+    return {
+      anchor:+sliders.anchor.value,
+      tend:+sliders.tend.value,
+      roam:+sliders.roam.value
+    };
+  }
+  function percents(){
+    var v = values();
+    var sum = v.anchor + v.tend + v.roam;
+    if(sum <= 0) return {anchor:0,tend:0,roam:0,empty:true};
+    return {
+      anchor: Math.round(v.anchor/sum*100),
+      tend:   Math.round(v.tend/sum*100),
+      roam:   Math.round(v.roam/sum*100)
+    };
+  }
+
+  // ---- the braided strand path ----
+  function strandPath(key, idx, phase, amp, weight){
+    var pts = [];
+    var k = 2*Math.PI/ (W*0.9);          // wavelength
+    var phaseOff = idx * (2*Math.PI/3);  // 120deg apart -> braid look
+    for(var x=10; x<=W-10; x+=4){
+      var y = CY + amp * Math.sin(k*x*3 + phaseOff + phase);
+      pts.push((x).toFixed(1)+","+y.toFixed(1));
+    }
+    return "M"+pts.join(" L");
+  }
+
+  function render(phase){
+    var v = values();
+    var maxV = Math.max(v.anchor, v.tend, v.roam, 1);
+    // draw non-lead first, lead last (on top)
+    var seq = order.slice().sort(function(a,b){
+      return (a===lead?1:0) - (b===lead?1:0);
+    });
+    seq.forEach(function(key){
+      var idx = order.indexOf(key);
+      var frac = v[key]/maxV;                 // 0..1 relative
+      var weight = 3 + frac*16;               // stroke width
+      var amp = 16 + frac*10;                 // wave amplitude
+      var p = paths[key];
+      p.setAttribute("d", strandPath(key, idx, phase, amp, weight));
+      p.setAttribute("stroke-width", weight.toFixed(1));
+      p.setAttribute("stroke-opacity", (0.45 + frac*0.5).toFixed(2));
+      if(key===lead){
+        p.setAttribute("filter","");
+        p.style.filter = reduceMotion ? "none" : "drop-shadow(0 0 4px "+THREADS[key].color+"88)";
+      } else {
+        p.style.filter = "none";
+      }
+    });
+  }
+
+  function updatePcts(){
+    var p = percents();
+    order.forEach(function(key){
+      pctEls[key].textContent = p.empty ? "—" : p[key] + "%";
+    });
+  }
+
+  // ---- ritual card copy ----
+  var LEAD_INTENT = {
+    anchor:"Lead with one deep, unhurried thread.",
+    tend:"Lead by gathering the loose threads first.",
+    roam:"Lead with a curious, open thread."
+  };
+  var LEAD_MOVE = {
+    anchor:"First move: name the single thing that deserves your quiet hours.",
+    tend:"First move: tidy one handoff so the day can run without you.",
+    roam:"First move: chase one small question before the noise arrives."
+  };
+
+  function cardText(){
+    var p = percents();
+    if(p.empty){
+      return {
+        l1:"Every thread is resting.",
+        l2:"Today's weave: Anchor 0% · Tend 0% · Roam 0%",
+        l3:"First move: give one thread a little slack to begin."
+      };
+    }
+    return {
+      l1: LEAD_INTENT[lead],
+      l2: "Today's weave: Anchor "+p.anchor+"% · Tend "+p.tend+"% · Roam "+p.roam+"%",
+      l3: LEAD_MOVE[lead]
+    };
+  }
+
+  function updateCard(){
+    var c = cardText();
+    line1.textContent = c.l1;
+    line2.textContent = c.l2;
+    line3.textContent = c.l3;
+  }
+
+  function updateAll(){
+    updatePcts();
+    updateCard();
+    if(reduceMotion) render(0);
+  }
+
+  // ---- interactions ----
+  order.forEach(function(key){
+    sliders[key].addEventListener("input", updateAll);
+  });
+  chips.forEach(function(chip){
+    chip.addEventListener("click", function(){
+      lead = chip.getAttribute("data-lead");
+      chips.forEach(function(c){
+        c.setAttribute("aria-pressed", c===chip ? "true":"false");
+      });
+      updateAll();
+    });
+  });
+
+  document.getElementById("reset").addEventListener("click", function(){
+    sliders.anchor.value = 55;
+    sliders.tend.value = 35;
+    sliders.roam.value = 20;
+    lead = "anchor";
+    chips.forEach(function(c){
+      c.setAttribute("aria-pressed", c.getAttribute("data-lead")==="anchor"?"true":"false");
+    });
+    updateAll();
+  });
+
+  document.getElementById("shuffle").addEventListener("click", function(){
+    order.forEach(function(key){
+      sliders[key].value = 10 + Math.floor(Math.random()*90);
+    });
+    lead = order[Math.floor(Math.random()*order.length)];
+    chips.forEach(function(c){
+      c.setAttribute("aria-pressed", c.getAttribute("data-lead")===lead?"true":"false");
+    });
+    updateAll();
+  });
+
+  var copyBtn = document.getElementById("copy");
+  copyBtn.addEventListener("click", function(){
+    var c = cardText();
+    var txt = c.l1 + "\n" + c.l2 + "\n" + c.l3;
+    function done(){
+      copyBtn.textContent = "Copied ✓";
+      copyBtn.classList.add("ok");
+      setTimeout(function(){
+        copyBtn.textContent = "Copy card";
+        copyBtn.classList.remove("ok");
+      }, 1600);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, function(){ fallback(txt); done(); });
+    } else { fallback(txt); done(); }
+  });
+  function fallback(txt){
+    var ta = document.createElement("textarea");
+    ta.value = txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  // ---- animation loop ----
+  var phase = 0;
+  function tick(){
+    phase += 0.012;
+    render(phase);
+    requestAnimationFrame(tick);
+  }
+
+  updateAll();
+  if(reduceMotion){
+    render(0);
+  } else {
+    requestAnimationFrame(tick);
+  }
+})();
+</script>
+</body>
+</html>
