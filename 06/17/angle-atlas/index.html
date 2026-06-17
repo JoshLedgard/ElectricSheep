@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Angle Atlas</title>
+<style>
+  :root {
+    --paper: #f4ede0;
+    --paper2: #ece2d2;
+    --ink: #2a241d;
+    --ink-soft: #6b5f50;
+    --line: #d8cdb9;
+    --gold: #c08a2e;
+    --rule: rgba(42,36,29,0.12);
+    --c1: #d2553a; /* tilt */
+    --c2: #2a9d8f; /* crop */
+    --c3: #5b6cc4; /* invert */
+    --c4: #e0913c; /* zoom */
+    --c5: #8a6fb0; /* sequence */
+    --c6: #46895f; /* name */
+    --shadow: 0 14px 36px rgba(42,36,29,0.18);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(192,138,46,0.10), transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    line-height: 1.55;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 18px 16px 28px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  /* Masthead */
+  header { text-align: center; margin-bottom: 14px; }
+  .kicker {
+    font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase;
+    color: var(--ink-soft); margin-bottom: 6px;
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 9vw, 2.6rem);
+    font-weight: 700; letter-spacing: -0.01em; line-height: 1;
+  }
+  h1 .a { color: var(--gold); font-style: italic; }
+  .tag { font-size: 12.5px; color: var(--ink-soft); margin-top: 7px; }
+
+  /* Chapter dots */
+  .dots { display: flex; gap: 7px; justify-content: center; margin: 14px 0 12px; }
+  .dot {
+    width: 26px; height: 5px; border-radius: 3px; background: var(--line);
+    border: none; padding: 0; cursor: pointer; transition: background .25s, transform .2s;
+  }
+  .dot[aria-current="true"] { transform: scaleY(1.6); }
+
+  /* Card */
+  .card {
+    position: relative; background: var(--paper2);
+    border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: var(--shadow); overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent 0 23px, var(--rule) 23px 24px);
+    opacity: .35;
+  }
+  .card-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 16px 18px 10px; position: relative; z-index: 2;
+  }
+  .ch-no { font-family: Georgia, serif; font-size: 12px; letter-spacing: .2em; color: var(--ink-soft); }
+  .ch-name {
+    font-family: Georgia, serif; font-size: 25px; font-weight: 700; line-height: 1;
+  }
+  .ch-glyph {
+    width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+    font-size: 18px; color: #fff; flex: none;
+  }
+
+  /* Stage: the specimen + transformation */
+  .stage {
+    position: relative; z-index: 2; margin: 4px 14px 0;
+    border-radius: 14px; background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.5), transparent 60%),
+      var(--paper);
+    border: 1px solid var(--line);
+    height: 188px; display: grid; place-items: center; overflow: hidden;
+  }
+  .stage svg { display: block; }
+  .specimen { transition: transform .6s cubic-bezier(.2,.8,.2,1), filter .5s; transform-origin: center; }
+
+  /* crop window */
+  .crop-frame {
+    position: absolute; border: 2px dashed var(--c2); border-radius: 8px;
+    box-shadow: 0 0 0 999px rgba(244,237,224,0.66);
+    transition: all .6s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+  }
+  /* sequence frames */
+  .seq { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .seq .frm {
+    width: 52px; height: 70px; border-radius: 8px; background: var(--paper2);
+    border: 1px solid var(--line); display: grid; place-items: center;
+    opacity: 0; transform: translateY(8px); transition: opacity .4s, transform .4s;
+  }
+  .seq .frm svg { width: 40px; height: 40px; }
+  .seq .arrow { color: var(--ink-soft); font-size: 13px; opacity: 0; transition: opacity .4s; }
+  /* name tag */
+  .name-tag {
+    position: absolute; left: 50%; transform: translate(-50%, 14px) rotate(-3deg);
+    background: var(--c6); color: #fff; font-size: 12px; font-weight: 700;
+    padding: 5px 12px; border-radius: 7px; bottom: 18px; white-space: nowrap;
+    box-shadow: 0 6px 14px rgba(42,36,29,.2); opacity: 0; transition: opacity .5s, transform .5s;
+  }
+  .name-tag::before {
+    content: ""; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-bottom-color: var(--c6);
+  }
+  .stage[data-show="name"] .name-tag { opacity: 1; transform: translate(-50%, 0) rotate(-3deg); }
+  .stage[data-show="seq"] .frm { opacity: 1; transform: translateY(0); }
+  .stage[data-show="seq"] .arrow { opacity: 1; }
+  .stage[data-show="seq"] .specimen,
+  .stage[data-show="seq"] .crop-frame { display: none; }
+
+  .move {
+    z-index: 2; position: relative; margin: 13px 18px 0;
+    font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .14em;
+  }
+  .prompt {
+    z-index: 2; position: relative; margin: 6px 18px 16px;
+    font-family: Georgia, serif; font-size: 18px; line-height: 1.45; min-height: 2.6em;
+  }
+
+  /* Controls */
+  .controls { display: flex; gap: 10px; margin-top: 14px; align-items: stretch; }
+  button {
+    font-family: inherit; cursor: pointer; border-radius: 13px;
+    border: 1px solid var(--line); background: var(--paper2); color: var(--ink);
+    font-size: 14px; font-weight: 600; transition: transform .12s, background .2s, box-shadow .2s;
+  }
+  button:active { transform: translateY(1px) scale(.985); }
+  .nav { width: 56px; min-height: 52px; font-size: 22px; flex: none; }
+  .remix {
+    flex: 1; min-height: 52px; background: var(--ink); color: var(--paper);
+    border-color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .remix .ico { display: inline-block; transition: transform .5s; }
+  .remix.spin .ico { transform: rotate(360deg); }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  /* Notebook */
+  .book { margin-top: 18px; }
+  .book-row { display: flex; gap: 9px; }
+  .book-row input {
+    flex: 1; font-family: inherit; font-size: 15px; color: var(--ink);
+    background: var(--paper2); border: 1px solid var(--line); border-radius: 13px;
+    padding: 13px 14px; min-height: 50px;
+  }
+  .book-row input:focus-visible { outline: 3px solid var(--gold); outline-offset: 1px; }
+  .save { width: 52px; min-height: 50px; flex: none; font-size: 20px; }
+  .save.flash { background: var(--c6); color: #fff; border-color: var(--c6); }
+  .book-hint { font-size: 11.5px; color: var(--ink-soft); margin: 9px 2px 7px; letter-spacing: .02em; }
+  ul.notes { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  ul.notes li {
+    background: var(--paper2); border: 1px solid var(--line); border-left: 4px solid var(--gold);
+    border-radius: 10px; padding: 9px 11px; font-size: 13.5px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } }
+  ul.notes .lens { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); display: block; margin-bottom: 1px; }
+  ul.notes .x {
+    background: none; border: none; color: var(--ink-soft); font-size: 17px; line-height: 1;
+    width: 30px; height: 30px; flex: none; border-radius: 8px;
+  }
+  ul.notes .x:active { background: var(--line); }
+  .empty { font-size: 13px; color: var(--ink-soft); font-style: italic; padding: 4px 2px; }
+
+  footer { text-align: center; margin-top: 22px; font-size: 11px; color: var(--ink-soft); letter-spacing: .03em; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, .specimen, .remix .ico { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">A field guide for ideas</div>
+    <h1>Angle <span class="a">Atlas</span></h1>
+    <div class="tag">Six ways to turn one idea until it has more sides.</div>
+  </header>
+
+  <div class="dots" id="dots" role="tablist" aria-label="Chapters"></div>
+
+  <main class="card" id="card" aria-live="polite">
+    <div class="card-head">
+      <div>
+        <div class="ch-no" id="chNo">CHAPTER I / VI</div>
+        <div class="ch-name" id="chName">Tilt</div>
+      </div>
+      <div class="ch-glyph" id="chGlyph">⤢</div>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg class="specimen" id="specimen" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true"></svg>
+      <div class="crop-frame" id="cropFrame" hidden></div>
+      <div class="seq" id="seq" hidden>
+        <div class="frm" id="f1"></div>
+        <span class="arrow">→</span>
+        <div class="frm" id="f2"></div>
+        <span class="arrow">→</span>
+        <div class="frm" id="f3"></div>
+      </div>
+      <div class="name-tag" id="nameTag">untitled idea</div>
+    </div>
+
+    <div class="move" id="move">the move</div>
+    <p class="prompt" id="prompt">…</p>
+  </main>
+
+  <div class="controls">
+    <button class="nav" id="prev" aria-label="Previous chapter">‹</button>
+    <button class="remix" id="remix"><span class="ico" aria-hidden="true">↻</span> Remix this angle</button>
+    <button class="nav" id="next" aria-label="Next chapter">›</button>
+  </div>
+
+  <section class="book" aria-label="Angle notebook">
+    <div class="book-row">
+      <input id="noteInput" type="text" maxlength="90" placeholder="Jot what this angle revealed…" aria-label="Note for current angle">
+      <button class="save" id="save" aria-label="Save note">✦</button>
+    </div>
+    <div class="book-hint" id="bookHint">Saved to this device only. Nothing leaves your browser.</div>
+    <ul class="notes" id="notes"></ul>
+  </section>
+
+  <footer>Tap a chapter dot · ← → to flip · Remix for a fresh prompt</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Chapters: each angle, its color, glyph, the "move", and prompt variants ----
+  var CHAPTERS = [
+    { key: "tilt", name: "Tilt", glyph: "⤢", color: "var(--c1)", move: "Rotate your point of view",
+      prompts: [
+        "Lean the idea 30°. What does it look like to someone who hates it?",
+        "Tilt it toward a five-year-old. How would you explain it in one breath?",
+        "Rotate to the skeptic's seat. What's the first thing they'd poke at?",
+        "View it sideways: what becomes the top edge when nothing is upright?"
+      ] },
+    { key: "crop", name: "Crop", glyph: "▢", color: "var(--c2)", move: "Cut everything but one part",
+      prompts: [
+        "Crop to the single most essential piece. Could that piece live alone?",
+        "Frame only the messy corner. What truth is hiding in the part you'd hide?",
+        "Trim away the polish. What's left when the framing is gone?",
+        "Keep one square inch of the idea. Which inch earns its keep?"
+      ] },
+    { key: "invert", name: "Invert", glyph: "◐", color: "var(--c3)", move: "Flip it inside out",
+      prompts: [
+        "Invert the goal. What would the opposite version deliberately do?",
+        "Make the bug the feature. How does the flaw become the point?",
+        "Reverse the order. What if the ending happened first?",
+        "Swap who it serves. Who's the unexpected person this is suddenly for?"
+      ] },
+    { key: "zoom", name: "Zoom", glyph: "◎", color: "var(--c4)", move: "Push in past the surface",
+      prompts: [
+        "Zoom to one detail until it fills the frame. What did the wide shot hide?",
+        "Magnify the smallest decision. Why does that tiny choice matter most?",
+        "Get close enough to see the grain. What texture were you skipping over?",
+        "Pick one word in your pitch and zoom in. Is it carrying its weight?"
+      ] },
+    { key: "sequence", name: "Sequence", glyph: "⋯", color: "var(--c5)", move: "Lay it out as steps in time",
+      prompts: [
+        "Break it into three frames. Which frame is the one people remember?",
+        "Tell it as before / during / after. Where's the real turning point?",
+        "Storyboard the first thirty seconds. What has to happen first?",
+        "Spread it across a week. What's the smallest version of day one?"
+      ] },
+    { key: "name", name: "Name", glyph: "✎", color: "var(--c6)", move: "Give it a true label",
+      prompts: [
+        "Name it in two words a stranger would repeat. Does the name promise the idea?",
+        "Give it a working title you'd be slightly embarrassed to ship. Why that one?",
+        "Name what it is NOT. What does ruling that out clarify?",
+        "If it were a chapter in a field guide, what would the heading say?"
+      ] }
+  ];
+
+  // ---- Procedural "specimen": an abstract idea-glyph drawn from a seed ----
+  function rng(seed) {
+    var s = seed % 2147483647; if (s <= 0) s += 2147483646;
+    return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  }
+  var PAL = ["#d2553a", "#2a9d8f", "#5b6cc4", "#e0913c", "#8a6fb0", "#46895f", "#c08a2e"];
+
+  function buildSpecimen(seed) {
+    var r = rng(seed + 7);
+    var n = 4 + Math.floor(r() * 3);          // 4-6 nodes
+    var cx = 60, cy = 60, R = 30 + r() * 8;
+    var pts = [];
+    var start = r() * Math.PI * 2;
+    for (var i = 0; i < n; i++) {
+      var a = start + (i / n) * Math.PI * 2 + (r() - 0.5) * 0.5;
+      var rad = R * (0.55 + r() * 0.55);
+      pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]);
+    }
+    var svg = "";
+    // connective tissue
+    for (var j = 0; j < pts.length; j++) {
+      var k = (j + 1) % pts.length;
+      svg += '<line x1="' + pts[j][0].toFixed(1) + '" y1="' + pts[j][1].toFixed(1) +
+             '" x2="' + pts[k][0].toFixed(1) + '" y2="' + pts[k][1].toFixed(1) +
+             '" stroke="rgba(42,36,29,0.45)" stroke-width="1.4" />';
+    }
+    // a spoke to center
+    var hub = Math.floor(r() * pts.length);
+    svg += '<line x1="60" y1="60" x2="' + pts[hub][0].toFixed(1) + '" y2="' + pts[hub][1].toFixed(1) +
+           '" stroke="rgba(42,36,29,0.3)" stroke-width="1.2" stroke-dasharray="3 3" />';
+    // nodes
+    for (var m = 0; m < pts.length; m++) {
+      var rr = 5 + r() * 6;
+      var fill = PAL[Math.floor(r() * PAL.length)];
+      svg += '<circle cx="' + pts[m][0].toFixed(1) + '" cy="' + pts[m][1].toFixed(1) +
+             '" r="' + rr.toFixed(1) + '" fill="' + fill + '" opacity="0.92" />';
+    }
+    // center mark
+    svg += '<circle cx="60" cy="60" r="4" fill="#2a241d" />';
+    return svg;
+  }
+
+  // ---- State ----
+  var idx = 0;
+  var variant = CHAPTERS.map(function () { return 0; });
+  var seed = 31;
+  var NOTE_KEY = "angleAtlas.notes.v1";
+
+  var el = {
+    card: document.getElementById("card"),
+    chNo: document.getElementById("chNo"),
+    chName: document.getElementById("chName"),
+    chGlyph: document.getElementById("chGlyph"),
+    stage: document.getElementById("stage"),
+    specimen: document.getElementById("specimen"),
+    cropFrame: document.getElementById("cropFrame"),
+    seq: document.getElementById("seq"),
+    f1: document.getElementById("f1"), f2: document.getElementById("f2"), f3: document.getElementById("f3"),
+    nameTag: document.getElementById("nameTag"),
+    move: document.getElementById("move"),
+    prompt: document.getElementById("prompt"),
+    dots: document.getElementById("dots"),
+    prev: document.getElementById("prev"),
+    next: document.getElementById("next"),
+    remix: document.getElementById("remix"),
+    note: document.getElementById("noteInput"),
+    save: document.getElementById("save"),
+    notes: document.getElementById("notes")
+  };
+
+  var ROMAN = ["I", "II", "III", "IV", "V", "VI"];
+
+  // Build dots
+  CHAPTERS.forEach(function (c, i) {
+    var b = document.createElement("button");
+    b.className = "dot";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-label", "Chapter " + (i + 1) + ": " + c.name);
+    b.addEventListener("click", function () { go(i); });
+    el.dots.appendChild(b);
+  });
+
+  function applyTransform(ch) {
+    // reset
+    el.specimen.style.transform = "";
+    el.specimen.style.filter = "";
+    el.specimen.hidden = false;
+    el.cropFrame.hidden = true;
+    el.seq.hidden = true;
+    el.stage.removeAttribute("data-show");
+
+    if (ch.key === "tilt") {
+      el.specimen.style.transform = "rotate(-24deg) skewX(-6deg)";
+    } else if (ch.key === "crop") {
+      el.cropFrame.hidden = false;
+      var r = rng(seed + 3);
+      var w = 52 + r() * 16, h = 52 + r() * 16;
+      var x = 26 + r() * 36, y = 18 + r() * 32;
+      el.cropFrame.style.width = w + "px";
+      el.cropFrame.style.height = h + "px";
+      el.cropFrame.style.left = x + "%";
+      el.cropFrame.style.top = y + "%";
+    } else if (ch.key === "invert") {
+      el.specimen.style.transform = "scaleX(-1)";
+      el.specimen.style.filter = "invert(1) hue-rotate(180deg)";
+    } else if (ch.key === "zoom") {
+      el.specimen.style.transform = "scale(2.1) translate(-6px, 4px)";
+    } else if (ch.key === "sequence") {
+      el.seq.hidden = false;
+      el.f1.innerHTML = svgMini(seed + 1, 0.6);
+      el.f2.innerHTML = svgMini(seed + 1, 0.85);
+      el.f3.innerHTML = svgMini(seed + 1, 1.1);
+      el.stage.setAttribute("data-show", "seq");
+    } else if (ch.key === "name") {
+      el.nameTag.textContent = nameFor(seed);
+      el.stage.setAttribute("data-show", "name");
+    }
+  }
+
+  function svgMini(s, scale) {
+    return '<svg viewBox="0 0 120 120" style="transform:scale(' + scale + ');transform-origin:center">' +
+           buildSpecimen(s) + '</svg>';
+  }
+
+  var NAME_A = ["Quiet", "Bright", "Loose", "Folded", "Open", "Slow", "Warm", "Lateral"];
+  var NAME_B = ["Compass", "Lantern", "Thread", "Atlas", "Hinge", "Drift", "Signal", "Margin"];
+  function nameFor(s) {
+    var r = rng(s + 99);
+    return NAME_A[Math.floor(r() * NAME_A.length)] + " " + NAME_B[Math.floor(r() * NAME_B.length)];
+  }
+
+  function render() {
+    var ch = CHAPTERS[idx];
+    el.card.style.setProperty("--accent", ch.color);
+    el.chNo.textContent = "CHAPTER " + ROMAN[idx] + " / VI";
+    el.chName.textContent = ch.name;
+    el.chName.style.color = ch.color;
+    el.chGlyph.textContent = ch.glyph;
+    el.chGlyph.style.background = ch.color;
+    el.move.textContent = ch.move;
+    el.prompt.textContent = ch.prompts[variant[idx]];
+    el.cropFrame.style.borderColor = ch.color;
+    el.nameTag.style.background = ch.color;
+    el.specimen.innerHTML = buildSpecimen(seed);
+
+    // dots
+    Array.prototype.forEach.call(el.dots.children, function (d, i) {
+      d.style.background = i === idx ? ch.color : "var(--line)";
+      d.setAttribute("aria-current", i === idx ? "true" : "false");
+      d.setAttribute("aria-selected", i === idx ? "true" : "false");
+    });
+
+    applyTransform(ch);
+  }
+
+  function go(i) {
+    idx = (i + CHAPTERS.length) % CHAPTERS.length;
+    render();
+  }
+
+  function remix() {
+    var ch = CHAPTERS[idx];
+    variant[idx] = (variant[idx] + 1) % ch.prompts.length;
+    seed = (seed * 7 + 13) % 99991;
+    el.remix.classList.remove("spin");
+    void el.remix.offsetWidth;
+    el.remix.classList.add("spin");
+    render();
+  }
+
+  // ---- Notes (localStorage) ----
+  function loadNotes() {
+    try { return JSON.parse(localStorage.getItem(NOTE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveNotes(list) {
+    try { localStorage.setItem(NOTE_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+  function renderNotes() {
+    var list = loadNotes();
+    el.notes.innerHTML = "";
+    if (!list.length) {
+      var li = document.createElement("li");
+      li.className = "empty";
+      li.style.border = "none"; li.style.background = "none";
+      li.textContent = "No saved angles yet — jot one above.";
+      el.notes.appendChild(li);
+      return;
+    }
+    list.forEach(function (item, i) {
+      var li = document.createElement("li");
+      var span = document.createElement("span");
+      span.innerHTML = '<span class="lens">' + escapeHtml(item.lens) + '</span>' + escapeHtml(item.text);
+      var x = document.createElement("button");
+      x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", "Delete note");
+      x.addEventListener("click", function () {
+        var cur = loadNotes(); cur.splice(i, 1); saveNotes(cur); renderNotes();
+      });
+      li.appendChild(span); li.appendChild(x);
+      el.notes.appendChild(li);
+    });
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function addNote() {
+    var text = el.note.value.trim();
+    if (!text) { el.note.focus(); return; }
+    var list = loadNotes();
+    list.unshift({ lens: CHAPTERS[idx].name, text: text });
+    if (list.length > 40) list.pop();
+    saveNotes(list);
+    el.note.value = "";
+    el.save.classList.add("flash");
+    setTimeout(function () { el.save.classList.remove("flash"); }, 350);
+    renderNotes();
+  }
+
+  // ---- Events ----
+  el.prev.addEventListener("click", function () { go(idx - 1); });
+  el.next.addEventListener("click", function () { go(idx + 1); });
+  el.remix.addEventListener("click", remix);
+  el.save.addEventListener("click", addNote);
+  el.note.addEventListener("keydown", function (e) { if (e.key === "Enter") addNote(); });
+  el.stage.addEventListener("click", remix);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target === el.note) return;
+    if (e.key === "ArrowRight") { go(idx + 1); }
+    else if (e.key === "ArrowLeft") { go(idx - 1); }
+    else if (e.key === " " || e.key === "Enter") { e.preventDefault(); remix(); }
+  });
+
+  // swipe
+  var sx = 0, sy = 0;
+  el.card.addEventListener("touchstart", function (e) {
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, { passive: true });
+  el.card.addEventListener("touchend", function (e) {
+    var dx = e.changedTouches[0].clientX - sx;
+    var dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) go(idx + 1); else go(idx - 1);
+    }
+  }, { passive: true });
+
+  render();
+  renderNotes();
+})();
+</script>
+</body>
+</html>
