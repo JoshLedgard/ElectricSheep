@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Goblin Packet Relay</title>
+<meta name="description" content="A tiny mobile-first route puzzle. Tap junction tiles to rotate the goblin pipework, connect the den to the portal, and launch glowing packets down the line.">
+<style>
+  :root{
+    --bg:#0a140f;
+    --bg2:#0f1d15;
+    --panel:#12241a;
+    --panel2:#16301f;
+    --line:rgba(120,200,150,0.18);
+    --line2:rgba(160,240,180,0.45);
+    --ink:#bfe9cf;
+    --ink-dim:#5f8a72;
+    --ink-bright:#e8fff0;
+    --amber:#ffc24d;
+    --amber-soft:#ffe0a0;
+    --portal:#b07cff;
+    --portal-soft:#d8c0ff;
+    --good:#54e08a;
+    --pipe:#2f6b48;
+    --pipe-lit:#5fe79a;
+    --hub:#3a8a5c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{overflow-x:hidden;}
+  body{
+    background:radial-gradient(ellipse 90% 60% at 50% -8%, #163524, var(--bg)) fixed;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    min-height:100vh;
+    line-height:1.5;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 18px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .wrap{width:100%;max-width:480px;margin:0 auto;}
+
+  header{text-align:center;padding:20px 4px 10px;}
+  .eyebrow{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;}
+  h1{font-size:clamp(1.55rem,7vw,2.2rem);font-weight:800;letter-spacing:-.02em;color:var(--ink-bright);
+     display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+  h1 .sprite{font-size:1.1em;filter:drop-shadow(0 0 10px rgba(255,194,77,.5));}
+  .tag{color:var(--pipe-lit);}
+  .lead{font-size:13px;color:var(--ink-dim);margin-top:6px;}
+
+  /* status bar */
+  .bar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin:14px 0 10px;padding:10px 14px;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:14px;
+  }
+  .bar .lvl{font-size:12px;color:var(--ink-dim);}
+  .bar .lvl b{color:var(--ink-bright);font-size:15px;}
+  .status{font-size:13px;font-weight:600;color:var(--ink);transition:color .25s;}
+  .status.ok{color:var(--good);}
+
+  /* board */
+  .board-shell{
+    position:relative;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(95,231,154,.07), transparent 60%),
+      linear-gradient(180deg,var(--bg2),#0a160f);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:12px;
+    box-shadow:0 18px 40px -24px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
+    overflow:hidden;
+  }
+  .board{
+    display:grid;gap:4px;width:100%;position:relative;z-index:2;
+    touch-action:manipulation;
+  }
+  .cell{
+    position:relative;aspect-ratio:1/1;border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,0.012);
+    min-width:0;
+  }
+  .cell.pipe{cursor:pointer;background:rgba(60,138,92,0.07);border:1px solid rgba(120,200,150,0.10);}
+  .cell.pipe:active{transform:scale(.93);}
+  .cell.block{background:repeating-linear-gradient(45deg,#0c1a12,#0c1a12 6px,#10241704 6px,#102417 12px);
+              border:1px solid rgba(60,90,70,.4);}
+  .cell.fixed{background:rgba(255,255,255,0.02);}
+  .cell svg{width:100%;height:100%;display:block;overflow:visible;}
+  .pivot{transition:transform .26s cubic-bezier(.34,1.56,.64,1);transform-origin:50% 50%;}
+  .cell.lit .pipe-arm,.cell.lit .pipe-hub{fill:var(--pipe-lit);}
+  .cell.lit{box-shadow:0 0 0 1px rgba(95,231,154,.4), 0 0 16px -2px rgba(95,231,154,.35);}
+  .badge{position:absolute;font-size:clamp(15px,5.4vw,24px);pointer-events:none;
+         filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));z-index:3;}
+
+  /* travelling packet */
+  .packet{
+    position:absolute;width:16px;height:16px;border-radius:50%;z-index:6;
+    background:radial-gradient(circle at 35% 30%, #fff, var(--amber) 55%, #d98a12);
+    box-shadow:0 0 14px 3px rgba(255,194,77,.7);
+    pointer-events:none;left:0;top:0;margin:-8px 0 0 -8px;
+  }
+  .spark{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--amber-soft);
+         box-shadow:0 0 10px 3px rgba(255,224,160,.8);pointer-events:none;z-index:5;
+         animation:spark .6s ease-out forwards;}
+  @keyframes spark{to{transform:scale(2.4);opacity:0;}}
+
+  /* controls */
+  .controls{display:flex;gap:10px;margin-top:14px;}
+  button{
+    font:inherit;font-weight:700;font-size:15px;color:var(--ink-bright);
+    border:1px solid var(--line);border-radius:13px;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    min-height:50px;flex:1;padding:0 12px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:transform .12s, border-color .2s, box-shadow .2s, opacity .2s;
+  }
+  button:active{transform:translateY(2px) scale(.99);}
+  button.primary{
+    color:#0c1a10;border-color:transparent;
+    background:linear-gradient(180deg,#7bf0aa,#39c074);
+    box-shadow:0 8px 20px -8px rgba(57,192,116,.7);
+  }
+  button.primary:disabled{
+    color:var(--ink-dim);background:linear-gradient(180deg,var(--panel2),var(--panel));
+    box-shadow:none;cursor:default;opacity:.7;
+  }
+  button.launch-ready{animation:pulse 1.2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 8px 20px -8px rgba(57,192,116,.7);}
+                   50%{box-shadow:0 8px 26px -4px rgba(95,231,154,.95);}}
+
+  /* how-to */
+  details.how{margin-top:16px;border:1px solid var(--line);border-radius:14px;
+              background:var(--panel);overflow:hidden;}
+  details.how summary{list-style:none;cursor:pointer;padding:13px 16px;font-weight:700;
+              font-size:14px;color:var(--ink-bright);display:flex;align-items:center;
+              justify-content:space-between;gap:8px;min-height:46px;}
+  details.how summary::-webkit-details-marker{display:none;}
+  details.how summary .chev{transition:transform .2s;color:var(--ink-dim);}
+  details.how[open] summary .chev{transform:rotate(180deg);}
+  .how-body{padding:0 16px 16px;font-size:13.5px;color:var(--ink);}
+  .how-body ol{margin:0 0 0 18px;display:flex;flex-direction:column;gap:7px;}
+  .how-body li b{color:var(--pipe-lit);}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--ink-dim);}
+  .legend span{display:flex;align-items:center;gap:6px;}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(20px);
+    background:linear-gradient(180deg,#1c3a27,#12241a);border:1px solid var(--line2);
+    color:var(--ink-bright);padding:12px 20px;border-radius:14px;font-weight:700;font-size:14px;
+    box-shadow:0 14px 30px -10px rgba(0,0,0,.8);opacity:0;pointer-events:none;
+    transition:opacity .3s, transform .3s;z-index:30;white-space:nowrap;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  footer{margin-top:18px;text-align:center;font-size:11px;color:var(--ink-dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Josh's Daily Surprise · Jun 20</div>
+    <h1><span class="sprite">👺</span>Goblin <span class="tag">Packet</span> Relay</h1>
+    <p class="lead">Rotate the junction tiles. Connect den → portal. Send the packets home.</p>
+  </header>
+
+  <div class="bar">
+    <div class="lvl">Relay <b id="lvlNum">1</b><span style="color:var(--ink-dim)"> / <span id="lvlTot">6</span></span></div>
+    <div class="status" id="status">Tap tiles to build the line…</div>
+  </div>
+
+  <div class="board-shell">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="controls">
+    <button id="resetBtn" title="Reshuffle this relay">↺ Reset</button>
+    <button id="launchBtn" class="primary" disabled>🚀 Launch packets</button>
+  </div>
+
+  <details class="how" id="how" open>
+    <summary>How to play <span class="chev">▾</span></summary>
+    <div class="how-body">
+      <ol>
+        <li><b>Tap a pipe tile</b> to rotate it a quarter-turn.</li>
+        <li>Build an unbroken line of pipe from the <b>goblin den</b> 👺 to the glowing <b>portal</b> 🌀.</li>
+        <li>When the line connects, the pipes <b>light up green</b> and Launch wakes up.</li>
+        <li>Hit <b>🚀 Launch</b> to send the packets relaying down the line, then onto the next relay.</li>
+      </ol>
+      <div class="legend">
+        <span>👺 den (start)</span>
+        <span>🌀 portal (goal)</span>
+        <span style="color:var(--pipe-lit)">▬ lit = connected</span>
+        <span>▦ rock = blocked</span>
+      </div>
+    </div>
+  </details>
+
+  <footer>Self-contained · no network · tap-to-rotate route puzzle</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  // directions: 0=N 1=E 2=S 3=W
+  var DR=[-1,0,1,0], DC=[0,1,0,-1];
+  var opp=function(d){return (d+2)%4;};
+
+  // Tile base openings (at rotation 0)
+  var BASE={ I:[0,2], L:[0,1], T:[0,1,2], X:[0,1,2,3] };
+
+  // ---- Level definitions (solvable by design: correct tile TYPES placed) ----
+  // tokens: '.' empty  '#' block
+  //   s? source / t? target with dir letter N E S W
+  //   I straight  L curve  T tee  X cross  (rotatable)
+  var LEVELS = [
+    { name:"Warm-up Wire", grid:[
+      ". . .",
+      "sE I tW",
+      ". . ."
+    ]},
+    { name:"First Bend", grid:[
+      "sS . .",
+      "I . .",
+      "L I tW"
+    ]},
+    { name:"Down & Around", grid:[
+      "sE I L .",
+      ". . I .",
+      "L I L .",
+      "tN . . ."
+    ]},
+    { name:"Snake Den", grid:[
+      "sS . L . .",
+      "I . . T .",
+      "L I L . .",
+      "I . I . .",
+      ". . L I tW"
+    ]},
+    { name:"The Long Haul", grid:[
+      "sE I I L . .",
+      "I # . I . L",
+      ". L I L . .",
+      ". I # . tS .",
+      ". L I I L ."
+    ]},
+    { name:"Goblin Gauntlet", grid:[
+      "sS . . L . #",
+      "I . # T . T",
+      "L I L . L L",
+      "# L I . I I",
+      "# . L I L I",
+      "I . I . . tN"
+    ]}
+  ];
+
+  // ---- parse a level into a model grid ----
+  function parseLevel(def){
+    var rows = def.grid.map(function(r){return r.trim().split(/\s+/);});
+    var R=rows.length, C=rows[0].length;
+    var cells=[];
+    for(var r=0;r<R;r++){
+      var row=[];
+      for(var c=0;c<C;c++){
+        var tok=rows[r][c];
+        row.push(makeCell(tok));
+      }
+      cells.push(row);
+    }
+    return {name:def.name, R:R, C:C, cells:cells};
+  }
+  function dirLetter(ch){return {N:0,E:1,S:2,W:3}[ch];}
+  function makeCell(tok){
+    if(tok==='.') return {type:'empty'};
+    if(tok==='#') return {type:'block'};
+    var k=tok[0];
+    if(k==='s') return {type:'source', dir:dirLetter(tok[1])};
+    if(k==='t') return {type:'target', dir:dirLetter(tok[1])};
+    if(BASE[k]) return {type:'pipe', kind:k, rot:0};
+    return {type:'empty'};
+  }
+  function scramble(model){
+    for(var r=0;r<model.R;r++) for(var c=0;c<model.C;c++){
+      var cell=model.cells[r][c];
+      if(cell.type==='pipe'){
+        // pick a rotation; avoid leaving it already perfectly solved is not required,
+        // just ensure some shuffle. 0..3.
+        cell.rot = Math.floor(Math.random()*4)%4;
+      }
+    }
+  }
+  // current open directions of a cell
+  function conns(cell){
+    if(cell.type==='source'||cell.type==='target') return [cell.dir];
+    if(cell.type==='pipe') return BASE[cell.kind].map(function(d){return (d+cell.rot)%4;});
+    return [];
+  }
+  function connectable(cell){return cell&&(cell.type==='pipe'||cell.type==='source'||cell.type==='target');}
+
+  // flood from source; returns {lit:Set of "r,c", solved:bool, srcKey, tgtKey}
+  function analyze(model){
+    var src=null,tgt=null;
+    for(var r=0;r<model.R;r++)for(var c=0;c<model.C;c++){
+      var t=model.cells[r][c].type;
+      if(t==='source')src=[r,c];
+      if(t==='target')tgt=[r,c];
+    }
+    var lit={}, q=[src], seen={};
+    seen[src[0]+','+src[1]]=true;
+    while(q.length){
+      var cur=q.pop(), r0=cur[0],c0=cur[1];
+      lit[r0+','+c0]=true;
+      var cell=model.cells[r0][c0];
+      conns(cell).forEach(function(d){
+        var nr=r0+DR[d], nc=c0+DC[d];
+        if(nr<0||nc<0||nr>=model.R||nc>=model.C)return;
+        var nb=model.cells[nr][nc];
+        if(!connectable(nb))return;
+        if(conns(nb).indexOf(opp(d))<0)return;
+        var key=nr+','+nc;
+        if(!seen[key]){seen[key]=true;q.push([nr,nc]);}
+      });
+    }
+    var tgtKey=tgt[0]+','+tgt[1];
+    return {lit:lit, solved:!!lit[tgtKey], src:src, tgt:tgt, tgtKey:tgtKey};
+  }
+  // build ordered path source->target through current connections (BFS shortest)
+  function pathCells(model){
+    var info=analyze(model);
+    if(!info.solved) return null;
+    var src=info.src, tgt=info.tgt;
+    var q=[src], prev={}; prev[src[0]+','+src[1]]='*';
+    while(q.length){
+      var cur=q.shift(), r0=cur[0],c0=cur[1];
+      if(r0===tgt[0]&&c0===tgt[1])break;
+      var cell=model.cells[r0][c0];
+      conns(cell).forEach(function(d){
+        var nr=r0+DR[d],nc=c0+DC[d];
+        if(nr<0||nc<0||nr>=model.R||nc>=model.C)return;
+        var nb=model.cells[nr][nc];
+        if(!connectable(nb))return;
+        if(conns(nb).indexOf(opp(d))<0)return;
+        var key=nr+','+nc;
+        if(prev[key]===undefined){prev[key]=r0+','+c0;q.push([nr,nc]);}
+      });
+    }
+    var path=[], k=tgt[0]+','+tgt[1];
+    while(k&&k!=='*'){
+      var p=k.split(',');path.push([+p[0],+p[1]]);
+      k=prev[k];
+    }
+    path.reverse();
+    return path;
+  }
+
+  // ---- SVG rendering of a tile ----
+  // draws arms toward each base dir + hub; rotation applied via CSS transform on .pivot
+  function armPath(dir){
+    // rounded-rect arm from center to edge in 100x100 viewBox
+    // N
+    if(dir===0) return '<rect class="pipe-arm" x="38" y="-2" width="24" height="56" rx="11"/>';
+    if(dir===1) return '<rect class="pipe-arm" x="46" y="38" width="56" height="24" rx="11"/>';
+    if(dir===2) return '<rect class="pipe-arm" x="38" y="46" width="24" height="56" rx="11"/>';
+    return '<rect class="pipe-arm" x="-2" y="38" width="56" height="24" rx="11"/>';
+  }
+  function pipeSvg(dirs,rotDeg){
+    var arms=dirs.map(armPath).join('');
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">'+
+      '<g class="pivot" style="transform:rotate('+rotDeg+'deg)">'+
+        arms+
+        '<circle class="pipe-hub" cx="50" cy="50" r="15"/>'+
+      '</g></svg>';
+  }
+  function nodeSvg(dir,col1,col2){
+    // hub + single arm toward dir, no rotation pivot needed (draw arm directly)
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">'+
+      armPath(dir).replace('pipe-arm','node-arm').replace('/>',' fill="'+col2+'"/>')+
+      '<circle cx="50" cy="50" r="22" fill="'+col1+'"/>'+
+      '<circle cx="50" cy="50" r="22" fill="none" stroke="'+col2+'" stroke-width="3"/>'+
+      '</svg>';
+  }
+
+  // ---- game state ----
+  var board=document.getElementById('board'),
+      statusEl=document.getElementById('status'),
+      lvlNumEl=document.getElementById('lvlNum'),
+      lvlTotEl=document.getElementById('lvlTot'),
+      launchBtn=document.getElementById('launchBtn'),
+      resetBtn=document.getElementById('resetBtn'),
+      toastEl=document.getElementById('toast'),
+      howEl=document.getElementById('how');
+  var current=0, model=null, locked=false;
+
+  lvlTotEl.textContent=LEVELS.length;
+
+  function load(idx){
+    current=idx;
+    model=parseLevel(LEVELS[idx]);
+    scramble(model);
+    // guard: if a scramble happens to be solved already, reshuffle once
+    if(analyze(model).solved) scramble(model);
+    locked=false;
+    lvlNumEl.textContent=(idx+1);
+    render();
+    refresh("Tap tiles to build the line…");
+  }
+
+  function render(){
+    board.style.gridTemplateColumns='repeat('+model.C+',1fr)';
+    board.innerHTML='';
+    for(var r=0;r<model.R;r++){
+      for(var c=0;c<model.C;c++){
+        var cell=model.cells[r][c];
+        var el=document.createElement('div');
+        el.className='cell';
+        el.dataset.r=r; el.dataset.c=c;
+        if(cell.type==='pipe'){
+          el.classList.add('pipe');
+          el.innerHTML=pipeSvg(BASE[cell.kind], cell.rot*90);
+          el.addEventListener('click', onTap);
+        } else if(cell.type==='block'){
+          el.classList.add('block');
+          el.innerHTML='<span class="badge">🪨</span>';
+        } else if(cell.type==='source'){
+          el.classList.add('fixed');
+          el.innerHTML=nodeSvg(cell.dir,'#3a8a5c','#7bf0aa')+'<span class="badge">👺</span>';
+        } else if(cell.type==='target'){
+          el.classList.add('fixed');
+          el.innerHTML=nodeSvg(cell.dir,'#4a2f78','#d8c0ff')+'<span class="badge">🌀</span>';
+        }
+        board.appendChild(el);
+      }
+    }
+    paintLit();
+  }
+
+  function cellEl(r,c){return board.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]');}
+
+  function paintLit(){
+    var info=analyze(model);
+    for(var r=0;r<model.R;r++)for(var c=0;c<model.C;c++){
+      var el=cellEl(r,c);
+      if(!el)continue;
+      if(info.lit[r+','+c]) el.classList.add('lit'); else el.classList.remove('lit');
+    }
+    return info;
+  }
+
+  function onTap(e){
+    if(locked)return;
+    var el=e.currentTarget;
+    var r=+el.dataset.r, c=+el.dataset.c;
+    var cell=model.cells[r][c];
+    cell.rot=(cell.rot+1)%4;
+    var pivot=el.querySelector('.pivot');
+    if(pivot) pivot.style.transform='rotate('+(cell.rot*90)+'deg)';
+    var info=paintLit();
+    if(info.solved){
+      refresh("Line connected — launch the packets! ✨", true);
+      armLaunch(true);
+    } else {
+      refresh("Keep turning… find the route.");
+      armLaunch(false);
+    }
+  }
+
+  function refresh(msg, ok){
+    statusEl.textContent=msg;
+    statusEl.classList.toggle('ok', !!ok);
+  }
+  function armLaunch(ready){
+    launchBtn.disabled=!ready;
+    launchBtn.classList.toggle('launch-ready', ready);
+  }
+
+  // ---- launch animation ----
+  function launch(){
+    if(locked)return;
+    var path=pathCells(model);
+    if(!path)return;
+    locked=true;
+    armLaunch(false);
+    refresh("Relaying…", true);
+    // collect center points relative to board
+    var brect=board.getBoundingClientRect();
+    var pts=path.map(function(p){
+      var el=cellEl(p[0],p[1]);
+      var rr=el.getBoundingClientRect();
+      return {x:rr.left-brect.left+rr.width/2, y:rr.top-brect.top+rr.height/2};
+    });
+    var legDur=Math.max(150, 1300/Math.max(1,pts.length)); // ms per cell
+    var total=legDur*(pts.length-1);
+    var nPackets=3;
+    var done=0;
+    for(var i=0;i<nPackets;i++){
+      setTimeout(makePacket.bind(null, pts, total, function(){
+        done++;
+        if(done===nPackets) onArrived();
+      }), i*180);
+    }
+  }
+
+  function makePacket(pts, total, cb){
+    var pk=document.createElement('div');
+    pk.className='packet';
+    board.appendChild(pk);
+    var frames=pts.map(function(p){return {transform:'translate('+p.x+'px,'+p.y+'px) scale(1)'};});
+    frames[0].transform='translate('+pts[0].x+'px,'+pts[0].y+'px) scale(.4)';
+    frames[frames.length-1].transform='translate('+pts[pts.length-1].x+'px,'+pts[pts.length-1].y+'px) scale(.2)';
+    var anim=pk.animate(frames, {duration:total, easing:'ease-in-out', fill:'forwards'});
+    anim.onfinish=function(){
+      sparkAt(pts[pts.length-1]);
+      pk.remove();
+      cb();
+    };
+  }
+  function sparkAt(p){
+    var s=document.createElement('div');
+    s.className='spark';
+    s.style.left=(p.x-4)+'px'; s.style.top=(p.y-4)+'px';
+    board.appendChild(s);
+    setTimeout(function(){s.remove();},650);
+  }
+
+  function onArrived(){
+    if(current+1<LEVELS.length){
+      toast("Packets delivered! Relay "+(current+2)+" →");
+      setTimeout(function(){ load(current+1); }, 950);
+    } else {
+      toast("🏆 All relays cleared — the goblins thank you!");
+      refresh("All relays cleared! Reset to play again.", true);
+      locked=false;
+    }
+  }
+
+  var toastT=null;
+  function toast(msg){
+    toastEl.textContent=msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastT);
+    toastT=setTimeout(function(){toastEl.classList.remove('show');},1800);
+  }
+
+  resetBtn.addEventListener('click', function(){
+    if(locked && launchBtn.disabled===false){} // allow reset anytime
+    load(current);
+    toast("Relay reshuffled");
+  });
+  launchBtn.addEventListener('click', launch);
+
+  // collapse how-to after first solve interaction on small screens (keep simple: leave open)
+  load(0);
+})();
+</script>
+</body>
+</html>
