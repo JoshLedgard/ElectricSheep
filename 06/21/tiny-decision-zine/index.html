@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c1530">
+<title>Tiny Decision Zine</title>
+<style>
+  :root{
+    --ink:#241a33;
+    --paper:#fbf3e2;
+    --paper2:#f3e7cf;
+    --rose:#ef5a7a;
+    --teal:#1fa6a0;
+    --gold:#f6b53d;
+    --violet:#8d6fe0;
+    --sky:#3aa0e8;
+    --line:#cdbf9f;
+    --shadow:rgba(38,25,55,.22);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #2c2147 0%, #1c1530 55%, #140e24 100%);
+    color:var(--ink);
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:14px 12px calc(14px + env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%;max-width:430px;display:flex;flex-direction:column;gap:12px}
+
+  header.masthead{
+    text-align:center;color:#f4ecdb;
+  }
+  .masthead .kicker{
+    font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    letter-spacing:.32em;text-transform:uppercase;
+    font-size:11px;color:#c9b8f0;margin:0 0 4px;
+  }
+  .masthead h1{
+    margin:0;font-size:26px;font-weight:800;letter-spacing:.5px;
+    text-shadow:0 2px 0 rgba(0,0,0,.25);
+  }
+  .masthead .sub{font-size:13px;color:#bcae9a;margin:5px 0 0;font-style:italic}
+
+  /* progress dots */
+  .dots{display:flex;justify-content:center;gap:7px;margin:2px 0 0}
+  .dots .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:rgba(255,255,255,.22);transition:.25s;
+    border:1px solid rgba(255,255,255,.18);
+  }
+  .dots .dot.on{background:var(--gold);transform:scale(1.18);border-color:var(--gold)}
+  .dots .dot.done{background:var(--teal);border-color:var(--teal)}
+
+  /* the zine page */
+  .stage{position:relative;width:100%}
+  .page{
+    background:linear-gradient(180deg,var(--paper),var(--paper2));
+    border-radius:18px;
+    border:1px solid #e7dcc2;
+    box-shadow:0 14px 30px var(--shadow), inset 0 0 0 6px rgba(255,255,255,.35);
+    padding:18px 17px 20px;
+    position:relative;
+    overflow:hidden;
+    animation:flip .4s cubic-bezier(.2,.7,.2,1);
+  }
+  .page::before{
+    /* riso paper speckle */
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.05;
+    background-image:radial-gradient(var(--ink) 0.6px, transparent 0.7px);
+    background-size:7px 7px;
+  }
+  @keyframes flip{
+    from{opacity:0;transform:translateY(10px) rotateX(8deg)}
+    to{opacity:1;transform:none}
+  }
+  .pagehead{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+  .pageno{
+    font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.2em;
+    color:#8a795a;text-transform:uppercase;
+  }
+  .pagetag{
+    font-family:ui-monospace,monospace;font-size:11px;
+    background:var(--ink);color:var(--paper);
+    padding:3px 9px;border-radius:999px;letter-spacing:.08em;
+  }
+
+  .art{
+    width:100%;height:158px;margin:12px 0 4px;
+    border-radius:14px;overflow:hidden;position:relative;z-index:1;
+    border:1px dashed var(--line);
+    background:rgba(255,255,255,.4);
+  }
+  .art svg{display:block;width:100%;height:100%}
+
+  .ptitle{
+    font-size:21px;font-weight:800;margin:12px 0 2px;position:relative;z-index:1;
+    line-height:1.2;
+  }
+  .pbody{font-size:14.5px;line-height:1.5;color:#4a3d59;margin:0 0 12px;position:relative;z-index:1}
+
+  /* branching choice chips */
+  .choices{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;position:relative;z-index:1}
+  .chip{
+    min-height:44px;padding:8px 14px;border-radius:999px;
+    border:2px solid var(--ink);background:var(--paper);
+    color:var(--ink);font:inherit;font-size:14px;font-weight:700;
+    cursor:pointer;transition:.16s;display:inline-flex;align-items:center;gap:7px;
+    flex:1 1 auto;justify-content:center;
+  }
+  .chip .e{font-size:17px;line-height:1}
+  .chip:active{transform:translateY(1px)}
+  .chip.sel{background:var(--ink);color:var(--paper)}
+  .chip.sel.c-rose{background:var(--rose);border-color:var(--rose)}
+  .chip.sel.c-teal{background:var(--teal);border-color:var(--teal)}
+  .chip.sel.c-violet{background:var(--violet);border-color:var(--violet)}
+
+  /* one-sentence capture */
+  .capwrap{position:relative;z-index:1;margin:0 0 6px}
+  .caplabel{font-size:12px;font-weight:700;color:#8a795a;letter-spacing:.04em;
+    text-transform:uppercase;margin:0 0 6px;display:flex;justify-content:space-between}
+  .caplabel .count{font-family:ui-monospace,monospace;font-weight:600;color:#a99a78}
+  textarea.cap{
+    width:100%;min-height:72px;resize:none;
+    font:inherit;font-size:16px;line-height:1.45;color:var(--ink);
+    background:repeating-linear-gradient(transparent,transparent 31px,#e0d3b4 31px,#e0d3b4 32px);
+    border:1px solid var(--line);border-radius:12px;
+    padding:6px 12px;outline:none;
+  }
+  textarea.cap:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(141,111,224,.18)}
+
+  /* nav */
+  .nav{display:flex;gap:10px;align-items:center;justify-content:space-between;position:relative;z-index:1;margin-top:6px}
+  .btn{
+    min-height:46px;border-radius:12px;font:inherit;font-weight:800;font-size:15px;
+    cursor:pointer;border:2px solid var(--ink);padding:0 18px;transition:.16s;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.primary{background:var(--ink);color:var(--paper);flex:1}
+  .btn.primary:disabled{opacity:.38;cursor:not-allowed}
+  .btn.mini{min-height:40px;font-size:13px;padding:0 12px}
+
+  /* footer controls under stage */
+  .toolbar{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  .toolbar .btn{background:rgba(255,255,255,.08);color:#e9ddc6;border-color:rgba(255,255,255,.25)}
+
+  /* FINAL NOTE */
+  .note{
+    background:linear-gradient(180deg,#fffaf0,#f6ead0);
+    border:1px solid #e7dcc2;border-radius:14px;padding:16px 16px 18px;
+    box-shadow:inset 0 0 0 4px rgba(255,255,255,.4);
+    position:relative;z-index:1;
+  }
+  .note .stamp{
+    position:absolute;top:10px;right:12px;transform:rotate(7deg);
+    border:2px solid var(--rose);color:var(--rose);border-radius:8px;
+    font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.15em;
+    padding:3px 7px;text-transform:uppercase;opacity:.85;
+  }
+  .note h2{margin:0 0 2px;font-size:20px}
+  .note .nmeta{font-family:ui-monospace,monospace;font-size:11px;color:#a08c63;margin:0 0 12px}
+  .note dl{margin:0}
+  .note .row{margin:0 0 11px;padding:0 0 11px;border-bottom:1px dashed var(--line)}
+  .note .row:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+  .note dt{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a795a;margin:0 0 2px;display:flex;align-items:center;gap:6px}
+  .note dd{margin:0;font-size:15.5px;line-height:1.45;color:var(--ink)}
+  .note dd.empty{color:#b6a684;font-style:italic}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:999px;
+    font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:50;
+    box-shadow:0 8px 20px rgba(0,0,0,.3);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .hide{display:none !important}
+
+  @media (max-width:360px){
+    .masthead h1{font-size:23px}
+    .art{height:138px}
+  }
+  @media print{
+    body{background:#fff;padding:0}
+    .masthead .sub,.dots,.toolbar,.nav{display:none !important}
+    .page{box-shadow:none;border:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <p class="kicker">Pocket Press · No. 21</p>
+    <h1>Tiny Decision Zine</h1>
+    <p class="sub">Tap through, write one line per page, fold it into a clear next move.</p>
+  </header>
+
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <div class="stage" id="stage"><!-- page injected here --></div>
+
+  <div class="toolbar" id="toolbar"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- SVG illustrations (inline, no network) -------------------------
+  function svg(inner){
+    return '<svg viewBox="0 0 300 158" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">'+inner+'</svg>';
+  }
+  var ART = {
+    tangle: svg('<rect width="300" height="158" fill="#fdf6e6"/>'+
+      '<path d="M40 120 C90 30 140 150 180 60 C210 -5 250 120 270 70" fill="none" stroke="#ef5a7a" stroke-width="7" stroke-linecap="round"/>'+
+      '<path d="M30 60 C80 140 150 20 200 120 C230 175 260 40 285 100" fill="none" stroke="#8d6fe0" stroke-width="5" stroke-linecap="round" opacity=".75"/>'+
+      '<circle cx="150" cy="79" r="20" fill="#f6b53d" stroke="#241a33" stroke-width="3"/>'+
+      '<text x="150" y="86" font-size="20" text-anchor="middle" font-family="serif">?</text>'),
+    clock: svg('<rect width="300" height="158" fill="#eef7f6"/>'+
+      '<circle cx="150" cy="79" r="52" fill="#fff" stroke="#241a33" stroke-width="4"/>'+
+      '<circle cx="150" cy="79" r="52" fill="none" stroke="#1fa6a0" stroke-width="4" stroke-dasharray="200 400" stroke-linecap="round" transform="rotate(-90 150 79)"/>'+
+      '<line x1="150" y1="79" x2="150" y2="46" stroke="#ef5a7a" stroke-width="5" stroke-linecap="round"/>'+
+      '<line x1="150" y1="79" x2="178" y2="92" stroke="#241a33" stroke-width="5" stroke-linecap="round"/>'+
+      '<circle cx="150" cy="79" r="5" fill="#241a33"/>'+
+      '<path d="M70 130 q12 -18 24 0 M206 130 q12 -18 24 0" stroke="#8d6fe0" stroke-width="4" fill="none" stroke-linecap="round"/>'),
+    doors: svg('<rect width="300" height="158" fill="#f6eefc"/>'+
+      '<rect x="48" y="40" width="78" height="100" rx="6" fill="#3aa0e8" stroke="#241a33" stroke-width="4"/>'+
+      '<rect x="174" y="40" width="78" height="100" rx="6" fill="#f6b53d" stroke="#241a33" stroke-width="4"/>'+
+      '<circle cx="114" cy="92" r="4" fill="#241a33"/>'+
+      '<circle cx="186" cy="92" r="4" fill="#241a33"/>'+
+      '<text x="87" y="98" font-size="30" text-anchor="middle" font-family="serif" fill="#fff">A</text>'+
+      '<text x="213" y="98" font-size="30" text-anchor="middle" font-family="serif" fill="#241a33">B</text>'),
+    spark: svg('<rect width="300" height="158" fill="#fff5e6"/>'+
+      '<circle cx="150" cy="84" r="30" fill="#f6b53d" stroke="#241a33" stroke-width="4"/>'+
+      '<g stroke="#ef5a7a" stroke-width="5" stroke-linecap="round">'+
+      '<line x1="150" y1="20" x2="150" y2="40"/><line x1="150" y1="128" x2="150" y2="148"/>'+
+      '<line x1="86" y1="84" x2="106" y2="84"/><line x1="194" y1="84" x2="214" y2="84"/>'+
+      '<line x1="105" y1="39" x2="119" y2="53"/><line x1="181" y1="115" x2="195" y2="129"/>'+
+      '<line x1="195" y1="39" x2="181" y2="53"/><line x1="119" y1="115" x2="105" y2="129"/></g>'+
+      '<path d="M140 84 l8 10 16 -22" fill="none" stroke="#241a33" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'),
+    handoff: svg('<rect width="300" height="158" fill="#eaf6ff"/>'+
+      '<rect x="36" y="58" width="60" height="46" rx="6" fill="#8d6fe0" stroke="#241a33" stroke-width="4"/>'+
+      '<rect x="204" y="58" width="60" height="46" rx="6" fill="#1fa6a0" stroke="#241a33" stroke-width="4"/>'+
+      '<path d="M104 81 h84" stroke="#241a33" stroke-width="4" stroke-dasharray="6 7"/>'+
+      '<path d="M178 70 l16 11 -16 11" fill="none" stroke="#241a33" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'+
+      '<rect x="142" y="66" width="30" height="30" rx="4" fill="#f6b53d" stroke="#241a33" stroke-width="3" transform="rotate(8 157 81)"/>'),
+    snag: svg('<rect width="300" height="158" fill="#fdeef0"/>'+
+      '<path d="M150 28 L196 118 L104 118 Z" fill="#f6b53d" stroke="#241a33" stroke-width="4" stroke-linejoin="round"/>'+
+      '<line x1="150" y1="62" x2="150" y2="92" stroke="#241a33" stroke-width="6" stroke-linecap="round"/>'+
+      '<circle cx="150" cy="106" r="4.5" fill="#241a33"/>'+
+      '<path d="M40 130 q40 -14 80 0 M180 130 q40 -14 80 0" stroke="#ef5a7a" stroke-width="4" fill="none" stroke-linecap="round" opacity=".7"/>'),
+    fold: svg('<rect width="300" height="158" fill="#f3fbf5"/>'+
+      '<rect x="78" y="30" width="144" height="100" rx="6" fill="#fff" stroke="#241a33" stroke-width="4"/>'+
+      '<path d="M78 30 L150 78 L222 30" fill="none" stroke="#1fa6a0" stroke-width="4"/>'+
+      '<line x1="98" y1="98" x2="202" y2="98" stroke="#cdbf9f" stroke-width="3"/>'+
+      '<line x1="98" y1="112" x2="170" y2="112" stroke="#cdbf9f" stroke-width="3"/>'+
+      '<circle cx="222" cy="118" r="18" fill="#f6b53d" stroke="#241a33" stroke-width="3"/>'+
+      '<path d="M214 118 l6 7 11 -14" fill="none" stroke="#241a33" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>')
+  };
+
+  // ---- Pages ----------------------------------------------------------
+  // Each page captures one sentence. Some pages have branching choices
+  // that flavor the prompt + the final note label.
+  var PAGES = [
+    {
+      key:"tangle", tag:"the knot", art:"tangle",
+      title:"What's the one tangle?",
+      body:"Every zine starts with a single thread. Name the small decision you keep circling — in one plain sentence.",
+      label:"The decision is…",
+      ph:"e.g. whether to keep doing the weekly summary by hand."
+    },
+    {
+      key:"why", tag:"why now", art:"clock",
+      title:"Why is it knocking now?",
+      body:"Pick the nudge that fits best — it shapes the rest of the zine.",
+      choices:[
+        {id:"recurring", e:"🔁", t:"It keeps coming back", c:"c-teal", flavor:"because it returns on a loop"},
+        {id:"blocking",  e:"⛔", t:"It's blocking me",     c:"c-rose", flavor:"because it's holding up other work"},
+        {id:"nagging",   e:"🌙", t:"It just nags",         c:"c-violet", flavor:"because it quietly sits in the back of my mind"}
+      ],
+      label:"In a sentence, why now?",
+      ph:"e.g. the same handoff gets fuzzy every single week."
+    },
+    {
+      key:"doors", tag:"two doors", art:"doors",
+      title:"Two doors appear.",
+      body:"Sketch the leaning. Which way are you tilting today?",
+      choices:[
+        {id:"keep",   e:"🅰️", t:"Keep / steady it", c:"c-teal", flavor:"lean toward keeping and tightening what exists"},
+        {id:"change", e:"🅱️", t:"Change / automate", c:"c-violet", flavor:"lean toward changing or automating it"},
+        {id:"unsure", e:"🤔", t:"Still split", c:"c-rose", flavor:"honestly still split between the two"}
+      ],
+      label:"What's the leaning, in words?",
+      ph:"e.g. lean toward a tiny script, but worried it'll drift."
+    },
+    {
+      key:"test", tag:"smallest test", art:"spark",
+      title:"The smallest test.",
+      body:"Forget the whole answer. What is the tiniest thing you could try this week to learn more?",
+      label:"My tiny test is…",
+      ph:"e.g. template the summary once and time how long it takes."
+    },
+    {
+      key:"handoff", tag:"the handoff", art:"handoff",
+      title:"Who carries it next?",
+      body:"A clear decision names its next pair of hands — even if that's future-you.",
+      choices:[
+        {id:"me",     e:"🙋", t:"Future me", c:"c-teal", flavor:"future me picks it up"},
+        {id:"system", e:"⚙️", t:"A small system", c:"c-violet", flavor:"a small system or routine carries it"},
+        {id:"someone",e:"🤝", t:"A teammate", c:"c-rose", flavor:"it gets handed to a teammate"}
+      ],
+      label:"What does the handoff sound like?",
+      ph:"e.g. leave a one-line note so anyone can run it next."
+    },
+    {
+      key:"snag", tag:"the catch", art:"snag",
+      title:"One thing to watch.",
+      body:"Name the single snag most likely to trip this up. Just one — keep it honest and small.",
+      label:"The catch to watch is…",
+      ph:"e.g. it works until the format changes, then it breaks quietly."
+    }
+  ];
+
+  // ---- State ----------------------------------------------------------
+  var STORE_KEY = "tiny-decision-zine-v1";
+  var state = load() || { idx:0, text:{}, choice:{} };
+  if(state.idx == null) state.idx = 0;
+  state.text = state.text || {};
+  state.choice = state.choice || {};
+
+  var TOTAL = PAGES.length;       // 6 input pages
+  var FINAL = TOTAL;              // index of the final note "page"
+
+  var stage = document.getElementById("stage");
+  var dotsEl = document.getElementById("dots");
+  var toolbarEl = document.getElementById("toolbar");
+  var toastEl = document.getElementById("toast");
+
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+  function load(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){ return null; } }
+
+  function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  // ---- Dots -----------------------------------------------------------
+  function renderDots(){
+    var h="";
+    for(var i=0;i<=TOTAL;i++){
+      var cls="dot";
+      if(i===state.idx) cls+=" on";
+      else if(i<state.idx) cls+=" done";
+      h+='<span class="'+cls+'"></span>';
+    }
+    dotsEl.innerHTML=h;
+  }
+
+  // ---- Page render ----------------------------------------------------
+  function render(){
+    renderDots();
+    if(state.idx>=FINAL){ renderFinal(); renderToolbar(); save(); return; }
+
+    var p = PAGES[state.idx];
+    var val = state.text[p.key] || "";
+    var sel = state.choice[p.key] || "";
+
+    var choicesHtml = "";
+    if(p.choices){
+      choicesHtml = '<div class="choices" id="choices">';
+      p.choices.forEach(function(c){
+        var on = (sel===c.id) ? (" sel "+c.c) : "";
+        choicesHtml += '<button class="chip'+on+'" data-id="'+c.id+'">'+
+          '<span class="e">'+c.e+'</span>'+esc(c.t)+'</button>';
+      });
+      choicesHtml += '</div>';
+    }
+
+    stage.innerHTML =
+      '<article class="page">'+
+        '<div class="pagehead">'+
+          '<span class="pageno">Page '+(state.idx+1)+' / '+TOTAL+'</span>'+
+          '<span class="pagetag">'+esc(p.tag)+'</span>'+
+        '</div>'+
+        '<div class="art">'+ART[p.art]+'</div>'+
+        '<h2 class="ptitle">'+esc(p.title)+'</h2>'+
+        '<p class="pbody">'+esc(p.body)+'</p>'+
+        choicesHtml+
+        '<div class="capwrap">'+
+          '<div class="caplabel"><span>'+esc(p.label)+'</span><span class="count" id="count">0/140</span></div>'+
+          '<textarea class="cap" id="cap" maxlength="140" rows="2" '+
+            'placeholder="'+esc(p.ph)+'">'+esc(val)+'</textarea>'+
+        '</div>'+
+        '<div class="nav">'+
+          (state.idx>0 ? '<button class="btn ghost" id="back">← Back</button>' : '<span></span>')+
+          '<button class="btn primary" id="next">'+(state.idx===TOTAL-1?'Fold the zine →':'Next page →')+'</button>'+
+        '</div>'+
+      '</article>';
+
+    var cap = document.getElementById("cap");
+    var count = document.getElementById("count");
+    var next = document.getElementById("next");
+
+    function refresh(){
+      var v = cap.value;
+      count.textContent = v.length+"/140";
+      var needChoice = p.choices && !state.choice[p.key];
+      next.disabled = (v.trim().length===0) || needChoice;
+    }
+    cap.addEventListener("input", function(){
+      state.text[p.key]=cap.value; save(); refresh();
+    });
+    refresh();
+
+    if(p.choices){
+      document.getElementById("choices").addEventListener("click", function(e){
+        var b = e.target.closest(".chip"); if(!b) return;
+        state.choice[p.key] = b.getAttribute("data-id");
+        save(); render();
+        // keep focus flow friendly: refocus textarea after re-render
+        var c2=document.getElementById("cap"); if(c2) c2.focus();
+      });
+    }
+
+    var backBtn=document.getElementById("back");
+    if(backBtn) backBtn.addEventListener("click", function(){ go(state.idx-1); });
+    next.addEventListener("click", function(){ if(!next.disabled) go(state.idx+1); });
+  }
+
+  function go(i){
+    state.idx = Math.max(0, Math.min(FINAL, i));
+    save(); render();
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  // ---- Final note -----------------------------------------------------
+  function choiceFlavor(pageKey, fallback){
+    var p = PAGES.find(function(x){return x.key===pageKey;});
+    if(!p || !p.choices) return fallback||"";
+    var id = state.choice[pageKey];
+    var c = p.choices.find(function(x){return x.id===id;});
+    return c ? c.flavor : (fallback||"");
+  }
+
+  function composeText(){
+    var d = state.text;
+    var why = choiceFlavor("why");
+    var door = choiceFlavor("doors");
+    var hand = choiceFlavor("handoff");
+    var L = [];
+    L.push("TINY DECISION ZINE");
+    L.push("a one-page decision note");
+    L.push("");
+    L.push("THE DECISION");
+    L.push("  "+(d.tangle||"—"));
+    L.push("");
+    L.push("WHY NOW");
+    L.push("  "+(d.why||"—")+(why?"  ("+why+")":""));
+    L.push("");
+    L.push("THE LEANING");
+    L.push("  "+(d.doors||"—")+(door?"  ("+door+")":""));
+    L.push("");
+    L.push("SMALLEST TEST THIS WEEK");
+    L.push("  "+(d.test||"—"));
+    L.push("");
+    L.push("THE HANDOFF");
+    L.push("  "+(d.handoff||"—")+(hand?"  ("+hand+")":""));
+    L.push("");
+    L.push("ONE THING TO WATCH");
+    L.push("  "+(d.snag||"—"));
+    L.push("");
+    L.push("— folded with Tiny Decision Zine —");
+    return L.join("\n");
+  }
+
+  function renderFinal(){
+    var d = state.text;
+    function row(dt, key, extra){
+      var v = d[key];
+      var ex = extra ? ' <span style="color:#a08c63;font-size:13px;font-style:italic">('+esc(extra)+')</span>' : '';
+      return '<div class="row"><dt>'+dt+'</dt>'+
+        (v ? '<dd>'+esc(v)+ex+'</dd>' : '<dd class="empty">left blank</dd>')+'</div>';
+    }
+    stage.innerHTML =
+      '<article class="page">'+
+        '<div class="pagehead">'+
+          '<span class="pageno">Last fold</span>'+
+          '<span class="pagetag">your note</span>'+
+        '</div>'+
+        '<div class="art">'+ART.fold+'</div>'+
+        '<h2 class="ptitle">It folds into this.</h2>'+
+        '<p class="pbody">Six lines, one clear move. Copy it, save it, or start a fresh zine.</p>'+
+        '<div class="note">'+
+          '<span class="stamp">decided</span>'+
+          '<h2>Decision Note</h2>'+
+          '<p class="nmeta">tiny-decision-zine · pocket press</p>'+
+          '<dl>'+
+            row("🧶 The decision","tangle")+
+            row("⏰ Why now","why",choiceFlavor("why"))+
+            row("🚪 The leaning","doors",choiceFlavor("doors"))+
+            row("✨ Smallest test","test")+
+            row("🤝 The handoff","handoff",choiceFlavor("handoff"))+
+            row("⚠️ Watch out for","snag")+
+          '</dl>'+
+        '</div>'+
+        '<div class="nav">'+
+          '<button class="btn ghost" id="back">← Back</button>'+
+          '<button class="btn primary" id="copy">Copy note</button>'+
+        '</div>'+
+      '</article>';
+
+    document.getElementById("back").addEventListener("click", function(){ go(TOTAL-1); });
+    document.getElementById("copy").addEventListener("click", copyNote);
+  }
+
+  // ---- Toolbar (download / reset, always available) -------------------
+  function renderToolbar(){
+    toolbarEl.innerHTML =
+      '<button class="btn mini" id="tb-copy">⧉ Copy</button>'+
+      '<button class="btn mini" id="tb-dl">⬇ Download</button>'+
+      '<button class="btn mini" id="tb-print">🖨 Print</button>'+
+      '<button class="btn mini" id="tb-reset">↺ New zine</button>';
+    document.getElementById("tb-copy").addEventListener("click", copyNote);
+    document.getElementById("tb-dl").addEventListener("click", downloadNote);
+    document.getElementById("tb-print").addEventListener("click", function(){ window.print(); });
+    document.getElementById("tb-reset").addEventListener("click", resetZine);
+  }
+  function baseToolbar(){
+    toolbarEl.innerHTML =
+      '<button class="btn mini" id="tb-reset">↺ Start over</button>';
+    document.getElementById("tb-reset").addEventListener("click", resetZine);
+  }
+
+  function copyNote(){
+    var txt = composeText();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ toast("Copied to clipboard ✓"); },
+        function(){ legacyCopy(txt); });
+    } else { legacyCopy(txt); }
+  }
+  function legacyCopy(txt){
+    var ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ document.execCommand("copy"); toast("Copied ✓"); }
+    catch(e){ toast("Copy not supported — try Download"); }
+    document.body.removeChild(ta);
+  }
+  function downloadNote(){
+    var txt = composeText();
+    var blob = new Blob([txt],{type:"text/plain;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url; a.download="decision-note.txt";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast("Saved decision-note.txt ✓");
+  }
+  function resetZine(){
+    state = { idx:0, text:{}, choice:{} };
+    save(); render();
+    toast("Fresh zine ✎");
+  }
+
+  var toastT;
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add("show");
+    clearTimeout(toastT);
+    toastT=setTimeout(function(){ toastEl.classList.remove("show"); }, 1800);
+  }
+
+  // toolbar swaps depending on whether we're on final page
+  var _origRender = render;
+  render = function(){
+    _origRender();
+    if(state.idx>=FINAL) renderToolbar(); else baseToolbar();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
