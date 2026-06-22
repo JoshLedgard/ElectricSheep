@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Quiet Harbor Logbook</title>
+<style>
+  :root {
+    --sky-top: #1a2740;
+    --sky-bot: #2f4a63;
+    --water: #14304a;
+    --ink: #e7f0f4;
+    --ink-dim: #9fc0cf;
+    --ink-faint: #6e92a3;
+    --lantern: #ffce7a;
+    --lantern-glow: rgba(255,206,122,0.55);
+    --panel: rgba(11,24,38,0.66);
+    --line: rgba(150,200,220,0.18);
+    --accent: #7fd6c8;
+    --safe: env(safe-area-inset-bottom, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, #0b1422 0%, #0f1c2d 100%);
+    min-height: 100vh;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(20px + var(--safe));
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- Scene ---------- */
+  .scene {
+    position: relative;
+    height: 200px;
+    border-radius: 0 0 22px 22px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bot) 62%, var(--water) 62%, #0e2336 100%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    transition: background 1.2s ease;
+  }
+  .scene .stars { position: absolute; inset: 0; opacity: 0.8; transition: opacity 1.2s ease; }
+  .star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #cfe6f0; opacity: 0.7; animation: twinkle 4s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.25} 50%{opacity:.85} }
+
+  .moon {
+    position: absolute; top: 26px; right: 38px;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 38%, #fdf6e3, #e9d9a8);
+    box-shadow: 0 0 28px rgba(253,246,227,0.45);
+    transition: all 1.2s ease;
+  }
+  .hill {
+    position: absolute; bottom: 38%; left: -5%; width: 60%; height: 70px;
+    background: #16283c; border-radius: 50% 50% 0 0 / 100% 100% 0 0; opacity: 0.85;
+  }
+  .hill.right { left: auto; right: -8%; width: 55%; height: 56px; background: #122032; }
+
+  /* water + reflections */
+  .water { position: absolute; bottom: 0; left: 0; right: 0; height: 38%; overflow: hidden; }
+  .ripple {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(160,210,230,0.35), transparent);
+    animation: drift 7s linear infinite;
+  }
+  @keyframes drift { 0%{transform:translateX(-30%)} 100%{transform:translateX(30%)} }
+
+  /* lanterns floating on the water */
+  .lanterns { position: absolute; bottom: 6%; left: 0; right: 0; height: 30%; }
+  .lantern {
+    position: absolute; bottom: 0;
+    width: 16px; height: 22px; border-radius: 8px 8px 6px 6px;
+    background: #324a5e; border: 1px solid rgba(180,210,225,0.25);
+    cursor: pointer; transition: all .5s ease;
+    animation: bob 4.5s ease-in-out infinite;
+  }
+  .lantern::after { content: ''; position: absolute; inset: 3px; border-radius: 6px; background: #1d2c3a; transition: all .5s ease; }
+  .lantern.lit { background: var(--lantern); box-shadow: 0 0 16px 4px var(--lantern-glow); transform: translateY(-2px); }
+  .lantern.lit::after { background: #fff2cf; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+  /* day/dusk/night tints driven by tide */
+  .scene[data-tide="low"]    { --sky-top:#2b3a52; --sky-bot:#46627c; }
+  .scene[data-tide="rising"] { --sky-top:#243650; --sky-bot:#3a5a74; }
+  .scene[data-tide="high"]   { --sky-top:#16243c; --sky-bot:#27425c; }
+  .scene[data-tide="ebbing"] { --sky-top:#1a2336; --sky-bot:#2c3e58; }
+  .scene[data-tide="low"] .stars, .scene[data-tide="rising"] .stars { opacity: 0.35; }
+
+  .scene-label {
+    position: absolute; left: 14px; bottom: 10px;
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  /* ---------- Content ---------- */
+  header { text-align: center; padding: 20px 0 8px; }
+  .kicker { font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--ink-faint); }
+  h1 { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.01em; margin: 4px 0 2px; }
+  .tagline { font-size: 13px; color: var(--ink-dim); }
+
+  .step { margin-top: 22px; }
+  .step-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .step-num {
+    flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(127,214,200,0.16); color: var(--accent);
+    font-size: 12px; font-weight: 700; display: grid; place-items: center;
+  }
+  .step-title { font-size: 14px; font-weight: 600; letter-spacing: 0.01em; }
+  .step-hint { font-size: 12px; color: var(--ink-faint); margin-left: auto; }
+
+  .tide-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tide-btn {
+    min-height: 56px; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink-dim);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    transition: all .2s ease;
+  }
+  .tide-btn .glyph { font-size: 17px; line-height: 1; }
+  .tide-btn[aria-pressed="true"] {
+    border-color: var(--accent); color: var(--ink);
+    background: rgba(127,214,200,0.12); box-shadow: 0 0 0 1px rgba(127,214,200,0.3) inset;
+  }
+
+  /* breathing timer */
+  .breath {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 8px 0 4px;
+  }
+  .breath-ring {
+    width: 120px; height: 120px; border-radius: 50%;
+    display: grid; place-items: center; position: relative;
+    background: radial-gradient(circle, rgba(127,214,200,0.18), rgba(127,214,200,0.03));
+    border: 1px solid rgba(127,214,200,0.3);
+  }
+  .breath-core {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 38%, #bff0e6, #7fd6c8);
+    box-shadow: 0 0 22px rgba(127,214,200,0.5);
+  }
+  .breath-ring.run .breath-core { animation: breathe 8s ease-in-out infinite; }
+  @keyframes breathe { 0%,100%{transform:scale(0.7)} 50%{transform:scale(1.5)} }
+  .breath-word { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.16em; text-transform: uppercase; min-height: 18px; }
+  .ghost-btn {
+    min-height: 44px; padding: 0 18px; border-radius: 22px;
+    border: 1px solid var(--line); background: transparent; color: var(--ink-dim);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease;
+  }
+  .ghost-btn:active { transform: scale(0.97); }
+  .ghost-btn.active { color: var(--accent); border-color: var(--accent); }
+
+  /* focus chips */
+  .focus-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    min-height: 44px; padding: 0 16px; border-radius: 22px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: rgba(127,214,200,0.12); }
+
+  /* prompt card + line */
+  .prompt-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .prompt-text { font-size: 15px; color: var(--ink); }
+  .prompt-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .shuffle { font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; min-height: 44px; padding: 0 4px; }
+  textarea {
+    width: 100%; min-height: 56px; resize: none; border-radius: 12px;
+    border: 1px solid var(--line); background: rgba(8,18,30,0.6); color: var(--ink);
+    padding: 10px 12px; font: inherit; font-size: 15px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .count { font-size: 11px; color: var(--ink-faint); text-align: right; margin-top: 4px; }
+
+  .reveal-btn {
+    width: 100%; min-height: 52px; margin-top: 8px; border-radius: 26px; border: none;
+    background: linear-gradient(135deg, #7fd6c8, #5fb8d8); color: #06202a;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer;
+    transition: all .2s ease;
+  }
+  .reveal-btn:active { transform: scale(0.98); }
+  .reveal-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* harbor note */
+  .note {
+    margin-top: 18px; border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--line); background: linear-gradient(160deg, #102434, #0c1a28);
+    max-height: 0; opacity: 0; transition: all .5s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .note.show { max-height: 460px; opacity: 1; }
+  .note-strip { height: 6px; background: linear-gradient(90deg, var(--lantern), var(--accent), #5fb8d8); }
+  .note-body { padding: 16px 18px 18px; }
+  .note-meta { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); }
+  .note-text { font-size: 15px; line-height: 1.7; margin: 10px 0 14px; white-space: pre-wrap; color: var(--ink); }
+  .note-actions { display: flex; gap: 8px; }
+  .note-actions button {
+    flex: 1; min-height: 46px; border-radius: 12px; cursor: pointer;
+    font-size: 13px; font-weight: 600; border: 1px solid var(--line);
+    background: rgba(127,214,200,0.1); color: var(--ink); transition: all .2s ease;
+  }
+  .note-actions button:active { transform: scale(0.98); }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%) translateY(20px);
+    background: #0c1a28; border: 1px solid var(--accent); color: var(--ink);
+    padding: 10px 18px; border-radius: 22px; font-size: 13px; opacity: 0;
+    transition: all .3s ease; pointer-events: none; z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  footer { text-align: center; font-size: 11px; color: var(--ink-faint); margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Scene -->
+  <div class="scene" id="scene" data-tide="rising">
+    <div class="stars" id="stars"></div>
+    <div class="moon"></div>
+    <div class="hill"></div>
+    <div class="hill right"></div>
+    <div class="water">
+      <div class="ripple" style="bottom:18%;animation-duration:8s"></div>
+      <div class="ripple" style="bottom:42%;animation-duration:11s;animation-direction:reverse"></div>
+      <div class="ripple" style="bottom:66%;animation-duration:9s"></div>
+    </div>
+    <div class="lanterns" id="lanterns"></div>
+    <div class="scene-label" id="sceneLabel">rising tide · 0 lanterns lit</div>
+  </div>
+
+  <header>
+    <div class="kicker">Daily Ritual</div>
+    <h1>Quiet Harbor Logbook</h1>
+    <div class="tagline">Tend the harbor, take one breath, leave one line.</div>
+  </header>
+
+  <!-- 1. Tide -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Set the tide</span>
+      <span class="step-hint">tap one</span>
+    </div>
+    <div class="tide-row" id="tideRow"></div>
+  </section>
+
+  <!-- 2. Lanterns + breath -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">Light a few lanterns &amp; breathe</span>
+      <span class="step-hint">tap the water</span>
+    </div>
+    <div class="breath">
+      <div class="breath-ring" id="breathRing"><div class="breath-core"></div></div>
+      <div class="breath-word" id="breathWord">tap to begin a slow breath</div>
+      <button class="ghost-btn" id="breathBtn">Begin breathing</button>
+    </div>
+  </section>
+
+  <!-- 3. Focus -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Choose today's focus</span>
+      <span class="step-hint">tap one</span>
+    </div>
+    <div class="focus-row" id="focusRow"></div>
+  </section>
+
+  <!-- 4. One line -->
+  <section class="step">
+    <div class="step-head">
+      <span class="step-num">4</span>
+      <span class="step-title">Answer the prompt in one line</span>
+    </div>
+    <div class="prompt-card">
+      <div class="prompt-text" id="promptText">—</div>
+      <textarea id="lineInput" maxlength="120" placeholder="One small, true sentence…"></textarea>
+      <div class="prompt-foot">
+        <button class="shuffle" id="shuffleBtn">↻ another prompt</button>
+        <span class="count" id="charCount">0 / 120</span>
+      </div>
+    </div>
+    <button class="reveal-btn" id="revealBtn" disabled>Compose harbor note</button>
+  </section>
+
+  <!-- Note -->
+  <div class="note" id="note">
+    <div class="note-strip"></div>
+    <div class="note-body">
+      <div class="note-meta" id="noteMeta">Harbor Note</div>
+      <div class="note-text" id="noteText"></div>
+      <div class="note-actions">
+        <button id="copyBtn">Copy note</button>
+        <button id="newBtn">New entry</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Everything stays on this device. No accounts, no network — just a calm minute.</footer>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---- deterministic helpers (no Math.random in layout) ----
+  var $ = function(id){ return document.getElementById(id); };
+
+  var state = { tide: "rising", focus: null, lit: 0, prompt: 0, line: "" };
+
+  // ----- stars (deterministic positions) -----
+  (function makeStars(){
+    var stars = $("stars");
+    var seeds = [[12,18],[28,9],[41,26],[55,12],[68,22],[80,8],[90,28],[20,34],[63,33],[35,15],[74,16],[8,30]];
+    seeds.forEach(function(s, i){
+      var el = document.createElement("div");
+      el.className = "star";
+      el.style.left = s[0] + "%";
+      el.style.top = s[1] + "%";
+      el.style.animationDelay = (i * 0.35) + "s";
+      stars.appendChild(el);
+    });
+  })();
+
+  // ----- lanterns (tap to light) -----
+  var LANTERN_X = [10, 24, 38, 52, 66, 80, 91];
+  (function makeLanterns(){
+    var box = $("lanterns");
+    LANTERN_X.forEach(function(x, i){
+      var el = document.createElement("button");
+      el.className = "lantern";
+      el.style.left = x + "%";
+      el.style.animationDelay = (i * 0.4) + "s";
+      el.setAttribute("aria-label", "lantern " + (i+1));
+      el.addEventListener("click", function(){
+        el.classList.toggle("lit");
+        state.lit = box.querySelectorAll(".lantern.lit").length;
+        updateSceneLabel();
+      });
+      box.appendChild(el);
+    });
+  })();
+
+  // ----- tide phases -----
+  var TIDES = [
+    { key: "low",    glyph: "🌑", label: "Low",    word: "settling",  line: "the water is low and the docks are quiet" },
+    { key: "rising", glyph: "🌒", label: "Rising", word: "gathering", line: "the tide is rising, carrying small things in" },
+    { key: "high",   glyph: "🌕", label: "High",   word: "full",      line: "the harbor is full and steady tonight" },
+    { key: "ebbing", glyph: "🌘", label: "Ebbing", word: "releasing", line: "the tide is easing back out to sea" }
+  ];
+  (function makeTides(){
+    var row = $("tideRow");
+    TIDES.forEach(function(t){
+      var b = document.createElement("button");
+      b.className = "tide-btn";
+      b.setAttribute("aria-pressed", t.key === state.tide ? "true" : "false");
+      b.innerHTML = '<span class="glyph">'+t.glyph+'</span>'+t.label;
+      b.addEventListener("click", function(){
+        state.tide = t.key;
+        $("scene").setAttribute("data-tide", t.key);
+        row.querySelectorAll(".tide-btn").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+        b.setAttribute("aria-pressed","true");
+        updateSceneLabel();
+      });
+      row.appendChild(b);
+    });
+  })();
+  function tideObj(){ return TIDES.filter(function(t){ return t.key === state.tide; })[0]; }
+
+  function updateSceneLabel(){
+    var t = tideObj();
+    $("sceneLabel").textContent = t.label.toLowerCase() + " tide · " + state.lit + " lantern" + (state.lit===1?"":"s") + " lit";
+  }
+  updateSceneLabel();
+
+  // ----- breathing timer -----
+  var breathing = false, breathTimer = null, phaseI = 0;
+  var BREATH_PHASES = ["breathe in…", "hold…", "breathe out…", "rest…"];
+  function stepBreath(){
+    $("breathWord").textContent = BREATH_PHASES[phaseI % 4];
+    phaseI++;
+  }
+  $("breathBtn").addEventListener("click", function(){
+    breathing = !breathing;
+    var ring = $("breathRing"), btn = $("breathBtn");
+    if(breathing){
+      ring.classList.add("run"); btn.classList.add("active"); btn.textContent = "Pause";
+      phaseI = 0; stepBreath();
+      breathTimer = setInterval(stepBreath, 2000); // matches 8s css cycle / 4 phases
+    } else {
+      ring.classList.remove("run"); btn.classList.remove("active"); btn.textContent = "Begin breathing";
+      $("breathWord").textContent = "nicely done — whenever you're ready";
+      clearInterval(breathTimer);
+    }
+  });
+  $("breathRing").addEventListener("click", function(){ $("breathBtn").click(); });
+
+  // ----- focus chips -----
+  var FOCUS = [
+    { key:"tend",    label:"🪴 Tend",    phrase:"tending the things that quietly keep running" },
+    { key:"carry",   label:"🧺 Carry",   phrase:"carrying one thing forward, cleanly" },
+    { key:"release", label:"🍃 Release", phrase:"setting down what doesn't need me today" },
+    { key:"notice",  label:"🔭 Notice",  phrase:"noticing a small detail I'd usually pass by" },
+    { key:"steady",  label:"⚓ Steady",  phrase:"keeping an even keel through a full day" }
+  ];
+  (function makeFocus(){
+    var row = $("focusRow");
+    FOCUS.forEach(function(f){
+      var b = document.createElement("button");
+      b.className = "chip";
+      b.setAttribute("aria-pressed","false");
+      b.textContent = f.label;
+      b.addEventListener("click", function(){
+        state.focus = f.key;
+        row.querySelectorAll(".chip").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+        b.setAttribute("aria-pressed","true");
+        refreshReveal();
+      });
+      row.appendChild(b);
+    });
+  })();
+  function focusObj(){ return FOCUS.filter(function(f){ return f.key === state.focus; })[0]; }
+
+  // ----- prompts -----
+  var PROMPTS = [
+    "What is one small thing already running smoothly that you can simply let run?",
+    "What would a clean handoff to tomorrow-you look like?",
+    "Name one thing you can let the tide carry out today.",
+    "What deserves a single, calm minute of your attention first?",
+    "What's a quiet win from yesterday worth keeping in the logbook?",
+    "If today had one steady anchor, what would it be?",
+    "What small ritual would make the next hour feel less rushed?"
+  ];
+  function setPrompt(i){
+    state.prompt = ((i % PROMPTS.length) + PROMPTS.length) % PROMPTS.length;
+    $("promptText").textContent = PROMPTS[state.prompt];
+  }
+  setPrompt(0);
+  $("shuffleBtn").addEventListener("click", function(){ setPrompt(state.prompt + 1); });
+
+  // ----- line input -----
+  var input = $("lineInput");
+  input.addEventListener("input", function(){
+    state.line = input.value.trim();
+    $("charCount").textContent = input.value.length + " / 120";
+    refreshReveal();
+  });
+  function refreshReveal(){
+    $("revealBtn").disabled = !(state.focus && state.line.length > 0);
+  }
+
+  // ----- compose harbor note -----
+  function pad(n){ return n < 10 ? "0"+n : ""+n; }
+  function buildNote(){
+    var t = tideObj(), f = focusObj();
+    var lanternLine = state.lit === 0
+      ? "No lanterns lit — the dark water is calm enough on its own."
+      : state.lit + (state.lit===1?" lantern glows":" lanterns glow") + " on the water.";
+    var heading = "QUIET HARBOR · " + t.label.toUpperCase() + " TIDE";
+    var body =
+      "Tonight " + t.line + ". " + lanternLine + "\n\n" +
+      "Focus: " + f.phrase + ".\n\n" +
+      "“" + state.line + "”\n\n" +
+      "— logged at the quiet harbor";
+    return { heading: heading, body: body };
+  }
+
+  $("revealBtn").addEventListener("click", function(){
+    if($("revealBtn").disabled) return;
+    var n = buildNote();
+    $("noteMeta").textContent = n.heading;
+    $("noteText").textContent = n.body;
+    $("note").classList.add("show");
+    $("note").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ----- copy / new -----
+  function toast(msg){
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    setTimeout(function(){ t.classList.remove("show"); }, 1600);
+  }
+  $("copyBtn").addEventListener("click", function(){
+    var text = $("noteMeta").textContent + "\n\n" + $("noteText").textContent;
+    var done = function(){ toast("Harbor note copied"); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, function(){ fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
+  });
+  function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch(e){}
+    document.body.removeChild(ta);
+  }
+  $("newBtn").addEventListener("click", function(){
+    $("note").classList.remove("show");
+    input.value = ""; state.line = ""; $("charCount").textContent = "0 / 120";
+    refreshReveal();
+    input.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+</body>
+</html>
