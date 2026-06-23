@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Queue Garden Field Guide</title>
+<meta name="description" content="A pocket field guide for noticing the small creatures that live in any busy workflow — tap through illustrated specimens and collect a field note of your own.">
+<style>
+  :root{
+    --paper:#f6efe0;
+    --paper2:#efe5d0;
+    --ink:#2f3327;
+    --ink-soft:#5b6150;
+    --ink-faint:#8c9078;
+    --line:#cdbfa0;
+    --line-soft:#ddd0b3;
+    --leaf:#5a7d4f;
+    --leaf-deep:#3e5c39;
+    --gold:#c9942f;
+    --berry:#a8466b;
+    --sky:#7fa9b6;
+    --glow:#ffd97a;
+    --shadow:rgba(60,50,30,0.18);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(circle at 18% 12%, rgba(201,148,47,0.10), transparent 45%),
+      radial-gradient(circle at 85% 88%, rgba(90,125,79,0.12), transparent 50%),
+      var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    line-height:1.55;
+    overflow-x:hidden;
+  }
+  /* faint paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(120,100,60,0.025) 0 1px, transparent 1px 4px);
+  }
+  .wrap{position:relative;z-index:1;max-width:460px;margin:0 auto;min-height:100%;
+    padding:max(18px,env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));}
+
+  /* ---------- shared ---------- */
+  .eyebrow{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink-faint);
+    text-align:center;}
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:14px 0;}
+  .btn{
+    appearance:none;border:1.5px solid var(--leaf-deep);background:var(--leaf);color:#fbf6e9;
+    font-family:inherit;font-size:16px;letter-spacing:.02em;border-radius:13px;
+    padding:14px 20px;min-height:50px;cursor:pointer;width:100%;
+    box-shadow:0 3px 0 var(--leaf-deep);transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--leaf-deep);}
+  .btn.ghost{background:transparent;color:var(--leaf-deep);box-shadow:none;border-style:dashed;}
+  .btn.ghost:active{transform:translateY(1px);background:rgba(90,125,79,0.08);}
+
+  .screen{display:none;animation:rise .45s ease both;}
+  .screen.on{display:block;}
+  @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion:reduce){
+    .screen,.specimen-art *{animation:none!important;}
+  }
+
+  /* ---------- cover ---------- */
+  .cover{text-align:center;padding-top:6vh;}
+  .crest{width:158px;height:158px;margin:0 auto 6px;display:block;filter:drop-shadow(0 4px 6px var(--shadow));}
+  .title{font-size:clamp(30px,9vw,40px);line-height:1.05;font-weight:700;letter-spacing:-.01em;color:var(--ink);}
+  .title em{font-style:italic;color:var(--gold);}
+  .sub{margin-top:12px;font-size:15px;color:var(--ink-soft);font-style:italic;
+    max-width:30ch;margin-left:auto;margin-right:auto;}
+  .cover .meta{margin-top:18px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);}
+  .cover-actions{margin-top:30px;display:flex;flex-direction:column;gap:10px;}
+  .frame{border:1px solid var(--line);border-radius:16px;padding:22px 18px 24px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.25), transparent);
+    box-shadow:inset 0 0 0 4px rgba(255,255,255,0.18);}
+
+  /* ---------- progress ---------- */
+  .trail{display:flex;align-items:center;justify-content:center;gap:7px;margin:4px 0 16px;}
+  .pip{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line);background:transparent;transition:all .3s;}
+  .pip.seen{background:var(--gold);border-color:var(--gold);}
+  .pip.here{background:var(--leaf);border-color:var(--leaf-deep);transform:scale(1.35);}
+
+  /* ---------- specimen card ---------- */
+  .card{
+    border:1px solid var(--line);border-radius:18px;background:var(--paper2);
+    box-shadow:0 10px 24px -16px var(--shadow);overflow:hidden;
+  }
+  .card-no{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-faint);}
+  .card-head{display:flex;justify-content:space-between;align-items:baseline;padding:14px 18px 4px;}
+  .latin{font-style:italic;font-size:12px;color:var(--ink-faint);}
+  .specimen-art{
+    margin:6px 14px 0;border:1px dashed var(--line);border-radius:14px;background:
+      radial-gradient(circle at 50% 30%, rgba(255,255,255,0.5), transparent 60%),
+      var(--paper);
+    aspect-ratio:5/4;display:flex;align-items:center;justify-content:center;position:relative;
+  }
+  .specimen-art svg{width:88%;height:88%;}
+  .specname{padding:14px 18px 2px;font-size:24px;font-weight:700;color:var(--ink);}
+  .seen-note{padding:0 18px;font-size:13px;color:var(--berry);font-style:italic;letter-spacing:.02em;}
+  .body{padding:6px 18px 4px;}
+  .obs-label{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin-bottom:3px;}
+  .obs{font-size:16px;color:var(--ink-soft);}
+
+  /* tap-to-reveal */
+  .reveal{margin:10px 18px 0;}
+  .reveal[hidden]{display:none;}
+  .hint{margin:8px 18px 16px;text-align:center;font-size:13px;color:var(--ink-faint);font-style:italic;}
+  .question{padding:4px 18px 2px;font-size:15px;color:var(--ink);font-weight:600;}
+  .choices{padding:8px 18px 20px;display:flex;flex-direction:column;gap:9px;}
+  .choice{
+    text-align:left;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);
+    font-family:inherit;font-size:15px;border-radius:12px;padding:13px 15px;min-height:50px;
+    cursor:pointer;display:flex;align-items:center;gap:11px;transition:all .12s;
+  }
+  .choice:active{transform:scale(.985);}
+  .choice:hover{border-color:var(--leaf);}
+  .choice .dot{width:11px;height:11px;border-radius:50%;background:var(--line);flex:none;transition:background .2s;}
+  .choice:hover .dot{background:var(--leaf);}
+
+  /* ---------- field note (ending) ---------- */
+  .note-card{border:1px solid var(--line);border-radius:18px;background:
+      repeating-linear-gradient(180deg, transparent 0 31px, rgba(127,169,182,0.18) 31px 32px),
+      var(--paper2);
+    padding:22px 20px;box-shadow:0 10px 24px -16px var(--shadow);position:relative;}
+  .note-card::before{content:"";position:absolute;left:34px;top:0;bottom:0;width:1px;background:rgba(168,70,107,0.25);}
+  .note-stamp{position:absolute;right:14px;top:12px;width:54px;height:54px;opacity:.85;}
+  .note-h{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint);}
+  .note-title{font-size:22px;font-weight:700;margin:2px 0 10px;}
+  .note-body{font-size:15.5px;color:var(--ink);white-space:pre-wrap;}
+  .note-body b{color:var(--leaf-deep);}
+  .end-actions{margin-top:18px;display:flex;flex-direction:column;gap:10px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:10px;font-size:14px;
+    opacity:0;pointer-events:none;transition:all .3s;z-index:20;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .footnote{text-align:center;font-size:11px;color:var(--ink-faint);margin-top:24px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= COVER ================= -->
+  <section class="screen on" id="s-cover">
+    <div class="cover">
+      <svg class="crest" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#cdbfa0" stroke-width="2"/>
+        <circle cx="100" cy="100" r="84" fill="none" stroke="#cdbfa0" stroke-width="1" stroke-dasharray="2 5"/>
+        <!-- planter -->
+        <path d="M62 132 h76 l-9 30 a6 6 0 0 1-6 4 H77 a6 6 0 0 1-6-4 Z" fill="#a86b3c" stroke="#7a4a26" stroke-width="2"/>
+        <rect x="58" y="124" width="84" height="12" rx="4" fill="#c08350" stroke="#7a4a26" stroke-width="2"/>
+        <!-- stems in a tidy row (a queue) -->
+        <g stroke="#3e5c39" stroke-width="3" fill="none" stroke-linecap="round">
+          <path d="M78 124 C76 100 84 92 86 72"/>
+          <path d="M94 124 C93 98 99 90 100 66"/>
+          <path d="M110 124 C111 100 117 94 120 74"/>
+          <path d="M124 124 C124 104 128 98 132 84"/>
+        </g>
+        <!-- leaves / blooms -->
+        <circle cx="86" cy="68" r="10" fill="#5a7d4f"/>
+        <circle cx="100" cy="62" r="12" fill="#c9942f"/>
+        <circle cx="120" cy="70" r="9" fill="#a8466b"/>
+        <circle cx="132" cy="80" r="7" fill="#7fa9b6"/>
+        <!-- a tiny firefly -->
+        <circle cx="150" cy="58" r="4" fill="#ffd97a"/>
+        <circle cx="150" cy="58" r="9" fill="#ffd97a" opacity="0.3"/>
+      </svg>
+      <div class="eyebrow">A Pocket Field Guide</div>
+      <h1 class="title">The <em>Queue&nbsp;Garden</em> Field&nbsp;Guide</h1>
+      <p class="sub">Every busy system grows quiet little creatures. This guide is for noticing them — and leaving with one small note of your own.</p>
+      <div class="meta">No. 01 · Naturalist Edition</div>
+      <div class="cover-actions">
+        <button class="btn" id="begin">Enter the garden →</button>
+        <button class="btn ghost" id="how">How to read this guide</button>
+      </div>
+    </div>
+    <p class="footnote">Runs entirely on your device · nothing is sent anywhere · keeps no record after you close it.</p>
+  </section>
+
+  <!-- ================= HOW ================= -->
+  <section class="screen" id="s-how">
+    <div class="frame">
+      <div class="eyebrow">Field Notes for the Naturalist</div>
+      <div class="rule"></div>
+      <p style="font-size:15.5px;color:var(--ink-soft)">You'll meet a handful of <b>specimens</b> — the small recurring shapes that live in any flow of work. For each one:</p>
+      <ul style="margin:14px 0 14px 20px;font-size:15px;color:var(--ink-soft);line-height:1.9">
+        <li>Read its little panel.</li>
+        <li><b>Tap the card</b> to reveal a practical observation.</li>
+        <li>Pick the choice that matches your garden today.</li>
+      </ul>
+      <p style="font-size:15.5px;color:var(--ink-soft)">At the trail's end, your choices fold into a short <b>field note</b> you can copy and keep. There's no score, no checklist — just noticing.</p>
+      <div style="margin-top:20px"><button class="btn" id="how-back">Begin the walk →</button></div>
+    </div>
+  </section>
+
+  <!-- ================= SPECIMEN ================= -->
+  <section class="screen" id="s-specimen">
+    <div class="trail" id="trail"></div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-no" id="card-no">Specimen I</span>
+        <span class="latin" id="latin"></span>
+      </div>
+      <div class="specimen-art" id="art"></div>
+      <div class="specname" id="specname"></div>
+      <div class="seen-note" id="seen-where"></div>
+      <div class="body">
+        <div class="obs-label">Comic field sketch</div>
+        <div class="obs" id="panel"></div>
+      </div>
+
+      <div class="hint" id="hint">— tap the card to reveal its habit —</div>
+
+      <div class="reveal" id="reveal" hidden>
+        <div class="body" style="padding-top:0">
+          <div class="obs-label">What it tells you</div>
+          <div class="obs" id="observation"></div>
+        </div>
+        <div class="rule" style="margin:12px 18px"></div>
+        <div class="question" id="question"></div>
+        <div class="choices" id="choices"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ENDING ================= -->
+  <section class="screen" id="s-end">
+    <div class="eyebrow">The Trail's End</div>
+    <h2 class="title" style="font-size:26px;text-align:center;margin:8px 0 16px">Your Field Note</h2>
+    <div class="note-card">
+      <svg class="note-stamp" viewBox="0 0 60 60" aria-hidden="true">
+        <circle cx="30" cy="30" r="27" fill="none" stroke="#a8466b" stroke-width="2" stroke-dasharray="3 3"/>
+        <path d="M22 40 C20 28 26 24 27 16" stroke="#5a7d4f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <circle cx="27" cy="15" r="6" fill="#c9942f"/>
+        <circle cx="38" cy="22" r="4" fill="#a8466b"/>
+      </svg>
+      <div class="note-h">Queue Garden · Observed today</div>
+      <div class="note-title" id="note-title">A small noticing</div>
+      <div class="note-body" id="note-body"></div>
+    </div>
+    <div class="end-actions">
+      <button class="btn" id="copy">Copy field note</button>
+      <button class="btn ghost" id="again">Walk the garden again</button>
+    </div>
+    <p class="footnote">Composed on your device from the path you walked.<br>Nothing here was saved or shared.</p>
+  </section>
+
+</div>
+
+<div class="toast" id="toast">Field note copied</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- illustrations (inline SVG, hand-drawn feel) ----------
+  function svg(inner){return '<svg viewBox="0 0 200 160" aria-hidden="true">'+inner+'</svg>';}
+
+  var ART = {
+    fern: svg(
+      '<g fill="none" stroke="#3e5c39" stroke-width="3" stroke-linecap="round">'+
+      '<path d="M100 150 C100 110 96 80 92 50"/>'+
+      '</g>'+
+      '<g fill="#5a7d4f" opacity="0.95">'+
+      [ [92,50],[94,66],[96,82],[98,98],[100,114],[101,128] ].map(function(p,i){
+          var s=12-i*1.2;
+          return '<path d="M'+p[0]+' '+p[1]+' q -'+(18-i)+' -6 -'+(22-i)+' '+s+'" stroke="#5a7d4f" stroke-width="3" fill="none"/>'+
+                 '<path d="M'+p[0]+' '+p[1]+' q '+(18-i)+' -6 '+(22-i)+' '+s+'" stroke="#5a7d4f" stroke-width="3" fill="none"/>';
+        }).join('')+
+      '</g>'+
+      // curled new frond (waiting to unfurl)
+      '<path d="M92 50 q -6 -14 -18 -14 q -10 0 -8 9 q 1 6 8 4" fill="none" stroke="#6b8f5c" stroke-width="3" stroke-linecap="round"/>'+
+      // hourglass-ish dewdrop
+      '<circle cx="128" cy="64" r="5" fill="#7fa9b6" opacity="0.8"/>'+
+      '<circle cx="128" cy="64" r="9" fill="#7fa9b6" opacity="0.22"/>'
+    ),
+
+    firefly: svg(
+      // dotted handoff arc between two posts
+      '<line x1="40" y1="120" x2="40" y2="60" stroke="#a86b3c" stroke-width="4" stroke-linecap="round"/>'+
+      '<line x1="160" y1="120" x2="160" y2="60" stroke="#a86b3c" stroke-width="4" stroke-linecap="round"/>'+
+      '<path d="M40 60 C70 24 130 24 160 60" fill="none" stroke="#cdbfa0" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"/>'+
+      // firefly mid-arc
+      '<g transform="translate(100 36)">'+
+      '<circle r="16" fill="#ffd97a" opacity="0.25"/>'+
+      '<circle r="9" fill="#ffd97a" opacity="0.45"/>'+
+      '<ellipse cx="0" cy="0" rx="7" ry="5" fill="#3e5c39"/>'+
+      '<circle cx="0" cy="6" r="4" fill="#ffd97a"/>'+
+      '<path d="M-2 -4 q -10 -7 -16 -3" stroke="#5b6150" stroke-width="1.5" fill="none"/>'+
+      '<path d="M2 -4 q 10 -7 16 -3" stroke="#5b6150" stroke-width="1.5" fill="none"/>'+
+      '</g>'+
+      '<circle cx="40" cy="60" r="5" fill="#5a7d4f"/>'+
+      '<circle cx="160" cy="60" r="5" fill="#5a7d4f"/>'
+    ),
+
+    moss: svg(
+      // stone with moss layered on top
+      '<path d="M44 124 q -8 -34 26 -44 q 16 -28 50 -16 q 36 -4 38 30 q 10 20 -8 30 Z" fill="#8a8467" stroke="#6e6850" stroke-width="2"/>'+
+      // moss clumps
+      '<g fill="#5a7d4f">'+
+      '<circle cx="70" cy="96" r="13"/><circle cx="92" cy="86" r="16"/><circle cx="116" cy="90" r="14"/>'+
+      '<circle cx="138" cy="98" r="12"/><circle cx="100" cy="100" r="12"/>'+
+      '</g>'+
+      '<g fill="#6b8f5c" opacity="0.9">'+
+      '<circle cx="80" cy="90" r="7"/><circle cx="106" cy="84" r="7"/><circle cx="128" cy="92" r="6"/>'+
+      '</g>'+
+      // tiny spore stalks
+      '<g stroke="#3e5c39" stroke-width="1.5" stroke-linecap="round">'+
+      '<line x1="86" y1="80" x2="86" y2="70"/><line x1="112" y1="80" x2="112" y2="68"/>'+
+      '</g>'+
+      '<circle cx="86" cy="69" r="2.5" fill="#c9942f"/><circle cx="112" cy="67" r="2.5" fill="#c9942f"/>'
+    ),
+
+    beetle: svg(
+      // a single small footprint trail leading to one bright beetle
+      '<g fill="#c9942f" opacity="0.55">'+
+      '<circle cx="34" cy="118" r="3"/><circle cx="50" cy="110" r="3"/><circle cx="66" cy="116" r="3"/>'+
+      '<circle cx="82" cy="108" r="3"/>'+
+      '</g>'+
+      '<g transform="translate(120 84) rotate(8)">'+
+      '<ellipse cx="0" cy="0" rx="34" ry="26" fill="#3e5c39"/>'+
+      '<ellipse cx="0" cy="0" rx="34" ry="26" fill="none" stroke="#2c4429" stroke-width="2"/>'+
+      '<line x1="0" y1="-26" x2="0" y2="26" stroke="#2c4429" stroke-width="2"/>'+
+      '<circle cx="-14" cy="-6" r="4" fill="#c9942f"/><circle cx="12" cy="2" r="4" fill="#c9942f"/>'+
+      '<circle cx="-6" cy="10" r="3.5" fill="#c9942f"/>'+
+      '<circle cx="0" cy="-30" r="9" fill="#2c4429"/>'+
+      // antennae pointing forward — one clear direction
+      '<path d="M-5 -38 q -10 -8 -18 -6" stroke="#2c4429" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+
+      '<path d="M5 -38 q 10 -8 18 -6" stroke="#2c4429" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+
+      '<g stroke="#2c4429" stroke-width="2.5" stroke-linecap="round">'+
+      '<line x1="-30" y1="-6" x2="-46" y2="-14"/><line x1="-30" y1="6" x2="-46" y2="10"/>'+
+      '<line x1="-30" y1="16" x2="-44" y2="26"/></g>'+
+      '</g>'+
+      // single forward arrow petal
+      '<path d="M168 84 l14 -8 v5 h10 v6 h-10 v5 Z" fill="#c9942f"/>'
+    ),
+
+    snail: svg(
+      // backlog snail — heavy patient spiral shell
+      '<path d="M30 128 q 30 8 70 0 q 24 -2 40 -2" fill="none" stroke="#a86b3c" stroke-width="3" stroke-linecap="round" opacity="0.5"/>'+
+      '<g transform="translate(96 96)">'+
+      '<path d="M0 30 q -28 4 -28 -18 q 0 -34 38 -34 q 40 0 40 38" fill="#c08350" stroke="#7a4a26" stroke-width="3"/>'+
+      // spiral
+      '<g fill="none" stroke="#7a4a26" stroke-width="3">'+
+      '<path d="M22 -10 a 24 24 0 1 1 -2 2"/>'+
+      '<path d="M22 -10 a 14 14 0 1 0 1 1"/>'+
+      '<path d="M21 -9 a 6 6 0 1 1 -1 0"/>'+
+      '</g>'+
+      // head + eye stalks
+      '<path d="M-26 12 q -22 0 -24 -14" fill="#d8a26a" stroke="#7a4a26" stroke-width="3"/>'+
+      '<line x1="-48" y1="-2" x2="-54" y2="-20" stroke="#7a4a26" stroke-width="2.5" stroke-linecap="round"/>'+
+      '<line x1="-42" y1="-2" x2="-40" y2="-22" stroke="#7a4a26" stroke-width="2.5" stroke-linecap="round"/>'+
+      '<circle cx="-54" cy="-22" r="3.5" fill="#2f3327"/><circle cx="-40" cy="-24" r="3.5" fill="#2f3327"/>'+
+      '</g>'
+    ),
+
+    bell: svg(
+      // done bell — clear, warm chime
+      '<line x1="100" y1="22" x2="100" y2="40" stroke="#7a4a26" stroke-width="3"/>'+
+      '<circle cx="100" cy="20" r="6" fill="#a86b3c" stroke="#7a4a26" stroke-width="2"/>'+
+      '<path d="M62 116 q 0 -64 38 -76 q 38 12 38 76 Z" fill="#c9942f" stroke="#9a6f1f" stroke-width="3"/>'+
+      '<rect x="56" y="114" width="88" height="12" rx="5" fill="#9a6f1f"/>'+
+      '<circle cx="100" cy="134" r="8" fill="#9a6f1f"/>'+
+      // sound rings
+      '<g fill="none" stroke="#c9942f" stroke-linecap="round">'+
+      '<path d="M150 56 q 12 12 0 30" stroke-width="3" opacity="0.7"/>'+
+      '<path d="M162 48 q 20 20 0 46" stroke-width="2.5" opacity="0.4"/>'+
+      '<path d="M50 56 q -12 12 0 30" stroke-width="3" opacity="0.7"/>'+
+      '<path d="M38 48 q -20 20 0 46" stroke-width="2.5" opacity="0.4"/>'+
+      '</g>'+
+      // sparkle
+      '<path d="M100 70 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 Z" fill="#fff4d6"/>'
+    )
+  };
+
+  // ---------- specimen data ----------
+  // Each choice carries a short note fragment for the ending artifact.
+  var SPECIMENS = [
+    {
+      key:"fern", art:"fern", name:"The Waiting Fern", latin:"Filix expectans",
+      where:"Seen wherever something rests until it can move.",
+      panel:"It unfurls slowly, one frond at a time, and never opens a leaf before its turn. A curled tip waits patiently at the top — not stuck, just not yet.",
+      observation:"Waiting isn't the same as stuck. A healthy fern is waiting on one clear thing; a wilting one has forgotten what it's waiting for. Name the one thing, and the frond can open.",
+      question:"In your garden today, the ferns are mostly…",
+      choices:[
+        {t:"Waiting on one clear thing",frag:"the waiting was honest — each pause had a name"},
+        {t:"Waiting, but I've lost track of why",frag:"a few ferns had forgotten what they were waiting for"},
+        {t:"Finally unfurling",frag:"the ferns were opening, turn by turn"}
+      ]
+    },
+    {
+      key:"firefly", art:"firefly", name:"The Handoff Firefly", latin:"Lampyris traditio",
+      where:"Seen crossing the gap between one pair of hands and the next.",
+      panel:"It glows brightest mid-arc, carrying a single spark from post to post. The light only goes dark when nobody is sure whose hand it landed in.",
+      observation:"A handoff survives on one thing: the next pair of hands knowing the spark is theirs now. A quick \"this is yours, here's what it needs\" keeps the firefly lit.",
+      question:"Today your handoffs felt…",
+      choices:[
+        {t:"Bright — clearly caught each time",frag:"handoffs landed brightly, caught by sure hands"},
+        {t:"Flickering — some landed mid-air",frag:"a handoff or two flickered, unsure where it landed"},
+        {t:"Dim — I should light one back up",frag:"one firefly went dim and is worth relighting"}
+      ]
+    },
+    {
+      key:"moss", art:"moss", name:"The Context Moss", latin:"Bryum contextus",
+      where:"Seen quietly covering the stones everyone walks past.",
+      panel:"It grows wherever a thing has sat long enough to gather its story — every detail, every \"oh, and also.\" Soft underfoot, but a stone with no moss is a stone nobody remembers.",
+      observation:"Context is the moss that makes a thing pick-up-able by anyone, not just you. A little is gathered; too much hides the stone. Keep the layer that helps the next walker.",
+      question:"The moss in your garden is…",
+      choices:[
+        {t:"Just enough to find my footing",frag:"context sat at a comfortable depth — easy to read"},
+        {t:"Thick — hard to see the stone",frag:"the context had grown thick and could be thinned"},
+        {t:"Bare in spots — worth tending",frag:"a few stones had gone bare and want a note left on them"}
+      ]
+    },
+    {
+      key:"beetle", art:"beetle", name:"The Tiny Next-Step Beetle", latin:"Scarabaeus proximus",
+      where:"Seen pointing, always, at exactly one direction.",
+      panel:"It's the smallest creature here, yet the only one that always knows which way to walk. Wherever the garden tangles, the beetle just takes the single next step — then the next.",
+      observation:"When a thing feels too big to hold, find its beetle: the one small step you could take in the next few minutes. The garden gets legible one footprint at a time.",
+      question:"Right now, your clearest next step is…",
+      choices:[
+        {t:"Obvious — I can see the footprint",frag:"the next step was already in view"},
+        {t:"There, once I shrink the task",frag:"the next step appeared as soon as the task got smaller"},
+        {t:"Hiding — I'll go find the beetle",frag:"the next beetle is still worth tracking down"}
+      ]
+    },
+    {
+      key:"snail", art:"snail", name:"The Backlog Snail", latin:"Helix patiens",
+      where:"Seen carrying everything it has ever meant to do.",
+      panel:"It moves steadily with its whole spiral on its back. It's not lazy — it simply refuses to pretend the shell is lighter than it is, and only ever sets down one coil at a time.",
+      observation:"A backlog isn't a failure; it's a shell. The snail stays calm by trusting it can't carry all of it at once — and by occasionally leaving a coil behind for good.",
+      question:"Your shell today feels…",
+      choices:[
+        {t:"Comfortable — I trust the pace",frag:"the backlog rode comfortably, no rush in the pace"},
+        {t:"Heavy — time to set a coil down",frag:"the shell felt heavy; a coil is ready to be set down"},
+        {t:"Lighter — I let something go",frag:"the shell got lighter — something was let go on purpose"}
+      ]
+    },
+    {
+      key:"bell", art:"bell", name:"The Done Bell", latin:"Campanula finita",
+      where:"Seen only at the moment a thing is truly complete.",
+      panel:"Small, golden, easy to overlook — and it only rings once. Gardens that forget to ring it grow loud with things that were finished long ago but never got to chime.",
+      observation:"Marking done is its own small craft. A clear chime tells the whole garden a thing can rest — and tells you it's safe to look away from it at last.",
+      question:"How often does your bell get to ring?",
+      choices:[
+        {t:"Often — I close things cleanly",frag:"the done bell rang freely — things got to rest"},
+        {t:"Sometimes — a few never chime",frag:"some finished things never got their chime"},
+        {t:"Rarely — I'll ring one today",frag:"there's a bell waiting to be rung today"}
+      ]
+    }
+  ];
+
+  // ---------- state ----------
+  var idx=0;
+  var picks=[]; // {key, name, frag}
+
+  var screens={
+    cover:document.getElementById('s-cover'),
+    how:document.getElementById('s-how'),
+    specimen:document.getElementById('s-specimen'),
+    end:document.getElementById('s-end')
+  };
+  function show(name){
+    Object.keys(screens).forEach(function(k){screens[k].classList.toggle('on',k===name);});
+    window.scrollTo(0,0);
+  }
+
+  // ---------- render specimen ----------
+  var roman=["I","II","III","IV","V","VI","VII","VIII"];
+  function buildTrail(){
+    var t=document.getElementById('trail');t.innerHTML='';
+    for(var i=0;i<SPECIMENS.length;i++){
+      var p=document.createElement('span');
+      p.className='pip'+(i<idx?' seen':'')+(i===idx?' here':'');
+      t.appendChild(p);
+    }
+  }
+
+  function renderSpecimen(){
+    var s=SPECIMENS[idx];
+    buildTrail();
+    document.getElementById('card-no').textContent='Specimen '+roman[idx];
+    document.getElementById('latin').textContent=s.latin;
+    document.getElementById('art').innerHTML=ART[s.art];
+    document.getElementById('specname').textContent=s.name;
+    document.getElementById('seen-where').textContent=s.where;
+    document.getElementById('panel').textContent=s.panel;
+    document.getElementById('observation').textContent=s.observation;
+    document.getElementById('question').textContent=s.question;
+
+    // reset reveal
+    var reveal=document.getElementById('reveal');
+    reveal.hidden=true;
+    document.getElementById('hint').style.display='block';
+
+    // choices
+    var box=document.getElementById('choices');box.innerHTML='';
+    s.choices.forEach(function(c){
+      var b=document.createElement('button');
+      b.className='choice';b.type='button';
+      b.innerHTML='<span class="dot"></span><span>'+c.t+'</span>';
+      b.addEventListener('click',function(){
+        picks[idx]={key:s.key,name:s.name,frag:c.frag,label:c.t};
+        next();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function revealHabit(){
+    var reveal=document.getElementById('reveal');
+    if(!reveal.hidden) return;
+    reveal.hidden=false;
+    document.getElementById('hint').style.display='none';
+  }
+
+  function next(){
+    if(idx<SPECIMENS.length-1){idx++;renderSpecimen();}
+    else{composeNote();show('end');}
+  }
+
+  // tap-anywhere-on-card to reveal
+  document.querySelector('#s-specimen .card').addEventListener('click',function(e){
+    if(e.target.closest('.choice')) return; // don't double-trigger on choices
+    revealHabit();
+  });
+
+  // ---------- ending artifact ----------
+  function composeNote(){
+    var dateStr=new Date().toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
+    // pick a title from the strongest motif
+    var title="A walk through the queue garden";
+    var titles={
+      fern:"On waiting with a name",
+      firefly:"On keeping the handoffs lit",
+      moss:"On tending just enough context",
+      beetle:"On finding the next small step",
+      snail:"On carrying the shell calmly",
+      bell:"On letting the bell ring"
+    };
+    // choose title from the last specimen the walker leaned into (a 2nd-choice / action pick)
+    var lead=picks.find(function(p){return p && /relight|down|thinn|bare|track|today|let go|find/.test(p.frag);});
+    if(lead) title=titles[lead.key]||title;
+
+    var lines=picks.filter(Boolean).map(function(p){
+      return "• "+p.name.replace(/^The /,'')+": "+p.frag+".";
+    });
+
+    var closing;
+    var actiony=picks.filter(function(p){return p && /relight|set down|thinn|bare|track|today|find|forgotten|flicker|heavy/.test(p.frag);}).length;
+    if(actiony===0) closing="The garden is tidy today — keep noticing, and let it grow.";
+    else if(actiony<=2) closing="Mostly tended, with a corner or two asking for a small visit.";
+    else closing="A lively garden with plenty to tend — pick one corner, and start with its beetle.";
+
+    document.getElementById('note-title').textContent=title;
+    document.getElementById('note-body').innerHTML=
+      '<b>'+dateStr+' — Queue Garden walk</b>\n\n'+
+      lines.join('\n')+'\n\n'+closing;
+
+    // store plain text for copy
+    noteText=
+      'Queue Garden Field Note — '+dateStr+'\n'+
+      title+'\n\n'+
+      lines.join('\n')+'\n\n'+
+      closing+'\n\n'+
+      '(noticed with the Queue Garden Field Guide)';
+  }
+  var noteText="";
+
+  // ---------- copy ----------
+  function toast(msg){
+    var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+    setTimeout(function(){t.classList.remove('show');},1700);
+  }
+  document.getElementById('copy').addEventListener('click',function(){
+    function fallback(){
+      try{
+        var ta=document.createElement('textarea');ta.value=noteText;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);
+        toast('Field note copied');
+      }catch(e){toast('Copy not available — select & copy');}
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(noteText).then(function(){toast('Field note copied');},fallback);
+    }else fallback();
+  });
+
+  // ---------- nav ----------
+  document.getElementById('begin').addEventListener('click',function(){idx=0;picks=[];renderSpecimen();show('specimen');});
+  document.getElementById('how').addEventListener('click',function(){show('how');});
+  document.getElementById('how-back').addEventListener('click',function(){idx=0;picks=[];renderSpecimen();show('specimen');});
+  document.getElementById('again').addEventListener('click',function(){idx=0;picks=[];show('cover');});
+
+})();
+</script>
+</body>
+</html>
