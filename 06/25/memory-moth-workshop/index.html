@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Memory Moth Workshop</title>
+<style>
+  :root{
+    --bg:#0b0a16;
+    --bg2:#140f24;
+    --panel:#191430;
+    --panel2:#211a3c;
+    --shelf:#1d1736;
+    --line:rgba(190,170,255,0.16);
+    --line2:rgba(255,205,120,0.35);
+    --ink:#e7e0ff;
+    --dim:#a99fd0;
+    --faint:#6f679a;
+    --amber:#ffce7a;
+    --amber2:#ff9d5c;
+    --moth:#ffe6a8;
+    --glow:rgba(255,206,122,0.55);
+    --violet:#b69bff;
+    --ok:#8de0b8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{overflow-x:hidden;}
+  body{
+    background:
+      radial-gradient(120% 70% at 50% -10%, #1c1438 0%, transparent 60%),
+      radial-gradient(80% 50% at 90% 10%, rgba(255,160,90,0.08), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:440px;margin:0 auto;padding:20px 16px 40px;}
+
+  /* Header */
+  header{text-align:center;padding:6px 4px 14px;position:relative;}
+  .kicker{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--faint);margin-bottom:8px;}
+  h1{
+    font-size:26px;letter-spacing:-.01em;font-weight:800;
+    background:linear-gradient(100deg,#fff 10%,var(--amber) 55%,var(--violet) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .lede{font-size:13px;color:var(--dim);margin:8px auto 0;max-width:340px;}
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:16px;
+    padding:14px;margin-top:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .ptitle{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:10px;}
+  .ptitle .step{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line2);color:var(--amber);font-size:11px;font-weight:700;letter-spacing:0;}
+
+  /* Tray of memory cards */
+  .tray{display:flex;flex-wrap:wrap;gap:8px;}
+  .mcard{
+    flex:1 1 calc(50% - 4px);min-width:0;
+    min-height:46px;display:flex;align-items:center;gap:8px;
+    padding:8px 10px;border-radius:12px;cursor:pointer;
+    background:linear-gradient(180deg,#241c46,#1a1433);
+    border:1px solid var(--line);color:var(--ink);
+    font-size:13px;text-align:left;font-family:inherit;
+    transition:transform .12s ease, box-shadow .2s, opacity .25s, border-color .2s;
+  }
+  .mcard:active{transform:scale(.96);}
+  .mcard .ico{font-size:18px;flex:none;}
+  .mcard .lab{font-weight:600;line-height:1.15;}
+  .mcard.placed{opacity:.28;pointer-events:none;border-style:dashed;}
+  .mcard.flying{position:fixed;z-index:60;pointer-events:none;box-shadow:0 12px 30px var(--glow);border-color:var(--line2);}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:9px;text-align:center;}
+
+  /* Workshop shelves */
+  .board{position:relative;}
+  .shelf{
+    position:relative;display:flex;align-items:center;gap:10px;
+    min-height:52px;padding:8px 12px;margin:8px 0;border-radius:12px;
+    background:var(--shelf);border:1px solid var(--line);
+    transition:border-color .3s, box-shadow .3s, background .3s;
+  }
+  .shelf::before{
+    content:'';position:absolute;left:10px;right:10px;bottom:4px;height:2px;border-radius:2px;
+    background:linear-gradient(90deg,transparent,rgba(180,160,255,.18),transparent);
+  }
+  .shelf .slot{
+    width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;font-size:17px;
+    background:#120d28;border:1px dashed var(--line);color:var(--faint);
+  }
+  .shelf .meta{flex:1;min-width:0;}
+  .shelf .name{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);}
+  .shelf .note{font-size:13.5px;color:var(--dim);font-weight:600;margin-top:1px;}
+  .shelf .note .empty{color:var(--faint);font-weight:400;font-style:italic;}
+  .shelf.lit{
+    border-color:var(--line2);
+    background:linear-gradient(180deg,#2a2143,#1d1636);
+    box-shadow:0 0 0 1px rgba(255,206,122,.08), 0 6px 18px rgba(255,160,80,.08);
+    cursor:pointer;
+  }
+  .shelf.lit .slot{border-style:solid;border-color:var(--line2);background:#2a1d12;color:var(--amber);box-shadow:0 0 14px var(--glow);}
+  .shelf.lit .note{color:var(--ink);}
+  .shelf .cyc{flex:none;font-size:10px;color:var(--faint);opacity:0;transition:opacity .2s;}
+  .shelf.lit .cyc{opacity:.8;}
+  .shelf.visiting{animation:pulse .6s ease;}
+  @keyframes pulse{0%{box-shadow:0 0 0 1px var(--line2);}40%{box-shadow:0 0 26px 4px var(--glow);}100%{box-shadow:0 0 0 1px rgba(255,206,122,.08);}}
+
+  /* Moth */
+  #moth{
+    position:absolute;z-index:40;left:0;top:0;width:30px;height:30px;
+    display:grid;place-items:center;font-size:22px;pointer-events:none;opacity:0;
+    filter:drop-shadow(0 0 8px var(--glow));transition:opacity .25s;
+    will-change:transform;
+  }
+  #moth.fly{opacity:1;animation:flit .35s ease-in-out infinite alternate;}
+  @keyframes flit{from{filter:drop-shadow(0 0 6px var(--glow)) brightness(1);}to{filter:drop-shadow(0 0 14px var(--glow)) brightness(1.25);}}
+
+  /* Moth visitors dock */
+  .moths{display:flex;flex-direction:column;gap:8px;}
+  .visitor{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    padding:10px 12px;min-height:56px;border-radius:13px;cursor:pointer;
+    background:linear-gradient(180deg,#1f1840,#171130);
+    border:1px solid var(--line);color:var(--ink);font-family:inherit;
+    transition:transform .12s, border-color .2s, box-shadow .2s, opacity .2s;
+  }
+  .visitor:active{transform:scale(.985);}
+  .visitor .face{
+    width:40px;height:40px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:20px;
+    background:radial-gradient(circle at 35% 30%,#3a2c5c,#1a1330);border:1px solid var(--line2);
+  }
+  .visitor .body{flex:1;min-width:0;}
+  .visitor .vname{font-size:14px;font-weight:700;}
+  .visitor .vname b{color:var(--amber);font-weight:700;}
+  .visitor .need{font-size:12px;color:var(--dim);margin-top:1px;}
+  .visitor .go{
+    flex:none;font-size:11px;font-weight:700;letter-spacing:.04em;
+    padding:8px 12px;min-height:36px;display:grid;place-items:center;border-radius:9px;
+    background:linear-gradient(180deg,var(--amber),var(--amber2));color:#2a1500;
+    border:none;
+  }
+  .visitor.sent{border-color:var(--line2);box-shadow:inset 0 0 0 1px rgba(255,206,122,.12);}
+  .visitor.sent .go{background:#241c40;color:var(--ok);box-shadow:none;}
+  .visitor.busy{opacity:.7;}
+
+  /* Retrieved log */
+  .carried{margin-top:6px;display:flex;flex-direction:column;gap:9px;}
+  .ret{
+    border-left:3px solid var(--line2);padding:8px 12px;border-radius:0 10px 10px 0;
+    background:linear-gradient(90deg,rgba(255,206,122,.06),transparent);
+    animation:rise .4s ease;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .ret .who{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:3px;}
+  .ret .said{font-size:14px;color:var(--ink);line-height:1.45;}
+  .ret .soft{color:var(--faint);font-style:italic;font-size:12px;display:block;margin-top:4px;}
+  .empty-log{font-size:12.5px;color:var(--faint);text-align:center;padding:8px 4px;}
+
+  /* Controls */
+  .controls{display:flex;gap:9px;margin-top:16px;}
+  .btn{
+    flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:transform .12s, border-color .2s, background .2s;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn.primary{background:linear-gradient(180deg,var(--amber),var(--amber2));color:#2a1500;border-color:transparent;}
+  .btn.primary:disabled{filter:grayscale(.6) brightness(.7);cursor:default;}
+  .btn.copied{border-color:var(--ok);color:var(--ok);}
+
+  .recipe-out{
+    margin-top:12px;display:none;white-space:pre-wrap;word-break:break-word;
+    font-size:12px;line-height:1.55;color:var(--dim);
+    background:#0e0a1e;border:1px solid var(--line);border-radius:12px;padding:12px;
+  }
+  .recipe-out.show{display:block;animation:rise .35s ease;}
+
+  footer{text-align:center;font-size:11px;color:var(--faint);margin-top:22px;letter-spacing:.04em;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Daily Surprise · Jun 25</div>
+    <h1>Memory Moth Workshop</h1>
+    <p class="lede">A tiny lab about keeping <em>just enough</em>. Furnish the shelves with cues, then send each moth through to see what it carries back.</p>
+  </header>
+
+  <!-- Step 1: cards -->
+  <section class="panel" aria-label="Memory cues">
+    <div class="ptitle"><span class="step">1</span> Tap a cue · it flutters to its shelf</div>
+    <div class="tray" id="tray"></div>
+    <div class="hint" id="trayHint">5 cues waiting. A placed shelf can be tapped to change its note.</div>
+  </section>
+
+  <!-- Step 2: shelves + moth animation layer -->
+  <section class="panel" aria-label="Workshop shelves">
+    <div class="ptitle"><span class="step">2</span> The workshop shelves</div>
+    <div class="board" id="board">
+      <div id="shelves"></div>
+      <div id="moth" aria-hidden="true">🦋</div>
+    </div>
+  </section>
+
+  <!-- Step 3: moths -->
+  <section class="panel" aria-label="Moth visitors">
+    <div class="ptitle"><span class="step">3</span> Send a visitor through</div>
+    <div class="moths" id="moths"></div>
+  </section>
+
+  <!-- Step 4: carried back -->
+  <section class="panel" aria-label="What the moths carried">
+    <div class="ptitle"><span class="step">4</span> What they carried back</div>
+    <div class="carried" id="carried">
+      <div class="empty-log">No moths sent yet — furnish a shelf or two, then send one through.</div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button class="btn" id="resetBtn" type="button">↺ Reset</button>
+    <button class="btn primary" id="copyBtn" type="button">📋 Copy recipe</button>
+  </div>
+  <pre class="recipe-out" id="recipeOut" aria-live="polite"></pre>
+
+  <footer>Self-contained · no network · made for one quiet workshop session 🐾</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Data -------------------------------------------------------------
+  var CUES = [
+    { id:"tone",   ico:"🎚️", label:"Tone",            notes:["warm and unhurried","plain and kind","calm — just the essentials"] },
+    { id:"action", ico:"👉", label:"Next tiny action", notes:["do the one small thing first","open it and pick line one","send the short version now"] },
+    { id:"why",    ico:"💡", label:"Why it matters",   notes:["it keeps the thread from going cold","small momentum beats a perfect plan","this is the part future-you needs"] },
+    { id:"limit",  ico:"🚧", label:"Constraint",       notes:["keep it under a minute","one step, then stop","no new tabs, no rabbit holes"] },
+    { id:"follow", ico:"🔁", label:"Follow-up",        notes:["leave a tiny note for next time","check back at dusk","only nudge again if it's still stuck"] }
+  ];
+
+  var MOTHS = [
+    {
+      id:"glimmer", face:"🌙", name:"Glimmer", title:"a returning visitor, a little lost",
+      needs:["why","tone"],
+      compose:function(p){
+        return "“Welcome back. " + cap(p.why) + ". Take it " + p.tone + " — you're right where you left off.”";
+      }
+    },
+    {
+      id:"ember", face:"⏳", name:"Ember", title:"only has a minute, wings tired",
+      needs:["action","limit"],
+      compose:function(p){
+        return "“Got a minute? Then " + p.action + " — " + p.limit + ". That's the whole ask.”";
+      }
+    },
+    {
+      id:"cinder", face:"🚪", name:"Cinder", title:"heading out, will be back later",
+      needs:["follow","tone"],
+      compose:function(p){
+        return "“Before you go: " + p.follow + ". Said " + p.tone + ", so next time is easy.”";
+      }
+    }
+  ];
+
+  function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+  // ---- State ------------------------------------------------------------
+  // placed[id] = note index (0..n) once a cue is on its shelf, else -1
+  var placed = {};
+  CUES.forEach(function(c){ placed[c.id] = -1; });
+  var sent = {}; // moth id -> response object
+
+  var animating = false;
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- Build tray -------------------------------------------------------
+  var tray = document.getElementById("tray");
+  CUES.forEach(function(c){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "mcard";
+    b.dataset.id = c.id;
+    b.setAttribute("aria-label","Place cue: "+c.label);
+    b.innerHTML = '<span class="ico">'+c.ico+'</span><span class="lab">'+c.label+'</span>';
+    b.addEventListener("click", function(){ placeCue(c.id, b); });
+    tray.appendChild(b);
+  });
+
+  // ---- Build shelves ----------------------------------------------------
+  var shelvesEl = document.getElementById("shelves");
+  CUES.forEach(function(c){
+    var s = document.createElement("div");
+    s.className = "shelf";
+    s.dataset.id = c.id;
+    s.innerHTML =
+      '<div class="slot">'+c.ico+'</div>'+
+      '<div class="meta"><div class="name">'+c.label+'</div>'+
+      '<div class="note"><span class="empty">empty shelf</span></div></div>'+
+      '<div class="cyc">tap ↺</div>';
+    s.addEventListener("click", function(){
+      if(placed[c.id] >= 0 && !animating){ cycleNote(c.id); }
+    });
+    shelvesEl.appendChild(s);
+  });
+
+  // ---- Build moths ------------------------------------------------------
+  var mothsEl = document.getElementById("moths");
+  MOTHS.forEach(function(m){
+    var v = document.createElement("button");
+    v.type = "button";
+    v.className = "visitor";
+    v.dataset.id = m.id;
+    v.innerHTML =
+      '<div class="face">'+m.face+'</div>'+
+      '<div class="body"><div class="vname">'+m.name+'</div>'+
+      '<div class="need">'+m.title+'</div></div>'+
+      '<span class="go">Send →</span>';
+    v.addEventListener("click", function(){ sendMoth(m, v); });
+    mothsEl.appendChild(v);
+  });
+
+  // ---- Place a cue (flutter animation) ----------------------------------
+  function placeCue(id, btn){
+    if(placed[id] >= 0) return;
+    placed[id] = 0; // first note variant
+
+    var shelf = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+    if(reduceMotion){
+      btn.classList.add("placed");
+      litShelf(id);
+      refreshSent();
+      return;
+    }
+
+    // Fly a clone from the card to the shelf slot
+    var from = btn.getBoundingClientRect();
+    var slot = shelf.querySelector(".slot").getBoundingClientRect();
+    var ghost = btn.cloneNode(true);
+    ghost.classList.add("flying");
+    ghost.style.left = from.left+"px";
+    ghost.style.top = from.top+"px";
+    ghost.style.width = from.width+"px";
+    ghost.style.height = from.height+"px";
+    ghost.style.margin = "0";
+    document.body.appendChild(ghost);
+    btn.classList.add("placed");
+
+    var dx = (slot.left+slot.width/2) - (from.left+from.width/2);
+    var dy = (slot.top+slot.height/2) - (from.top+from.height/2);
+
+    // gentle wandering moth path: overshoot sideways then settle
+    requestAnimationFrame(function(){
+      ghost.style.transition = "transform .62s cubic-bezier(.5,-0.3,.3,1.3), opacity .62s ease";
+      ghost.style.transform = "translate("+dx+"px,"+dy+"px) scale(.35) rotate(8deg)";
+      ghost.style.opacity = "0.2";
+    });
+    setTimeout(function(){
+      if(ghost.parentNode) ghost.parentNode.removeChild(ghost);
+      litShelf(id);
+      refreshSent();
+    }, 600);
+  }
+
+  function litShelf(id){
+    var shelf = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+    shelf.classList.add("lit");
+    shelf.classList.add("visiting");
+    setTimeout(function(){ shelf.classList.remove("visiting"); }, 600);
+    updateNote(id);
+    updateHint();
+  }
+
+  function updateNote(id){
+    var cue = CUES.filter(function(c){return c.id===id;})[0];
+    var shelf = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+    var noteEl = shelf.querySelector(".note");
+    if(placed[id] >= 0){
+      noteEl.textContent = "“" + cue.notes[placed[id]] + "”";
+    } else {
+      noteEl.innerHTML = '<span class="empty">empty shelf</span>';
+    }
+  }
+
+  function cycleNote(id){
+    var cue = CUES.filter(function(c){return c.id===id;})[0];
+    placed[id] = (placed[id] + 1) % cue.notes.length;
+    updateNote(id);
+    var shelf = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+    shelf.classList.add("visiting");
+    setTimeout(function(){ shelf.classList.remove("visiting"); }, 600);
+    // a cue changed — past retrievals may be stale, re-run sent moths
+    Object.keys(sent).forEach(function(mid){
+      var m = MOTHS.filter(function(x){return x.id===mid;})[0];
+      sent[mid] = buildResponse(m);
+    });
+    renderCarried();
+  }
+
+  function updateHint(){
+    var n = CUES.filter(function(c){return placed[c.id]>=0;}).length;
+    var hint = document.getElementById("trayHint");
+    if(n === 0){ hint.textContent = "5 cues waiting. A placed shelf can be tapped to change its note."; }
+    else if(n < 5){ hint.textContent = n+" of 5 shelves lit. Tap a lit shelf to change its note."; }
+    else { hint.textContent = "Workshop fully furnished ✦ tap any shelf to retune a note."; }
+  }
+
+  // ---- Send a moth through ----------------------------------------------
+  function sendMoth(m, v){
+    if(animating) return;
+    var lit = CUES.filter(function(c){return placed[c.id]>=0;});
+    if(lit.length === 0){
+      flashHint("Furnish at least one shelf first 🦋");
+      return;
+    }
+    animating = true;
+    v.classList.add("busy");
+
+    var pathIds = lit.map(function(c){return c.id;});
+
+    flyMoth(pathIds, function(){
+      animating = false;
+      v.classList.remove("busy");
+      v.classList.add("sent");
+      v.querySelector(".go").textContent = "Sent ✦";
+      sent[m.id] = buildResponse(m);
+      renderCarried();
+    });
+  }
+
+  function flyMoth(pathIds, done){
+    var moth = document.getElementById("moth");
+    if(reduceMotion || pathIds.length===0){
+      pathIds.forEach(function(id){
+        var sh = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+        sh.classList.add("visiting");
+        setTimeout(function(){ sh.classList.remove("visiting"); }, 500);
+      });
+      setTimeout(done, 200);
+      return;
+    }
+    var board = document.getElementById("board");
+    var bRect = board.getBoundingClientRect();
+
+    // build list of target points (center of each lit shelf), entering from left edge
+    var points = [];
+    points.push({x: -10, y: bRect.height/2}); // off-screen left
+    pathIds.forEach(function(id){
+      var sh = shelvesEl.querySelector('.shelf[data-id="'+id+'"]');
+      var r = sh.getBoundingClientRect();
+      points.push({
+        x: (r.left - bRect.left) + 24,
+        y: (r.top - bRect.top) + r.height/2 - 15,
+        id:id
+      });
+    });
+    points.push({x: bRect.width - 6, y: bRect.height/2}); // exit right
+
+    moth.classList.add("fly");
+    var i = 0;
+    function step(){
+      var p = points[i];
+      moth.style.transform = "translate("+p.x+"px,"+p.y+"px)";
+      if(p.id){
+        var sh = shelvesEl.querySelector('.shelf[data-id="'+p.id+'"]');
+        sh.classList.add("visiting");
+        setTimeout((function(s){return function(){ s.classList.remove("visiting"); };})(sh), 560);
+      }
+      i++;
+      if(i < points.length){
+        setTimeout(step, p.id ? 520 : 360);
+      } else {
+        setTimeout(function(){
+          moth.classList.remove("fly");
+          moth.style.opacity = "0";
+          done();
+        }, 320);
+      }
+    }
+    // start at first point instantly, then go
+    moth.style.transition = "none";
+    moth.style.transform = "translate("+points[0].x+"px,"+points[0].y+"px)";
+    moth.style.opacity = "1";
+    requestAnimationFrame(function(){
+      moth.style.transition = "transform .5s cubic-bezier(.45,.05,.3,1)";
+      step();
+    });
+  }
+
+  // ---- Build a moth's retrieved response ---------------------------------
+  function buildResponse(m){
+    var have = {};
+    var missing = [];
+    m.needs.forEach(function(id){
+      var cue = CUES.filter(function(c){return c.id===id;})[0];
+      if(placed[id] >= 0){ have[id] = cue.notes[placed[id]]; }
+      else { missing.push(cue.label); }
+    });
+
+    if(missing.length === m.needs.length){
+      // nothing it needs is on the shelves
+      return {
+        said:"“…the shelves are dark for what I came for. I'll wait here a moment.”",
+        soft:m.name+" needs "+m.needs.map(labelFor).join(" + ")+" on the shelves to carry anything back."
+      };
+    }
+
+    // fill any missing needed cue with a gentle placeholder so the line still reads
+    var p = {};
+    m.needs.forEach(function(id){
+      p[id] = have[id] || softPlaceholder(id);
+    });
+
+    var said = m.compose(p);
+    var soft = "";
+    if(missing.length){
+      soft = "(the " + missing.join(" & ") + " shelf was empty, so it filled that in softly)";
+    }
+    return { said:said, soft:soft };
+  }
+
+  function labelFor(id){
+    return CUES.filter(function(c){return c.id===id;})[0].label;
+  }
+  function softPlaceholder(id){
+    var map = {
+      tone:"however feels kind",
+      action:"the next small step",
+      why:"it still matters",
+      limit:"just a little",
+      follow:"and circle back"
+    };
+    return map[id] || "…";
+  }
+
+  function refreshSent(){
+    // re-evaluate already-sent moths when shelves change
+    Object.keys(sent).forEach(function(mid){
+      var m = MOTHS.filter(function(x){return x.id===mid;})[0];
+      sent[mid] = buildResponse(m);
+    });
+    renderCarried();
+    updateHint();
+  }
+
+  // ---- Render carried-back log -------------------------------------------
+  function renderCarried(){
+    var box = document.getElementById("carried");
+    var ids = Object.keys(sent);
+    if(ids.length === 0){
+      box.innerHTML = '<div class="empty-log">No moths sent yet — furnish a shelf or two, then send one through.</div>';
+      return;
+    }
+    box.innerHTML = "";
+    MOTHS.forEach(function(m){
+      if(!sent[m.id]) return;
+      var r = sent[m.id];
+      var d = document.createElement("div");
+      d.className = "ret";
+      d.innerHTML =
+        '<div class="who">'+m.face+' '+m.name+' carried back</div>'+
+        '<div class="said">'+escapeHtml(r.said)+'</div>'+
+        (r.soft ? '<span class="soft">'+escapeHtml(r.soft)+'</span>' : '');
+      box.appendChild(d);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"]/g,function(ch){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch];
+    });
+  }
+
+  // ---- Hint flash --------------------------------------------------------
+  var hintTimer;
+  function flashHint(msg){
+    var hint = document.getElementById("trayHint");
+    var prev = hint.textContent;
+    hint.textContent = msg;
+    hint.style.color = "var(--amber)";
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function(){
+      hint.style.color = "";
+      updateHint();
+    }, 1600);
+  }
+
+  // ---- Copy recipe -------------------------------------------------------
+  document.getElementById("copyBtn").addEventListener("click", function(){
+    var btn = this;
+    var text = buildRecipe();
+    var out = document.getElementById("recipeOut");
+    out.textContent = text;
+    out.classList.add("show");
+
+    function ok(){
+      btn.classList.add("copied");
+      btn.textContent = "✓ Copied";
+      setTimeout(function(){ btn.classList.remove("copied"); btn.textContent = "📋 Copy recipe"; }, 1700);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(ok, function(){ legacyCopy(text); ok(); });
+    } else {
+      legacyCopy(text); ok();
+    }
+  });
+
+  function legacyCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly","");
+    ta.style.position="fixed"; ta.style.top="-1000px";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  function buildRecipe(){
+    var lines = [];
+    lines.push("🦋 Memory Moth Workshop — a tiny memory recipe");
+    lines.push("");
+    lines.push("Shelves I furnished:");
+    var anyLit = false;
+    CUES.forEach(function(c){
+      if(placed[c.id] >= 0){
+        anyLit = true;
+        lines.push("  • " + c.label + " — " + c.notes[placed[c.id]]);
+      } else {
+        lines.push("  • " + c.label + " — (left dark)");
+      }
+    });
+    if(!anyLit){ lines.push("  (no shelves lit yet)"); }
+    lines.push("");
+    lines.push("What the moths carried back:");
+    var anySent = false;
+    MOTHS.forEach(function(m){
+      if(sent[m.id]){
+        anySent = true;
+        lines.push("  • " + m.name + " (" + m.title + "):");
+        lines.push("      " + sent[m.id].said);
+        if(sent[m.id].soft){ lines.push("      " + sent[m.id].soft); }
+      }
+    });
+    if(!anySent){ lines.push("  (no moths sent yet)"); }
+    lines.push("");
+    lines.push("The recipe: keep just enough — a tone, one next action, the");
+    lines.push("why, a limit, and a follow-up — and a small system can greet");
+    lines.push("anyone helpfully without hauling the whole story around.");
+    return lines.join("\n");
+  }
+
+  // ---- Reset -------------------------------------------------------------
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    CUES.forEach(function(c){ placed[c.id] = -1; updateNote(c.id);
+      var sh = shelvesEl.querySelector('.shelf[data-id="'+c.id+'"]');
+      sh.classList.remove("lit");
+    });
+    Array.prototype.forEach.call(tray.querySelectorAll(".mcard"), function(b){ b.classList.remove("placed"); });
+    sent = {};
+    Array.prototype.forEach.call(mothsEl.querySelectorAll(".visitor"), function(v){
+      v.classList.remove("sent","busy");
+      v.querySelector(".go").textContent = "Send →";
+    });
+    renderCarried();
+    updateHint();
+    var out = document.getElementById("recipeOut");
+    out.classList.remove("show"); out.textContent = "";
+    document.getElementById("moth").style.opacity = "0";
+  });
+
+  // init
+  updateHint();
+})();
+</script>
+</body>
+</html>
