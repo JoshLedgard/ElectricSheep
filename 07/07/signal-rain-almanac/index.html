@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#070b14">
+<title>Signal Rain Almanac</title>
+<style>
+  :root {
+    --bg: #070b14;
+    --bg2: #0b1120;
+    --panel: rgba(18,28,46,0.72);
+    --border: rgba(90,140,190,0.18);
+    --text: #b8cfe0;
+    --dim: #5f7891;
+    --bright: #e6f2fb;
+    --sig: #4dd4e8;   /* signal */
+    --trl: #a68bff;   /* trail  */
+    --evd: #ffcf70;   /* evidence */
+    --hnd: #6fe0b0;   /* handoff */
+    --cur: #ff8fb0;   /* curiosity */
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body {
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(40,80,120,0.22), transparent 60%),
+      linear-gradient(180deg, var(--bg), var(--bg2));
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: max(14px, env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));
+    max-width: 560px;
+    margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { text-align: center; padding: 6px 4px 12px; }
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 6px;
+  }
+  h1 {
+    font-size: clamp(1.55rem, 6.5vw, 2.05rem); font-weight: 700;
+    color: var(--bright); letter-spacing: -0.01em; line-height: 1.1;
+  }
+  h1 .drop { color: var(--sig); }
+  .lede { font-size: 12.5px; color: var(--dim); margin-top: 7px; max-width: 34ch; margin-inline: auto; }
+
+  .sky-wrap {
+    position: relative; margin-top: 12px;
+    border: 1px solid var(--border); border-radius: 18px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(10,18,34,0.6), rgba(8,14,26,0.9));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 40px -24px rgba(0,0,0,0.8);
+  }
+  #sky { display: block; width: 100%; height: 46vh; min-height: 300px; max-height: 440px; touch-action: manipulation; }
+  .band-labels {
+    position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr 1fr;
+    pointer-events: none;
+  }
+  .band-labels span {
+    align-self: end; text-align: center; padding-bottom: 8px;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim);
+  }
+  .band-labels span + span { border-left: 1px dashed rgba(90,140,190,0.14); }
+  .hint {
+    position: absolute; top: 10px; left: 0; right: 0; text-align: center;
+    font-size: 11.5px; color: var(--dim); pointer-events: none;
+    transition: opacity .5s; text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+
+  /* accumulation shore */
+  .shore { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .pool {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 9px 8px 10px; text-align: center; min-height: 74px;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  .pool h2 { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  .pool .n { font-size: 20px; font-weight: 700; color: var(--bright); line-height: 1; }
+  .ripbar { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; min-height: 9px; align-content: flex-start; }
+  .ripbar i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px currentColor; color: inherit; }
+
+  .note {
+    margin-top: 12px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 16px; padding: 14px 16px;
+  }
+  .note h2 { font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 7px; }
+  #almanac { font-size: 14.5px; color: var(--text); min-height: 3.2em; }
+  #almanac b { color: var(--bright); font-weight: 600; }
+
+  .catch-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  button {
+    font: inherit; font-size: 13px; color: var(--text); cursor: pointer;
+    background: rgba(30,44,66,0.7); border: 1px solid var(--border); border-radius: 12px;
+    min-height: 44px; padding: 0 14px; flex: 1 1 auto;
+    transition: transform .08s ease, background .15s ease, border-color .15s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  button:hover { background: rgba(40,60,90,0.8); }
+  button:active { transform: scale(0.96); }
+  button:focus-visible { outline: 2px solid var(--sig); outline-offset: 2px; }
+  .catch-row button { flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.15; }
+  .catch-row button small { color: var(--dim); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 14px; justify-content: center; margin-top: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 5px currentColor; }
+
+  footer { text-align: center; margin-top: 16px; font-size: 10.5px; color: var(--dim); line-height: 1.7; }
+  footer .local { color: var(--hnd); }
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px);
+    background: rgba(20,32,52,0.96); border: 1px solid var(--border); color: var(--bright);
+    padding: 9px 16px; border-radius: 999px; font-size: 12.5px; opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Daily Surprise · Jul 7</div>
+  <h1>Signal <span class="drop">Rain</span> Almanac</h1>
+  <p class="lede">A quiet morning sky of drifting signals. Tap the drops into the hour they belong to and watch the day become legible.</p>
+</header>
+
+<div class="sky-wrap">
+  <canvas id="sky" aria-label="Signal rain sky. Drops drift down over three time bands. Tap a drop to gather it."></canvas>
+  <div class="hint" id="hint">Tap the drifting drops ↓</div>
+  <div class="band-labels" aria-hidden="true"><span>Morning</span><span>Midday</span><span>Evening</span></div>
+</div>
+
+<div class="shore" aria-label="Gathered drops by time band">
+  <div class="pool"><h2>Morning</h2><div class="n" id="n0">0</div><div class="ripbar" id="rip0"></div></div>
+  <div class="pool"><h2>Midday</h2><div class="n" id="n1">0</div><div class="ripbar" id="rip1"></div></div>
+  <div class="pool"><h2>Evening</h2><div class="n" id="n2">0</div><div class="ripbar" id="rip2"></div></div>
+</div>
+
+<div class="catch-row" aria-label="Keyboard-friendly gathering">
+  <button id="c0" type="button"><span class="dot" style="color:var(--sig);background:var(--sig)"></span>Gather<small>Morning</small></button>
+  <button id="c1" type="button"><span class="dot" style="color:var(--evd);background:var(--evd)"></span>Gather<small>Midday</small></button>
+  <button id="c2" type="button"><span class="dot" style="color:var(--cur);background:var(--cur)"></span>Gather<small>Evening</small></button>
+</div>
+
+<section class="note">
+  <h2>Today's Almanac Note</h2>
+  <div id="almanac">The sky is still. Tap a few drops to begin reading the day.</div>
+</section>
+
+<div class="controls">
+  <button id="rain" type="button">🌧️ Gentle new rain</button>
+  <button id="copy" type="button">📋 Copy note</button>
+  <button id="reset" type="button">↺ Reset</button>
+</div>
+
+<div class="legend" aria-hidden="true">
+  <span><i style="color:var(--sig);background:var(--sig)"></i>signal</span>
+  <span><i style="color:var(--trl);background:var(--trl)"></i>trail</span>
+  <span><i style="color:var(--evd);background:var(--evd)"></i>evidence</span>
+  <span><i style="color:var(--hnd);background:var(--hnd)"></i>handoff</span>
+  <span><i style="color:var(--cur);background:var(--cur)"></i>curiosity</span>
+</div>
+
+<footer>
+  Signals are made up — no names, accounts, or private data.<br>
+  <span class="local">Everything stays on this device (local-only, in your browser).</span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "signal-rain-almanac-2026-07-07";
+  var canvas = document.getElementById("sky");
+  var ctx = canvas.getContext("2d");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var CATS = [
+    { id: "signal",    css: "77,212,232",  label: "signal" },
+    { id: "trail",     css: "166,139,255", label: "trail" },
+    { id: "evidence",  css: "255,207,112", label: "evidence" },
+    { id: "handoff",   css: "111,224,176", label: "handoff" },
+    { id: "curiosity", css: "255,143,176", label: "curiosity" }
+  ];
+  var BANDS = ["Morning", "Midday", "Evening"];
+
+  // persisted tallies: counts[band][catIndex]
+  var tallies = load();
+  function blank() { return [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]]; }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return blank();
+      var t = JSON.parse(raw);
+      if (Array.isArray(t) && t.length === 3) return t;
+    } catch (e) {}
+    return blank();
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(tallies)); } catch (e) {} }
+
+  // canvas sizing
+  var W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = canvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  var drops = [];   // active falling drops
+  var ripples = []; // transient burst rings
+  var seed = 1234567;
+  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+  function bandIndex(x) {
+    if (x < W / 3) return 0;
+    if (x < (2 * W) / 3) return 1;
+    return 2;
+  }
+
+  function spawn(n) {
+    for (var i = 0; i < n; i++) {
+      var c = Math.floor(rnd() * CATS.length);
+      drops.push({
+        x: 10 + rnd() * (W - 20),
+        y: -10 - rnd() * H * 0.6,
+        r: 6.5 + rnd() * 3.5,
+        vy: 22 + rnd() * 26,        // px/sec
+        sway: 0.4 + rnd() * 0.9,
+        phase: rnd() * Math.PI * 2,
+        cat: c,
+        alive: true
+      });
+    }
+  }
+
+  function ripAt(x, y, cat) {
+    ripples.push({ x: x, y: y, cat: cat, t: 0, max: 0.9 });
+  }
+
+  function gather(drop) {
+    if (!drop || !drop.alive) return;
+    drop.alive = false;
+    var b = bandIndex(drop.x);
+    tallies[b][drop.cat]++;
+    ripAt(drop.x, drop.y, drop.cat);
+    save();
+    renderPools();
+    renderNote();
+    fadeHint();
+  }
+
+  // pointer hit test
+  function hit(px, py) {
+    var best = null, bestD = 999;
+    for (var i = drops.length - 1; i >= 0; i--) {
+      var d = drops[i];
+      if (!d.alive) continue;
+      var dist = Math.hypot(px - d.x, py - d.y);
+      if (dist < d.r + 20 && dist < bestD) { bestD = dist; best = d; }
+    }
+    return best;
+  }
+
+  function pointer(e) {
+    var r = canvas.getBoundingClientRect();
+    var pt = e.touches && e.touches[0] ? e.touches[0] : e;
+    var px = pt.clientX - r.left, py = pt.clientY - r.top;
+    var d = hit(px, py);
+    if (d) { gather(d); if (e.cancelable) e.preventDefault(); }
+  }
+  canvas.addEventListener("pointerdown", pointer, { passive: false });
+
+  // keyboard / button gathering: catch the lowest live drop in a band, else spawn one there
+  function gatherBand(b) {
+    var pick = null, low = -1;
+    for (var i = 0; i < drops.length; i++) {
+      var d = drops[i];
+      if (d.alive && bandIndex(d.x) === b && d.y > low) { low = d.y; pick = d; }
+    }
+    if (!pick) {
+      var cx = (b + 0.5) * (W / 3);
+      pick = { x: cx, y: H * 0.45, r: 8, cat: Math.floor(rnd() * CATS.length), alive: true, vy: 0, sway: 0, phase: 0 };
+      drops.push(pick);
+    }
+    gather(pick);
+  }
+
+  // ---- rendering DOM ----
+  function renderPools() {
+    for (var b = 0; b < 3; b++) {
+      var total = 0, marks = "";
+      for (var c = 0; c < CATS.length; c++) {
+        total += tallies[b][c];
+        for (var k = 0; k < tallies[b][c]; k++) {
+          marks += '<i style="color:rgb(' + CATS[c].css + ');background:rgb(' + CATS[c].css + ')"></i>';
+        }
+      }
+      // cap dots shown to keep tidy
+      document.getElementById("n" + b).textContent = total;
+      var bar = document.getElementById("rip" + b);
+      bar.innerHTML = total > 22 ? capMarks(b) : marks;
+    }
+  }
+  function capMarks(b) {
+    var out = "";
+    for (var c = 0; c < CATS.length; c++) {
+      if (tallies[b][c] > 0) out += '<i style="color:rgb(' + CATS[c].css + ');background:rgb(' + CATS[c].css + ')"></i>';
+    }
+    return out;
+  }
+
+  function catTotals() {
+    var t = [0,0,0,0,0], all = 0;
+    for (var b = 0; b < 3; b++) for (var c = 0; c < 5; c++) { t[c] += tallies[b][c]; all += tallies[b][c]; }
+    return { t: t, all: all };
+  }
+  function bandTotals() {
+    return [0,1,2].map(function (b) { return tallies[b].reduce(function (a, x) { return a + x; }, 0); });
+  }
+
+  function renderNote() {
+    var ct = catTotals(), bt = bandTotals();
+    var el = document.getElementById("almanac");
+    if (ct.all === 0) {
+      el.innerHTML = "The sky is still. Tap a few drops to begin reading the day.";
+      return;
+    }
+    // busiest band
+    var bi = bt.indexOf(Math.max.apply(null, bt));
+    // brightest category
+    var ci = ct.t.indexOf(Math.max.apply(null, ct.t));
+    var quiet = bt.indexOf(Math.min.apply(null, bt));
+    var texture = ct.all < 4 ? "a light drizzle" : ct.all < 10 ? "a steady rain" : "a full downpour";
+    var mood;
+    if (ci === 0) mood = "signals kept arriving";
+    else if (ci === 1) mood = "trails wound through the hours";
+    else if (ci === 2) mood = "evidence pooled up";
+    else if (ci === 3) mood = "handoffs passed cleanly";
+    else mood = "curiosity kept sparking";
+
+    var line = ct.all + " drop" + (ct.all === 1 ? "" : "s") + " gathered — " + texture + ". " +
+      "<b>" + BANDS[bi] + "</b> ran brightest, mostly <b>" + CATS[ci].label + "</b>. " + mood + ".";
+    if (bt[quiet] === 0 && bt[bi] > 0) line += " <b>" + BANDS[quiet] + "</b> stayed quiet.";
+    el.innerHTML = line;
+  }
+
+  function plainNote() {
+    return document.getElementById("almanac").textContent.trim();
+  }
+
+  // ---- animation ----
+  var last = 0;
+  function frame(ts) {
+    if (!last) last = ts;
+    var dt = Math.min((ts - last) / 1000, 0.05);
+    last = ts;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // band separators glow
+    ctx.save();
+    ctx.strokeStyle = "rgba(90,140,190,0.10)";
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath(); ctx.moveTo(W/3, 0); ctx.lineTo(W/3, H);
+    ctx.moveTo(2*W/3, 0); ctx.lineTo(2*W/3, H); ctx.stroke();
+    ctx.restore();
+
+    // drops
+    for (var i = drops.length - 1; i >= 0; i--) {
+      var d = drops[i];
+      if (!d.alive) { drops.splice(i, 1); continue; }
+      if (!reduce) {
+        d.y += d.vy * dt;
+        d.phase += dt * d.sway;
+        d.x += Math.sin(d.phase) * 8 * dt;
+      }
+      if (d.y > H + 20) { drops.splice(i, 1); continue; }
+      var col = CATS[d.cat].css;
+      var g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r * 2.4);
+      g.addColorStop(0, "rgba(" + col + ",0.95)");
+      g.addColorStop(0.5, "rgba(" + col + ",0.45)");
+      g.addColorStop(1, "rgba(" + col + ",0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(" + col + ",0.9)";
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 0.55, 0, Math.PI * 2); ctx.fill();
+      // faint trailing tail
+      ctx.strokeStyle = "rgba(" + col + ",0.18)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(d.x, d.y - d.r); ctx.lineTo(d.x, d.y - d.r - 10); ctx.stroke();
+    }
+
+    // ripples
+    for (var j = ripples.length - 1; j >= 0; j--) {
+      var rp = ripples[j];
+      rp.t += dt;
+      var p = rp.t / rp.max;
+      if (p >= 1) { ripples.splice(j, 1); continue; }
+      var col2 = CATS[rp.cat].css;
+      ctx.strokeStyle = "rgba(" + col2 + "," + (0.6 * (1 - p)) + ")";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, 6 + p * 34, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // keep a soft baseline of rain
+    if (drops.length < 5 && Math.floor(ts / 900) !== frame._tick) {
+      frame._tick = Math.floor(ts / 900);
+      spawn(1);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- hint / toast ----
+  var hintGone = false;
+  function fadeHint() { if (!hintGone) { hintGone = true; document.getElementById("hint").style.opacity = "0"; } }
+  var toastT;
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg; el.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { el.classList.remove("show"); }, 1600);
+  }
+
+  // ---- wire buttons ----
+  document.getElementById("c0").onclick = function () { gatherBand(0); };
+  document.getElementById("c1").onclick = function () { gatherBand(1); };
+  document.getElementById("c2").onclick = function () { gatherBand(2); };
+  document.getElementById("rain").onclick = function () { spawn(9); fadeHint(); toast("A fresh drift of signals"); };
+  document.getElementById("copy").onclick = function () {
+    var txt = "Signal Rain Almanac — Jul 7\n" + plainNote() + "\n(local-only, made-up signals)";
+    var done = function () { toast("Note copied"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, function () { legacyCopy(txt); done(); });
+    } else { legacyCopy(txt); done(); }
+  };
+  function legacyCopy(txt) {
+    var ta = document.createElement("textarea");
+    ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  document.getElementById("reset").onclick = function () {
+    tallies = blank(); drops = []; ripples = []; save();
+    renderPools(); renderNote(); toast("Sky cleared");
+    document.getElementById("hint").style.opacity = "1"; hintGone = false;
+  };
+
+  // number-key shortcuts 1/2/3
+  window.addEventListener("keydown", function (e) {
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (e.key === "1") gatherBand(0);
+    else if (e.key === "2") gatherBand(1);
+    else if (e.key === "3") gatherBand(2);
+  });
+
+  window.addEventListener("resize", resize);
+
+  // init
+  resize();
+  spawn(7);
+  renderPools();
+  renderNote();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
