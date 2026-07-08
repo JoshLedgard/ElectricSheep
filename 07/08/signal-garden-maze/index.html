@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Signal Garden Maze</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#071018;--panel:#0d1b27;--panel2:#13283a;--ink:#e9fbff;--muted:#9bc2cf;
+    --leaf:#7cf7b0;--bloom:#ffd36e;--water:#57d8ff;--bad:#ff6b9a;--line:#24495f;
+    --shadow:0 18px 60px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -10%,#173a54 0%,var(--bg) 54%);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}
+  body{display:flex;justify-content:center;padding:18px 14px 28px}
+  .app{width:min(720px,100%)}
+  header{padding:10px 4px 14px;text-align:center}
+  .kicker{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--water);font-weight:800;margin-bottom:6px}
+  h1{margin:0;font-size:clamp(2rem,10vw,4.2rem);line-height:.92;letter-spacing:-.06em;text-wrap:balance}
+  .sub{margin:12px auto 0;max-width:560px;color:var(--muted);font-size:15px;line-height:1.45}
+  .panel{background:linear-gradient(180deg,rgba(19,40,58,.96),rgba(8,18,28,.96));border:1px solid rgba(124,247,176,.18);border-radius:24px;box-shadow:var(--shadow);padding:14px;overflow:hidden}
+  .status{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-bottom:12px}
+  .level{font-weight:900;font-size:18px}.goal{color:var(--muted);font-size:13px;line-height:1.35}.badge{background:rgba(87,216,255,.12);border:1px solid rgba(87,216,255,.24);border-radius:999px;color:#c9f5ff;padding:8px 10px;font-size:12px;font-weight:800;white-space:nowrap}
+  .garden-wrap{position:relative;border-radius:20px;overflow:hidden;background:#07131d;border:1px solid rgba(255,255,255,.08);touch-action:none}
+  canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;max-height:70vh;touch-action:none;background:radial-gradient(circle at 50% 40%,#102b3e,#07131d 72%)}
+  .toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:10px 14px;border-radius:999px;background:rgba(5,12,18,.82);border:1px solid rgba(255,255,255,.14);font-size:13px;color:#dff9ff;opacity:0;transition:.25s;pointer-events:none;max-width:92%;text-align:center}.toast.show{opacity:1}
+  .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  button{min-height:48px;border:0;border-radius:16px;font-weight:900;color:#061018;background:linear-gradient(135deg,var(--leaf),var(--water));font-size:15px;box-shadow:0 8px 18px rgba(87,216,255,.12)}
+  button.secondary{background:#173044;color:var(--ink);border:1px solid rgba(255,255,255,.12);box-shadow:none} button:active{transform:translateY(1px)}
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;color:var(--muted);font-size:12px}.legend span{background:rgba(255,255,255,.05);border-radius:14px;padding:9px 8px;text-align:center}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.seed{background:var(--bloom)}.pond{background:var(--water)}.weed{background:var(--bad)}
+  .note{margin:14px 4px 0;color:#7fa8b7;font-size:12px;line-height:1.45;text-align:center}
+  @media(max-width:430px){body{padding:10px}.panel{padding:10px;border-radius:20px}.controls{grid-template-columns:1fr 1fr}.controls button:first-child{grid-column:1/-1}.legend{grid-template-columns:1fr}.status{grid-template-columns:1fr}.badge{justify-self:start}canvas{max-height:62vh}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="kicker">Daily Surprise · 2026-07-08</div>
+    <h1>Signal Garden Maze</h1>
+    <p class="sub">Trace one continuous path through a pocket night garden. Visit every glowing seed, sip each pond once, and avoid waking the bramble.</p>
+  </header>
+  <section class="panel" aria-label="Signal Garden Maze game">
+    <div class="status">
+      <div><div class="level" id="levelName">Level 1</div><div class="goal" id="goalText">Connect the route.</div></div>
+      <div class="badge" id="badge">0 moves</div>
+    </div>
+    <div class="garden-wrap" id="wrap">
+      <canvas id="board" width="640" height="640" aria-label="Puzzle board. Drag from node to node to draw a path."></canvas>
+      <div class="toast" id="toast">Start on the moon gate.</div>
+    </div>
+    <div class="controls">
+      <button id="undoBtn" class="secondary">Undo step</button>
+      <button id="resetBtn" class="secondary">Reset</button>
+      <button id="nextBtn">Next garden</button>
+    </div>
+    <div class="legend"><span><i class="dot seed"></i>seed: must visit</span><span><i class="dot pond"></i>pond: must visit</span><span><i class="dot weed"></i>bramble: avoid</span></div>
+  </section>
+  <p class="note">Built as a tiny spatial ritual: scattered points become a path, and a path becomes a little bit of morning order.</p>
+</div>
+<script>
+const levels=[
+ {name:'Moon Gate', start:0, goal:[1,2,3,4], avoid:[5], nodes:[[.18,.18,'gate'],[.44,.18,'seed'],[.72,.22,'pond'],[.74,.56,'seed'],[.34,.72,'seed'],[.50,.48,'weed']], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[1,5],[5,3],[1,4]]},
+ {name:'Fern Switchback', start:0, goal:[1,2,3,4,5], avoid:[6], nodes:[[.15,.75,'gate'],[.25,.45,'seed'],[.16,.20,'pond'],[.52,.20,'seed'],[.78,.42,'pond'],[.62,.75,'seed'],[.45,.52,'weed']], edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,4],[1,3],[3,5]]},
+ {name:'Firefly Orchard', start:0, goal:[1,2,3,4,5,6], avoid:[7], nodes:[[.50,.86,'gate'],[.28,.68,'seed'],[.18,.42,'pond'],[.36,.20,'seed'],[.64,.20,'pond'],[.82,.43,'seed'],[.70,.68,'seed'],[.50,.48,'weed']], edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0],[1,7],[7,5],[2,4],[3,6]]},
+ {name:'Tideglass Beds', start:0, goal:[1,2,3,4,5], avoid:[6,7], nodes:[[.14,.50,'gate'],[.30,.24,'seed'],[.52,.24,'pond'],[.76,.34,'seed'],[.68,.70,'pond'],[.34,.72,'seed'],[.45,.48,'weed'],[.82,.62,'weed']], edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[2,6],[6,5],[3,7],[1,5],[2,4]]},
+ {name:'Dawn Spiral', start:0, goal:[1,2,3,4,5,6,7], avoid:[8], nodes:[[.50,.50,'gate'],[.50,.20,'seed'],[.70,.28,'pond'],[.82,.50,'seed'],[.70,.74,'pond'],[.50,.84,'seed'],[.28,.72,'seed'],[.18,.48,'pond'],[.48,.66,'weed']], edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0],[0,8],[8,4],[1,7],[2,6],[3,5]]}
+];
+const canvas=document.getElementById('board'),ctx=canvas.getContext('2d'),toast=document.getElementById('toast'),badge=document.getElementById('badge'),levelName=document.getElementById('levelName'),goalText=document.getElementById('goalText');
+let li=0,path=[],won=false,pulse=0;
+function L(){return levels[li]} function edge(a,b){return L().edges.some(e=>(e[0]===a&&e[1]===b)||(e[0]===b&&e[1]===a))} function pos(n){return{x:n[0]*canvas.width,y:n[1]*canvas.height}}
+function start(){path=[L().start];won=false;levelName.textContent=`Level ${li+1}: ${L().name}`;goalText.textContent=`Visit ${L().goal.length} glowing stops without touching bramble.`;say('Start at the moon gate.');draw()}
+function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>toast.classList.remove('show'),1800)}
+function done(){return L().goal.every(g=>path.includes(g))&&!path.some(p=>L().avoid.includes(p))}
+function draw(){const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);pulse+=.03;ctx.fillStyle='#07131d';ctx.fillRect(0,0,w,h);for(let i=0;i<80;i++){ctx.fillStyle=`rgba(185,235,255,${.08+(i%7)/80})`;ctx.beginPath();ctx.arc((i*97%w),(i*53%h),1+(i%3)*.4,0,7);ctx.fill()}ctx.lineWidth=4;ctx.lineCap='round';L().edges.forEach(e=>{let a=pos(L().nodes[e[0]]),b=pos(L().nodes[e[1]]);ctx.strokeStyle='rgba(115,177,199,.22)';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()});ctx.strokeStyle=won?'#ffd36e':'#7cf7b0';ctx.lineWidth=8;ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=14;ctx.beginPath();path.forEach((p,i)=>{let q=pos(L().nodes[p]);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)});ctx.stroke();ctx.shadowBlur=0;L().nodes.forEach((n,i)=>{let p=pos(n),inPath=path.includes(i),r=n[2]==='gate'?18:15;if(n[2]==='weed')ctx.fillStyle=inPath?'#ff2f76':'#ff6b9a';else if(n[2]==='pond')ctx.fillStyle=inPath?'#e9fbff':'#57d8ff';else if(n[2]==='seed')ctx.fillStyle=inPath?'#ffd36e':'#7cf7b0';else ctx.fillStyle='#d9f7ff';ctx.beginPath();ctx.arc(p.x,p.y,r+(inPath?Math.sin(pulse*4)*2:0),0,7);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#071018';ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n[2]==='weed'?'×':n[2]==='pond'?'~':n[2]==='gate'?'◐':'•',p.x,p.y)});badge.textContent=`${Math.max(0,path.length-1)} moves · ${L().goal.filter(g=>path.includes(g)).length}/${L().goal.length}`;requestAnimationFrame(draw)}
+function nearest(ev){let r=canvas.getBoundingClientRect(),x=(ev.clientX-r.left)*canvas.width/r.width,y=(ev.clientY-r.top)*canvas.height/r.height,b=-1,bd=999;L().nodes.forEach((n,i)=>{let p=pos(n),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;b=i}});return bd<46?b:-1}
+function tap(ev){ev.preventDefault();let n=nearest(ev);if(n<0||won)return;let last=path[path.length-1];if(n===last)return;if(path.includes(n)){say('That star is already in your route. Undo if you want a different turn.');return}if(!edge(last,n)){say('No garden trail connects those two.');return}path.push(n);if(L().avoid.includes(n)){say('Bramble woke up — reset or undo.');return}if(done()){won=true;say('Garden mapped. Nice little constellation.')}}
+canvas.addEventListener('pointerdown',tap);document.getElementById('undoBtn').onclick=()=>{if(path.length>1){path.pop();won=false;say('One step unwound.')}};document.getElementById('resetBtn').onclick=start;document.getElementById('nextBtn').onclick=()=>{li=(li+1)%levels.length;start()};start();
+</script>
+</body>
+</html>
