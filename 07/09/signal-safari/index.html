@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Signal Safari — Daily Surprise</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09111f;
+      --panel: rgba(255,255,255,.08);
+      --panel-2: rgba(255,255,255,.13);
+      --ink: #f6fbff;
+      --muted: #a9bad1;
+      --gold: #ffd166;
+      --mint: #8cffd2;
+      --rose: #ff6b8a;
+      --blue: #6cc8ff;
+      --bad: #ff8f70;
+      --ok: #91f6a3;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at 20% 0%, #18305a 0 24%, transparent 38%), radial-gradient(circle at 80% 10%, #234b4a 0 18%, transparent 34%), var(--bg); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { overflow-x: hidden; }
+    main { width: min(960px, 100%); margin: 0 auto; padding: 18px clamp(14px, 4vw, 28px) 28px; }
+    .hero { display: grid; gap: 14px; padding: 18px; border: 1px solid rgba(255,255,255,.14); border-radius: 28px; background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.05)); box-shadow: var(--shadow); }
+    .eyebrow { color: var(--mint); font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2.1rem, 10vw, 5rem); line-height: .9; letter-spacing: -.08em; }
+    .lede { margin: 0; max-width: 65ch; color: var(--muted); font-size: 1.02rem; line-height: 1.55; }
+    .status { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .pill { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; background: var(--panel); border: 1px solid rgba(255,255,255,.12); color: var(--ink); font-weight: 700; }
+    .board-wrap { margin-top: 18px; padding: 14px; border-radius: 28px; border: 1px solid rgba(255,255,255,.14); background: rgba(3,8,18,.55); box-shadow: var(--shadow); }
+    .clue-card { display: grid; gap: 8px; padding: 14px; margin-bottom: 14px; border-radius: 22px; background: linear-gradient(135deg, rgba(255,209,102,.18), rgba(108,200,255,.12)); border: 1px solid rgba(255,255,255,.15); }
+    .clue-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    #roundLabel { color: var(--gold); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    #message { margin: 0; color: var(--ink); font-size: clamp(1.05rem, 4vw, 1.35rem); font-weight: 800; }
+    #hint { margin: 0; color: var(--muted); line-height: 1.45; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; } }
+    button.tile { min-height: 96px; min-width: 44px; border: 0; border-radius: 22px; padding: 8px; background: var(--panel); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); touch-action: manipulation; cursor: pointer; transition: transform .16s ease, background .16s ease, box-shadow .16s ease; }
+    button.tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    button.tile:active { transform: scale(.97); }
+    button.tile.found { background: rgba(145,246,163,.22); box-shadow: inset 0 0 0 3px rgba(145,246,163,.72), 0 0 30px rgba(145,246,163,.12); }
+    button.tile.miss { animation: shake .26s ease; background: rgba(255,143,112,.18); }
+    @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    svg { width: 100%; height: 78px; display: block; border-radius: 16px; background: rgba(0,0,0,.18); }
+    .tile span { display: block; margin-top: 7px; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .primary, .secondary { min-height: 44px; border: 0; border-radius: 999px; padding: 11px 16px; font-weight: 900; cursor: pointer; }
+    .primary { background: linear-gradient(135deg, var(--gold), #ff9f1c); color: #1b1200; }
+    .secondary { background: var(--panel-2); color: var(--ink); border: 1px solid rgba(255,255,255,.14); }
+    .reveal { display: none; margin-top: 16px; padding: 16px; border-radius: 24px; background: linear-gradient(135deg, rgba(140,255,210,.15), rgba(255,107,138,.11)); border: 1px solid rgba(255,255,255,.14); }
+    .reveal.show { display: block; }
+    .reveal h2 { margin: 0 0 8px; }
+    .reveal p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .footer-note { margin: 16px 4px 0; color: #7f92ad; font-size: .86rem; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero" aria-labelledby="title">
+      <div class="eyebrow">Daily Surprise · July 9, 2026</div>
+      <h1 id="title">Signal Safari</h1>
+      <p class="lede">A tiny visual hunt: scan abstract interface tiles, find the hidden pattern, and let the board teach your eye to notice the one small signal that changes the story.</p>
+      <div class="status" aria-live="polite">
+        <div class="pill">🔎 <span id="score">0 found</span></div>
+        <div class="pill">🌿 <span id="roundPill">Round 1 of 3</span></div>
+      </div>
+    </section>
+
+    <section class="board-wrap" aria-label="Signal Safari game board">
+      <div class="clue-card">
+        <div class="clue-top"><span id="roundLabel">Round 1</span><span aria-hidden="true">🧭</span></div>
+        <p id="message">Find the three tiles with a gold dot tucked into the top-right corner.</p>
+        <p id="hint">Tap every matching tile. The clue changes when you have found them all.</p>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="actions">
+        <button class="primary" id="nextBtn" type="button" disabled>Next clue</button>
+        <button class="secondary" id="restartBtn" type="button">Restart safari</button>
+      </div>
+      <div class="reveal" id="reveal" role="status">
+        <h2>Pattern spotted.</h2>
+        <p>You crossed the board three different ways: by position, rhythm, and negative space. That is the trick of useful scanning too — change the lens, then the signal gets louder.</p>
+      </div>
+    </section>
+    <p class="footer-note">Privacy-safe inspiration: built around the generic craft of visual scanning and playful morning curiosity. No private project data, names, or quotes are included.</p>
+  </main>
+
+  <script>
+    const rounds = [
+      { clue: 'Find the three tiles with a gold dot tucked into the top-right corner.', hint: 'Look at the corner decorations, not the big shapes.', matches: ['a','f','j'], label: 'corner spark' },
+      { clue: 'Find the three tiles where the blue river makes a complete path from left to right.', hint: 'Ignore color noise. Trace the path with your eyes.', matches: ['b','e','k'], label: 'blue throughline' },
+      { clue: 'Find the three tiles with exactly two rose triangles.', hint: 'Count only triangles. Diamonds are decoys.', matches: ['c','h','l'], label: 'two-triangle trail' }
+    ];
+    const tiles = [
+      ['a','M12 62 C30 20 52 92 76 28 L96 58','circle'], ['b','M5 42 C28 28 48 54 72 40 S96 35 110 50','river'], ['c','M22 18 L44 54 L10 54 Z M76 20 L102 62 L52 62 Z','tri2'],
+      ['d','M18 20 H94 V60 H18 Z M34 34 H80','box'], ['e','M4 50 C28 66 42 18 66 38 S92 60 112 36','river'], ['f','M18 64 C42 18 62 76 96 22','circle'],
+      ['g','M22 22 L48 48 L22 74 L-4 48 Z M76 22 L104 50 L76 78 L48 50 Z','diamonds'], ['h','M16 18 L42 64 L4 64 Z M82 18 L108 64 L56 64 Z','tri2'], ['i','M12 30 H104 M12 52 H104 M12 74 H104','lines'],
+      ['j','M24 70 C30 28 72 24 92 62','circle'], ['k','M2 36 C22 46 34 72 56 54 S86 16 112 42','river'], ['l','M30 18 L56 62 L6 62 Z M84 20 L108 58 L62 58 Z','tri2']
+    ];
+    let round = 0;
+    let found = new Set();
+    const grid = document.getElementById('grid');
+    const score = document.getElementById('score');
+    const roundPill = document.getElementById('roundPill');
+    const roundLabel = document.getElementById('roundLabel');
+    const message = document.getElementById('message');
+    const hint = document.getElementById('hint');
+    const nextBtn = document.getElementById('nextBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const reveal = document.getElementById('reveal');
+
+    function svgFor(id, path, kind) {
+      const gold = rounds[0].matches.includes(id) ? '<circle cx="96" cy="16" r="7" fill="#ffd166"/>' : '<circle cx="22" cy="18" r="4" fill="#34445d"/>';
+      const roseBits = kind === 'tri2' ? '' : (id === 'd' ? '<path d="M84 18 L104 48 L68 48 Z" fill="#ff6b8a" opacity=".75"/>' : '');
+      const stroke = kind === 'river' ? '#6cc8ff' : (kind === 'tri2' ? '#ff6b8a' : '#8cffd2');
+      return `<svg viewBox="0 0 116 86" aria-hidden="true">
+        <defs><linearGradient id="g${id}" x1="0" x2="1"><stop stop-color="#ffffff" stop-opacity=".16"/><stop offset="1" stop-color="#ffffff" stop-opacity=".04"/></linearGradient></defs>
+        <rect x="1" y="1" width="114" height="84" rx="15" fill="url(#g${id})"/>
+        <path d="${path}" fill="none" stroke="${stroke}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        ${kind === 'tri2' ? `<path d="${path}" fill="#ff6b8a" opacity=".42" stroke="none"/>` : ''}
+        ${roseBits}${gold}
+      </svg>`;
+    }
+    function render() {
+      found = new Set();
+      reveal.classList.remove('show');
+      nextBtn.disabled = true;
+      nextBtn.textContent = round === rounds.length - 1 ? 'Reveal finish' : 'Next clue';
+      const r = rounds[round];
+      roundLabel.textContent = `Round ${round + 1}`;
+      roundPill.textContent = `Round ${round + 1} of ${rounds.length}`;
+      message.textContent = r.clue;
+      hint.textContent = r.hint;
+      score.textContent = '0 found';
+      grid.innerHTML = '';
+      tiles.forEach(([id, path, kind], idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tile';
+        btn.dataset.id = id;
+        btn.setAttribute('aria-label', `Tile ${idx + 1}. Tap if it matches the clue.`);
+        btn.innerHTML = svgFor(id, path, kind) + `<span>tile ${idx + 1}</span>`;
+        btn.addEventListener('click', () => choose(btn));
+        grid.appendChild(btn);
+      });
+    }
+    function choose(btn) {
+      const r = rounds[round];
+      const id = btn.dataset.id;
+      if (found.has(id)) return;
+      if (r.matches.includes(id)) {
+        found.add(id);
+        btn.classList.add('found');
+        btn.setAttribute('aria-label', btn.getAttribute('aria-label') + ' Found.');
+        score.textContent = `${found.size} of ${r.matches.length} found`;
+        if (found.size === r.matches.length) {
+          nextBtn.disabled = false;
+          hint.textContent = `Nice: ${r.label} complete.`;
+        }
+      } else {
+        btn.classList.remove('miss');
+        void btn.offsetWidth;
+        btn.classList.add('miss');
+      }
+    }
+    nextBtn.addEventListener('click', () => {
+      if (round < rounds.length - 1) { round += 1; render(); }
+      else { reveal.classList.add('show'); nextBtn.disabled = true; score.textContent = 'safari complete'; }
+    });
+    restartBtn.addEventListener('click', () => { round = 0; render(); });
+    render();
+  </script>
+</body>
+</html>
