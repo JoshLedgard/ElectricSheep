@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Moonlit Microquest</title>
+  <style>
+    :root{
+      --bg:#080b18; --panel:#11172a; --panel2:#17203a; --ink:#eef5ff; --muted:#9eb0cf;
+      --gold:#ffd166; --mint:#7cf6c3; --pink:#ff7ab6; --blue:#79b8ff; --line:rgba(255,255,255,.12);
+      --shadow:0 20px 60px rgba(0,0,0,.36);
+    }
+    *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:radial-gradient(circle at 20% 0%,#1f2b55 0,#080b18 42%,#050711 100%);color:var(--ink);font-family:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden}
+    body{padding:18px;display:flex;justify-content:center}.app{width:min(960px,100%)}
+    header{padding:18px 4px 16px;text-align:center}.kicker{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-weight:800}h1{font-size:clamp(2rem,9vw,4rem);line-height:.95;margin:10px 0;background:linear-gradient(90deg,var(--gold),var(--mint),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}.sub{max-width:660px;margin:0 auto;color:var(--muted);font-size:16px;line-height:1.45}
+    .stage{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:stretch}.card{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.comic{min-height:520px;position:relative;padding:18px;display:flex;flex-direction:column;gap:14px}.sky{position:absolute;inset:0;background:radial-gradient(circle at var(--moon-x,72%) 14%,rgba(255,209,102,.9) 0 38px,rgba(255,209,102,.18) 39px 78px,transparent 79px),radial-gradient(circle at 18% 22%,rgba(124,246,195,.25),transparent 34%),linear-gradient(180deg,#182244,#101426 58%,#0a0d18);z-index:0}.stars{position:absolute;inset:0;z-index:1;opacity:.9;background-image:radial-gradient(circle at 12% 18%,#fff 0 1px,transparent 2px),radial-gradient(circle at 35% 12%,#fff 0 1px,transparent 2px),radial-gradient(circle at 62% 25%,#fff 0 1px,transparent 2px),radial-gradient(circle at 86% 34%,#fff 0 1px,transparent 2px),radial-gradient(circle at 48% 44%,#fff 0 1px,transparent 2px);animation:twinkle 3s infinite alternate}@keyframes twinkle{from{opacity:.45}to{opacity:1}}
+    .panel{position:relative;z-index:2;border:1px solid rgba(255,255,255,.15);border-radius:20px;background:rgba(5,8,18,.42);backdrop-filter:blur(4px);padding:14px}.scene{flex:1;display:grid;grid-template-rows:auto 1fr auto}.scene-title{font-size:13px;color:var(--gold);letter-spacing:.16em;text-transform:uppercase;font-weight:900}.art{display:grid;place-items:center;min-height:250px;font-size:88px;filter:drop-shadow(0 18px 24px rgba(0,0,0,.35));transition:transform .25s ease}.art.bump{transform:scale(1.06) rotate(-2deg)}.caption{font-size:19px;line-height:1.35;font-weight:800}.caption small{display:block;margin-top:8px;color:var(--muted);font-weight:600;font-size:14px}.choices{position:relative;z-index:2;display:grid;gap:10px}.choice{min-height:48px;border:1px solid rgba(124,246,195,.35);background:rgba(124,246,195,.09);color:var(--ink);border-radius:16px;padding:12px 14px;text-align:left;font:inherit;font-weight:850;cursor:pointer;touch-action:manipulation}.choice:active{transform:translateY(1px)}.choice:hover,.choice:focus-visible{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,209,102,.16)}
+    .side{padding:18px;display:flex;flex-direction:column;gap:14px}.meter{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.rune{min-height:58px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:center;font-size:26px;background:rgba(255,255,255,.04);transition:.2s}.rune.on{background:linear-gradient(135deg,rgba(255,209,102,.22),rgba(124,246,195,.18));border-color:rgba(255,209,102,.45);transform:translateY(-2px)}.note{background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:18px;padding:14px;color:var(--muted);line-height:1.45}.note strong{color:var(--ink)}.log{display:grid;gap:8px}.logline{border-left:3px solid var(--blue);padding:8px 10px;background:rgba(121,184,255,.08);border-radius:10px;color:#cfe1ff;font-size:13px}.actions{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{min-height:48px;border:0;border-radius:16px;background:var(--ink);color:#09101f;font-weight:900;font:inherit;cursor:pointer}.btn.secondary{background:rgba(255,255,255,.08);color:var(--ink);border:1px solid var(--line)}.ending{display:none}.ending.show{display:block}.copy{width:100%;margin-top:10px;min-height:48px;border-radius:14px;border:1px solid rgba(255,209,102,.45);background:rgba(255,209,102,.12);color:var(--ink);font-weight:900}.toast{min-height:22px;color:var(--mint);font-size:13px;text-align:center}.foot{padding:18px 4px;text-align:center;color:#7082a5;font-size:12px}
+    @media(max-width:760px){body{padding:12px}.stage{grid-template-columns:1fr}.comic{min-height:500px}.art{min-height:220px;font-size:76px}.actions{grid-template-columns:1fr}.sub{font-size:15px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="kicker">Daily Surprise · July 10, 2026</div>
+      <h1>Moonlit Microquest</h1>
+      <p class="sub">A tiny choose-your-own comic for turning one foggy morning into a pocket-sized adventure. Tap choices, collect four story runes, and leave with a one-line quest note.</p>
+    </header>
+    <section class="stage" aria-label="Interactive comic">
+      <div class="card comic">
+        <div class="sky" id="sky"></div><div class="stars"></div>
+        <div class="panel scene">
+          <div class="scene-title" id="sceneTitle">Panel 1 · The Gate</div>
+          <div class="art" id="art" aria-hidden="true">🌙</div>
+          <div class="caption" id="caption">The moon opens a little gate in the margin of the day.<small>Pick the first tiny move. The story will remember your tone, not your secrets.</small></div>
+        </div>
+        <div class="choices" id="choices"></div>
+      </div>
+      <aside class="card side">
+        <div class="note"><strong>How to play:</strong> choose your way through four panels. Each pick lights a rune and changes the final quest note. Everything runs locally in this page.</div>
+        <div class="meter" id="runes" aria-label="Collected story runes"></div>
+        <div class="log" id="log" aria-live="polite"></div>
+        <div class="ending" id="ending">
+          <div class="note"><strong>Your pocket quest:</strong><br><span id="questText"></span><button class="copy" id="copyBtn">Copy quest note</button></div>
+        </div>
+        <div class="actions"><button class="btn secondary" id="backBtn">Back</button><button class="btn" id="resetBtn">New quest</button></div>
+        <div class="toast" id="toast" role="status"></div>
+      </aside>
+    </section>
+    <div class="foot">Built as a structurally different lane: visual story/comic · branching microquest. No scorecards, launch simulators, or preflight framing.</div>
+  </main>
+<script>
+const panels=[
+ {title:'Panel 1 · The Gate', art:'🌙', text:'The moon opens a little gate in the margin of the day.', small:'Pick the first tiny move. The story will remember your tone, not your secrets.', choices:[['Light the smallest lantern','lantern','steady'],['Pocket a strange brass key','key','curious'],['Ask the moss for directions','moss','gentle']]},
+ {title:'Panel 2 · The Bridge', art:'🌉', text:'A bridge of blue stones appears over a river of unsent thoughts.', small:'You only need one crossing, not a perfect map.', choices:[['Step on the stone that hums','hum','curious'],['Tie a ribbon to the handrail','ribbon','steady'],['Let a paper boat scout ahead','boat','playful']]},
+ {title:'Panel 3 · The Orchard', art:'🍐', text:'In the quiet orchard, ideas hang like pears with tiny constellations on their skins.', small:'Choose what to harvest for the next two minutes.', choices:[['Pick the odd-shaped pear','pear','playful'],['Sketch the branch pattern','branch','steady'],['Leave one fruit for tomorrow','tomorrow','gentle']]},
+ {title:'Panel 4 · The Doorbell', art:'🚪', text:'At the final door, a bell waits for a very small promise.', small:'Ring it with a quest you can actually carry.', choices:[['Ring once for a tiny experiment','experiment','curious'],['Ring twice for a calmer path','calm','gentle'],['Ring three times for a bolder note','bold','playful']]}
+];
+const runeEmoji={lantern:'🏮',key:'🗝️',moss:'🌿',hum:'💠',ribbon:'🎗️',boat:'⛵',pear:'🍐',branch:'✏️',tomorrow:'🌱',experiment:'🧪',calm:'🫧',bold:'⚡'};
+let step=0, picks=[];
+const $=id=>document.getElementById(id);
+function render(){
+ const p=panels[step]||panels[panels.length-1]; $('sceneTitle').textContent=p.title; $('art').textContent=p.art; $('caption').innerHTML=p.text+'<small>'+p.small+'</small>'; $('sky').style.setProperty('--moon-x',(72-step*13)+'%');
+ $('choices').innerHTML='';
+ if(step<panels.length){p.choices.forEach(c=>{const b=document.createElement('button');b.className='choice';b.textContent=c[0];b.onclick=()=>choose(c);$('choices').appendChild(b);});}
+ $('runes').innerHTML=''; for(let i=0;i<4;i++){const d=document.createElement('div');d.className='rune'+(picks[i]?' on':'');d.textContent=picks[i]?runeEmoji[picks[i].key]:'✦';$('runes').appendChild(d)}
+ $('log').innerHTML=picks.map((x,i)=>'<div class="logline">'+(i+1)+'. '+x.label+'</div>').join('');
+ $('backBtn').disabled=picks.length===0; $('ending').classList.toggle('show',step>=panels.length);
+ if(step>=panels.length){$('choices').innerHTML=''; const tone=dominantTone(); const nouns=picks.map(x=>runeEmoji[x.key]).join(' '); const line={steady:'Carry one steady thread forward: make the next useful move visible, then stop before it becomes a maze.',curious:'Follow the odd glimmer for ten honest minutes; bring back one thing worth testing.',gentle:'Make the day easier to enter: clear one small path, leave one kind marker, continue.',playful:'Turn the next task into a tiny game: one rule, one round, one delighted improvement.'}[tone]; $('questText').textContent=nouns+' — '+line;}
+}
+function choose(c){picks.push({label:c[0],key:c[1],tone:c[2]}); step++; $('art').classList.add('bump'); setTimeout(()=>$('art').classList.remove('bump'),220); render();}
+function dominantTone(){const counts={steady:0,curious:0,gentle:0,playful:0}; picks.forEach(p=>counts[p.tone]++); return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];}
+$('backBtn').onclick=()=>{if(picks.length){picks.pop();step=Math.max(0,step-1);render();}};
+$('resetBtn').onclick=()=>{step=0;picks=[];$('toast').textContent='';render();};
+$('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText($('questText').textContent);$('toast').textContent='Copied.';}catch(e){$('toast').textContent='Select the quest text to copy it.';}};
+render();
+</script>
+</body>
+</html>
