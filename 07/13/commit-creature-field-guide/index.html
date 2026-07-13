@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Commit Creature Field Guide</title>
+<style>
+  :root{
+    --paper:#f4ecd8;
+    --paper-2:#ece0c4;
+    --ink:#2b2318;
+    --ink-soft:#5c503c;
+    --rule:#c9b892;
+    --shadow:rgba(43,35,24,.28);
+    --spark:#e8a41d;
+    --tangle:#b8506a;
+    --bridge:#3f7d8c;
+    --polish:#7a5aa8;
+    --rest:#4a7a5c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{overflow-x:hidden}
+  body{
+    background:#1c1710;
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .zine{
+    width:100%;
+    max-width:430px;
+    background:var(--paper);
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    /* halftone paper grain */
+    background-image:
+      radial-gradient(var(--paper-2) 1px, transparent 1.4px),
+      radial-gradient(var(--paper-2) 1px, transparent 1.4px);
+    background-size:9px 9px, 9px 9px;
+    background-position:0 0, 4.5px 4.5px;
+    box-shadow:0 0 40px rgba(0,0,0,.6);
+  }
+
+  /* ---- masthead ---- */
+  header{
+    padding:18px 20px 12px;
+    border-bottom:3px solid var(--ink);
+    position:relative;
+  }
+  .kicker{
+    font-family:"Trebuchet MS","Helvetica Neue",sans-serif;
+    font-size:11px;
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+  }
+  h1{
+    font-size:27px;
+    line-height:1.02;
+    letter-spacing:-.01em;
+    margin:6px 0 2px;
+    font-weight:800;
+  }
+  .subtitle{
+    font-style:italic;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+
+  /* ---- stage ---- */
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:16px 16px 8px;
+    position:relative;
+  }
+
+  .panel{
+    background:#fbf6e8;
+    border:3px solid var(--ink);
+    border-radius:4px;
+    box-shadow:6px 6px 0 var(--shadow);
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+    animation:pop .32s cubic-bezier(.2,1.3,.4,1);
+  }
+  @keyframes pop{
+    from{opacity:0;transform:translateY(10px) rotate(-.6deg)}
+    to{opacity:1;transform:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .panel{animation:none}
+    *{animation-duration:.001ms !important}
+  }
+
+  /* corner index tab */
+  .tab{
+    position:absolute;
+    top:-3px;right:14px;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:"Trebuchet MS",sans-serif;
+    font-size:11px;
+    letter-spacing:.14em;
+    padding:5px 10px 6px;
+    border-radius:0 0 6px 6px;
+    z-index:3;
+  }
+
+  /* creature art window */
+  .art{
+    height:210px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    border-bottom:2px dashed var(--rule);
+    overflow:hidden;
+  }
+  .art::before{ /* accent wash */
+    content:"";
+    position:absolute;
+    inset:0;
+    background:radial-gradient(120% 90% at 50% 30%, var(--tint,#e8a41d)22 0%, transparent 62%);
+    opacity:.9;
+  }
+  .art svg{width:170px;height:170px;position:relative;z-index:1;overflow:visible}
+
+  /* body text */
+  .body{
+    padding:14px 18px 16px;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+  }
+  .cname{
+    font-size:24px;
+    font-weight:800;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .cname .dot{
+    width:13px;height:13px;border-radius:50%;
+    background:var(--tint,#e8a41d);
+    border:2px solid var(--ink);
+    flex:none;
+  }
+  .latin{
+    font-style:italic;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:2px 0 10px;
+  }
+  .notes{
+    font-size:15.5px;
+    line-height:1.5;
+    color:var(--ink);
+  }
+  .meta{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:12px 0 4px;
+  }
+  .chip{
+    font-family:"Trebuchet MS",sans-serif;
+    font-size:10.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    background:var(--paper-2);
+    border:1.5px solid var(--rule);
+    border-radius:20px;
+    padding:4px 10px;
+    color:var(--ink-soft);
+  }
+  .ritual{
+    margin-top:auto;
+    background:var(--ink);
+    color:var(--paper);
+    border-radius:4px;
+    padding:12px 14px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .ritual .lbl{
+    font-family:"Trebuchet MS",sans-serif;
+    font-size:9.5px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    opacity:.7;
+    display:block;
+    margin-bottom:3px;
+  }
+  .ritual .txt{font-size:15px;line-height:1.35;font-style:italic}
+  .ritual .mark{font-size:26px;line-height:1;flex:none;opacity:.85}
+
+  /* cover panel */
+  .cover{align-items:center;justify-content:center;text-align:center;padding:26px 22px}
+  .cover .stamp{
+    width:150px;height:150px;margin:0 auto 6px;
+  }
+  .cover h2{font-size:22px;line-height:1.1;margin:8px 0 6px}
+  .cover p{font-size:14.5px;line-height:1.55;color:var(--ink-soft);max-width:280px}
+  .cover .go{margin-top:4px}
+
+  /* ---- controls ---- */
+  nav{
+    padding:12px 16px calc(16px + env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .dots{
+    display:flex;
+    justify-content:center;
+    gap:9px;
+  }
+  .dots button{
+    width:16px;height:16px;
+    min-width:16px;
+    padding:0;
+    border-radius:50%;
+    border:2px solid var(--ink);
+    background:transparent;
+    cursor:pointer;
+    position:relative;
+    transition:transform .15s;
+  }
+  .dots button::after{
+    content:"";position:absolute;inset:-14px; /* expand hit area to 44px */
+  }
+  .dots button[aria-current="true"]{background:var(--tint,var(--ink));transform:scale(1.15)}
+  .dots button:focus-visible{outline:3px solid var(--bridge);outline-offset:3px}
+
+  .arrows{display:flex;gap:12px}
+  .btn{
+    flex:1;
+    min-height:52px;
+    border:3px solid var(--ink);
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Trebuchet MS",sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:.04em;
+    border-radius:6px;
+    cursor:pointer;
+    box-shadow:3px 3px 0 var(--shadow);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .08s, box-shadow .08s;
+    touch-action:manipulation;
+  }
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--shadow)}
+  .btn.primary{background:var(--ink);color:var(--paper)}
+  .btn:focus-visible{outline:3px solid var(--bridge);outline-offset:3px}
+  .btn:disabled{opacity:.32;cursor:default;box-shadow:none;transform:none}
+
+  .hint{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    font-style:italic;
+    letter-spacing:.02em;
+  }
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  /* creature animations */
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+  @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  @keyframes dash{to{stroke-dashoffset:-40}}
+  @keyframes zzz{0%{opacity:0;transform:translate(0,0) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translate(14px,-26px) scale(1.1)}}
+  .a-bob{animation:bob 2.6s ease-in-out infinite;transform-origin:center}
+  .a-sway{animation:sway 3.2s ease-in-out infinite;transform-origin:50% 90%}
+  .a-tw{animation:twinkle 1.8s ease-in-out infinite;transform-origin:center}
+  .a-spin{animation:spin 9s linear infinite;transform-origin:center}
+  .a-breathe{animation:breathe 3.4s ease-in-out infinite;transform-origin:center}
+  .a-dash{stroke-dasharray:6 6;animation:dash 1.4s linear infinite}
+  .a-zzz{animation:zzz 3s ease-in-out infinite}
+</style>
+</head>
+<body>
+  <div class="zine" role="application" aria-label="Commit Creature Field Guide, a tappable micro-zine">
+    <header>
+      <div class="kicker"><span>Pocket Naturalist</span><span>No. 07 · Vol. 13</span></div>
+      <h1>Commit Creature<br>Field Guide</h1>
+      <div class="subtitle">Five creatures that live in a morning's worth of work.</div>
+    </header>
+
+    <main>
+      <section class="panel" id="panel" aria-live="polite">
+        <!-- filled by JS -->
+      </section>
+    </main>
+
+    <nav aria-label="Field guide navigation">
+      <div class="dots" id="dots" role="tablist" aria-label="Choose a page"></div>
+      <div class="arrows">
+        <button class="btn" id="prev" aria-label="Previous page">‹ Back</button>
+        <button class="btn primary" id="next" aria-label="Next page">Next ›</button>
+      </div>
+      <div class="hint" id="hint">Tap Next, use ← → keys, or swipe to explore the guide.</div>
+    </nav>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- SVG creatures (simple, hand-drawn ink style) ----
+  var INK="#2b2318";
+  function stampSVG(){
+    return '<svg viewBox="0 0 100 100" aria-hidden="true">'
+      +'<g class="a-spin" stroke="'+INK+'" stroke-width="2.4" fill="none">'
+      +'<circle cx="50" cy="50" r="34"/>'
+      +'<circle cx="50" cy="50" r="27" stroke-dasharray="3 5"/>'
+      +'</g>'
+      +'<g class="a-bob">'
+      +'<circle cx="50" cy="52" r="17" fill="#e8a41d" stroke="'+INK+'" stroke-width="2.6"/>'
+      +'<circle cx="44" cy="49" r="2.4" fill="'+INK+'"/><circle cx="56" cy="49" r="2.4" fill="'+INK+'"/>'
+      +'<path d="M43 57 Q50 63 57 57" stroke="'+INK+'" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+      +'<path d="M50 35 L50 22 M50 22 l-4 4 M50 22 l4 4" stroke="'+INK+'" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+      +'</g></svg>';
+  }
+
+  var CREATURES=[
+    {
+      key:"spark", tint:"#e8a41d", tab:"01 / SPARK",
+      name:"The Spark", latin:"Idea prima",
+      notes:"A tiny darting creature that appears the instant something clicks. Bright, restless, gone if you don’t write it down.",
+      habitat:["First light","Blank pages","Shower thoughts"],
+      ritual:"Catch one idea and jot it down before it flits off.",
+      mark:"✨",
+      svg:'<svg viewBox="0 0 100 100" aria-hidden="true">'
+        +'<g class="a-bob">'
+        +'<path d="M50 26 L54 44 L72 48 L54 52 L50 70 L46 52 L28 48 L46 44 Z" fill="#e8a41d" stroke="'+INK+'" stroke-width="2.6" stroke-linejoin="round"/>'
+        +'<circle cx="46" cy="47" r="2.2" fill="'+INK+'"/><circle cx="55" cy="47" r="2.2" fill="'+INK+'"/>'
+        +'<path d="M45 53 Q50 57 55 53" stroke="'+INK+'" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        +'</g>'
+        +'<circle class="a-tw" cx="24" cy="30" r="3" fill="#e8a41d" style="animation-delay:.2s"/>'
+        +'<circle class="a-tw" cx="78" cy="34" r="4" fill="#e8a41d" style="animation-delay:.7s"/>'
+        +'<circle class="a-tw" cx="72" cy="72" r="3" fill="#e8a41d" style="animation-delay:1.1s"/>'
+        +'<circle class="a-tw" cx="26" cy="68" r="2.6" fill="#e8a41d" style="animation-delay:.9s"/>'
+        +'</svg>'
+    },
+    {
+      key:"tangle", tint:"#b8506a", tab:"02 / TANGLE",
+      name:"The Tangle", latin:"Nodus confusus",
+      notes:"A soft knot of yarn that shows up when three simple things quietly become one complicated thing. Friendly. Just a little stuck.",
+      habitat:["Mid-morning","Half-done tasks","Too many tabs"],
+      ritual:"Name the one loose thread you’ll pull first.",
+      mark:"🧶",
+      svg:'<svg viewBox="0 0 100 100" aria-hidden="true">'
+        +'<g class="a-sway">'
+        +'<path class="a-dash" d="M30 40 C20 55 40 62 50 55 C62 47 40 40 34 52 C28 64 66 70 62 52 C58 38 44 46 50 60" stroke="#b8506a" stroke-width="3" fill="none" stroke-linecap="round"/>'
+        +'<circle cx="50" cy="52" r="20" fill="none" stroke="#b8506a" stroke-width="3"/>'
+        +'<circle cx="43" cy="49" r="2.3" fill="'+INK+'"/><circle cx="57" cy="49" r="2.3" fill="'+INK+'"/>'
+        +'<path d="M44 58 Q50 61 56 58" stroke="'+INK+'" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        +'<path d="M70 58 q10 6 6 16" stroke="#b8506a" stroke-width="3" fill="none" stroke-linecap="round"/>'
+        +'</g></svg>'
+    },
+    {
+      key:"bridge", tint:"#3f7d8c", tab:"03 / BRIDGE",
+      name:"The Bridge", latin:"Iunctura longa",
+      notes:"A long-limbed creature that reaches across gaps, holding two far-apart ideas together until they finally shake hands.",
+      habitat:["Handoffs","Review time","“Wait, these connect”"],
+      ritual:"Connect two things that have been drifting apart.",
+      mark:"🌉",
+      svg:'<svg viewBox="0 0 100 100" aria-hidden="true">'
+        +'<circle cx="22" cy="66" r="6" fill="#3f7d8c" stroke="'+INK+'" stroke-width="2.4"/>'
+        +'<circle cx="78" cy="66" r="6" fill="#3f7d8c" stroke="'+INK+'" stroke-width="2.4"/>'
+        +'<g class="a-breathe">'
+        +'<path d="M22 62 C34 26 66 26 78 62" fill="none" stroke="#3f7d8c" stroke-width="4" stroke-linecap="round"/>'
+        +'<circle cx="50" cy="36" r="15" fill="#cfe6ea" stroke="'+INK+'" stroke-width="2.6"/>'
+        +'<circle cx="44" cy="34" r="2.3" fill="'+INK+'"/><circle cx="56" cy="34" r="2.3" fill="'+INK+'"/>'
+        +'<path d="M44 41 Q50 45 56 41" stroke="'+INK+'" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        +'<path d="M35 40 L22 62 M65 40 L78 62" stroke="#3f7d8c" stroke-width="3" stroke-linecap="round"/>'
+        +'</g></svg>'
+    },
+    {
+      key:"polish", tint:"#7a5aa8", tab:"04 / POLISH",
+      name:"The Polish", latin:"Nitor lentus",
+      notes:"A round, contented creature that buffs rough edges smooth. Not fast — just thorough. Leaves a faint shine wherever it rests.",
+      habitat:["Late passes","Final read-throughs","Almost-done"],
+      ritual:"Smooth one rough edge, then call it good enough.",
+      mark:"✨",
+      svg:'<svg viewBox="0 0 100 100" aria-hidden="true">'
+        +'<g class="a-breathe">'
+        +'<circle cx="50" cy="52" r="22" fill="#7a5aa8" stroke="'+INK+'" stroke-width="2.6"/>'
+        +'<path d="M40 44 q6 -6 12 0" stroke="#efe6ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>'
+        +'<circle cx="44" cy="50" r="2.4" fill="'+INK+'"/><circle cx="56" cy="50" r="2.4" fill="'+INK+'"/>'
+        +'<path d="M43 58 Q50 63 57 58" stroke="'+INK+'" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        +'</g>'
+        +'<path class="a-tw" d="M74 34 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2 Z" fill="#7a5aa8" style="animation-delay:.3s"/>'
+        +'<path class="a-tw" d="M26 66 l1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 4 -1.5 Z" fill="#7a5aa8" style="animation-delay:1s"/>'
+        +'</svg>'
+    },
+    {
+      key:"rest", tint:"#4a7a5c", tab:"05 / REST",
+      name:"The Rest", latin:"Quies necessaria",
+      notes:"A curled, drowsy creature that knows the guide isn’t finished until someone stops. It doesn’t nap from laziness — it naps on purpose.",
+      habitat:["End of a stretch","Good stopping points","Dusk"],
+      ritual:"Close one loop and let yourself pause.",
+      mark:"🌙",
+      svg:'<svg viewBox="0 0 100 100" aria-hidden="true">'
+        +'<g class="a-breathe">'
+        +'<path d="M28 58 Q28 38 50 38 Q74 38 72 60 Q71 72 50 72 Q30 72 28 58 Z" fill="#4a7a5c" stroke="'+INK+'" stroke-width="2.6"/>'
+        +'<path d="M40 52 q4 4 8 0" stroke="'+INK+'" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        +'<path d="M54 52 q4 4 8 0" stroke="'+INK+'" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+        +'<path d="M46 60 q4 3 8 0" stroke="'+INK+'" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        +'</g>'
+        +'<text class="a-zzz" x="66" y="42" font-size="13" font-family="serif" fill="'+INK+'">z</text>'
+        +'<text class="a-zzz" x="66" y="42" font-size="13" font-family="serif" fill="'+INK+'" style="animation-delay:1s">z</text>'
+        +'<text class="a-zzz" x="66" y="42" font-size="13" font-family="serif" fill="'+INK+'" style="animation-delay:2s">z</text>'
+        +'</svg>'
+    }
+  ];
+
+  // pages: cover + creatures
+  var pages=[{cover:true}].concat(CREATURES);
+  var idx=0;
+
+  var panel=document.getElementById("panel");
+  var dotsWrap=document.getElementById("dots");
+  var prevBtn=document.getElementById("prev");
+  var nextBtn=document.getElementById("next");
+  var hint=document.getElementById("hint");
+
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;"});}
+
+  function renderCover(){
+    return '<div class="panel-inner"></div>'; // placeholder unused
+  }
+
+  function render(){
+    var p=pages[idx];
+    var html;
+    if(p.cover){
+      panel.style.setProperty("--tint","#e8a41d");
+      html='<div class="body cover">'
+        +'<div class="stamp">'+stampSVG()+'</div>'
+        +'<h2>A pocket guide to the little moods of getting things done</h2>'
+        +'<p>Scattered signals from a morning’s work, sorted into five friendly creatures. Tap through, meet each one, and take its tiny ritual with you.</p>'
+        +'<p class="go">→ Turn the page to begin.</p>'
+        +'</div>';
+    } else {
+      panel.style.setProperty("--tint",p.tint);
+      var chips=p.habitat.map(function(h){return '<span class="chip">'+esc(h)+'</span>';}).join("");
+      html='<span class="tab">'+esc(p.tab)+'</span>'
+        +'<div class="art" style="--tint:'+p.tint+'">'+p.svg+'</div>'
+        +'<div class="body">'
+        +'<div class="cname"><span class="dot"></span>'+esc(p.name)+'</div>'
+        +'<div class="latin">'+esc(p.latin)+'</div>'
+        +'<div class="notes">'+esc(p.notes)+'</div>'
+        +'<div class="meta">'+chips+'</div>'
+        +'<div class="ritual"><span class="mark" aria-hidden="true">'+p.mark+'</span>'
+        +'<span><span class="lbl">Today’s ritual</span><span class="txt">'+esc(p.ritual)+'</span></span></div>'
+        +'</div>';
+    }
+    // re-trigger entrance animation
+    panel.innerHTML=html;
+    panel.classList.remove("panel");
+    void panel.offsetWidth;
+    panel.classList.add("panel");
+
+    // controls
+    prevBtn.disabled=(idx===0);
+    nextBtn.textContent=(idx===pages.length-1)?"Start over ↺":"Next ›";
+    nextBtn.setAttribute("aria-label",(idx===pages.length-1)?"Start over from the cover":"Next page");
+
+    // dots
+    Array.prototype.forEach.call(dotsWrap.children,function(b,i){
+      var cur=(i===idx);
+      b.setAttribute("aria-current",cur?"true":"false");
+      b.style.setProperty("--tint", i===0?INK:CREATURES[i-1].tint);
+    });
+
+    var label=p.cover?"Cover":(p.name+", creature "+idx+" of "+CREATURES.length);
+    hint.textContent = p.cover
+      ? "Tap Next, use ← → keys, or swipe to explore the guide."
+      : label+".  ← → or swipe for more.";
+  }
+
+  function go(n){
+    idx=(n+pages.length)%pages.length;
+    render();
+  }
+
+  // build dots
+  pages.forEach(function(p,i){
+    var b=document.createElement("button");
+    b.setAttribute("role","tab");
+    b.setAttribute("aria-label", i===0?"Cover":("Page "+i+", "+CREATURES[i-1].name));
+    b.addEventListener("click",function(){go(i);});
+    dotsWrap.appendChild(b);
+  });
+
+  prevBtn.addEventListener("click",function(){go(idx-1);});
+  nextBtn.addEventListener("click",function(){go(idx+1);});
+
+  document.addEventListener("keydown",function(e){
+    if(e.key==="ArrowRight"){go(idx+1);e.preventDefault();}
+    else if(e.key==="ArrowLeft"){go(idx-1);e.preventDefault();}
+  });
+
+  // swipe
+  var sx=0,sy=0,tracking=false;
+  var stage=document.querySelector("main");
+  stage.addEventListener("touchstart",function(e){
+    var t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;tracking=true;
+  },{passive:true});
+  stage.addEventListener("touchend",function(e){
+    if(!tracking)return;tracking=false;
+    var t=e.changedTouches[0];
+    var dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Math.abs(dx)>44 && Math.abs(dx)>Math.abs(dy)){
+      go(idx + (dx<0?1:-1));
+    }
+  },{passive:true});
+
+  render();
+})();
+</script>
+</body>
+</html>
