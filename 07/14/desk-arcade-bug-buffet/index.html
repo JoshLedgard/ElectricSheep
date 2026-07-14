@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1b1230">
+<title>Desk Arcade: Bug Buffet</title>
+<style>
+  :root{
+    --bg:#160f28;
+    --bg2:#1f1638;
+    --desk:#2a1f47;
+    --desk-edge:#3a2b60;
+    --ink:#f4eeff;
+    --ink-dim:#c3b6e6;
+    --ink-faint:#8f80bb;
+    --fix:#37d69b;
+    --fix-d:#146c4e;
+    --later:#f7c948;
+    --later-d:#7a5c07;
+    --nope:#ff7a8a;
+    --nope-d:#7a1f2c;
+    --card:#efe7ff;
+    --card-ink:#1d1533;
+    --line:#4a3a72;
+    --focus:#8ab4ff;
+    --radius:16px;
+    --shadow:0 8px 22px rgba(0,0,0,.34);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 80% -10%, #2a1a4d 0%, transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, #1a2a4d 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Trebuchet MS",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    -webkit-text-size-adjust:100%;
+    min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:14px 14px 40px}
+  header{padding:6px 2px 10px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:42px;height:42px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,#ff7a8a,#f7c948 55%,#37d69b);
+    display:grid;place-items:center;font-size:22px;box-shadow:var(--shadow);
+  }
+  h1{font-size:1.34rem;margin:0;line-height:1.05;letter-spacing:.2px}
+  .tag{margin:2px 0 0;font-size:.78rem;color:var(--ink-faint)}
+  .bar{
+    display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
+  }
+  button{
+    font-family:inherit;cursor:pointer;border:none;border-radius:12px;
+    min-height:44px;padding:0 14px;font-size:.9rem;font-weight:700;
+    color:var(--ink);background:var(--bg2);border:1px solid var(--line);
+    transition:transform .08s ease, filter .15s ease;
+    touch-action:manipulation;
+  }
+  button:active{transform:translateY(1px) scale(.98)}
+  button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  .btn-accent{background:linear-gradient(135deg,#5a3fb0,#7a52d6);border-color:#8a68e6}
+  .bar button{flex:1 1 auto}
+
+  /* progress */
+  .progress-row{display:flex;align-items:center;gap:10px;margin:14px 2px 6px}
+  .progress{
+    flex:1;height:12px;border-radius:99px;background:var(--bg2);
+    border:1px solid var(--line);overflow:hidden;
+  }
+  .progress > i{
+    display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#ff7a8a,#f7c948,#37d69b);
+    transition:width .5s cubic-bezier(.2,.7,.2,1);
+  }
+  .progress-num{font-size:.82rem;color:var(--ink-dim);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+
+  /* desk */
+  .desk{
+    position:relative;margin-top:8px;padding:14px 12px 16px;border-radius:20px;
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.015) 0 14px, transparent 14px 28px),
+      linear-gradient(180deg,var(--desk) 0%, #241a3e 100%);
+    border:1px solid var(--desk-edge);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), var(--shadow);
+  }
+  .desk-label{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:.74rem;color:var(--ink-faint);letter-spacing:.14em;text-transform:uppercase;margin:0 2px 10px
+  }
+  .desk-clean-badge{color:var(--fix);font-weight:700;opacity:0;transition:opacity .4s}
+  .desk.clean .desk-clean-badge{opacity:1}
+  .desk.clean{background:linear-gradient(180deg,#20402f 0%, #1a3326 100%);border-color:#2c6a4b}
+
+  .pile{display:flex;flex-wrap:wrap;gap:9px;min-height:70px;align-content:flex-start}
+  .empty-note{
+    width:100%;text-align:center;color:var(--ink-faint);font-size:.9rem;
+    padding:18px 8px;line-height:1.4;
+  }
+  .empty-note b{color:var(--fix)}
+
+  /* bug card */
+  .bug{
+    position:relative;flex:1 1 100%;display:flex;align-items:center;gap:10px;
+    background:var(--card);color:var(--card-ink);border-radius:14px;
+    padding:10px 10px;text-align:left;min-height:56px;font-weight:600;
+    box-shadow:0 3px 0 rgba(0,0,0,.22);
+    animation:pop .28s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  @keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .bug .face{
+    width:38px;height:38px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;font-size:22px;
+    background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  .bug .txt{flex:1;min-width:0}
+  .bug .title{display:block;font-size:.92rem;line-height:1.15}
+  .bug .sub{display:block;font-size:.72rem;color:#6b5f86;font-weight:600;margin-top:2px}
+  .bug .tray-btn{
+    flex:0 0 auto;min-width:88px;min-height:44px;border-radius:11px;
+    font-size:.8rem;font-weight:800;color:#fff;border:none;
+    display:flex;align-items:center;justify-content:center;gap:5px;
+  }
+  .bug[data-tray="unsorted"] .tray-btn{background:#6b5f86}
+  .bug[data-tray="fix"] .tray-btn{background:var(--fix-d)}
+  .bug[data-tray="later"] .tray-btn{background:var(--later-d)}
+  .bug[data-tray="nope"] .tray-btn{background:var(--nope-d)}
+  .bug.flick{animation:flick .4s ease forwards}
+  @keyframes flick{
+    60%{transform:translateX(0) rotate(0)}
+    100%{transform:translateX(0) rotate(0)}
+  }
+
+  /* tray strip */
+  .trays{display:flex;gap:8px;margin-top:14px}
+  .tray{
+    flex:1;border-radius:16px;padding:10px 8px 12px;text-align:center;
+    border:2px solid var(--line);background:var(--bg2);position:relative;
+    transition:border-color .15s, background .15s;
+  }
+  .tray.hot{border-color:var(--focus);background:#26315a}
+  .tray h3{margin:0;font-size:.82rem;letter-spacing:.04em}
+  .tray .cnt{
+    display:inline-grid;place-items:center;min-width:30px;height:30px;border-radius:99px;
+    margin-top:6px;font-size:1rem;font-weight:800;font-variant-numeric:tabular-nums;
+  }
+  .tray.t-fix{border-color:var(--fix-d)}
+  .tray.t-fix .cnt{background:rgba(55,214,155,.16);color:var(--fix)}
+  .tray.t-later{border-color:var(--later-d)}
+  .tray.t-later .cnt{background:rgba(247,201,72,.16);color:var(--later)}
+  .tray.t-nope{border-color:var(--nope-d)}
+  .tray.t-nope .cnt{background:rgba(255,122,138,.16);color:var(--nope)}
+  .tray .emoji{font-size:1.15rem}
+
+  /* add custom */
+  details.add{margin-top:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg2);overflow:hidden}
+  details.add summary{
+    list-style:none;padding:12px 14px;font-weight:700;font-size:.9rem;cursor:pointer;
+    display:flex;align-items:center;gap:8px;min-height:44px;
+  }
+  details.add summary::-webkit-details-marker{display:none}
+  details.add[open] summary{border-bottom:1px solid var(--line)}
+  .add-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .add-body input{
+    width:100%;min-height:44px;border-radius:11px;border:1px solid var(--line);
+    background:#160f28;color:var(--ink);padding:0 12px;font-size:.95rem;font-family:inherit;
+  }
+  .add-body input:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
+  .add-hint{font-size:.74rem;color:var(--ink-faint)}
+
+  /* note output */
+  .note-card{
+    margin-top:16px;border-radius:16px;background:var(--bg2);border:1px solid var(--line);padding:14px;
+  }
+  .note-card h2{margin:0 0 8px;font-size:1rem;display:flex;align-items:center;gap:8px}
+  .note-out{
+    white-space:pre-wrap;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:.82rem;line-height:1.5;background:#120c22;border-radius:10px;padding:12px;
+    color:var(--ink-dim);border:1px solid var(--line);max-height:240px;overflow:auto;
+  }
+  .note-actions{display:flex;gap:8px;margin-top:10px}
+  .note-actions button{flex:1}
+  .copied{color:var(--fix)!important}
+  footer{margin-top:22px;text-align:center;color:var(--ink-faint);font-size:.72rem;line-height:1.5}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001s!important;transition-duration:.001s!important}
+  }
+  @media (min-width:440px){
+    .bug{flex:1 1 calc(50% - 5px)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">🍽️</div>
+      <div>
+        <h1>Desk Arcade: Bug Buffet</h1>
+        <p class="tag">Flick the little bugs off your desk into three trays. Get a clean triage note.</p>
+      </div>
+    </div>
+    <div class="bar">
+      <button id="scramble" class="btn-accent" type="button">🔀 New batch</button>
+      <button id="autotidy" type="button">✨ Send rest to Later</button>
+      <button id="reset" type="button">↺ Reset</button>
+    </div>
+  </header>
+
+  <div class="progress-row" aria-hidden="true">
+    <div class="progress"><i id="bar"></i></div>
+    <div class="progress-num" id="pnum">0 / 0</div>
+  </div>
+
+  <section class="desk" id="desk" aria-label="Messy desk with bug cards">
+    <div class="desk-label">
+      <span>🗒️ The Desk</span>
+      <span class="desk-clean-badge">✓ Desk cleared</span>
+    </div>
+    <div class="pile" id="pile" role="list"></div>
+  </section>
+
+  <div class="trays" aria-hidden="true">
+    <div class="tray t-fix" id="tray-fix"><div class="emoji">🔧</div><h3>Fix</h3><div class="cnt" data-c="fix">0</div></div>
+    <div class="tray t-later" id="tray-later"><div class="emoji">🕒</div><h3>Later</h3><div class="cnt" data-c="later">0</div></div>
+    <div class="tray t-nope" id="tray-nope"><div class="emoji">🚫</div><h3>Nope</h3><div class="cnt" data-c="nope">0</div></div>
+  </div>
+
+  <details class="add">
+    <summary>➕ Add your own bug</summary>
+    <div class="add-body">
+      <input id="customInput" type="text" maxlength="70" placeholder="e.g. Toast pops up twice on save" aria-label="Custom bug description">
+      <button id="addCustom" type="button">Drop it on the desk</button>
+      <p class="add-hint">Stays on this device — nothing is sent anywhere.</p>
+    </div>
+  </details>
+
+  <section class="note-card">
+    <h2>📋 Triage note</h2>
+    <pre class="note-out" id="noteOut" aria-live="polite">Sort a few bugs to build your note…</pre>
+    <div class="note-actions">
+      <button id="copyBtn" type="button">📄 Copy note</button>
+      <button id="dl" type="button">⬇︎ Download</button>
+    </div>
+  </section>
+
+  <footer>
+    A tiny playable desk-cleanup toy · everything runs locally in your browser.<br>
+    Tap a card's button to cycle it through <b>Unsorted → Fix → Later → Nope</b>.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var TRAYS = ["unsorted","fix","later","nope"];
+  var TRAY_META = {
+    unsorted:{label:"Sort →", emoji:"•"},
+    fix:{label:"🔧 Fix", emoji:"🔧"},
+    later:{label:"🕒 Later", emoji:"🕒"},
+    nope:{label:"🚫 Nope", emoji:"🚫"}
+  };
+
+  // 12 whimsical synthetic bugs — all invented, generic, privacy-safe.
+  var BUGS = [
+    {face:"🐞",title:"Save button double-taps itself",sub:"phantom second click"},
+    {face:"🦟",title:"Loading spinner never stops spinning",sub:"even after it loads"},
+    {face:"🐛",title:"Dark mode forgets it's dark",sub:"resets on every reload"},
+    {face:"🦗",title:"Tooltip covers the thing it explains",sub:"classic overlap"},
+    {face:"🕷️",title:"Empty list says 'undefined items'",sub:"should say 'None yet'"},
+    {face:"🐜",title:"Back button skips two screens",sub:"leapfrog navigation"},
+    {face:"🪲",title:"Confetti fires on a failed action",sub:"celebrating nothing"},
+    {face:"🦋",title:"Emoji picker eats the last letter",sub:"typing gremlin"},
+    {face:"🐌",title:"Search finds results, hides them",sub:"scroll to nowhere"},
+    {face:"🐝",title:"Timestamp shows 'in -3 minutes'",sub:"time traveler bug"},
+    {face:"🪳",title:"Toast stacks forever, never dismisses",sub:"toast avalanche"},
+    {face:"🦂",title:"Copy button copies the wrong row",sub:"off-by-one clipboard"}
+  ];
+
+  var pile = document.getElementById("pile");
+  var noteOut = document.getElementById("noteOut");
+  var bar = document.getElementById("bar");
+  var pnum = document.getElementById("pnum");
+  var desk = document.getElementById("desk");
+  var state = []; // {id, face, title, sub, tray, custom}
+  var nextId = 1;
+  var seed = 1;
+
+  function rng(){ // deterministic-ish shuffle without Math.random dependency concerns
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  }
+
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j = Math.floor(rng()*(i+1));
+      var t=a[i];a[i]=a[j];a[j]=t;
+    }
+    return a;
+  }
+
+  function newBatch(){
+    // vary the seed each batch so batches differ across the session
+    var jitter = (typeof performance!=="undefined" && performance.now) ? (performance.now()|0) : 0;
+    seed = (seed*7 + jitter + 1) & 0x7fffffff;
+    var picked = shuffle(BUGS).slice(0, 8 + Math.floor(rng()*5)); // 8–12 bugs
+    state = picked.map(function(b){
+      return {id:nextId++, face:b.face, title:b.title, sub:b.sub, tray:"unsorted", custom:false};
+    });
+    render();
+  }
+
+  function cycle(item){
+    var i = TRAYS.indexOf(item.tray);
+    item.tray = TRAYS[(i+1) % TRAYS.length];
+    render(item.id);
+  }
+
+  function setTray(item, tray){
+    item.tray = tray;
+    render(item.id);
+  }
+
+  function buildBug(item){
+    var el = document.createElement("div");
+    el.className = "bug";
+    el.setAttribute("role","listitem");
+    el.dataset.tray = item.tray;
+    el.dataset.id = item.id;
+
+    var face = document.createElement("div");
+    face.className = "face"; face.setAttribute("aria-hidden","true");
+    face.textContent = item.face;
+
+    var txt = document.createElement("div");
+    txt.className = "txt";
+    var t = document.createElement("span"); t.className="title"; t.textContent = item.title;
+    var s = document.createElement("span"); s.className="sub"; s.textContent = item.custom ? "your bug" : item.sub;
+    txt.appendChild(t); txt.appendChild(s);
+
+    var btn = document.createElement("button");
+    btn.type="button"; btn.className="tray-btn";
+    btn.textContent = TRAY_META[item.tray].label;
+    btn.setAttribute("aria-label", "Bug: " + item.title + ". Currently " +
+      (item.tray==="unsorted"?"unsorted":item.tray) + ". Activate to move to next tray.");
+    btn.addEventListener("click", function(){ cycle(item); });
+
+    // right-click / long context: cycle backward via keyboard shortcuts handled below
+    el.appendChild(face); el.appendChild(txt); el.appendChild(btn);
+    return el;
+  }
+
+  function render(justMovedId){
+    // only cards still on the desk (unsorted) OR keep all visible but faded? Brief: desk clears.
+    pile.innerHTML = "";
+    var remaining = state.filter(function(x){return x.tray==="unsorted";});
+    var counts = {fix:0,later:0,nope:0};
+    state.forEach(function(x){ if(counts[x.tray]!==undefined) counts[x.tray]++; });
+
+    if(remaining.length === 0 && state.length>0){
+      var note = document.createElement("div");
+      note.className="empty-note";
+      note.innerHTML = "🧹 Desk cleared! Every bug is in a tray.<br><b>Your triage note is ready below.</b>";
+      pile.appendChild(note);
+      desk.classList.add("clean");
+    } else {
+      desk.classList.remove("clean");
+      // show unsorted first, then already-sorted cards so you can still re-cycle them
+      var sortedTail = state.filter(function(x){return x.tray!=="unsorted";});
+      remaining.concat(sortedTail).forEach(function(item){
+        var el = buildBug(item);
+        if(item.id===justMovedId){ el.style.animation="none"; }
+        pile.appendChild(el);
+      });
+    }
+
+    document.querySelector('[data-c="fix"]').textContent = counts.fix;
+    document.querySelector('[data-c="later"]').textContent = counts.later;
+    document.querySelector('[data-c="nope"]').textContent = counts.nope;
+
+    var total = state.length;
+    var done = total - remaining.length;
+    bar.style.width = total ? (done/total*100).toFixed(0)+"%" : "0%";
+    pnum.textContent = done + " / " + total;
+
+    // highlight active trays briefly
+    highlightTray(justMovedId);
+    buildNote(counts);
+  }
+
+  function highlightTray(id){
+    ["fix","later","nope"].forEach(function(k){
+      document.getElementById("tray-"+k).classList.remove("hot");
+    });
+    if(!id) return;
+    var it = state.filter(function(x){return x.id===id;})[0];
+    if(it && it.tray!=="unsorted"){
+      var el = document.getElementById("tray-"+it.tray);
+      el.classList.add("hot");
+      setTimeout(function(){ el.classList.remove("hot"); }, 450);
+    }
+  }
+
+  function buildNote(counts){
+    var groups = {fix:[],later:[],nope:[]};
+    state.forEach(function(x){ if(groups[x.tray]) groups[x.tray].push(x.title); });
+    var sortedAny = counts.fix+counts.later+counts.nope;
+    if(sortedAny===0){
+      noteOut.textContent = "Sort a few bugs to build your note…";
+      return;
+    }
+    var lines = [];
+    lines.push("BUG TRIAGE NOTE");
+    lines.push("Sorted " + sortedAny + " item(s) · " + counts.fix + " fix / " + counts.later + " later / " + counts.nope + " nope");
+    lines.push("");
+    function block(name, arr){
+      lines.push(name + " (" + arr.length + ")");
+      if(arr.length===0){ lines.push("  — none"); }
+      else arr.forEach(function(t){ lines.push("  • " + t); });
+      lines.push("");
+    }
+    block("🔧 FIX NOW", groups.fix);
+    block("🕒 LATER", groups.later);
+    block("🚫 NOPE / WON'T DO", groups.nope);
+    noteOut.textContent = lines.join("\n").replace(/\n+$/,"");
+  }
+
+  // ---- controls ----
+  document.getElementById("scramble").addEventListener("click", newBatch);
+  document.getElementById("reset").addEventListener("click", function(){
+    state.forEach(function(x){ x.tray="unsorted"; });
+    render();
+  });
+  document.getElementById("autotidy").addEventListener("click", function(){
+    state.forEach(function(x){ if(x.tray==="unsorted") x.tray="later"; });
+    render();
+  });
+
+  document.getElementById("addCustom").addEventListener("click", addCustom);
+  document.getElementById("customInput").addEventListener("keydown", function(e){
+    if(e.key==="Enter"){ e.preventDefault(); addCustom(); }
+  });
+  function addCustom(){
+    var inp = document.getElementById("customInput");
+    var v = (inp.value||"").trim();
+    if(!v) return;
+    var faces = ["🐞","🐛","🦟","🦗","🕷️","🐜","🪲","🦂"];
+    state.unshift({id:nextId++, face:faces[Math.floor(rng()*faces.length)], title:v, sub:"", tray:"unsorted", custom:true});
+    inp.value="";
+    render();
+  }
+
+  var copyBtn = document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", function(){
+    var txt = noteOut.textContent;
+    var done = function(){
+      var orig = copyBtn.textContent;
+      copyBtn.textContent = "✓ Copied!";
+      copyBtn.classList.add("copied");
+      setTimeout(function(){ copyBtn.textContent = orig; copyBtn.classList.remove("copied"); }, 1400);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, fallbackCopy);
+    } else { fallbackCopy(); }
+    function fallbackCopy(){
+      var ta=document.createElement("textarea"); ta.value=txt;
+      ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+  });
+
+  document.getElementById("dl").addEventListener("click", function(){
+    var blob = new Blob([noteOut.textContent], {type:"text/plain"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href=url; a.download="bug-triage-note.txt";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
+  });
+
+  // keyboard: focus a card button and press 1/2/3 to file directly
+  pile.addEventListener("keydown", function(e){
+    var btn = e.target.closest ? e.target.closest(".tray-btn") : null;
+    if(!btn) return;
+    var id = parseInt(btn.parentElement.dataset.id,10);
+    var it = state.filter(function(x){return x.id===id;})[0];
+    if(!it) return;
+    if(e.key==="1"){ e.preventDefault(); setTray(it,"fix"); }
+    else if(e.key==="2"){ e.preventDefault(); setTray(it,"later"); }
+    else if(e.key==="3"){ e.preventDefault(); setTray(it,"nope"); }
+    else if(e.key==="0"||e.key==="Backspace"){ e.preventDefault(); setTray(it,"unsorted"); }
+  });
+
+  // init
+  newBatch();
+})();
+</script>
+</body>
+</html>
