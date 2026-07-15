@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Thought Tempo — An Inference Instrument</title>
+<meta name="description" content="A tactile fake-hardware sequencer. Tap Focus, Drift and Spark, twist the tempo dial, and press Run Pulse to feel a short synthetic thinking performance as animated bands and optional tones. Entirely synthetic — no real model, data, or account.">
+<style>
+  :root{
+    --bg:#0a0d13;
+    --panel:#141922;
+    --panel-2:#1b2230;
+    --groove:#0c0f16;
+    --ridge:#252e3d;
+    --text:#c4d2e2;
+    --dim:#6c7d92;
+    --bright:#eaf2fb;
+    --focus:#f6b352;
+    --drift:#4fd6c7;
+    --spark:#e778c8;
+    --screen:#07110f;
+    --accent:#7fe0d0;
+    --btn:#232c3b;
+    --btn-hi:#2e3a4d;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(79,214,199,0.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    line-height:1.5;
+    -webkit-text-size-adjust:100%;
+    padding:
+      calc(env(safe-area-inset-top) + 16px)
+      calc(env(safe-area-inset-right) + 14px)
+      calc(env(safe-area-inset-bottom) + 24px)
+      calc(env(safe-area-inset-left) + 14px);
+    display:flex;
+    justify-content:center;
+  }
+  .device{
+    width:100%;
+    max-width:460px;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--ridge);
+    border-radius:22px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.04) inset,
+      0 24px 60px rgba(0,0,0,0.55);
+    padding:18px 16px 20px;
+  }
+  .brand{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;margin-bottom:14px;
+  }
+  .brand .id{display:flex;align-items:center;gap:10px;min-width:0;}
+  .logo{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:radial-gradient(circle at 30% 30%,var(--accent),#1c6b60);
+    box-shadow:0 0 12px rgba(127,224,208,0.4),0 1px 0 rgba(255,255,255,0.25) inset;
+  }
+  .brand h1{
+    font-size:15px;font-weight:700;color:var(--bright);
+    letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .brand .sub{font-size:10.5px;color:var(--dim);letter-spacing:0.18em;text-transform:uppercase;}
+  .brand .model{
+    font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--dim);border:1px solid var(--ridge);border-radius:20px;
+    padding:6px 9px;white-space:nowrap;
+  }
+
+  /* Screen */
+  .screen{
+    position:relative;
+    background:
+      radial-gradient(140% 120% at 50% 0%, rgba(127,224,208,0.07), transparent 55%),
+      var(--screen);
+    border:1px solid #10201c;
+    border-radius:14px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.5) inset,0 0 0 4px #0b0e14;
+    padding:10px 10px 8px;
+    margin-bottom:16px;
+  }
+  .readout{
+    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+    font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--accent);letter-spacing:0.06em;margin-bottom:8px;
+  }
+  .readout .status{color:var(--accent);}
+  .readout .clock{color:#5f8f86;}
+  canvas{display:block;width:100%;height:190px;border-radius:8px;}
+  .lane-legend{
+    display:flex;gap:14px;justify-content:center;margin-top:6px;
+    font-size:10.5px;color:var(--dim);flex-wrap:wrap;
+  }
+  .lane-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .lane-legend i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+
+  /* Pads */
+  .pads{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .pad{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    border:1px solid var(--ridge);border-radius:var(--radius);
+    background:linear-gradient(180deg,var(--btn-hi),var(--btn));
+    color:var(--text);
+    min-height:96px;padding:10px 8px 9px;
+    display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+    box-shadow:0 1px 0 rgba(255,255,255,0.05) inset,0 6px 14px rgba(0,0,0,0.35);
+    transition:transform .06s ease, box-shadow .12s ease, border-color .12s ease;
+    text-align:center;
+  }
+  .pad:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(255,255,255,0.05) inset,0 2px 6px rgba(0,0,0,0.4);}
+  .pad:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .pad .dot{
+    width:26px;height:26px;border-radius:50%;margin-bottom:2px;
+    background:radial-gradient(circle at 35% 30%, #2b3444, #161c27);
+    box-shadow:0 1px 2px rgba(0,0,0,0.5) inset;
+    transition:box-shadow .15s ease, background .15s ease;
+  }
+  .pad[data-track] .name{font-size:13px;font-weight:700;color:var(--bright);letter-spacing:0.02em;}
+  .pad .lvl{display:flex;gap:4px;margin-top:6px;}
+  .pad .lvl b{width:12px;height:5px;border-radius:3px;background:#2b3444;display:block;transition:background .15s;}
+  .pad .cap{font-size:9.5px;color:var(--dim);margin-top:4px;min-height:12px;}
+
+  .pad[data-track="focus"].on .dot{background:radial-gradient(circle at 35% 30%,#ffd89a,var(--focus));box-shadow:0 0 16px rgba(246,179,82,0.65);}
+  .pad[data-track="drift"].on .dot{background:radial-gradient(circle at 35% 30%,#b6fff4,var(--drift));box-shadow:0 0 16px rgba(79,214,199,0.6);}
+  .pad[data-track="spark"].on .dot{background:radial-gradient(circle at 35% 30%,#ffc8ef,var(--spark));box-shadow:0 0 16px rgba(231,120,200,0.6);}
+  .pad[data-track="focus"] .lvl b.lit{background:var(--focus);}
+  .pad[data-track="drift"] .lvl b.lit{background:var(--drift);}
+  .pad[data-track="spark"] .lvl b.lit{background:var(--spark);}
+
+  /* Dial + transport row */
+  .controls{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-bottom:14px;}
+  .dial-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .dial{
+    width:88px;height:88px;border-radius:50%;position:relative;cursor:ns-resize;
+    background:conic-gradient(from 225deg,#2b3646 0deg,#1a2130 270deg,#141922 270deg);
+    border:1px solid var(--ridge);
+    box-shadow:0 8px 18px rgba(0,0,0,0.4),0 1px 0 rgba(255,255,255,0.06) inset;
+    touch-action:none;
+  }
+  .dial::before{
+    content:'';position:absolute;inset:11px;border-radius:50%;
+    background:radial-gradient(circle at 40% 32%,#2c3646,#171d28);
+    box-shadow:0 3px 8px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.08) inset;
+  }
+  .dial .pointer{
+    position:absolute;left:50%;top:50%;width:4px;height:34px;border-radius:3px;
+    background:linear-gradient(var(--accent),#2c6d63);
+    transform-origin:50% 100%;
+    transform:translate(-50%,-100%) rotate(0deg);
+    box-shadow:0 0 8px rgba(127,224,208,0.6);
+  }
+  .dial:focus-visible{outline:3px solid var(--accent);outline-offset:3px;}
+  .dial-read{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--bright);}
+  .dial-lbl{font-size:9.5px;color:var(--dim);letter-spacing:0.16em;text-transform:uppercase;}
+
+  .transport{display:flex;flex-direction:column;gap:9px;}
+  .run{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    min-height:52px;border-radius:14px;border:1px solid #2f6f65;
+    background:linear-gradient(180deg,#33c9b4,#1f8f80);
+    color:#04231f;font-size:15px;font-weight:800;letter-spacing:0.04em;
+    box-shadow:0 6px 16px rgba(31,143,128,0.4),0 1px 0 rgba(255,255,255,0.3) inset;
+    transition:transform .06s ease, filter .12s ease;
+  }
+  .run:active{transform:translateY(2px);}
+  .run:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .run.playing{filter:saturate(1.2) brightness(1.05);}
+  .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .mini button{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    min-height:44px;border-radius:11px;border:1px solid var(--ridge);
+    background:linear-gradient(180deg,var(--btn-hi),var(--btn));color:var(--text);
+    font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;
+    transition:transform .06s ease, border-color .12s;
+  }
+  .mini button:active{transform:translateY(1px);}
+  .mini button:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .mini button[aria-pressed="true"]{border-color:var(--accent);color:var(--bright);box-shadow:0 0 0 1px var(--accent) inset;}
+
+  /* Presets */
+  .presets{margin-bottom:6px;}
+  .presets .lbl{font-size:9.5px;color:var(--dim);letter-spacing:0.16em;text-transform:uppercase;margin-bottom:7px;}
+  .preset-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .preset-row button{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    min-height:44px;border-radius:11px;border:1px solid var(--ridge);
+    background:linear-gradient(180deg,#1d2532,#161c27);color:var(--text);
+    font-size:12px;font-weight:600;transition:transform .06s ease,border-color .12s;
+  }
+  .preset-row button:active{transform:translateY(1px);}
+  .preset-row button:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
+  .preset-row button.sel{border-color:var(--accent);color:var(--bright);}
+
+  .hint{font-size:11px;color:var(--dim);text-align:center;margin-top:12px;line-height:1.55;}
+  .hint b{color:var(--text);font-weight:600;}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+  @media (max-width:360px){
+    .dial{width:78px;height:78px;}
+    .pad{min-height:88px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .pad,.run,.mini button,.preset-row button{transition:none;}
+  }
+</style>
+</head>
+<body>
+  <main class="device" aria-label="Thought Tempo inference instrument">
+    <div class="brand">
+      <div class="id">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Thought&nbsp;Tempo</h1>
+          <div class="sub">Inference Instrument</div>
+        </div>
+      </div>
+      <div class="model" aria-hidden="true">SYNTH·01</div>
+    </div>
+
+    <!-- Screen / timeline -->
+    <section class="screen" aria-label="Performance timeline">
+      <div class="readout">
+        <span class="status" id="status" role="status" aria-live="polite">Ready — press Run Pulse</span>
+        <span class="clock" id="clock">0.0s / 0.0s</span>
+      </div>
+      <canvas id="stage" aria-hidden="true"></canvas>
+      <div class="lane-legend" aria-hidden="true">
+        <span><i style="background:var(--focus)"></i>Focus</span>
+        <span><i style="background:var(--drift)"></i>Drift</span>
+        <span><i style="background:var(--spark)"></i>Spark</span>
+      </div>
+    </section>
+
+    <!-- Three pads -->
+    <div class="pads" role="group" aria-label="Voice controls — tap to change intensity">
+      <button class="pad" data-track="focus" type="button">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="name">Focus</span>
+        <span class="lvl" aria-hidden="true"><b></b><b></b><b></b></span>
+        <span class="cap">steady beat</span>
+      </button>
+      <button class="pad" data-track="drift" type="button">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="name">Drift</span>
+        <span class="lvl" aria-hidden="true"><b></b><b></b><b></b></span>
+        <span class="cap">syncopation</span>
+      </button>
+      <button class="pad" data-track="spark" type="button">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="name">Spark</span>
+        <span class="lvl" aria-hidden="true"><b></b><b></b><b></b></span>
+        <span class="cap">accents</span>
+      </button>
+    </div>
+
+    <!-- Dial + transport -->
+    <div class="controls">
+      <div class="dial-wrap">
+        <div class="dial" id="dial" role="slider" tabindex="0"
+             aria-label="Tempo" aria-valuemin="70" aria-valuemax="120" aria-valuenow="84" aria-valuetext="84 pulses per minute">
+          <span class="pointer" id="dialPointer" aria-hidden="true"></span>
+        </div>
+        <div class="dial-read" id="dialRead" aria-hidden="true">84 bpm</div>
+        <div class="dial-lbl" aria-hidden="true">Tempo</div>
+      </div>
+      <div class="transport">
+        <button class="run" id="run" type="button">▶ Run Pulse</button>
+        <div class="mini">
+          <button id="replay" type="button" aria-label="Replay last performance">↺ Replay</button>
+          <button id="reset" type="button" aria-label="Reset controls">⟲ Reset</button>
+          <button id="mute" type="button" aria-pressed="false" aria-label="Sound off. Activate to turn sound on.">🔇 Sound</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="presets">
+      <div class="lbl" id="presetLbl">Presets</div>
+      <div class="preset-row" role="group" aria-labelledby="presetLbl">
+        <button data-preset="steady" type="button">Steady</button>
+        <button data-preset="weave" type="button">Weave</button>
+        <button data-preset="flurry" type="button">Flurry</button>
+      </div>
+    </div>
+
+    <p class="hint">
+      Tap <b>Focus</b>, <b>Drift</b> and <b>Spark</b> to reshape the rhythm, twist the
+      <b>Tempo</b> dial (drag up/down or use arrow keys), then press <b>Run Pulse</b>.
+      Everything is synthetic — this represents no real model, data, or account.
+    </p>
+  </main>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Voice definitions ---------------------------------------------------
+  var TRACKS = [
+    {id:"focus", name:"Focus", color:"#f6b352", pitch:174.61, wave:"sine",     pulses:[0,2,5,8], offset:0, dur:0.42},
+    {id:"drift", name:"Drift", color:"#4fd6c7", pitch:261.63, wave:"triangle", pulses:[0,3,5,7], offset:2, dur:0.30},
+    {id:"spark", name:"Spark", color:"#e778c8", pitch:523.25, wave:"sine",     pulses:[0,1,3,5], offset:5, dur:0.17}
+  ];
+  var BASE_STEPS = 16, REPS = 4, TOTAL_STEPS = BASE_STEPS * REPS; // 64
+  var BPM_MIN = 70, BPM_MAX = 120;
+
+  var DEFAULTS = {focus:2, drift:1, spark:1, bpm:84};
+  var PRESETS = {
+    steady:{focus:3, drift:1, spark:0, bpm:78},
+    weave: {focus:2, drift:3, spark:1, bpm:92},
+    flurry:{focus:2, drift:2, spark:3, bpm:110}
+  };
+
+  var level = {focus:DEFAULTS.focus, drift:DEFAULTS.drift, spark:DEFAULTS.spark};
+  var bpm = DEFAULTS.bpm;
+  var soundOn = false;
+  var muted = true; // sound opt-in: starts off
+
+  function stepDur(){ return 60 / bpm / 2; }        // eighth-note grid
+  function totalTime(){ return TOTAL_STEPS * stepDur(); }
+
+  // Even (Euclidean-style) distribution of pulses across steps.
+  function euclid(pulses, steps){
+    var out = new Array(steps), bucket = 0, i;
+    if(pulses <= 0){ for(i=0;i<steps;i++) out[i]=false; return out; }
+    if(pulses >= steps){ for(i=0;i<steps;i++) out[i]=true; return out; }
+    for(i=0;i<steps;i++){
+      bucket += pulses;
+      if(bucket >= steps){ bucket -= steps; out[i]=true; } else out[i]=false;
+    }
+    return out;
+  }
+
+  // Full 64-step pattern for a voice, with gentle deterministic evolution.
+  function trackSteps(t){
+    var lvl = level[t.id];
+    var base = euclid(t.pulses[lvl], BASE_STEPS);
+    var out = [], r, i, off;
+    for(r=0;r<REPS;r++){
+      off = t.offset;
+      if(t.id === "spark") off += r;         // accents drift forward each cycle
+      if(t.id === "drift") off += (r % 2);   // subtle sway
+      for(i=0;i<BASE_STEPS;i++){
+        out.push(base[((i - off) % BASE_STEPS + BASE_STEPS) % BASE_STEPS]);
+      }
+    }
+    return out;
+  }
+
+  function buildEvents(){
+    var evs = [], sd = stepDur();
+    TRACKS.forEach(function(t){
+      var steps = trackSteps(t);
+      for(var i=0;i<steps.length;i++){
+        if(steps[i]) evs.push({track:t, step:i, time:i*sd});
+      }
+    });
+    return evs;
+  }
+
+  // ---- Canvas --------------------------------------------------------------
+  var canvas = document.getElementById("stage");
+  var ctx = canvas.getContext("2d");
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var W = 0, H = 0, dpr = 1;
+
+  function sizeCanvas(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var rect = canvas.getBoundingClientRect();
+    W = Math.max(240, rect.width);
+    H = 190;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw(playing ? elapsed() : -1);
+  }
+
+  var PAD_X = 10, LANE_GAP = 8;
+  function laneRect(idx){
+    var top = 8, usable = H - 16;
+    var lh = (usable - LANE_GAP*2) / 3;
+    return {x:PAD_X, y:top + idx*(lh+LANE_GAP), w:W - PAD_X*2, h:lh};
+  }
+
+  function draw(t){ // t = elapsed seconds, or -1 for static preview
+    ctx.clearRect(0,0,W,H);
+    var sd = stepDur(), total = totalTime();
+    var playhead = (t >= 0) ? Math.min(t/total, 1) : -1;
+
+    for(var li=0; li<TRACKS.length; li++){
+      var tr = TRACKS[li];
+      var r = laneRect(li);
+      var steps = trackSteps(tr);
+
+      // lane groove
+      ctx.fillStyle = "rgba(255,255,255,0.02)";
+      roundRect(r.x, r.y, r.w, r.h, 7); ctx.fill();
+      // center rail
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); ctx.stroke();
+
+      // pulses
+      var cw = r.w / TOTAL_STEPS;
+      for(var i=0;i<steps.length;i++){
+        if(!steps[i]) continue;
+        var cx = r.x + (i + 0.5) * cw;
+        var stepTime = i * sd;
+        var glow = 0;
+        if(t >= 0){
+          var age = t - stepTime;
+          if(age >= 0 && age < 0.55) glow = 1 - (age/0.55);
+        }
+        var barW = Math.max(3, cw * 0.62);
+        var baseH = r.h * 0.5;
+        var grow = reduceMotion ? 0 : glow * r.h * 0.34;
+        var barH = baseH + grow;
+        var cy = r.y + r.h/2;
+
+        ctx.save();
+        if(glow > 0 && !reduceMotion){
+          ctx.shadowColor = tr.color;
+          ctx.shadowBlur = 14 * glow;
+        }
+        var alpha = 0.42 + 0.58*glow;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = tr.color;
+        roundRect(cx - barW/2, cy - barH/2, barW, barH, Math.min(3, barW/2));
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // playhead
+    if(playhead >= 0){
+      var px = PAD_X + playhead * (W - PAD_X*2);
+      ctx.save();
+      ctx.strokeStyle = "rgba(127,224,208,0.9)";
+      ctx.lineWidth = 2;
+      if(!reduceMotion){ ctx.shadowColor = "rgba(127,224,208,0.9)"; ctx.shadowBlur = 8; }
+      ctx.beginPath(); ctx.moveTo(px, 4); ctx.lineTo(px, H-4); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function roundRect(x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  // ---- Audio (opt-in) ------------------------------------------------------
+  var actx = null, master = null, audioBroken = false;
+  function ensureAudio(){
+    if(actx || audioBroken) return;
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC){ audioBroken = true; return; }
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.85;
+      master.connect(actx.destination);
+    }catch(e){ audioBroken = true; }
+  }
+  function scheduleNote(tr, when, dur){
+    if(!actx) return;
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = tr.wave; o.frequency.value = tr.pitch;
+    o.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(0.55, when + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0008, when + dur);
+    o.start(when);
+    o.stop(when + dur + 0.03);
+  }
+
+  // ---- Playback ------------------------------------------------------------
+  var playing = false, rafId = 0, startPerf = 0, oscNodes = [];
+  function elapsed(){ return (performance.now() - startPerf) / 1000; }
+
+  function run(){
+    stop();
+    var events = buildEvents();
+    playing = true;
+    startPerf = performance.now();
+
+    if(soundOn && !muted){
+      ensureAudio();
+      if(actx){
+        if(actx.state === "suspended"){ actx.resume(); }
+        var base = actx.currentTime + 0.12;
+        // resync visual clock to the audio start so bands track tones
+        startPerf = performance.now() + 120;
+        events.forEach(function(e){ scheduleNote(e.track, base + e.time, e.track.dur); });
+      }
+    }
+    runBtn.classList.add("playing");
+    runBtn.textContent = "■ Playing";
+    loop();
+  }
+
+  function loop(){
+    var t = elapsed();
+    var total = totalTime();
+    if(t < 0) t = 0;
+    if(t >= total){
+      draw(total);
+      finish();
+      return;
+    }
+    setClock(t, total);
+    setStatus("Performing…");
+    draw(t);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function finish(){
+    playing = false;
+    cancelAnimationFrame(rafId);
+    runBtn.classList.remove("playing");
+    runBtn.textContent = "▶ Run Pulse";
+    setStatus("Done — tap Run or Replay");
+    setClock(totalTime(), totalTime());
+    draw(-1);
+  }
+
+  function stop(){
+    playing = false;
+    cancelAnimationFrame(rafId);
+    runBtn.classList.remove("playing");
+    runBtn.textContent = "▶ Run Pulse";
+    draw(-1);
+  }
+
+  // ---- DOM refs & wiring ---------------------------------------------------
+  var runBtn = document.getElementById("run");
+  var statusEl = document.getElementById("status");
+  var clockEl = document.getElementById("clock");
+  var dial = document.getElementById("dial");
+  var dialPointer = document.getElementById("dialPointer");
+  var dialRead = document.getElementById("dialRead");
+  var muteBtn = document.getElementById("mute");
+
+  function setStatus(s){ statusEl.textContent = s; }
+  function setClock(t, total){ clockEl.textContent = t.toFixed(1) + "s / " + total.toFixed(1) + "s"; }
+
+  function syncPads(){
+    document.querySelectorAll(".pad").forEach(function(pad){
+      var id = pad.getAttribute("data-track");
+      var lvl = level[id];
+      pad.classList.toggle("on", lvl > 0);
+      var bars = pad.querySelectorAll(".lvl b");
+      for(var i=0;i<bars.length;i++){ bars[i].classList.toggle("lit", i < lvl); }
+      pad.setAttribute("aria-label", capName(id) + " intensity " + lvl + " of 3. Activate to change.");
+    });
+  }
+  function capName(id){ return id.charAt(0).toUpperCase() + id.slice(1); }
+
+  function syncDial(){
+    var frac = (bpm - BPM_MIN) / (BPM_MAX - BPM_MIN);
+    var deg = -135 + frac * 270;
+    dialPointer.style.transform = "translate(-50%,-100%) rotate(" + deg + "deg)";
+    dialRead.textContent = bpm + " bpm";
+    dial.setAttribute("aria-valuenow", String(bpm));
+    dial.setAttribute("aria-valuetext", bpm + " pulses per minute");
+  }
+
+  function refreshPreview(){
+    clearPresetSel();
+    syncPads();
+    syncDial();
+    if(!playing){ setClock(0, totalTime()); draw(-1); }
+  }
+
+  // Pads
+  document.querySelectorAll(".pad").forEach(function(pad){
+    pad.addEventListener("click", function(){
+      var id = pad.getAttribute("data-track");
+      level[id] = (level[id] + 1) % 4;
+      if(playing){ setStatus("Reshaped — press Run to hear it"); }
+      refreshPreview();
+    });
+  });
+
+  // Dial: pointer drag (vertical) + keyboard
+  var dragStartY = 0, dragStartBpm = 0, dragging = false;
+  function setBpm(v){
+    bpm = Math.max(BPM_MIN, Math.min(BPM_MAX, Math.round(v)));
+    refreshPreview();
+  }
+  dial.addEventListener("pointerdown", function(e){
+    dragging = true; dragStartY = e.clientY; dragStartBpm = bpm;
+    dial.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  dial.addEventListener("pointermove", function(e){
+    if(!dragging) return;
+    var dy = dragStartY - e.clientY; // up = higher
+    setBpm(dragStartBpm + dy * 0.4);
+  });
+  function endDrag(e){ if(dragging){ dragging=false; try{ dial.releasePointerCapture(e.pointerId); }catch(_){} } }
+  dial.addEventListener("pointerup", endDrag);
+  dial.addEventListener("pointercancel", endDrag);
+  dial.addEventListener("keydown", function(e){
+    var k = e.key;
+    if(k==="ArrowUp"||k==="ArrowRight"){ setBpm(bpm+2); e.preventDefault(); }
+    else if(k==="ArrowDown"||k==="ArrowLeft"){ setBpm(bpm-2); e.preventDefault(); }
+    else if(k==="Home"){ setBpm(BPM_MIN); e.preventDefault(); }
+    else if(k==="End"){ setBpm(BPM_MAX); e.preventDefault(); }
+    else if(k==="PageUp"){ setBpm(bpm+10); e.preventDefault(); }
+    else if(k==="PageDown"){ setBpm(bpm-10); e.preventDefault(); }
+  });
+
+  // Transport
+  runBtn.addEventListener("click", function(){ if(playing) stop(); else run(); });
+  document.getElementById("replay").addEventListener("click", function(){ run(); });
+  document.getElementById("reset").addEventListener("click", function(){
+    stop();
+    level = {focus:DEFAULTS.focus, drift:DEFAULTS.drift, spark:DEFAULTS.spark};
+    bpm = DEFAULTS.bpm;
+    setStatus("Ready — press Run Pulse");
+    refreshPreview();
+  });
+
+  muteBtn.addEventListener("click", function(){
+    // This toggle IS the opt-in: off -> on turns sound on.
+    soundOn = !soundOn;
+    muted = !soundOn;
+    if(soundOn){ ensureAudio(); if(actx && actx.state==="suspended") actx.resume(); }
+    if(master) master.gain.value = muted ? 0 : 0.85;
+    muteBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    if(audioBroken){
+      muteBtn.textContent = "🔇 N/A";
+      muteBtn.setAttribute("aria-label","Audio unavailable on this device; visuals still play.");
+      setStatus("Audio unavailable — visuals only");
+    } else {
+      muteBtn.textContent = soundOn ? "🔊 Sound" : "🔇 Sound";
+      muteBtn.setAttribute("aria-label", soundOn
+        ? "Sound on. Activate to mute."
+        : "Sound off. Activate to turn sound on.");
+    }
+  });
+
+  // Presets
+  var presetBtns = document.querySelectorAll(".preset-row button");
+  function clearPresetSel(){ presetBtns.forEach(function(b){ b.classList.remove("sel"); }); }
+  presetBtns.forEach(function(b){
+    b.addEventListener("click", function(){
+      var p = PRESETS[b.getAttribute("data-preset")];
+      stop();
+      level = {focus:p.focus, drift:p.drift, spark:p.spark};
+      bpm = p.bpm;
+      syncPads(); syncDial();
+      if(!playing){ setClock(0, totalTime()); draw(-1); }
+      clearPresetSel(); b.classList.add("sel");
+      setStatus("Preset loaded — press Run Pulse");
+    });
+  });
+
+  // ---- Init ----------------------------------------------------------------
+  window.addEventListener("resize", sizeCanvas);
+  syncPads(); syncDial();
+  sizeCanvas();
+  setClock(0, totalTime());
+
+  // Deterministic test hook (safe, synthetic) for verification.
+  window.__thoughtTempo = {
+    trackSteps: trackSteps,
+    buildEvents: buildEvents,
+    totalTime: totalTime,
+    state: function(){ return {level:JSON.parse(JSON.stringify(level)), bpm:bpm}; }
+  };
+})();
+</script>
+</body>
+</html>
