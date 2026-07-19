@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Draftlight — A Manuscript Light Table</title>
+<meta name="description" content="A tactile, local-only manuscript light table. Paste prose; slice it into movable sentence strips; see sentence-length rhythm as a skyline; notice repeated openings, nearby echoes, and long dense stretches — then reorder, edit, and copy your revised draft. Nothing leaves the tab.">
+<style>
+  :root {
+    /* Illuminated editorial workbench palette */
+    --paper:      #f3ead6;   /* warm manuscript paper       */
+    --paper-2:    #ece0c6;   /* slightly deeper paper       */
+    --felt:       #241d16;   /* dark walnut light-table bed */
+    --felt-2:     #1a140e;
+    --ink:        #2c2418;   /* main ink                    */
+    --ink-soft:   #6a5c47;   /* secondary ink               */
+    --ink-faint:  #a2937a;   /* faint labels                */
+    --edge:       #d8c8a6;   /* paper edge / rule           */
+    --edge-soft:  #e6dabf;
+    --glow:       #f6b53a;   /* the light under the glass   */
+    --glow-2:     #ffd479;
+    --amber:      #c9862a;
+    --focus-open: #b6472e;   /* repeated sentence openings  */
+    --focus-echo: #2f7d78;   /* nearby repeated words       */
+    --focus-dense:#7a4bab;   /* long / dense stretches      */
+    --brass:      #b89154;
+    --brass-dk:   #8a6b39;
+    --ok:         #3f7d4e;
+    --shadow:     rgba(20,14,8,0.30);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body { overflow-x: hidden; }
+
+  body {
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -10%, rgba(246,181,58,0.10), transparent 60%),
+      linear-gradient(180deg, var(--felt), var(--felt-2));
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 14px 64px; }
+
+  /* ---- Masthead ---- */
+  header.masthead {
+    position: relative;
+    text-align: center;
+    padding: 22px 16px 20px;
+    margin-bottom: 16px;
+    background:
+      linear-gradient(180deg, rgba(246,181,58,0.10), transparent),
+      var(--felt);
+    border: 1px solid rgba(184,145,84,0.35);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255,212,121,0.14);
+  }
+  .lampline {
+    height: 4px; width: 74%; margin: 0 auto 16px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, transparent, var(--glow) 20%, var(--glow-2) 50%, var(--glow) 80%, transparent);
+    box-shadow: 0 0 18px rgba(246,181,58,0.55);
+  }
+  .kicker {
+    font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  h1 {
+    font-size: clamp(1.7rem, 6.6vw, 2.5rem);
+    color: var(--glow-2); letter-spacing: 0.01em; font-weight: 700;
+    text-shadow: 0 0 26px rgba(246,181,58,0.30);
+  }
+  .tagline { color: var(--ink-faint); font-size: 13.5px; margin-top: 8px; max-width: 46ch; margin-inline: auto; }
+
+  /* ---- Panels ---- */
+  .panel {
+    background: linear-gradient(180deg, var(--paper), var(--paper-2));
+    border: 1px solid var(--edge);
+    border-radius: 12px;
+    box-shadow: 0 10px 26px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.35);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--brass-dk); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 8px var(--glow); }
+
+  /* ---- Intro / how ---- */
+  .intro { color: var(--ink-soft); font-size: 14px; }
+  .intro p { margin-bottom: 8px; }
+  .intro .steps { display: grid; gap: 6px; margin-top: 10px; }
+  .intro .steps span { display: flex; gap: 9px; align-items: baseline; }
+  .intro .steps b {
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--felt);
+    background: var(--glow); border-radius: 4px; padding: 1px 6px; flex: none; min-width: 20px; text-align: center;
+  }
+
+  /* ---- Textarea / input ---- */
+  textarea {
+    width: 100%; min-height: 128px; resize: vertical;
+    font-family: inherit; font-size: 15px; line-height: 1.55; color: var(--ink);
+    background: #fbf5e7; border: 1px solid var(--edge); border-radius: 9px;
+    padding: 12px 13px; outline: none;
+    box-shadow: inset 0 1px 3px rgba(20,14,8,0.10);
+  }
+  textarea:focus { border-color: var(--amber); box-shadow: inset 0 1px 3px rgba(20,14,8,0.10), 0 0 0 3px rgba(201,134,42,0.25); }
+
+  /* ---- Buttons ---- */
+  .btn-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+  button {
+    font-family: inherit; font-size: 14px; cursor: pointer;
+    min-height: 44px; padding: 10px 16px;
+    border-radius: 9px; border: 1px solid var(--brass-dk);
+    background: linear-gradient(180deg, var(--brass), var(--brass-dk));
+    color: #22190c; font-weight: 700; letter-spacing: 0.01em;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.30);
+    transition: transform 0.08s ease, filter 0.15s ease;
+    touch-action: manipulation;
+  }
+  button:hover { filter: brightness(1.06); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 3px solid var(--focus-echo); outline-offset: 2px; }
+  button.ghost {
+    background: transparent; color: var(--brass-dk);
+    border: 1px solid var(--edge); box-shadow: none; font-weight: 600;
+  }
+  button.ghost:hover { background: rgba(184,145,84,0.10); filter: none; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ---- Skyline (rhythm view) ---- */
+  .skyline-wrap { margin-top: 4px; }
+  .skyline {
+    display: flex; align-items: flex-end; gap: 3px;
+    height: 92px; padding: 8px 8px 0;
+    background:
+      linear-gradient(180deg, rgba(246,181,58,0.14), transparent 70%),
+      #26201a;
+    border-radius: 9px; border: 1px solid rgba(184,145,84,0.30);
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  }
+  .bar {
+    flex: 1 0 8px; min-width: 8px; border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, var(--glow-2), var(--amber));
+    position: relative; cursor: pointer; opacity: 0.92;
+    transition: opacity 0.15s ease, transform 0.1s ease, filter 0.15s ease;
+    align-self: flex-end;
+  }
+  .bar:hover { filter: brightness(1.12); }
+  .bar[data-flag~="open"]  { background: linear-gradient(180deg, #e07a5f, var(--focus-open)); }
+  .bar[data-flag~="echo"]  { background: linear-gradient(180deg, #58b3ad, var(--focus-echo)); }
+  .bar[data-flag~="dense"] { background: linear-gradient(180deg, #a984d1, var(--focus-dense)); }
+  .bar.is-active { outline: 2px solid var(--glow-2); outline-offset: 1px; transform: translateY(-2px); }
+  .bar.dimmed { opacity: 0.16; }
+  .skyline-legend {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px;
+    font-size: 11px; color: var(--ink-soft);
+  }
+  .skyline-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .sw-open  { background: var(--focus-open); }
+  .sw-echo  { background: var(--focus-echo); }
+  .sw-dense { background: var(--focus-dense); }
+  .sw-plain { background: var(--amber); }
+
+  /* ---- Observation summary chips ---- */
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .stat {
+    background: #fbf5e7; border: 1px solid var(--edge); border-radius: 8px;
+    padding: 7px 11px; min-width: 74px; flex: 1 0 auto;
+  }
+  .stat .n { font-size: 20px; font-weight: 700; color: var(--felt); line-height: 1.1; }
+  .stat .l { font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); }
+
+  /* ---- Focus toggles ---- */
+  .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px; padding: 6px 13px;
+    border-radius: 22px; border: 1.5px solid var(--edge);
+    background: #fbf5e7; color: var(--ink-soft); font-size: 13px;
+    cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s, color 0.15s;
+    touch-action: manipulation;
+  }
+  .toggle .key { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+  .toggle[aria-pressed="true"] { color: var(--felt); font-weight: 600; background: #fff; }
+  .toggle[data-focus="open"][aria-pressed="true"]  { border-color: var(--focus-open); box-shadow: 0 0 0 2px rgba(182,71,46,0.16); }
+  .toggle[data-focus="echo"][aria-pressed="true"]  { border-color: var(--focus-echo); box-shadow: 0 0 0 2px rgba(47,125,120,0.16); }
+  .toggle[data-focus="dense"][aria-pressed="true"] { border-color: var(--focus-dense); box-shadow: 0 0 0 2px rgba(122,75,171,0.16); }
+  .toggle:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .toggle .count { font-size: 11px; color: var(--ink-faint); font-family: ui-monospace, monospace; }
+  .toggle-note { font-size: 11.5px; color: var(--ink-faint); margin-top: 9px; }
+
+  /* ---- Strips (the light table) ---- */
+  #stripsPanel { padding-bottom: 18px; }
+  .strips-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .strips-head .hint { font-size: 11.5px; color: var(--ink-faint); }
+  .strips { list-style: none; margin-top: 12px; display: grid; gap: 9px; }
+
+  .strip {
+    position: relative;
+    background: linear-gradient(180deg, #fbf6ea, #f1e6cd);
+    border: 1px solid var(--edge);
+    border-left: 5px solid var(--amber);
+    border-radius: 8px;
+    padding: 10px 10px 10px 12px;
+    box-shadow: 0 2px 8px rgba(20,14,8,0.12);
+    transition: box-shadow 0.15s ease, opacity 0.2s ease, transform 0.12s ease, border-color 0.15s;
+  }
+  .strip[data-flag~="open"]  { border-left-color: var(--focus-open); }
+  .strip[data-flag~="echo"]  { border-left-color: var(--focus-echo); }
+  .strip[data-flag~="dense"] { border-left-color: var(--focus-dense); }
+  .strip[data-flag~="open"][data-flag~="echo"],
+  .strip[data-flag~="open"][data-flag~="dense"],
+  .strip[data-flag~="echo"][data-flag~="dense"] { border-left-width: 6px; }
+  .strip.dimmed { opacity: 0.28; filter: grayscale(0.4); }
+  .strip.lit { box-shadow: 0 0 0 2px var(--glow), 0 6px 18px rgba(246,181,58,0.28); }
+  .strip.editing { border-left-color: var(--brass-dk); }
+
+  .strip-top { display: flex; align-items: flex-start; gap: 8px; }
+  .strip-index {
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--ink-faint);
+    background: rgba(184,145,84,0.16); border-radius: 5px; padding: 2px 6px; flex: none; margin-top: 2px;
+  }
+  .strip-text { flex: 1; font-size: 15.5px; line-height: 1.5; color: var(--ink); word-break: break-word; }
+  .strip-text .mark-open  { background: rgba(182,71,46,0.20);  border-radius: 3px; padding: 0 2px; box-decoration-break: clone; }
+  .strip-text .mark-echo  { background: rgba(47,125,120,0.22); border-radius: 3px; padding: 0 2px; box-decoration-break: clone; }
+  .strip-text mark { color: inherit; }
+
+  .strip-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-left: 2px; }
+  .tag {
+    font-size: 10.5px; letter-spacing: 0.03em; padding: 2px 7px; border-radius: 20px;
+    font-family: ui-monospace, monospace; border: 1px solid transparent;
+  }
+  .tag.words { background: rgba(184,145,84,0.14); color: var(--brass-dk); border-color: rgba(184,145,84,0.30); }
+  .tag.open  { background: rgba(182,71,46,0.14); color: var(--focus-open); border-color: rgba(182,71,46,0.35); }
+  .tag.echo  { background: rgba(47,125,120,0.14); color: var(--focus-echo); border-color: rgba(47,125,120,0.35); }
+  .tag.dense { background: rgba(122,75,171,0.14); color: var(--focus-dense); border-color: rgba(122,75,171,0.35); }
+
+  .strip-controls { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+  .ictrl {
+    min-height: 44px; min-width: 44px; padding: 6px 10px;
+    border-radius: 8px; border: 1px solid var(--edge); background: #fbf5e7;
+    color: var(--ink-soft); font-size: 13px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    box-shadow: none; touch-action: manipulation;
+  }
+  .ictrl:hover { background: #fff; filter: none; }
+  .ictrl:disabled { opacity: 0.3; }
+  .ictrl .ic { font-size: 16px; line-height: 1; }
+  .ictrl.lift { color: var(--brass-dk); }
+
+  .strip-edit { width: 100%; margin-top: 4px; }
+  .strip-edit textarea { min-height: 74px; font-size: 15px; }
+  .strip-edit .btn-row { margin-top: 8px; }
+
+  /* ---- Empty state ---- */
+  .empty {
+    text-align: center; color: var(--ink-faint); padding: 26px 14px; font-size: 14px;
+  }
+  .empty .big { font-size: 26px; margin-bottom: 8px; }
+
+  /* ---- Copy / output ---- */
+  .out-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+  .copied {
+    font-size: 13px; color: var(--ok); font-weight: 700; opacity: 0;
+    transition: opacity 0.2s ease;
+    font-family: ui-monospace, monospace;
+  }
+  .copied.show { opacity: 1; }
+
+  footer {
+    text-align: center; color: var(--ink-faint); font-size: 11.5px; margin-top: 18px; line-height: 1.7;
+  }
+  footer .priv { color: var(--brass); }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  @media (min-width: 560px) {
+    .strip-text { font-size: 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="lampline" aria-hidden="true"></div>
+    <div class="kicker">Manuscript Light Table</div>
+    <h1>Draftlight</h1>
+    <p class="tagline">Lay your prose on the glass. Slice it into sentence strips, read its rhythm as a skyline, and rearrange the light — nothing leaves this tab.</p>
+  </header>
+
+  <section class="panel">
+    <h2><span class="dot" aria-hidden="true"></span> The bench</h2>
+    <div class="intro">
+      <p>Draftlight is a hands-on editing instrument, not a grader. Paste any prose and it becomes movable strips — one per sentence — lit from beneath. It <em>describes</em> what it sees (long stretches, repeated openings, nearby echoes) and lets you focus, dim, reorder, and edit. No scores. No advice. Just clearer light on your own words.</p>
+      <div class="steps">
+        <span><b>1</b> Paste prose below, or load the sample.</span>
+        <span><b>2</b> Read the rhythm skyline and observation counts.</span>
+        <span><b>3</b> Focus a pattern, then reorder or edit strips.</span>
+        <span><b>4</b> Copy the revised draft back out.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="dot" aria-hidden="true"></span> Paste manuscript</h2>
+    <label class="sr-only" for="input">Paste your prose here</label>
+    <textarea id="input" placeholder="Paste or type prose here. Draftlight slices it into sentence strips you can rearrange and edit…"></textarea>
+    <div class="btn-row">
+      <button id="sliceBtn" type="button">Slice into strips</button>
+      <button id="sampleBtn" class="ghost" type="button">Load sample</button>
+      <button id="clearBtn" class="ghost" type="button">Clear</button>
+    </div>
+  </section>
+
+  <section class="panel" id="analysisPanel" hidden>
+    <h2><span class="dot" aria-hidden="true"></span> Rhythm skyline</h2>
+    <div class="skyline-wrap">
+      <div class="skyline" id="skyline" role="img" aria-label="Sentence-length skyline. Each bar is one sentence; taller bars are longer sentences."></div>
+      <div class="skyline-legend" aria-hidden="true">
+        <span><i class="swatch sw-plain"></i> sentence length</span>
+        <span><i class="swatch sw-open"></i> repeated opening</span>
+        <span><i class="swatch sw-echo"></i> nearby echo</span>
+        <span><i class="swatch sw-dense"></i> long / dense</span>
+      </div>
+    </div>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="panel" id="focusPanel" hidden>
+    <h2><span class="dot" aria-hidden="true"></span> Focus the light</h2>
+    <div class="toggles" id="toggles">
+      <button class="toggle" data-focus="open" type="button" aria-pressed="false">
+        <span class="key sw-open"></span> Repeated openings <span class="count" id="cOpen">0</span>
+      </button>
+      <button class="toggle" data-focus="echo" type="button" aria-pressed="false">
+        <span class="key sw-echo"></span> Nearby echoes <span class="count" id="cEcho">0</span>
+      </button>
+      <button class="toggle" data-focus="dense" type="button" aria-pressed="false">
+        <span class="key sw-dense"></span> Long / dense <span class="count" id="cDense">0</span>
+      </button>
+    </div>
+    <p class="toggle-note">Turn a focus on to spotlight matching strips and dim the rest. These are neutral observations — patterns to look at, not problems to fix.</p>
+  </section>
+
+  <section class="panel" id="stripsPanel" hidden>
+    <div class="strips-head">
+      <h2 style="margin:0"><span class="dot" aria-hidden="true"></span> Light table</h2>
+      <span class="hint">Use ▲▼ to reorder · ✎ to edit</span>
+    </div>
+    <ul class="strips" id="strips"></ul>
+  </section>
+
+  <section class="panel" id="outPanel" hidden>
+    <h2><span class="dot" aria-hidden="true"></span> Revised draft</h2>
+    <div class="out-row">
+      <button id="copyBtn" type="button">Copy revised draft</button>
+      <button id="resetBtn" class="ghost" type="button">Reset order &amp; edits</button>
+      <span class="copied" id="copied" role="status" aria-live="polite">Copied ✓</span>
+    </div>
+  </section>
+
+  <div class="empty panel" id="emptyState">
+    <div class="big" aria-hidden="true">🔦</div>
+    <div><strong>The glass is dark.</strong> Paste prose above and press <em>Slice into strips</em>, or load the built-in sample to see Draftlight light up.</div>
+  </div>
+
+  <footer>
+    <div class="priv">Local-only · runs entirely in this browser tab · no network, no storage, no telemetry.</div>
+    <div>Your text stays in memory and disappears when you close the tab. Electric Sheep · Daily Surprise · 2026-07-19</div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ------------------------------------------------------------------
+  // Built-in synthetic sample — entirely invented and generic.
+  // No real names, orgs, or private details.
+  // ------------------------------------------------------------------
+  var SAMPLE = [
+    "The morning queue was longer than usual, and the little dashboard blinked in a way that felt more anxious than informative.",
+    "The morning stand-up ran past its window again.",
+    "The morning notes piled up in the shared doc, each one a small unfinished thought.",
+    "We keep repeating the same rituals because they are comfortable, and comfort is easy to mistake for progress, and progress is exactly the thing we claim to want when we gather around the board and read the same numbers aloud to one another in the same tired order every single day without ever asking whether the ritual still serves the work it was built to describe.",
+    "Someone suggested we cut the meeting in half.",
+    "Nobody wrote it down.",
+    "The report said things were fine.",
+    "The report also said things were slipping.",
+    "It is hard to turn a busy operational log into anything a calm person would want to read on a Monday.",
+    "Maybe the trick is smaller sentences.",
+    "Maybe the trick is fewer of them.",
+    "A clear artifact, in the end, is just a pile of decisions someone was brave enough to make out loud."
+  ].join(" ");
+
+  // Common opening words to ignore when detecting "repeated openings".
+  var STOP_OPENERS = { "the":1,"a":1,"an":1,"and":1,"but":1,"or":1,"so":1,"it":1,"i":1,"we":1,"to":1,"of":1,"in":1,"on":1,"for":1 };
+  // Words too common to count as a meaningful "echo".
+  var STOP_ECHO = {
+    "the":1,"a":1,"an":1,"and":1,"but":1,"or":1,"so":1,"of":1,"to":1,"in":1,"on":1,"at":1,"by":1,"for":1,"with":1,
+    "is":1,"are":1,"was":1,"were":1,"be":1,"been":1,"being":1,"am":1,"it":1,"its":1,"this":1,"that":1,"these":1,"those":1,
+    "as":1,"if":1,"then":1,"than":1,"we":1,"i":1,"you":1,"they":1,"he":1,"she":1,"them":1,"us":1,"our":1,"your":1,"their":1,
+    "not":1,"no":1,"do":1,"does":1,"did":1,"has":1,"have":1,"had":1,"will":1,"would":1,"can":1,"could":1,"just":1,"out":1,
+    "up":1,"about":1,"into":1,"from":1,"one":1,"all":1,"more":1,"same":1,"very":1,"who":1,"what":1,"when":1,"which":1
+  };
+
+  var DENSE_WORDS = 26;   // sentences this long or longer are flagged "long / dense"
+  var ECHO_WINDOW = 2;    // a repeated content word within N neighboring strips counts as a nearby echo
+
+  // ------------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------------
+  var strips = [];        // { id, text, words }
+  var nextId = 1;
+  var activeFocus = { open: false, echo: false, dense: false };
+
+  // ------------------------------------------------------------------
+  // Elements
+  // ------------------------------------------------------------------
+  var $ = function (id) { return document.getElementById(id); };
+  var input = $("input");
+  var stripsEl = $("strips");
+  var skylineEl = $("skyline");
+  var summaryEl = $("summary");
+
+  var panels = {
+    analysis: $("analysisPanel"),
+    focus: $("focusPanel"),
+    strips: $("stripsPanel"),
+    out: $("outPanel"),
+    empty: $("emptyState")
+  };
+
+  // ------------------------------------------------------------------
+  // Sentence splitting — robust to abbreviations, decimals, ellipses,
+  // quotes and parens after terminal punctuation.
+  // ------------------------------------------------------------------
+  var ABBREV = { "mr":1,"mrs":1,"ms":1,"dr":1,"prof":1,"sr":1,"jr":1,"st":1,"vs":1,"etc":1,"eg":1,"ie":1,
+                 "fig":1,"no":1,"vol":1,"approx":1,"dept":1,"est":1,"inc":1,"ltd":1,"co":1,"al":1 };
+
+  function splitSentences(text) {
+    var out = [];
+    var n = text.length;
+    var start = 0;
+    var i = 0;
+    while (i < n) {
+      var ch = text[i];
+      if (ch === "." || ch === "!" || ch === "?") {
+        // absorb runs of terminal punctuation (…, ?!, ...)
+        var j = i;
+        while (j + 1 < n && (text[j + 1] === "." || text[j + 1] === "!" || text[j + 1] === "?")) j++;
+        // absorb trailing closing quotes/brackets
+        var k = j;
+        while (k + 1 < n && "\")]'”’".indexOf(text[k + 1]) !== -1) k++;
+        var after = text[k + 1];
+
+        var isEnd = true;
+
+        // Decimal like 3.14 — digit . digit
+        if (ch === "." && j === i && /\d/.test(text[i - 1] || "") && /\d/.test(after || "")) {
+          isEnd = false;
+        }
+
+        // Known abbreviation immediately before the single dot
+        if (isEnd && ch === "." && j === i) {
+          var m = text.slice(start, i).match(/([A-Za-z]+)$/);
+          if (m && ABBREV[m[1].toLowerCase()]) isEnd = false;
+          // Single-letter initial like "A."
+          if (m && m[1].length === 1) isEnd = false;
+        }
+
+        // Must be followed by end-of-text or whitespace to end a sentence
+        if (isEnd && after !== undefined && !/\s/.test(after)) isEnd = false;
+
+        if (isEnd) {
+          var seg = text.slice(start, k + 1).trim();
+          if (seg) out.push(seg);
+          i = k + 1;
+          start = i;
+          continue;
+        }
+      }
+      i++;
+    }
+    var tail = text.slice(start).trim();
+    if (tail) out.push(tail);
+    return out;
+  }
+
+  function countWords(s) {
+    var m = s.trim().match(/[^\s]+/g);
+    return m ? m.length : 0;
+  }
+
+  function firstTwoWordsKey(s) {
+    var m = s.toLowerCase().match(/[a-z0-9']+/g);
+    if (!m || !m.length) return "";
+    var first = m[0];
+    if (STOP_OPENERS[first] && m[1]) return first + " " + m[1];
+    return first;
+  }
+
+  function contentWords(s) {
+    var m = s.toLowerCase().match(/[a-z0-9']{3,}/g) || [];
+    var seen = {};
+    var res = [];
+    for (var i = 0; i < m.length; i++) {
+      var w = m[i];
+      if (STOP_ECHO[w]) continue;
+      if (seen[w]) continue;
+      seen[w] = 1;
+      res.push(w);
+    }
+    return res;
+  }
+
+  // ------------------------------------------------------------------
+  // Analysis — descriptive flags only, never evaluative.
+  // ------------------------------------------------------------------
+  function analyze() {
+    var i;
+    // reset
+    for (i = 0; i < strips.length; i++) {
+      strips[i].words = countWords(strips[i].text);
+      strips[i].flags = {};
+      strips[i].echoWords = {};
+      strips[i].openKey = firstTwoWordsKey(strips[i].text);
+    }
+
+    // Repeated openings (based on current order)
+    var openCounts = {};
+    for (i = 0; i < strips.length; i++) {
+      var key = strips[i].openKey;
+      if (key) openCounts[key] = (openCounts[key] || 0) + 1;
+    }
+    for (i = 0; i < strips.length; i++) {
+      if (strips[i].openKey && openCounts[strips[i].openKey] > 1) strips[i].flags.open = true;
+    }
+
+    // Nearby echoes — a content word shared with a strip within ECHO_WINDOW
+    var wordSets = [];
+    for (i = 0; i < strips.length; i++) wordSets.push(contentWords(strips[i].text));
+    for (i = 0; i < strips.length; i++) {
+      var setA = wordSets[i];
+      var lookup = {};
+      var a;
+      for (a = 0; a < setA.length; a++) lookup[setA[a]] = 1;
+      for (var d = 1; d <= ECHO_WINDOW; d++) {
+        var js = [i - d, i + d];
+        for (var q = 0; q < js.length; q++) {
+          var jj = js[q];
+          if (jj < 0 || jj >= strips.length) continue;
+          var setB = wordSets[jj];
+          for (var b = 0; b < setB.length; b++) {
+            if (lookup[setB[b]]) {
+              strips[i].flags.echo = true;
+              strips[i].echoWords[setB[b]] = 1;
+            }
+          }
+        }
+      }
+    }
+
+    // Long / dense stretches
+    for (i = 0; i < strips.length; i++) {
+      if (strips[i].words >= DENSE_WORDS) strips[i].flags.dense = true;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Rendering
+  // ------------------------------------------------------------------
+  function flagString(f) {
+    var parts = [];
+    if (f.open) parts.push("open");
+    if (f.echo) parts.push("echo");
+    if (f.dense) parts.push("dense");
+    return parts.join(" ");
+  }
+
+  function anyFocusOn() {
+    return activeFocus.open || activeFocus.echo || activeFocus.dense;
+  }
+
+  function stripMatchesFocus(f) {
+    if (!anyFocusOn()) return true;
+    if (activeFocus.open && f.open) return true;
+    if (activeFocus.echo && f.echo) return true;
+    if (activeFocus.dense && f.dense) return true;
+    return false;
+  }
+
+  function renderSkyline() {
+    skylineEl.innerHTML = "";
+    if (!strips.length) return;
+    var maxW = 1;
+    for (var i = 0; i < strips.length; i++) maxW = Math.max(maxW, strips[i].words);
+    for (i = 0; i < strips.length; i++) {
+      var s = strips[i];
+      var bar = document.createElement("div");
+      bar.className = "bar";
+      var fs = flagString(s.flags);
+      if (fs) bar.setAttribute("data-flag", fs);
+      var h = Math.max(6, Math.round((s.words / maxW) * 100));
+      bar.style.height = h + "%";
+      bar.setAttribute("role", "listitem");
+      bar.setAttribute("tabindex", "0");
+      bar.setAttribute("aria-label", "Sentence " + (i + 1) + ", " + s.words + " words");
+      bar.title = "Sentence " + (i + 1) + " · " + s.words + " words";
+      bar.dataset.id = s.id;
+      if (anyFocusOn() && !stripMatchesFocus(s.flags)) bar.classList.add("dimmed");
+      bar.addEventListener("click", function () { spotlight(this.dataset.id); });
+      bar.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); spotlight(this.dataset.id); }
+      });
+      skylineEl.appendChild(bar);
+    }
+  }
+
+  function renderSummary() {
+    var open = 0, echo = 0, dense = 0, totalWords = 0;
+    for (var i = 0; i < strips.length; i++) {
+      if (strips[i].flags.open) open++;
+      if (strips[i].flags.echo) echo++;
+      if (strips[i].flags.dense) dense++;
+      totalWords += strips[i].words;
+    }
+    var avg = strips.length ? Math.round(totalWords / strips.length) : 0;
+    var mn = strips.length ? strips[0].words : 0;
+    var mx = 0;
+    for (i = 0; i < strips.length; i++) { mn = Math.min(mn, strips[i].words); mx = Math.max(mx, strips[i].words); }
+
+    var stats = [
+      [strips.length, "sentences"],
+      [avg, "avg words"],
+      [(strips.length ? mn : 0) + "–" + mx, "shortest–longest"],
+      [open, "repeated openings"],
+      [echo, "nearby echoes"],
+      [dense, "long / dense"]
+    ];
+    summaryEl.innerHTML = "";
+    for (i = 0; i < stats.length; i++) {
+      var d = document.createElement("div");
+      d.className = "stat";
+      var n = document.createElement("div"); n.className = "n"; n.textContent = String(stats[i][0]);
+      var l = document.createElement("div"); l.className = "l"; l.textContent = stats[i][1];
+      d.appendChild(n); d.appendChild(l);
+      summaryEl.appendChild(d);
+    }
+
+    $("cOpen").textContent = open;
+    $("cEcho").textContent = echo;
+    $("cDense").textContent = dense;
+  }
+
+  // Build strip text with safe highlight marks for openings & echoes.
+  // All text is inserted via textContent / text nodes — no user HTML.
+  function buildStripText(s) {
+    var container = document.createElement("div");
+    container.className = "strip-text";
+
+    var text = s.text;
+    var lowered = text.toLowerCase();
+
+    // Collect highlight ranges: opening (first word or two) + echo words.
+    var ranges = [];
+
+    if (s.flags.open) {
+      // highlight the leading word(s) matching openKey length in words
+      var wm = text.match(/^(\s*)([^\s]+(?:\s+[^\s]+)?)/);
+      if (wm) {
+        // If openKey is one word, only highlight the first token.
+        var keyWordCount = (s.openKey.indexOf(" ") !== -1) ? 2 : 1;
+        var re = /[^\s]+/g, mm, taken = 0, endIdx = 0;
+        while ((mm = re.exec(text)) && taken < keyWordCount) {
+          endIdx = mm.index + mm[0].length;
+          taken++;
+        }
+        if (endIdx > 0) ranges.push([0, endIdx, "mark-open"]);
+      }
+    }
+
+    if (s.flags.echo) {
+      for (var w in s.echoWords) {
+        if (!s.echoWords.hasOwnProperty(w)) continue;
+        var reW = new RegExp("\\b" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "g");
+        var em;
+        while ((em = reW.exec(lowered))) {
+          ranges.push([em.index, em.index + w.length, "mark-echo"]);
+          if (em.index === reW.lastIndex) reW.lastIndex++;
+        }
+      }
+    }
+
+    if (!ranges.length) {
+      container.textContent = text;
+      return container;
+    }
+
+    // Sort and merge/skip overlaps (opening wins over echo when overlapping).
+    ranges.sort(function (a, b) { return a[0] - b[0] || b[1] - a[1]; });
+    var cursor = 0;
+    for (var r = 0; r < ranges.length; r++) {
+      var start = ranges[r][0], end = ranges[r][1], cls = ranges[r][2];
+      if (start < cursor) continue;        // overlaps already-marked region
+      if (start > cursor) container.appendChild(document.createTextNode(text.slice(cursor, start)));
+      var mk = document.createElement("mark");
+      mk.className = cls;
+      mk.textContent = text.slice(start, end);
+      container.appendChild(mk);
+      cursor = end;
+    }
+    if (cursor < text.length) container.appendChild(document.createTextNode(text.slice(cursor)));
+    return container;
+  }
+
+  function renderStrips() {
+    stripsEl.innerHTML = "";
+    for (var i = 0; i < strips.length; i++) {
+      var s = strips[i];
+      var li = document.createElement("li");
+      li.className = "strip";
+      li.dataset.id = s.id;
+      var fs = flagString(s.flags);
+      if (fs) li.setAttribute("data-flag", fs);
+      if (anyFocusOn() && !stripMatchesFocus(s.flags)) li.classList.add("dimmed");
+
+      var top = document.createElement("div");
+      top.className = "strip-top";
+
+      var idx = document.createElement("span");
+      idx.className = "strip-index";
+      idx.textContent = String(i + 1);
+      top.appendChild(idx);
+
+      top.appendChild(buildStripText(s));
+      li.appendChild(top);
+
+      // meta tags
+      var meta = document.createElement("div");
+      meta.className = "strip-meta";
+      var wTag = document.createElement("span");
+      wTag.className = "tag words";
+      wTag.textContent = s.words + (s.words === 1 ? " word" : " words");
+      meta.appendChild(wTag);
+      if (s.flags.open)  meta.appendChild(mkTag("open",  "repeated opening"));
+      if (s.flags.echo)  meta.appendChild(mkTag("echo",  "nearby echo"));
+      if (s.flags.dense) meta.appendChild(mkTag("dense", "long / dense"));
+      li.appendChild(meta);
+
+      // controls
+      var ctr = document.createElement("div");
+      ctr.className = "strip-controls";
+      ctr.appendChild(mkCtrl("▲", "Move sentence " + (i + 1) + " up", i === 0, "lift", makeMover(s.id, -1)));
+      ctr.appendChild(mkCtrl("▼", "Move sentence " + (i + 1) + " down", i === strips.length - 1, "lift", makeMover(s.id, 1)));
+      ctr.appendChild(mkCtrl("✎ Edit", "Edit sentence " + (i + 1), false, "", makeEditor(s.id, li)));
+      ctr.appendChild(mkCtrl("✕", "Remove sentence " + (i + 1), false, "", makeRemover(s.id)));
+      li.appendChild(ctr);
+
+      stripsEl.appendChild(li);
+    }
+  }
+
+  function mkTag(kind, label) {
+    var t = document.createElement("span");
+    t.className = "tag " + kind;
+    t.textContent = label;
+    return t;
+  }
+
+  function mkCtrl(label, aria, disabled, extra, handler) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "ictrl" + (extra ? " " + extra : "");
+    b.setAttribute("aria-label", aria);
+    if (/^[▲▼✕]$/.test(label)) {
+      var ic = document.createElement("span"); ic.className = "ic"; ic.textContent = label;
+      b.appendChild(ic);
+    } else {
+      b.textContent = label;
+    }
+    if (disabled) b.disabled = true;
+    else b.addEventListener("click", handler);
+    return b;
+  }
+
+  function makeMover(id, dir) {
+    return function () { moveStrip(id, dir); };
+  }
+  function makeRemover(id) {
+    return function () { removeStrip(id); };
+  }
+  function makeEditor(id, li) {
+    return function () { openEditor(id, li); };
+  }
+
+  // ------------------------------------------------------------------
+  // Editing
+  // ------------------------------------------------------------------
+  function openEditor(id, li) {
+    var s = findStrip(id);
+    if (!s) return;
+    if (li.querySelector(".strip-edit")) return; // already editing
+    li.classList.add("editing");
+
+    var wrap = document.createElement("div");
+    wrap.className = "strip-edit";
+    var ta = document.createElement("textarea");
+    ta.value = s.text;
+    ta.setAttribute("aria-label", "Edit sentence text");
+    wrap.appendChild(ta);
+
+    var row = document.createElement("div");
+    row.className = "btn-row";
+    var save = document.createElement("button");
+    save.type = "button"; save.textContent = "Save";
+    save.addEventListener("click", function () {
+      var v = ta.value.trim();
+      if (v) { s.text = v; }
+      refresh();
+    });
+    var cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "ghost"; cancel.textContent = "Cancel";
+    cancel.addEventListener("click", function () {
+      li.classList.remove("editing");
+      wrap.parentNode && wrap.parentNode.removeChild(wrap);
+    });
+    row.appendChild(save); row.appendChild(cancel);
+    wrap.appendChild(row);
+    li.appendChild(wrap);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+
+  // ------------------------------------------------------------------
+  // Order operations
+  // ------------------------------------------------------------------
+  function indexOfId(id) {
+    for (var i = 0; i < strips.length; i++) if (strips[i].id === id) return i;
+    return -1;
+  }
+  function findStrip(id) {
+    var i = indexOfId(id);
+    return i === -1 ? null : strips[i];
+  }
+  function moveStrip(id, dir) {
+    var i = indexOfId(id);
+    if (i === -1) return;
+    var j = i + dir;
+    if (j < 0 || j >= strips.length) return;
+    var tmp = strips[i]; strips[i] = strips[j]; strips[j] = tmp;
+    refresh();
+    // keep focus on moved strip for keyboard users
+    var moved = stripsEl.querySelector('.strip[data-id="' + id + '"]');
+    if (moved) {
+      var btn = moved.querySelector(dir < 0 ? '.ictrl.lift' : '.strip-controls .ictrl.lift:nth-child(2)');
+      if (btn && !btn.disabled) btn.focus();
+    }
+  }
+  function removeStrip(id) {
+    var i = indexOfId(id);
+    if (i === -1) return;
+    strips.splice(i, 1);
+    if (!strips.length) { showEmpty(); return; }
+    refresh();
+  }
+
+  function spotlight(id) {
+    var el = stripsEl.querySelector('.strip[data-id="' + id + '"]');
+    if (!el) return;
+    var wasLit = el.classList.contains("lit");
+    var all = stripsEl.querySelectorAll(".strip.lit");
+    for (var i = 0; i < all.length; i++) all[i].classList.remove("lit");
+    var bars = skylineEl.querySelectorAll(".bar.is-active");
+    for (i = 0; i < bars.length; i++) bars[i].classList.remove("is-active");
+    if (!wasLit) {
+      el.classList.add("lit");
+      var bar = skylineEl.querySelector('.bar[data-id="' + id + '"]');
+      if (bar) bar.classList.add("is-active");
+      el.scrollIntoView({ block: "center", behavior: prefersReduced() ? "auto" : "smooth" });
+    }
+  }
+
+  function prefersReduced() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  // ------------------------------------------------------------------
+  // Full refresh
+  // ------------------------------------------------------------------
+  function refresh() {
+    analyze();
+    renderSkyline();
+    renderSummary();
+    renderStrips();
+  }
+
+  function showAll() {
+    panels.analysis.hidden = false;
+    panels.focus.hidden = false;
+    panels.strips.hidden = false;
+    panels.out.hidden = false;
+    panels.empty.hidden = true;
+  }
+  function showEmpty() {
+    strips = [];
+    panels.analysis.hidden = true;
+    panels.focus.hidden = true;
+    panels.strips.hidden = true;
+    panels.out.hidden = true;
+    panels.empty.hidden = false;
+    // reset focus toggles
+    activeFocus = { open: false, echo: false, dense: false };
+    var tgs = document.querySelectorAll(".toggle");
+    for (var i = 0; i < tgs.length; i++) tgs[i].setAttribute("aria-pressed", "false");
+  }
+
+  var originalOrder = null; // snapshot for reset
+
+  function loadText(text) {
+    var sentences = splitSentences(text);
+    if (!sentences.length) { showEmpty(); return; }
+    strips = [];
+    for (var i = 0; i < sentences.length; i++) {
+      strips.push({ id: nextId++, text: sentences[i], words: 0, flags: {}, echoWords: {}, openKey: "" });
+    }
+    // snapshot for reset (deep copy of text + id order)
+    originalOrder = strips.map(function (s) { return { id: s.id, text: s.text }; });
+    showAll();
+    refresh();
+  }
+
+  // ------------------------------------------------------------------
+  // Copy / reset
+  // ------------------------------------------------------------------
+  function currentDraft() {
+    return strips.map(function (s) { return s.text; }).join(" ");
+  }
+
+  function flashCopied() {
+    var c = $("copied");
+    c.classList.add("show");
+    window.setTimeout(function () { c.classList.remove("show"); }, 1600);
+  }
+
+  function copyDraft() {
+    var text = currentDraft();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(flashCopied, fallbackCopy.bind(null, text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed"; ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); flashCopied(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function resetToOriginal() {
+    if (!originalOrder) return;
+    strips = originalOrder.map(function (o) {
+      return { id: o.id, text: o.text, words: 0, flags: {}, echoWords: {}, openKey: "" };
+    });
+    activeFocus = { open: false, echo: false, dense: false };
+    var tgs = document.querySelectorAll(".toggle");
+    for (var i = 0; i < tgs.length; i++) tgs[i].setAttribute("aria-pressed", "false");
+    refresh();
+  }
+
+  // ------------------------------------------------------------------
+  // Wiring
+  // ------------------------------------------------------------------
+  $("sliceBtn").addEventListener("click", function () {
+    var v = input.value.trim();
+    if (!v) { showEmpty(); input.focus(); return; }
+    loadText(v);
+    panels.analysis.scrollIntoView({ block: "start", behavior: prefersReduced() ? "auto" : "smooth" });
+  });
+
+  $("sampleBtn").addEventListener("click", function () {
+    input.value = SAMPLE;
+    loadText(SAMPLE);
+    panels.analysis.scrollIntoView({ block: "start", behavior: prefersReduced() ? "auto" : "smooth" });
+  });
+
+  $("clearBtn").addEventListener("click", function () {
+    input.value = "";
+    showEmpty();
+    input.focus();
+  });
+
+  $("copyBtn").addEventListener("click", copyDraft);
+  $("resetBtn").addEventListener("click", resetToOriginal);
+
+  // Focus toggles
+  var toggleBtns = document.querySelectorAll(".toggle");
+  for (var t = 0; t < toggleBtns.length; t++) {
+    toggleBtns[t].addEventListener("click", function () {
+      var f = this.getAttribute("data-focus");
+      var now = this.getAttribute("aria-pressed") === "true";
+      activeFocus[f] = !now;
+      this.setAttribute("aria-pressed", String(!now));
+      // re-apply dim classes without full rebuild
+      applyFocusDim();
+    });
+  }
+
+  function applyFocusDim() {
+    var on = anyFocusOn();
+    var lis = stripsEl.querySelectorAll(".strip");
+    for (var i = 0; i < lis.length; i++) {
+      var id = parseInt(lis[i].dataset.id, 10);
+      var s = findStrip(id);
+      var match = s ? stripMatchesFocus(s.flags) : true;
+      lis[i].classList.toggle("dimmed", on && !match);
+    }
+    var bars = skylineEl.querySelectorAll(".bar");
+    for (i = 0; i < bars.length; i++) {
+      var bid = parseInt(bars[i].dataset.id, 10);
+      var bs = findStrip(bid);
+      var bmatch = bs ? stripMatchesFocus(bs.flags) : true;
+      bars[i].classList.toggle("dimmed", on && !bmatch);
+    }
+  }
+
+  // Start in empty state.
+  showEmpty();
+})();
+</script>
+</body>
+</html>
