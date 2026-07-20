@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Human Afterimage — A Live Gesture Observatory</title>
+<meta name="description" content="Draw one continuous gesture and watch it replay as a luminous afterimage, with honest, non-scoring strips for speed, curvature, energy, and pauses. Local-only, self-contained.">
+<style>
+  :root {
+    --bg: #06080f;
+    --bg2: #0a0e19;
+    --panel: #0d121e;
+    --panel2: #101725;
+    --line: rgba(120,150,190,0.14);
+    --line-2: rgba(120,150,190,0.22);
+    --ink: #a9c2d6;
+    --ink-dim: #5f7488;
+    --ink-faint: #3a4a5b;
+    --ink-bright: #e6f2fb;
+    --a-speed: #4fd0e0;
+    --a-curve: #f2a44e;
+    --a-energy: #e0619b;
+    --a-pause: #9d86ff;
+    --focus: rgba(0,210,232,0.55);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -8%, rgba(40,90,130,0.16), transparent 70%),
+      var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 18px 14px 40px; }
+
+  header { text-align: center; padding: 6px 4px 14px; }
+  .eyebrow {
+    font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 9px;
+  }
+  h1 {
+    font-size: clamp(1.35rem, 5.5vw, 2rem);
+    font-weight: 650; letter-spacing: -0.02em; color: var(--ink-bright);
+    line-height: 1.12;
+  }
+  h1 em { font-style: normal; color: var(--a-speed); }
+  .tagline {
+    font-size: 12.5px; color: var(--ink-dim); margin-top: 8px;
+    max-width: 460px; margin-left: auto; margin-right: auto;
+  }
+
+  /* Stage */
+  .stage {
+    position: relative;
+    margin-top: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 120% at 50% 0%, rgba(30,60,90,0.14), transparent 60%),
+      linear-gradient(180deg, var(--panel2), var(--panel));
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  #canvas {
+    display: block; width: 100%;
+    height: 360px;
+    touch-action: none; cursor: crosshair;
+  }
+  @media (max-width: 430px) { #canvas { height: 320px; } }
+
+  /* Hint / empty state overlay */
+  .hint {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; pointer-events: none; padding: 24px;
+    transition: opacity 0.4s ease;
+  }
+  .hint.gone { opacity: 0; }
+  .hint .ring {
+    width: 62px; height: 62px; border-radius: 50%;
+    border: 1.5px dashed var(--line-2);
+    display: grid; place-items: center; margin-bottom: 14px;
+    animation: breathe 3.4s ease-in-out infinite;
+  }
+  .hint .ring::after {
+    content: ''; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--a-speed); box-shadow: 0 0 16px var(--a-speed);
+  }
+  @keyframes breathe { 0%,100% { transform: scale(1); opacity: 0.75; } 50% { transform: scale(1.14); opacity: 1; } }
+  .hint h2 { font-size: 15px; font-weight: 600; color: var(--ink-bright); letter-spacing: -0.01em; }
+  .hint p { font-size: 12px; color: var(--ink-dim); margin-top: 5px; max-width: 300px; }
+  .hint .demo-btn { pointer-events: auto; }
+
+  /* Live status chip on stage */
+  .stagechip {
+    position: absolute; top: 10px; left: 10px;
+    display: flex; align-items: center; gap: 7px;
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-dim);
+    background: rgba(6,9,16,0.55); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 10px 5px 8px;
+  }
+  .stagechip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); transition: background 0.2s; }
+  .stagechip.live .dot { background: var(--a-energy); box-shadow: 0 0 10px var(--a-energy); animation: pulse 1.1s ease-in-out infinite; }
+  .stagechip.ready .dot { background: var(--a-speed); box-shadow: 0 0 10px var(--a-speed); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* Lens switch */
+  .lens {
+    position: absolute; top: 10px; right: 10px;
+    display: flex; gap: 4px;
+    background: rgba(6,9,16,0.55); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px;
+  }
+  .lens button {
+    font: inherit; font-size: 10px; letter-spacing: 0.06em;
+    color: var(--ink-dim); background: transparent; border: 0;
+    border-radius: 999px; padding: 6px 9px; cursor: pointer; min-height: 32px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .lens button[aria-pressed="true"] { background: rgba(80,208,224,0.16); color: var(--ink-bright); }
+
+  /* Timeline scrubber */
+  .scrub { padding: 14px 4px 4px; }
+  .scrub-row { display: flex; align-items: center; gap: 12px; }
+  .playbtn {
+    flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%;
+    border: 1px solid var(--line-2); background: var(--panel2);
+    color: var(--ink-bright); cursor: pointer; font-size: 16px;
+    display: grid; place-items: center;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+  .playbtn:active { transform: scale(0.94); }
+  .playbtn:hover { border-color: var(--focus); }
+  .playbtn:disabled { opacity: 0.4; cursor: default; }
+  .track-wrap { flex: 1; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 44px;
+    background: transparent; cursor: pointer; margin: 0;
+  }
+  input[type=range]:focus-visible { outline: none; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 6px;
+    background: linear-gradient(90deg, var(--a-speed) 0%, var(--a-speed) var(--pct,0%), rgba(120,150,190,0.16) var(--pct,0%));
+  }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 6px; background: rgba(120,150,190,0.16); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 6px; background: var(--a-speed); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%; margin-top: -7px;
+    background: #eafaff; border: 3px solid var(--a-speed);
+    box-shadow: 0 0 12px rgba(79,208,224,0.6);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #eafaff; border: 3px solid var(--a-speed); box-shadow: 0 0 12px rgba(79,208,224,0.6);
+  }
+  input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--focus); }
+  .timelabel { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-faint); margin-top: -2px; padding: 0 2px; font-variant-numeric: tabular-nums; }
+
+  /* Data strips */
+  .strips { margin-top: 18px; display: grid; gap: 10px; }
+  .strip {
+    border: 1px solid var(--line); border-radius: 12px;
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    padding: 10px 12px 8px; position: relative;
+  }
+  .strip-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px;
+  }
+  .strip-name { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--ink-bright); letter-spacing: -0.01em; }
+  .swatch { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
+  .strip-sub { font-size: 10px; color: var(--ink-faint); font-weight: 400; letter-spacing: 0.01em; }
+  .strip-val { font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .strip canvas { display: block; width: 100%; height: 46px; }
+
+  /* Controls */
+  .controls { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .controls .full { grid-column: 1 / -1; }
+  .btn {
+    font: inherit; font-size: 13px; font-weight: 550;
+    min-height: 46px; padding: 0 14px; cursor: pointer;
+    border-radius: 11px; border: 1px solid var(--line-2);
+    background: var(--panel2); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.08s;
+  }
+  .btn:hover { border-color: var(--focus); color: var(--ink-bright); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn.primary { background: linear-gradient(180deg, rgba(79,208,224,0.2), rgba(79,208,224,0.08)); border-color: rgba(79,208,224,0.4); color: var(--ink-bright); }
+  .btn svg { width: 15px; height: 15px; }
+
+  .note {
+    margin-top: 16px; font-size: 11px; color: var(--ink-faint); line-height: 1.55;
+    border-top: 1px solid var(--line); padding-top: 14px;
+  }
+  .note b { color: var(--ink-dim); font-weight: 600; }
+  footer { text-align: center; font-size: 10.5px; color: var(--ink-faint); margin-top: 22px; letter-spacing: 0.04em; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .hint .ring, .stagechip.live .dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Live Gesture Observatory</div>
+    <h1>Human <em>Afterimage</em></h1>
+    <p class="tagline">Draw one continuous stroke. It lingers as a luminous afterimage while honest strips make the invisible motion inside it legible.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas" aria-label="Gesture drawing and replay canvas"></canvas>
+    <div class="stagechip ready" id="stagechip"><span class="dot"></span><span id="chiptext">Ready — draw a stroke</span></div>
+    <div class="lens" role="group" aria-label="Visual lens">
+      <button data-lens="0" aria-pressed="true">Comet</button>
+      <button data-lens="1" aria-pressed="false">Ribbon</button>
+      <button data-lens="2" aria-pressed="false">Ink</button>
+    </div>
+    <div class="hint" id="hint">
+      <div class="ring"></div>
+      <h2>Trace one continuous gesture</h2>
+      <p>Press and drag across the panel — a loop, a signature, a scribble. Release to see it replay.</p>
+      <button class="btn primary demo-btn" id="demoBtn" style="margin-top:14px;">Play a demo gesture</button>
+    </div>
+  </div>
+
+  <div class="scrub">
+    <div class="scrub-row">
+      <button class="playbtn" id="playBtn" aria-label="Play or pause replay" disabled>
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="track-wrap">
+        <input type="range" id="scrubber" min="0" max="1000" value="1000" step="1" aria-label="Scrub replay timeline" disabled>
+        <div class="timelabel"><span id="tCur">0.00s</span><span id="tTot">0.00s</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="strips" id="strips">
+    <div class="strip">
+      <div class="strip-head">
+        <div class="strip-name"><span class="swatch" style="background:var(--a-speed)"></span>Speed<span class="strip-sub">px / second</span></div>
+        <div class="strip-val" id="valSpeed">—</div>
+      </div>
+      <canvas class="stripcv" data-metric="speed" height="46"></canvas>
+    </div>
+    <div class="strip">
+      <div class="strip-head">
+        <div class="strip-name"><span class="swatch" style="background:var(--a-curve)"></span>Curvature<span class="strip-sub">turn per step</span></div>
+        <div class="strip-val" id="valCurve">—</div>
+      </div>
+      <canvas class="stripcv" data-metric="curve" height="46"></canvas>
+    </div>
+    <div class="strip">
+      <div class="strip-head">
+        <div class="strip-name"><span class="swatch" style="background:var(--a-energy)"></span>Gesture energy<span class="strip-sub">derived from speed — not measured pressure</span></div>
+        <div class="strip-val" id="valEnergy">—</div>
+      </div>
+      <canvas class="stripcv" data-metric="energy" height="46"></canvas>
+    </div>
+    <div class="strip">
+      <div class="strip-head">
+        <div class="strip-name"><span class="swatch" style="background:var(--a-pause)"></span>Stillness<span class="strip-sub">pauses &amp; hesitations</span></div>
+        <div class="strip-val" id="valPause">—</div>
+      </div>
+      <canvas class="stripcv" data-metric="pause" height="46"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="replayBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 3-5"/></svg>
+      Replay
+    </button>
+    <button class="btn" id="clearBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      Clear
+    </button>
+    <button class="btn" id="pngBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      Export PNG
+    </button>
+    <button class="btn" id="svgBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      Export SVG
+    </button>
+  </div>
+
+  <div class="note" id="note">
+    <b>How to read it.</b> The observatory records only the stroke you draw, on your device, with nothing sent anywhere.
+    <b>Speed</b> is distance over time between samples. <b>Curvature</b> is how sharply the direction turns at each step.
+    <b>Gesture energy</b> is derived from speed as an honest proxy for how firmly you seemed to press — pointers report no real pressure here, so nothing is measured.
+    <b>Stillness</b> rises where your hand hesitated or paused. Scrub the timeline to move the marker through every metric at once.
+  </div>
+
+  <footer>Local-only instrument · no network, no accounts, no scores · one gesture at a time</footer>
+</div>
+
+<a id="dl" style="display:none"></a>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Elements ----------
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
+  var hint = document.getElementById('hint');
+  var chip = document.getElementById('stagechip');
+  var chiptext = document.getElementById('chiptext');
+  var scrubber = document.getElementById('scrubber');
+  var playBtn = document.getElementById('playBtn');
+  var playIcon = document.getElementById('playIcon');
+  var tCur = document.getElementById('tCur');
+  var tTot = document.getElementById('tTot');
+  var replayBtn = document.getElementById('replayBtn');
+  var clearBtn = document.getElementById('clearBtn');
+  var pngBtn = document.getElementById('pngBtn');
+  var svgBtn = document.getElementById('svgBtn');
+  var demoBtn = document.getElementById('demoBtn');
+  var dl = document.getElementById('dl');
+  var lensBtns = Array.prototype.slice.call(document.querySelectorAll('.lens button'));
+  var stripCanvases = Array.prototype.slice.call(document.querySelectorAll('.stripcv'));
+  var valEls = {
+    speed: document.getElementById('valSpeed'),
+    curve: document.getElementById('valCurve'),
+    energy: document.getElementById('valEnergy'),
+    pause: document.getElementById('valPause')
+  };
+
+  var COLORS = { speed:'#4fd0e0', curve:'#f2a44e', energy:'#e0619b', pause:'#9d86ff' };
+  var dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+  // ---------- State ----------
+  // raw[]: {x,y,t} in CSS pixels, t in ms relative to stroke start
+  var raw = [];
+  // samples[]: processed evenly-consumed points with metrics
+  var S = null;           // processed dataset or null
+  var mode = 'empty';     // 'empty' | 'drawing' | 'ready'
+  var lens = 0;
+  var drawing = false;
+  var startT = 0;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Replay
+  var playState = 'idle'; // idle | playing | paused
+  var playHead = 1;       // 0..1 fraction of timeline shown
+  var rafId = 0;
+  var lastFrame = 0;
+
+  // ---------- Canvas sizing (DPR aware) ----------
+  function sizeCanvas() {
+    var r = canvas.getBoundingClientRect();
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sizeStrips();
+    render();
+  }
+  function sizeStrips() {
+    stripCanvases.forEach(function (c) {
+      var r = c.getBoundingClientRect();
+      c.width = Math.round(r.width * dpr);
+      c.height = Math.round(r.height * dpr);
+      var cx = c.getContext('2d');
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    });
+    drawAllStrips();
+  }
+
+  function W() { return canvas.getBoundingClientRect().width; }
+  function H() { return canvas.getBoundingClientRect().height; }
+
+  // ---------- Pointer input ----------
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  function onDown(e) {
+    if (mode === 'drawing') return;
+    // begin a fresh stroke
+    e.preventDefault();
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    stopReplay();
+    raw = [];
+    S = null;
+    mode = 'drawing';
+    drawing = true;
+    startT = perfNow();
+    setChip('live', 'Recording…');
+    hideHint();
+    var p = pos(e);
+    raw.push({ x: p.x, y: p.y, t: 0 });
+    render();
+  }
+  function onMove(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    // coalesced events give smoother, denser sampling on supported browsers
+    var evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+    for (var i = 0; i < evs.length; i++) {
+      var p = pos(evs[i]);
+      var t = perfNow() - startT;
+      var last = raw[raw.length - 1];
+      // avoid duplicate/zero-distance spam
+      if (!last || (Math.abs(p.x - last.x) + Math.abs(p.y - last.y)) > 0.6 || (t - last.t) > 12) {
+        raw.push({ x: p.x, y: p.y, t: t });
+      }
+    }
+    render();
+  }
+  function onUp(e) {
+    if (!drawing) return;
+    drawing = false;
+    var t = perfNow() - startT;
+    var last = raw[raw.length - 1];
+    if (last && t > last.t) raw.push({ x: last.x, y: last.y, t: t });
+    finishStroke();
+  }
+
+  function perfNow() { return (window.performance && performance.now) ? performance.now() : (+new Date()); }
+
+  // ---------- Processing ----------
+  function finishStroke() {
+    if (raw.length < 3) {
+      // too short to be meaningful
+      mode = 'empty';
+      S = null;
+      raw = [];
+      setChip('ready', 'Ready — draw a stroke');
+      showHint();
+      updateButtons();
+      render();
+      drawAllStrips();
+      return;
+    }
+    S = process(raw);
+    mode = 'ready';
+    playHead = 1;
+    scrubber.value = 1000;
+    setPct();
+    setChip('ready', 'Gesture captured');
+    updateButtons();
+    updateReadouts();
+    drawAllStrips();
+    // auto-play the afterimage once
+    startReplay();
+  }
+
+  function process(pts) {
+    // Ensure monotonic time
+    var n = pts.length;
+    var total = Math.max(1, pts[n - 1].t);
+    // Compute per-point instantaneous metrics
+    var arr = new Array(n);
+    for (var i = 0; i < n; i++) arr[i] = { x: pts[i].x, y: pts[i].y, t: pts[i].t, speed: 0, curve: 0, energy: 0, still: 0 };
+
+    for (var i = 1; i < n; i++) {
+      var dx = pts[i].x - pts[i - 1].x;
+      var dy = pts[i].y - pts[i - 1].y;
+      var dt = Math.max(1, pts[i].t - pts[i - 1].t) / 1000; // s
+      var dist = Math.hypot(dx, dy);
+      arr[i].speed = dist / dt; // px/s
+    }
+    arr[0].speed = arr[1] ? arr[1].speed : 0;
+
+    // Curvature: angle change between successive segments
+    for (var i = 1; i < n - 1; i++) {
+      var ax = pts[i].x - pts[i - 1].x, ay = pts[i].y - pts[i - 1].y;
+      var bx = pts[i + 1].x - pts[i].x, by = pts[i + 1].y - pts[i].y;
+      var la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+      if (la > 0.01 && lb > 0.01) {
+        var dot = (ax * bx + ay * by) / (la * lb);
+        dot = Math.max(-1, Math.min(1, dot));
+        arr[i].curve = Math.acos(dot); // radians of turn (0..pi)
+      }
+    }
+
+    // Smooth speed a little (moving average) for stable energy
+    var sm = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var a = 0, c = 0;
+      for (var k = -2; k <= 2; k++) { var j = i + k; if (j >= 0 && j < n) { a += arr[j].speed; c++; } }
+      sm[i] = a / c;
+    }
+
+    // Normalizers
+    var maxSpeed = 1, maxCurve = 0.001;
+    for (var i = 0; i < n; i++) { if (arr[i].speed > maxSpeed) maxSpeed = arr[i].speed; if (arr[i].curve > maxCurve) maxCurve = arr[i].curve; }
+
+    // Gesture energy: honest speed-derived proxy. Slower, deliberate motion
+    // reads as "pressing in" (high energy); fast flicks read as light.
+    // Normalized 0..1 with a gentle curve.
+    var energyMax = 0.001;
+    for (var i = 0; i < n; i++) {
+      var norm = sm[i] / maxSpeed;              // 0..1 speed
+      var e = Math.pow(1 - Math.min(1, norm), 1.4); // slow => high
+      arr[i].energy = e;
+      if (e > energyMax) energyMax = e;
+    }
+
+    // Stillness: local time density — where many ms passed with little travel.
+    // Compute as inverse of local speed, but gated so only true low-motion counts.
+    var stillMax = 0.001;
+    for (var i = 0; i < n; i++) {
+      var norm = sm[i] / maxSpeed;
+      var s = norm < 0.12 ? (0.12 - norm) / 0.12 : 0; // 1 when nearly stopped
+      arr[i].still = s;
+      if (s > stillMax) stillMax = s;
+    }
+
+    // Resample onto a fixed timeline grid so strips & scrub are time-accurate
+    var GRID = 240;
+    var grid = new Array(GRID);
+    for (var g = 0; g < GRID; g++) {
+      var tt = (g / (GRID - 1)) * total;
+      // find bracketing samples
+      var lo = 0;
+      while (lo < n - 1 && arr[lo + 1].t < tt) lo++;
+      var hi = Math.min(n - 1, lo + 1);
+      var span = Math.max(1e-6, arr[hi].t - arr[lo].t);
+      var f = Math.max(0, Math.min(1, (tt - arr[lo].t) / span));
+      grid[g] = {
+        t: tt,
+        x: arr[lo].x + (arr[hi].x - arr[lo].x) * f,
+        y: arr[lo].y + (arr[hi].y - arr[lo].y) * f,
+        speed: (arr[lo].speed + (arr[hi].speed - arr[lo].speed) * f) / maxSpeed,
+        curve: (arr[lo].curve + (arr[hi].curve - arr[lo].curve) * f) / maxCurve,
+        energy: (arr[lo].energy + (arr[hi].energy - arr[lo].energy) * f) / energyMax,
+        still: (arr[lo].still + (arr[hi].still - arr[lo].still) * f) / stillMax
+      };
+    }
+
+    // Aggregate stats for readouts
+    var pathLen = 0;
+    for (var i = 1; i < n; i++) pathLen += Math.hypot(arr[i].x - arr[i - 1].x, arr[i].y - arr[i - 1].y);
+    var avgSpeed = pathLen / (total / 1000);
+    var totalTurn = 0; for (var i = 0; i < n; i++) totalTurn += arr[i].curve;
+    var pauseCount = 0, inPause = false;
+    for (var g = 0; g < GRID; g++) {
+      if (grid[g].still > 0.5 && !inPause) { pauseCount++; inPause = true; }
+      else if (grid[g].still <= 0.35) inPause = false;
+    }
+
+    return {
+      pts: arr, grid: grid, total: total, n: n,
+      maxSpeed: maxSpeed, maxCurve: maxCurve,
+      stats: {
+        durationS: total / 1000,
+        pathLen: pathLen,
+        avgSpeed: avgSpeed,
+        peakSpeed: maxSpeed,
+        totalTurn: totalTurn,
+        pauseCount: pauseCount
+      }
+    };
+  }
+
+  // ---------- Rendering the main canvas ----------
+  function render() {
+    var w = W(), h = H();
+    ctx.clearRect(0, 0, w, h);
+    drawBackdrop(w, h);
+
+    if (mode === 'drawing') {
+      drawLiveStroke();
+      return;
+    }
+    if (mode === 'ready' && S) {
+      drawReplay(w, h);
+      return;
+    }
+  }
+
+  function drawBackdrop(w, h) {
+    // subtle grid to read as an instrument, not a sketchpad
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,150,190,0.05)';
+    ctx.lineWidth = 1;
+    var step = 34;
+    ctx.beginPath();
+    for (var x = step; x < w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (var y = step; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLiveStroke() {
+    if (raw.length < 2) return;
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = COLORS.speed;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 2.4;
+    ctx.shadowColor = COLORS.speed; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(raw[0].x, raw[0].y);
+    for (var i = 1; i < raw.length; i++) ctx.lineTo(raw[i].x, raw[i].y);
+    ctx.stroke();
+    ctx.restore();
+    // head dot
+    var last = raw[raw.length - 1];
+    ctx.save();
+    ctx.fillStyle = '#eafaff'; ctx.shadowColor = COLORS.speed; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(last.x, last.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Map a normalized metric value to a color per lens
+  function lensColor(g, a) {
+    if (lens === 0) {
+      // Comet: color by speed (cyan → magenta as it slows)
+      var t = g.speed;
+      return mix(COLORS.energy, COLORS.speed, t, a);
+    } else if (lens === 1) {
+      // Ribbon: color by curvature (calm violet → amber on sharp turns)
+      var t = Math.min(1, g.curve);
+      return mix(COLORS.pause, COLORS.curve, t, a);
+    } else {
+      // Ink: color by gesture energy (light cyan → deep magenta where firm/slow)
+      var t = g.energy;
+      return mix(COLORS.speed, COLORS.energy, t, a);
+    }
+  }
+  function lensWidth(g) {
+    if (lens === 0) return 1.6 + g.speed * 5.5;        // faster = fatter comet
+    if (lens === 1) return 1.4 + Math.min(1, g.curve) * 7; // sharper = fatter ribbon
+    return 1.8 + g.energy * 8.5;                         // firmer = fatter ink
+  }
+
+  function drawReplay(w, h) {
+    var grid = S.grid;
+    var upto = Math.max(1, Math.floor(playHead * (grid.length - 1)));
+
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+    // faint full-path ghost so the whole afterimage is always visible
+    ctx.globalAlpha = 0.14;
+    ctx.strokeStyle = 'rgba(150,180,210,0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(grid[0].x, grid[0].y);
+    for (var i = 1; i < grid.length; i++) ctx.lineTo(grid[i].x, grid[i].y);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // luminous afterimage up to playhead: fade older segments
+    for (var i = 1; i <= upto; i++) {
+      var g = grid[i], g0 = grid[i - 1];
+      var age = (upto - i) / Math.max(1, upto);      // 0 newest .. 1 oldest
+      var alpha = 0.25 + 0.75 * (1 - age);           // trailing fade
+      ctx.strokeStyle = lensColor(g, alpha);
+      ctx.lineWidth = lensWidth(g);
+      ctx.shadowColor = lensColor(g, 1);
+      ctx.shadowBlur = 8 * (1 - age) + 2;
+      ctx.beginPath();
+      ctx.moveTo(g0.x, g0.y);
+      ctx.lineTo(g.x, g.y);
+      ctx.stroke();
+
+      // stillness blooms
+      if (g.still > 0.55) {
+        ctx.save();
+        ctx.globalAlpha = 0.18 * (1 - age);
+        ctx.fillStyle = COLORS.pause; ctx.shadowColor = COLORS.pause; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.arc(g.x, g.y, 4 + g.still * 9, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // moving marker (the "now" head)
+    var head = grid[upto];
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#f2fbff';
+    ctx.shadowColor = lensColor(head, 1); ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.arc(head.x, head.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function mix(c1, c2, t, a) {
+    t = Math.max(0, Math.min(1, t));
+    var A = hex(c1), B = hex(c2);
+    var r = Math.round(A[0] + (B[0] - A[0]) * t);
+    var g = Math.round(A[1] + (B[1] - A[1]) * t);
+    var b = Math.round(A[2] + (B[2] - A[2]) * t);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+  var hexCache = {};
+  function hex(c) {
+    if (hexCache[c]) return hexCache[c];
+    var v = c.replace('#', '');
+    var out = [parseInt(v.substr(0, 2), 16), parseInt(v.substr(2, 2), 16), parseInt(v.substr(4, 2), 16)];
+    hexCache[c] = out; return out;
+  }
+
+  // ---------- Strips ----------
+  function drawAllStrips() {
+    stripCanvases.forEach(function (c) { drawStrip(c); });
+  }
+  function drawStrip(c) {
+    var metric = c.getAttribute('data-metric');
+    var cx = c.getContext('2d');
+    var r = c.getBoundingClientRect();
+    var w = r.width, h = r.height;
+    cx.clearRect(0, 0, w, h);
+
+    // baseline
+    cx.strokeStyle = 'rgba(120,150,190,0.10)';
+    cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, h - 0.5); cx.lineTo(w, h - 0.5); cx.stroke();
+
+    if (!S) {
+      cx.fillStyle = 'rgba(95,116,136,0.55)';
+      cx.font = '11px -apple-system, sans-serif';
+      cx.textBaseline = 'middle';
+      cx.fillText('Draw a gesture to populate this strip', 8, h / 2);
+      return;
+    }
+
+    var grid = S.grid, N = grid.length;
+    var key = metric === 'pause' ? 'still' : metric;
+    var col = COLORS[metric] || COLORS.speed;
+
+    // filled area
+    var grad = cx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, hexA(col, 0.42));
+    grad.addColorStop(1, hexA(col, 0.02));
+    cx.beginPath();
+    cx.moveTo(0, h);
+    for (var i = 0; i < N; i++) {
+      var x = (i / (N - 1)) * w;
+      var v = Math.max(0, Math.min(1, grid[i][key]));
+      var y = h - v * (h - 4) - 2;
+      cx.lineTo(x, y);
+    }
+    cx.lineTo(w, h);
+    cx.closePath();
+    cx.fillStyle = grad; cx.fill();
+
+    // line
+    cx.beginPath();
+    for (var i = 0; i < N; i++) {
+      var x = (i / (N - 1)) * w;
+      var v = Math.max(0, Math.min(1, grid[i][key]));
+      var y = h - v * (h - 4) - 2;
+      if (i === 0) cx.moveTo(x, y); else cx.lineTo(x, y);
+    }
+    cx.strokeStyle = col; cx.lineWidth = 1.6; cx.lineJoin = 'round';
+    cx.stroke();
+
+    // playhead marker line
+    var px = playHead * w;
+    cx.strokeStyle = 'rgba(240,250,255,0.7)';
+    cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(px, 0); cx.lineTo(px, h); cx.stroke();
+    // value dot at playhead
+    var idx = Math.max(0, Math.min(N - 1, Math.round(playHead * (N - 1))));
+    var vv = Math.max(0, Math.min(1, grid[idx][key]));
+    var dyv = h - vv * (h - 4) - 2;
+    cx.fillStyle = '#f2fbff'; cx.beginPath(); cx.arc(px, dyv, 2.6, 0, Math.PI * 2); cx.fill();
+  }
+  function hexA(c, a) { var v = hex(c); return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a + ')'; }
+
+  // ---------- Readouts ----------
+  function updateReadouts() {
+    if (!S) {
+      valEls.speed.textContent = valEls.curve.textContent = valEls.energy.textContent = valEls.pause.textContent = '—';
+      return;
+    }
+    var st = S.stats;
+    valEls.speed.textContent = 'peak ' + Math.round(st.peakSpeed) + ' · avg ' + Math.round(st.avgSpeed);
+    valEls.curve.textContent = 'total turn ' + Math.round(st.totalTurn / Math.PI * 180) + '°';
+    // energy readout at current playhead
+    var idx = Math.max(0, Math.min(S.grid.length - 1, Math.round(playHead * (S.grid.length - 1))));
+    valEls.energy.textContent = 'now ' + Math.round(S.grid[idx].energy * 100) + '%';
+    valEls.pause.textContent = st.pauseCount + (st.pauseCount === 1 ? ' pause' : ' pauses');
+    tTot.textContent = st.durationS.toFixed(2) + 's';
+  }
+
+  // ---------- Replay engine ----------
+  function startReplay() {
+    if (!S) return;
+    playState = 'playing';
+    playHead = 0;
+    lastFrame = perfNow();
+    setPlayIcon(true);
+    setChip('live', 'Replaying afterimage');
+    cancelAnimationFrame(rafId);
+    if (reduceMotion) {
+      // For reduced-motion users, jump straight to the full afterimage.
+      playHead = 1; playState = 'paused'; setPlayIcon(false);
+      scrubber.value = 1000; setPct(); render(); drawAllStrips(); updateReadouts();
+      setChip('ready', 'Gesture captured');
+      return;
+    }
+    tick();
+  }
+  function tick() {
+    var now = perfNow();
+    var dt = (now - lastFrame);
+    lastFrame = now;
+    if (playState === 'playing') {
+      var durMs = Math.max(400, S.total); // real-time-ish, min 0.4s so quick strokes still animate
+      playHead += dt / durMs;
+      if (playHead >= 1) {
+        playHead = 1; playState = 'paused'; setPlayIcon(false);
+        setChip('ready', 'Gesture captured');
+      }
+      scrubber.value = Math.round(playHead * 1000);
+      setPct();
+      render(); drawAllStrips(); updateReadouts();
+      updateTimeLabel();
+    }
+    if (playState === 'playing') rafId = requestAnimationFrame(tick);
+  }
+  function stopReplay() {
+    playState = 'idle';
+    cancelAnimationFrame(rafId);
+    setPlayIcon(false);
+  }
+  function togglePlay() {
+    if (!S) return;
+    if (playState === 'playing') {
+      playState = 'paused'; setPlayIcon(false);
+      setChip('ready', 'Gesture captured');
+    } else {
+      if (playHead >= 1) playHead = 0;
+      playState = 'playing'; lastFrame = perfNow(); setPlayIcon(true);
+      setChip('live', 'Replaying afterimage');
+      cancelAnimationFrame(rafId); tick();
+    }
+  }
+  function setPlayIcon(playing) {
+    // playing => show pause bars; else show play triangle
+    if (playing) playIcon.innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+    else playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  }
+  function updateTimeLabel() {
+    if (!S) { tCur.textContent = '0.00s'; return; }
+    tCur.textContent = (playHead * S.stats.durationS).toFixed(2) + 's';
+  }
+
+  // ---------- Scrubbing ----------
+  function onScrub() {
+    if (!S) return;
+    if (playState === 'playing') { playState = 'paused'; setPlayIcon(false); cancelAnimationFrame(rafId); }
+    playHead = (+scrubber.value) / 1000;
+    setPct();
+    render(); drawAllStrips(); updateReadouts(); updateTimeLabel();
+    setChip('ready', 'Scrubbing');
+  }
+  function setPct() { scrubber.style.setProperty('--pct', (playHead * 100) + '%'); }
+
+  // ---------- Chip / hint / buttons ----------
+  function setChip(kind, text) {
+    chip.className = 'stagechip' + (kind === 'live' ? ' live' : kind === 'ready' ? ' ready' : '');
+    chiptext.textContent = text;
+  }
+  function hideHint() { hint.classList.add('gone'); }
+  function showHint() { hint.classList.remove('gone'); }
+  function updateButtons() {
+    var has = !!S;
+    replayBtn.disabled = !has;
+    clearBtn.disabled = !has;
+    pngBtn.disabled = !has;
+    svgBtn.disabled = !has;
+    playBtn.disabled = !has;
+    scrubber.disabled = !has;
+  }
+
+  // ---------- Clear ----------
+  function clearAll() {
+    stopReplay();
+    raw = []; S = null; mode = 'empty'; playHead = 1;
+    scrubber.value = 1000; setPct();
+    setChip('ready', 'Ready — draw a stroke');
+    showHint();
+    updateButtons();
+    updateReadouts();
+    render(); drawAllStrips();
+    tCur.textContent = '0.00s'; tTot.textContent = '0.00s';
+  }
+
+  // ---------- Lens ----------
+  function setLens(i) {
+    lens = i;
+    lensBtns.forEach(function (b) { b.setAttribute('aria-pressed', (+b.dataset.lens === i) ? 'true' : 'false'); });
+    render();
+  }
+
+  // ---------- Export ----------
+  function exportPNG() {
+    if (!S) return;
+    var scale = 2;
+    var w = W(), h = H();
+    var off = document.createElement('canvas');
+    off.width = w * scale; off.height = h * scale;
+    var octx = off.getContext('2d');
+    octx.scale(scale, scale);
+    // paint background
+    octx.fillStyle = '#070b13'; octx.fillRect(0, 0, w, h);
+    // reuse renderer by temporarily swapping ctx? simpler: redraw afterimage fully here
+    var grid = S.grid;
+    octx.lineJoin = 'round'; octx.lineCap = 'round';
+    octx.globalAlpha = 0.14; octx.strokeStyle = 'rgba(150,180,210,0.7)'; octx.lineWidth = 1.2;
+    octx.beginPath(); octx.moveTo(grid[0].x, grid[0].y);
+    for (var i = 1; i < grid.length; i++) octx.lineTo(grid[i].x, grid[i].y);
+    octx.stroke(); octx.globalAlpha = 1;
+    for (var i = 1; i < grid.length; i++) {
+      var g = grid[i], g0 = grid[i - 1];
+      octx.strokeStyle = lensColor(g, 0.92);
+      octx.lineWidth = lensWidth(g);
+      octx.shadowColor = lensColor(g, 1); octx.shadowBlur = 6;
+      octx.beginPath(); octx.moveTo(g0.x, g0.y); octx.lineTo(g.x, g.y); octx.stroke();
+    }
+    // caption
+    octx.shadowBlur = 0;
+    octx.fillStyle = 'rgba(169,194,214,0.85)';
+    octx.font = '11px -apple-system, sans-serif';
+    octx.fillText('Human Afterimage · ' + S.stats.durationS.toFixed(2) + 's · ' + Math.round(S.stats.pathLen) + 'px path', 10, h - 12);
+    var url = off.toDataURL('image/png');
+    triggerDownload(url, 'human-afterimage.png');
+  }
+
+  function exportSVG() {
+    if (!S) return;
+    var w = W(), h = H();
+    var grid = S.grid;
+    var parts = [];
+    parts.push('<?xml version="1.0" encoding="UTF-8"?>');
+    parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(w) + '" height="' + Math.round(h) + '" viewBox="0 0 ' + Math.round(w) + ' ' + Math.round(h) + '">');
+    parts.push('<rect width="100%" height="100%" fill="#070b13"/>');
+    // full ghost path
+    var d = 'M ' + grid[0].x.toFixed(1) + ' ' + grid[0].y.toFixed(1);
+    for (var i = 1; i < grid.length; i++) d += ' L ' + grid[i].x.toFixed(1) + ' ' + grid[i].y.toFixed(1);
+    parts.push('<path d="' + d + '" fill="none" stroke="rgba(150,180,210,0.18)" stroke-width="1.2"/>');
+    // colored segments
+    for (var i = 1; i < grid.length; i++) {
+      var g = grid[i], g0 = grid[i - 1];
+      var col = lensColorSolid(g);
+      parts.push('<line x1="' + g0.x.toFixed(1) + '" y1="' + g0.y.toFixed(1) + '" x2="' + g.x.toFixed(1) + '" y2="' + g.y.toFixed(1) +
+        '" stroke="' + col + '" stroke-width="' + lensWidth(g).toFixed(1) + '" stroke-linecap="round"/>');
+    }
+    parts.push('<text x="10" y="' + (h - 12).toFixed(0) + '" fill="rgba(169,194,214,0.85)" font-family="sans-serif" font-size="11">Human Afterimage · ' +
+      S.stats.durationS.toFixed(2) + 's · ' + Math.round(S.stats.pathLen) + 'px path</text>');
+    parts.push('</svg>');
+    var blob = new Blob([parts.join('\n')], { type: 'image/svg+xml' });
+    var url = URL.createObjectURL(blob);
+    triggerDownload(url, 'human-afterimage.svg', true);
+  }
+  function lensColorSolid(g) {
+    var rgba = lensColor(g, 1);
+    return rgba;
+  }
+  function triggerDownload(url, name, revoke) {
+    dl.href = url; dl.download = name;
+    dl.click();
+    if (revoke) setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  // ---------- Demo gesture (deterministic) ----------
+  function playDemo() {
+    // A hand-authored flowing signature-like stroke with varied speed & a pause.
+    var w = W(), h = H();
+    var cx = w / 2, cy = h / 2;
+    var demo = [];
+    var t = 0;
+    // helper to add a point advancing time by dt (ms)
+    function add(x, y, dt) { t += dt; demo.push({ x: x, y: y, t: t }); }
+    // Loop 1: a slow rising curve
+    var N1 = 60;
+    for (var i = 0; i <= N1; i++) {
+      var p = i / N1;
+      var x = cx - w * 0.32 + p * w * 0.30;
+      var y = cy + h * 0.22 - Math.sin(p * Math.PI) * h * 0.30;
+      add(x, y, 14 + Math.sin(p * Math.PI) * 6);
+    }
+    // pause (dwell) — many ms, little travel
+    for (var i = 0; i < 12; i++) add(demo[demo.length - 1].x + (i % 2 ? 0.4 : -0.4), demo[demo.length - 1].y, 30);
+    // fast flick loop
+    var N2 = 70;
+    var bx = demo[demo.length - 1].x, by = demo[demo.length - 1].y;
+    for (var i = 0; i <= N2; i++) {
+      var a = (i / N2) * Math.PI * 2.2;
+      var rad = h * 0.16 * (1 - i / (N2 * 1.6));
+      var x = bx + w * 0.16 + Math.cos(a) * rad;
+      var y = by - h * 0.02 + Math.sin(a) * rad;
+      add(x, y, 6);
+    }
+    // trailing tail, slowing
+    var tx = demo[demo.length - 1].x, ty = demo[demo.length - 1].y;
+    var N3 = 40;
+    for (var i = 0; i <= N3; i++) {
+      var p = i / N3;
+      add(tx + p * w * 0.16, ty + Math.sin(p * 6) * h * 0.05, 12 + p * 20);
+    }
+    raw = demo;
+    hideHint();
+    S = process(raw);
+    mode = 'ready';
+    updateButtons(); updateReadouts(); drawAllStrips();
+    startReplay();
+  }
+
+  // ---------- Events ----------
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  canvas.addEventListener('pointercancel', onUp);
+
+  lensBtns.forEach(function (b) { b.addEventListener('click', function () { setLens(+b.dataset.lens); }); });
+  scrubber.addEventListener('input', onScrub);
+  playBtn.addEventListener('click', togglePlay);
+  replayBtn.addEventListener('click', startReplay);
+  clearBtn.addEventListener('click', clearAll);
+  pngBtn.addEventListener('click', exportPNG);
+  svgBtn.addEventListener('click', exportSVG);
+  demoBtn.addEventListener('click', playDemo);
+
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(sizeCanvas, 120);
+  });
+  window.addEventListener('orientationchange', function () { setTimeout(sizeCanvas, 200); });
+
+  // ---------- Init ----------
+  sizeCanvas();
+  updateButtons();
+  drawAllStrips();
+})();
+</script>
+</body>
+</html>
