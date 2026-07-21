@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Afterthought — A Time-Delayed Scratchpad</title>
+<meta name="description" content="A local-only time-capsule scratchpad. Write one thought, seal it, and let it come back to you later.">
+<meta name="color-scheme" content="dark">
+<style>
+  :root{
+    --ink:#0d0f16;
+    --ink-2:#12141d;
+    --paper:#efe7d6;
+    --paper-2:#e4dac4;
+    --paper-line:#d6c9ad;
+    --wax:#b4432f;
+    --wax-2:#8f3021;
+    --wax-hi:#d9694f;
+    --brass:#c9a86a;
+    --brass-dim:#8a774a;
+    --text:#eae4d6;
+    --text-dim:#9a94861a;
+    --muted:#8b8676;
+    --edge:rgba(201,168,106,0.18);
+    --ok:#79c2a6;
+    --shadow:0 22px 60px -24px rgba(0,0,0,0.85);
+    --radius:20px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    color:var(--text);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1a1d2b 0%, var(--ink) 55%, #070810 100%);
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  body::before{
+    /* fine grain so the dark field is never dead flat */
+    content:"";
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    opacity:0.05;mix-blend-mode:screen;
+    background-image:radial-gradient(rgba(255,255,255,0.7) 0.5px, transparent 0.6px);
+    background-size:3px 3px;
+  }
+
+  .wrap{
+    position:relative;z-index:1;
+    width:100%;max-width:430px;margin:0 auto;
+    padding:calc(env(safe-area-inset-top) + 22px) 18px calc(env(safe-area-inset-bottom) + 40px);
+  }
+
+  /* ---------- Masthead ---------- */
+  header{margin-bottom:20px;}
+  .kicker{
+    display:flex;align-items:center;gap:9px;
+    font-size:11px;letter-spacing:0.26em;text-transform:uppercase;
+    color:var(--brass);opacity:0.85;
+  }
+  .kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--wax);box-shadow:0 0 10px var(--wax-hi);}
+  h1{
+    font-family:var(--serif);
+    font-weight:600;font-size:33px;line-height:1.02;
+    margin:12px 0 8px;letter-spacing:-0.01em;
+  }
+  h1 .tail{display:block;font-size:14px;letter-spacing:0.02em;color:var(--muted);font-family:var(--font);font-weight:400;margin-top:9px;}
+
+  /* ---------- The device ---------- */
+  .device{
+    position:relative;
+    background:linear-gradient(180deg, var(--ink-2), #0b0d15);
+    border:1px solid var(--edge);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+    padding:18px 16px 16px;
+    margin-bottom:16px;
+  }
+  .device::after{
+    /* brass rivets suggestion */
+    content:"";position:absolute;top:12px;right:14px;width:7px;height:7px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #e9d29a, var(--brass-dim));
+    box-shadow:0 0 0 3px rgba(201,168,106,0.06);
+  }
+  .device-label{
+    font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--brass-dim);
+    margin-bottom:12px;
+  }
+
+  /* Paper slip being written */
+  .slip{
+    position:relative;
+    background:
+      linear-gradient(180deg, var(--paper), var(--paper-2));
+    border-radius:12px;
+    padding:16px 15px 12px;
+    box-shadow:0 10px 26px -14px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(140,110,60,0.14);
+    transform-style:preserve-3d;
+  }
+  .slip::before{
+    /* ruled lines */
+    content:"";position:absolute;left:14px;right:14px;top:44px;bottom:38px;
+    background-image:repeating-linear-gradient(transparent, transparent 25px, var(--paper-line) 25px, var(--paper-line) 26px);
+    opacity:0.5;pointer-events:none;border-radius:4px;
+  }
+  .slip-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-family:var(--serif);color:#5c503a;margin-bottom:8px;
+  }
+  .slip-head .n{font-size:12px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.7;}
+  .slip-head .c{font-size:12px;font-variant-numeric:tabular-nums;color:#8a7a58;}
+  textarea#thought{
+    position:relative;z-index:1;
+    width:100%;border:none;background:transparent;resize:none;
+    font-family:var(--serif);font-size:19px;line-height:26px;color:#2c2415;
+    min-height:104px;outline:none;letter-spacing:0.01em;
+  }
+  textarea#thought::placeholder{color:#9a8c6c;opacity:0.8;}
+
+  /* Delay chooser */
+  .field-label{
+    font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);
+    margin:18px 2px 9px;
+  }
+  .delays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .chip{
+    appearance:none;border:1px solid var(--edge);background:rgba(255,255,255,0.02);
+    color:var(--text);border-radius:12px;padding:11px 6px;min-height:48px;
+    font-size:13px;font-weight:500;cursor:pointer;line-height:1.15;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    transition:transform .12s ease, border-color .2s ease, background .2s ease;
+  }
+  .chip small{font-size:10px;color:var(--muted);letter-spacing:0.02em;}
+  .chip:active{transform:scale(0.96);}
+  .chip[aria-pressed="true"]{
+    border-color:var(--wax);background:linear-gradient(180deg, rgba(180,67,47,0.22), rgba(180,67,47,0.08));
+    color:#fff;
+  }
+  .chip[aria-pressed="true"] small{color:var(--wax-hi);}
+  .chip.demo[aria-pressed="true"]{border-color:var(--brass);background:linear-gradient(180deg, rgba(201,168,106,0.24), rgba(201,168,106,0.07));}
+  .chip.demo small{color:var(--brass);}
+
+  /* Seal button */
+  .seal-btn{
+    margin-top:16px;width:100%;min-height:54px;
+    border:none;border-radius:14px;cursor:pointer;
+    font-size:15px;font-weight:600;letter-spacing:0.04em;color:#fff;
+    background:linear-gradient(180deg, var(--wax-hi), var(--wax) 55%, var(--wax-2));
+    box-shadow:0 12px 26px -12px rgba(180,67,47,0.8), inset 0 1px 0 rgba(255,255,255,0.25);
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition:transform .12s ease, filter .2s ease;
+  }
+  .seal-btn:active{transform:translateY(1px) scale(0.995);}
+  .seal-btn:disabled{filter:grayscale(0.7) brightness(0.7);cursor:not-allowed;box-shadow:none;}
+  .seal-btn .stamp{font-size:17px;}
+
+  /* ---------- Vault ---------- */
+  .vault-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:26px 2px 12px;
+  }
+  .vault-head h2{
+    font-family:var(--serif);font-size:19px;font-weight:600;margin:0;letter-spacing:0.01em;
+  }
+  .vault-head h2 span{color:var(--brass);font-size:14px;font-family:var(--font);margin-left:6px;}
+  .vault-tools{display:flex;gap:8px;}
+  .tool{
+    appearance:none;border:1px solid var(--edge);background:transparent;color:var(--muted);
+    border-radius:10px;min-height:36px;padding:0 12px;font-size:12px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:color .2s, border-color .2s;
+  }
+  .tool:active{transform:scale(0.97);}
+  .tool:hover{color:var(--text);border-color:var(--brass-dim);}
+  .tool:disabled{opacity:0.35;cursor:not-allowed;}
+
+  .empty{
+    text-align:center;color:var(--muted);font-size:13px;line-height:1.6;
+    border:1px dashed var(--edge);border-radius:16px;padding:26px 20px;
+  }
+  .empty .big{font-size:26px;display:block;margin-bottom:8px;opacity:0.6;}
+
+  .capsules{display:flex;flex-direction:column;gap:12px;list-style:none;padding:0;margin:0;}
+  .capsule{
+    position:relative;
+    background:linear-gradient(180deg, #14161f, #0e1017);
+    border:1px solid var(--edge);border-radius:16px;
+    padding:14px 14px 13px;
+    box-shadow:0 14px 30px -20px rgba(0,0,0,0.9);
+    overflow:hidden;
+  }
+  .capsule .meta{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+  .wafer{
+    width:30px;height:30px;flex:none;border-radius:50%;
+    background:radial-gradient(circle at 36% 30%, var(--wax-hi), var(--wax) 55%, var(--wax-2));
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12), 0 2px 6px rgba(0,0,0,0.5);
+    display:flex;align-items:center;justify-content:center;font-size:13px;
+    position:relative;
+  }
+  .wafer.ready{background:radial-gradient(circle at 36% 30%, #a7e6cc, var(--ok) 60%, #3f8f74);}
+  .capsule .meta .lbl{font-size:12px;color:var(--muted);letter-spacing:0.02em;}
+  .capsule .meta .lbl b{color:var(--text);font-weight:600;}
+  .capsule .del{
+    margin-left:auto;appearance:none;border:none;background:transparent;color:var(--muted);
+    min-width:34px;min-height:34px;border-radius:9px;cursor:pointer;font-size:16px;line-height:1;
+    display:flex;align-items:center;justify-content:center;transition:color .2s,background .2s;
+  }
+  .capsule .del:hover{color:var(--wax-hi);background:rgba(180,67,47,0.1);}
+
+  .count-row{display:flex;align-items:center;gap:12px;}
+  .count{
+    font-variant-numeric:tabular-nums;font-size:24px;font-weight:600;letter-spacing:0.02em;
+    color:var(--text);font-family:var(--serif);
+  }
+  .count.small{font-size:15px;color:var(--muted);font-family:var(--font);font-weight:500;}
+  .bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,0.06);overflow:hidden;}
+  .bar > i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg, var(--wax), var(--wax-hi));transition:width .5s linear;}
+  .bar.ready > i{background:linear-gradient(90deg, var(--ok), #a7e6cc);}
+
+  .reveal-btn{
+    margin-top:12px;width:100%;min-height:46px;border:none;border-radius:12px;cursor:pointer;
+    font-size:14px;font-weight:600;letter-spacing:0.03em;color:#08110d;
+    background:linear-gradient(180deg, #a7e6cc, var(--ok));
+    box-shadow:0 10px 22px -12px rgba(121,194,166,0.8);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s ease;
+  }
+  .reveal-btn:active{transform:scale(0.98);}
+
+  /* revealed paper inside a capsule */
+  .revealed{
+    margin-top:12px;background:linear-gradient(180deg,var(--paper),var(--paper-2));
+    border-radius:11px;padding:14px 14px;color:#2c2415;font-family:var(--serif);
+    font-size:17px;line-height:24px;box-shadow:inset 0 0 0 1px rgba(140,110,60,0.16);
+    word-break:break-word;
+  }
+  .revealed .stamp-line{
+    font-family:var(--font);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+    color:#8a7a58;margin-top:10px;display:flex;justify-content:space-between;
+  }
+
+  footer{
+    margin-top:30px;text-align:center;font-size:11px;color:var(--muted);line-height:1.7;
+    letter-spacing:0.02em;
+  }
+  footer .lock{color:var(--brass-dim);}
+
+  /* ---------- Sealing overlay animation ---------- */
+  .stage{
+    position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;
+    background:rgba(6,7,12,0.72);backdrop-filter:blur(3px);
+  }
+  .stage.on{display:flex;}
+  .fold{
+    width:230px;max-width:70vw;aspect-ratio:1/1.15;position:relative;
+    perspective:900px;
+  }
+  .fold .sheet{
+    position:absolute;inset:0;border-radius:12px;
+    background:linear-gradient(180deg,var(--paper),var(--paper-2));
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.8);
+    transform-origin:center;
+    animation:sheetIn .5s cubic-bezier(.2,.8,.25,1) both;
+  }
+  .fold .flap{
+    position:absolute;left:0;right:0;height:50%;
+    background:linear-gradient(180deg,var(--paper-2),#d8ceb4);
+    box-shadow:inset 0 0 30px rgba(120,95,50,0.12);
+    backface-visibility:hidden;
+  }
+  .fold .flap.top{top:0;transform-origin:bottom;border-radius:12px 12px 0 0;
+    animation:foldTop .55s .35s cubic-bezier(.6,.05,.3,1) both;}
+  .fold .flap.bottom{bottom:0;transform-origin:top;border-radius:0 0 12px 12px;
+    animation:foldBottom .55s .35s cubic-bezier(.6,.05,.3,1) both;}
+  .fold .wax-drop{
+    position:absolute;top:50%;left:50%;width:64px;height:64px;margin:-32px 0 0 -32px;
+    border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, var(--wax-hi), var(--wax) 55%, var(--wax-2));
+    box-shadow:0 8px 20px -6px rgba(140,40,25,0.7), inset 0 0 0 1px rgba(255,255,255,0.15);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;
+    opacity:0;transform:scale(0.2);
+    animation:stamp .5s 1s cubic-bezier(.3,1.5,.5,1) both;
+  }
+  .stage-cap{
+    position:absolute;bottom:16%;left:0;right:0;text-align:center;color:var(--paper);
+    font-family:var(--serif);font-size:15px;letter-spacing:0.05em;opacity:0;
+    animation:capIn .4s 1.35s ease both;
+  }
+  @keyframes sheetIn{from{opacity:0;transform:translateY(14px) scale(0.94);}to{opacity:1;transform:none;}}
+  @keyframes foldTop{to{transform:rotateX(-165deg);}}
+  @keyframes foldBottom{to{transform:rotateX(165deg);}}
+  @keyframes stamp{
+    0%{opacity:0;transform:scale(0.15) translateY(-30px);}
+    60%{opacity:1;transform:scale(1.18) translateY(0);}
+    100%{opacity:1;transform:scale(1);}
+  }
+  @keyframes capIn{to{opacity:0.92;}}
+
+  /* crack/reveal flash on a capsule */
+  .capsule.opening{animation:crack .5s ease;}
+  @keyframes crack{
+    0%{transform:none;}
+    30%{transform:translateX(-3px) rotate(-0.5deg);}
+    55%{transform:translateX(3px) rotate(0.5deg);}
+    100%{transform:none;}
+  }
+  .revealed.fresh{animation:unfold .6s cubic-bezier(.2,.8,.25,1);transform-origin:top;}
+  @keyframes unfold{from{opacity:0;transform:rotateX(-80deg) scaleY(0.6);}to{opacity:1;transform:none;}}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);transform:translateX(-50%);
+    background:#1c1f2a;border:1px solid var(--edge);color:var(--text);
+    padding:11px 16px;border-radius:12px;font-size:13px;z-index:60;
+    box-shadow:0 16px 40px -16px rgba(0,0,0,0.9);opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;max-width:90vw;text-align:center;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;}
+
+  @media (max-width:360px){
+    h1{font-size:29px;}
+    .delays{gap:6px;}
+    textarea#thought{font-size:18px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001s !important;animation-delay:0s !important;transition-duration:0.01s !important;}
+    .fold .flap.top,.fold .flap.bottom{display:none;}
+    .fold .wax-drop{opacity:1;transform:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker"><span class="dot" aria-hidden="true"></span> Afterthought · Field Unit</div>
+    <h1>Afterthought
+      <span class="tail">Say it once, seal it, and let it come back when you have room to hear it.</span>
+    </h1>
+  </header>
+
+  <!-- ============ COMPOSE ============ -->
+  <section class="device" aria-labelledby="compose-h">
+    <div class="device-label" id="compose-h">Compose a slip</div>
+    <div class="slip" id="slip">
+      <div class="slip-head">
+        <span class="n">Note to later</span>
+        <span class="c"><span id="charnow">0</span>/180</span>
+      </div>
+      <label class="sr" for="thought">Write one short thought to seal away</label>
+      <textarea id="thought" maxlength="180" rows="4" autocomplete="off"
+        placeholder="One thing on your mind right now. A worry, a half-idea, a reaction you don't want to send yet…"></textarea>
+    </div>
+
+    <div class="field-label">Bring it back in…</div>
+    <div class="delays" id="delays" role="group" aria-label="Choose a revisit delay">
+      <button class="chip demo" data-ms="60000" data-label="60 seconds" aria-pressed="false">Demo<small>60 seconds</small></button>
+      <button class="chip" data-ms="3600000" data-label="1 hour" aria-pressed="false">Later<small>1 hour</small></button>
+      <button class="chip" data-ms="28800000" data-label="tonight (8h)" aria-pressed="false">Tonight<small>8 hours</small></button>
+      <button class="chip" data-ms="86400000" data-label="tomorrow" aria-pressed="false">Tomorrow<small>1 day</small></button>
+      <button class="chip" data-ms="259200000" data-label="3 days" aria-pressed="false">Few days<small>3 days</small></button>
+      <button class="chip" data-ms="604800000" data-label="1 week" aria-pressed="false">Next week<small>7 days</small></button>
+    </div>
+
+    <button class="seal-btn" id="sealBtn" disabled>
+      <span class="stamp" aria-hidden="true">✦</span> Fold &amp; seal
+    </button>
+  </section>
+
+  <!-- ============ VAULT ============ -->
+  <div class="vault-head">
+    <h2>The vault <span id="vaultCount">0</span></h2>
+    <div class="vault-tools">
+      <button class="tool" id="exportBtn" disabled>⤓ Export</button>
+      <button class="tool" id="clearBtn" disabled>Clear all</button>
+    </div>
+  </div>
+
+  <ul class="capsules" id="capsules" aria-live="polite"></ul>
+  <div class="empty" id="empty">
+    <span class="big" aria-hidden="true">✉︎</span>
+    Nothing sealed yet. Write a slip above, pick when it should return, and press <b>Fold&nbsp;&amp;&nbsp;seal</b>.
+    <br>Try <b>Demo · 60 seconds</b> to feel the whole loop in a couple of minutes.
+  </div>
+
+  <footer>
+    <span class="lock" aria-hidden="true">⚿</span> Everything stays on this device, in this browser. No accounts, no network, nothing sent.
+    <br>Afterthought — a small instrument for handling a busy stream calmly, one sealed thought at a time.
+  </footer>
+</div>
+
+<!-- sealing animation stage -->
+<div class="stage" id="stage" aria-hidden="true">
+  <div class="fold">
+    <div class="sheet"></div>
+    <div class="flap bottom"></div>
+    <div class="flap top"></div>
+    <div class="wax-drop">✦</div>
+    <div class="stage-cap" id="stageCap">Sealed.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "afterthought.capsules.v1";
+  var MAX = 180;
+
+  // ---------- storage ----------
+  function load(){
+    try{
+      var raw = localStorage.getItem(KEY);
+      if(!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.filter(validRec) : [];
+    }catch(e){ return []; }
+  }
+  function save(list){
+    try{ localStorage.setItem(KEY, JSON.stringify(list)); }
+    catch(e){ toast("Couldn't save — storage may be full or blocked."); }
+  }
+  function validRec(r){
+    return r && typeof r.text === "string" &&
+      typeof r.sealedAt === "number" && typeof r.revealAt === "number";
+  }
+
+  var state = load();
+
+  // ---------- element refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var thought = $("thought"), charnow = $("charnow"), sealBtn = $("sealBtn");
+  var delays = $("delays"), capsules = $("capsules"), empty = $("empty");
+  var vaultCount = $("vaultCount"), exportBtn = $("exportBtn"), clearBtn = $("clearBtn");
+  var stage = $("stage"), stageCap = $("stageCap"), toastEl = $("toast");
+
+  var chosenMs = null, chosenLabel = null;
+
+  // ---------- helpers ----------
+  function uid(){
+    return "c" + (state.reduce(function(m,r){return Math.max(m, r._n||0);},0) + 1) +
+      "-" + Math.round(perfNow()).toString(36);
+  }
+  var _seed = 0;
+  function perfNow(){ // Date.now avoided as sole id source; combine with counter
+    _seed += 1;
+    return (typeof performance !== "undefined" && performance.now ? performance.now() : 0) + _seed;
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var _tt;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("on");
+    clearTimeout(_tt);
+    _tt = setTimeout(function(){ toastEl.classList.remove("on"); }, 2600);
+  }
+
+  // duration formatting: full countdown, resilient to reload (absolute revealAt)
+  function fmtCountdown(ms){
+    if(ms <= 0) return "0s";
+    var s = Math.ceil(ms/1000);
+    var d = Math.floor(s/86400); s -= d*86400;
+    var h = Math.floor(s/3600); s -= h*3600;
+    var m = Math.floor(s/60); s -= m*60;
+    if(d > 0) return d + "d " + h + "h";
+    if(h > 0) return h + "h " + (m<10?"0":"") + m + "m";
+    if(m > 0) return m + "m " + (s<10?"0":"") + s + "s";
+    return s + "s";
+  }
+  function fmtStamp(t){
+    var d = new Date(t);
+    var mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+    var hh = d.getHours(), mm = d.getMinutes();
+    var ap = hh < 12 ? "am" : "pm"; var h12 = hh % 12; if(h12 === 0) h12 = 12;
+    return mo + " " + d.getDate() + ", " + h12 + ":" + (mm<10?"0":"") + mm + ap;
+  }
+
+  // ---------- compose interactions ----------
+  function refreshCompose(){
+    var len = thought.value.trim().length;
+    charnow.textContent = thought.value.length;
+    sealBtn.disabled = !(len > 0 && chosenMs != null);
+  }
+  thought.addEventListener("input", refreshCompose);
+
+  Array.prototype.forEach.call(delays.querySelectorAll(".chip"), function(chip){
+    chip.addEventListener("click", function(){
+      Array.prototype.forEach.call(delays.querySelectorAll(".chip"), function(c){
+        c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+      });
+      chosenMs = parseInt(chip.getAttribute("data-ms"), 10);
+      chosenLabel = chip.getAttribute("data-label");
+      refreshCompose();
+    });
+  });
+
+  sealBtn.addEventListener("click", function(){
+    var text = thought.value.trim();
+    if(!text || chosenMs == null) return;
+    var now = Date.now();
+    var rec = {
+      id: uid(),
+      _n: state.reduce(function(m,r){return Math.max(m, r._n||0);},0) + 1,
+      text: text,
+      sealedAt: now,
+      revealAt: now + chosenMs,
+      durMs: chosenMs,
+      label: chosenLabel,
+      revealedAt: null
+    };
+    state.unshift(rec);
+    save(state);
+
+    playSeal(chosenLabel);
+
+    // reset compose
+    thought.value = "";
+    chosenMs = null; chosenLabel = null;
+    Array.prototype.forEach.call(delays.querySelectorAll(".chip"), function(c){ c.setAttribute("aria-pressed","false"); });
+    refreshCompose();
+    render();
+  });
+
+  function playSeal(label){
+    stageCap.textContent = "Sealed — back in " + label + ".";
+    stage.classList.add("on");
+    stage.setAttribute("aria-hidden","false");
+    var dwell = reduceMotion ? 650 : 1900;
+    // restart animations
+    var kids = stage.querySelectorAll(".sheet,.flap,.wax-drop,.stage-cap");
+    Array.prototype.forEach.call(kids, function(k){ k.style.animation = "none"; k.offsetHeight; k.style.animation = ""; });
+    setTimeout(function(){
+      stage.classList.remove("on");
+      stage.setAttribute("aria-hidden","true");
+      toast("Sealed. It'll return in " + label + ".");
+    }, dwell);
+  }
+
+  // ---------- reveal ----------
+  function revealCapsule(id){
+    var rec = find(id);
+    if(!rec) return;
+    if(Date.now() < rec.revealAt) return;
+    rec.revealedAt = Date.now();
+    save(state);
+    render(id);
+  }
+  function find(id){
+    for(var i=0;i<state.length;i++) if(state[i].id === id) return state[i];
+    return null;
+  }
+  function del(id){
+    state = state.filter(function(r){ return r.id !== id; });
+    save(state);
+    render();
+  }
+
+  // ---------- render ----------
+  function render(justOpened){
+    vaultCount.textContent = state.length;
+    exportBtn.disabled = state.length === 0;
+    clearBtn.disabled = state.length === 0;
+    empty.style.display = state.length === 0 ? "" : "none";
+
+    capsules.innerHTML = "";
+    state.forEach(function(rec){
+      var now = Date.now();
+      var ready = now >= rec.revealAt;
+      var opened = !!rec.revealedAt;
+
+      var li = document.createElement("li");
+      li.className = "capsule";
+      li.setAttribute("data-id", rec.id);
+
+      var remain = rec.revealAt - now;
+      var elapsed = now - rec.sealedAt;
+      var pct = Math.max(0, Math.min(100, (elapsed / (rec.durMs || 1)) * 100));
+
+      var head =
+        '<div class="meta">' +
+          '<span class="wafer ' + (ready?"ready":"") + '" aria-hidden="true">' + (ready?"✧":"✦") + '</span>' +
+          '<span class="lbl">Return window: <b>' + esc(rec.label) + '</b><br>sealed ' + fmtStamp(rec.sealedAt) + '</span>' +
+          '<button class="del" data-del="' + rec.id + '" aria-label="Delete this sealed slip">✕</button>' +
+        '</div>';
+
+      var bodyHtml;
+      if(opened){
+        bodyHtml =
+          '<div class="revealed ' + (justOpened===rec.id?"fresh":"") + '">' +
+            esc(rec.text) +
+            '<div class="stamp-line"><span>Opened ' + fmtStamp(rec.revealedAt) + '</span><span>after ' + esc(rec.label) + '</span></div>' +
+          '</div>';
+      } else if(ready){
+        bodyHtml =
+          '<div class="count-row">' +
+            '<span class="count small">Ready to open</span>' +
+            '<span class="bar ready"><i style="width:100%"></i></span>' +
+          '</div>' +
+          '<button class="reveal-btn" data-reveal="' + rec.id + '">✧ Break the seal</button>';
+      } else {
+        bodyHtml =
+          '<div class="count-row">' +
+            '<span class="count" data-count="' + rec.id + '">' + fmtCountdown(remain) + '</span>' +
+            '<span class="bar"><i data-fill="' + rec.id + '" style="width:' + pct.toFixed(2) + '%"></i></span>' +
+          '</div>';
+      }
+
+      li.innerHTML = head + bodyHtml;
+      if(justOpened === rec.id && !reduceMotion) li.classList.add("opening");
+      capsules.appendChild(li);
+    });
+  }
+
+  // event delegation for reveal/delete
+  capsules.addEventListener("click", function(e){
+    var t = e.target;
+    var r = t.getAttribute && t.getAttribute("data-reveal");
+    var d = t.getAttribute && t.getAttribute("data-del");
+    if(r) revealCapsule(r);
+    else if(d){
+      if(window.confirm("Delete this sealed slip? This can't be undone.")) del(d);
+    }
+  });
+
+  // ---------- live tick (resilient: recomputes from absolute revealAt) ----------
+  function tick(){
+    var now = Date.now();
+    var needFullRender = false;
+    state.forEach(function(rec){
+      if(rec.revealedAt) return;
+      var ready = now >= rec.revealAt;
+      var countEl = capsules.querySelector('[data-count="' + cssEsc(rec.id) + '"]');
+      var fillEl = capsules.querySelector('[data-fill="' + cssEsc(rec.id) + '"]');
+      if(ready && countEl){
+        // a capsule just crossed into ready — rebuild to show the reveal button
+        needFullRender = true;
+        return;
+      }
+      if(countEl) countEl.textContent = fmtCountdown(rec.revealAt - now);
+      if(fillEl){
+        var pct = Math.max(0, Math.min(100, ((now - rec.sealedAt) / (rec.durMs || 1)) * 100));
+        fillEl.style.width = pct.toFixed(2) + "%";
+      }
+    });
+    if(needFullRender) render();
+  }
+  function cssEsc(s){ return String(s).replace(/["\\]/g, "\\$&"); }
+
+  // ---------- export / clear ----------
+  exportBtn.addEventListener("click", function(){
+    var payload = {
+      artifact: "Afterthought — time-delayed scratchpad",
+      exportedAt: new Date().toISOString(),
+      note: "Local export. Contains only slips you wrote on this device.",
+      capsules: state.map(function(r){
+        return {
+          text: r.text, label: r.label,
+          sealedAt: new Date(r.sealedAt).toISOString(),
+          revealAt: new Date(r.revealAt).toISOString(),
+          openedAt: r.revealedAt ? new Date(r.revealedAt).toISOString() : null
+        };
+      })
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    try{
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "afterthought-export.json";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+      toast("Exported " + state.length + " slip" + (state.length===1?"":"s") + " as JSON.");
+    }catch(err){
+      toast("Export not supported here — copy from storage instead.");
+    }
+  });
+
+  clearBtn.addEventListener("click", function(){
+    if(!state.length) return;
+    if(window.confirm("Clear all " + state.length + " sealed slips? This can't be undone.")){
+      state = []; save(state); render();
+      toast("Vault cleared.");
+    }
+  });
+
+  // ---------- boot ----------
+  refreshCompose();
+  render();
+  setInterval(tick, 1000);
+  // recompute immediately when tab regains focus (timers throttle in background)
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden){ render(); } });
+})();
+</script>
+</body>
+</html>
