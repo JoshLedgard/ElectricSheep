@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Ghost Frame — a pocket rotoscope. Trace four frames, watch the loop breathe, export a sprite sheet. All local, no network.">
+<title>Ghost Frame — A Pocket Rotoscope</title>
+<style>
+  :root{
+    --bg:#0d0e12; --bg2:#141620; --panel:#191b25; --panel2:#20232f;
+    --line:#2b2e3c; --line2:#3a3e50;
+    --ink:#eceaf4; --muted:#9a97ac; --faint:#6d6a80;
+    --accent:#63e6cf; --accent-dk:#1d4d47;
+    --warm:#ff6b86; --cool:#54a8ff;
+    --paper:#f4efe3; --paperline:#e4dcc8;
+    --shadow:0 10px 30px -12px rgba(0,0,0,.7);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1a1d2b 0%, var(--bg) 55%) fixed;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.45;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+    padding:max(10px,env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom));
+  }
+  .wrap{width:100%;max-width:430px;min-width:0;margin:0 auto}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+  /* Header */
+  header{padding:6px 2px 12px;text-align:center}
+  .brand{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--faint);font-weight:600}
+  .ghost{display:inline-block;width:16px;height:16px;border-radius:50% 50% 46% 46%;
+    background:linear-gradient(160deg,var(--accent),#3aa;box-shadow:0 0 10px var(--accent-dk));
+    background:linear-gradient(160deg,var(--accent),#39b5a2);position:relative;opacity:.9}
+  h1{margin:6px 0 2px;font-size:24px;letter-spacing:-.01em;font-weight:750}
+  h1 span{background:linear-gradient(92deg,var(--accent),#9fe);-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .tag{margin:0;color:var(--muted);font-size:13.5px}
+
+  /* Instruction chip */
+  .hint{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin:6px 0 12px;font-size:13px;color:var(--muted)}
+  .hint b{color:var(--ink);font-weight:650}
+  .hint .k{color:var(--accent)}
+  .hint svg{flex:0 0 auto;margin-top:1px}
+
+  /* Stage */
+  .stage-shell{position:relative;background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
+  .stage{position:relative;width:100%;aspect-ratio:1/1;border-radius:11px;overflow:hidden;
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--paperline) 1px,transparent 1px),
+      linear-gradient(90deg,var(--paperline) 1px,transparent 1px);
+    background-size:12.5% 12.5%,12.5% 12.5%;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.06), inset 0 2px 14px rgba(120,100,60,.10);
+    touch-action:none;cursor:crosshair}
+  #board{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .stage-corner{position:absolute;width:14px;height:14px;border:2px solid rgba(30,26,18,.28);pointer-events:none}
+  .c-tl{top:8px;left:8px;border-right:0;border-bottom:0;border-radius:4px 0 0 0}
+  .c-tr{top:8px;right:8px;border-left:0;border-bottom:0;border-radius:0 4px 0 0}
+  .c-bl{bottom:8px;left:8px;border-right:0;border-top:0;border-radius:0 0 0 4px}
+  .c-br{bottom:8px;right:8px;border-left:0;border-top:0;border-radius:0 0 4px 0}
+  .badge{position:absolute;top:16px;left:16px;font-size:11px;letter-spacing:.08em;
+    background:rgba(20,18,14,.62);color:#f4efe3;padding:4px 9px;border-radius:20px;
+    pointer-events:none;font-weight:600;backdrop-filter:blur(2px)}
+  .badge.play{background:rgba(29,77,71,.86);color:var(--accent)}
+
+  /* Frame strip */
+  .strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 4px;min-width:0}
+  .frame-btn{position:relative;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:6px 6px 5px;cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;gap:5px;min-width:0;min-height:44px;transition:border-color .18s,transform .12s,box-shadow .18s;
+    color:var(--faint);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+  .frame-btn canvas{width:100%;min-width:0;aspect-ratio:1/1;border-radius:7px;background:var(--paper);display:block}
+  .frame-btn.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 18px -10px var(--accent-dk);color:var(--accent)}
+  .frame-btn.active .n{color:var(--accent)}
+  .frame-btn:active{transform:scale(.97)}
+  .frame-btn .n{color:var(--muted)}
+  .onion-dot{position:absolute;top:5px;width:7px;height:7px;border-radius:50%;opacity:.9}
+  .onion-dot.prev{left:5px;background:var(--warm)}
+  .onion-dot.next{right:5px;background:var(--cool)}
+
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:11px 12px;margin-top:10px}
+  .panel h2{margin:0 0 9px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);font-weight:700;display:flex;align-items:center;gap:7px}
+  .row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .row + .row{margin-top:10px}
+  .grow{flex:1 1 auto;min-width:0}
+
+  /* Buttons */
+  button{font-family:inherit;color:var(--ink);cursor:pointer}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    min-height:44px;padding:0 14px;border-radius:11px;border:1px solid var(--line2);
+    background:linear-gradient(180deg,var(--panel2),#191c26);font-size:14px;font-weight:600;
+    transition:transform .1s,border-color .16s,background .16s;flex:1 1 auto}
+  .btn:active{transform:translateY(1px) scale(.99)}
+  .btn:hover{border-color:var(--faint)}
+  .btn.icon{flex:0 0 auto;min-width:44px;padding:0 12px}
+  .btn.primary{background:linear-gradient(180deg,#2a6f66,#1d4d47);border-color:#2f8177;color:#eafff9}
+  .btn.primary:hover{border-color:var(--accent)}
+  .btn.ghosty{background:transparent}
+  .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);
+    background:linear-gradient(180deg,#1c2a2c,#15201f)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn svg{flex:0 0 auto}
+
+  .playbtn{width:56px;height:56px;min-height:56px;flex:0 0 auto;border-radius:50%;padding:0;
+    background:radial-gradient(120% 120% at 30% 25%,#2f8177,#1d4d47);border-color:#39b5a2}
+  .playbtn:hover{box-shadow:0 0 0 4px rgba(99,230,207,.14)}
+
+  /* Swatches */
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatch{width:34px;height:34px;min-width:34px;border-radius:9px;border:2px solid var(--line2);
+    padding:0;position:relative;transition:transform .12s,border-color .14s}
+  .swatch:active{transform:scale(.9)}
+  .swatch[aria-pressed="true"]{border-color:var(--ink);transform:scale(1.06)}
+  .swatch[aria-pressed="true"]::after{content:"";position:absolute;inset:-6px;border:1.5px solid var(--accent);border-radius:12px}
+
+  /* Sliders */
+  .slider-wrap{display:flex;align-items:center;gap:9px;flex:1 1 100%;min-width:0}
+  label.lbl{font-size:12px;color:var(--muted);white-space:nowrap;min-width:52px}
+  .val{font-size:12px;color:var(--accent);min-width:44px;text-align:right}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;height:34px;background:transparent;margin:0}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--accent) var(--fill,50%),var(--line2) var(--fill,50%))}
+  input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:var(--line2)}
+  input[type=range]::-moz-range-progress{height:6px;border-radius:6px;background:var(--accent)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;
+    border-radius:50%;background:#eafff9;border:2px solid #2f8177;margin-top:-8px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#eafff9;border:2px solid #2f8177}
+
+  .brush-size{margin-left:auto;width:auto;height:auto;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+  .dot{border-radius:50%;background:var(--ink)}
+
+  /* focus */
+  .btn:focus-visible,.frame-btn:focus-visible,.swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .divider{height:1px;background:var(--line);margin:10px 0}
+
+  footer{margin-top:16px;text-align:center;color:var(--faint);font-size:11.5px;line-height:1.5}
+  footer .lock{color:var(--muted)}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+  .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(8px);
+    background:#20232f;border:1px solid var(--line2);color:var(--ink);padding:10px 16px;border-radius:24px;
+    font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:92vw}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  input[type=file]{display:none}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important}
+    .stage{scroll-behavior:auto}
+  }
+  @media (max-width:360px){
+    h1{font-size:21px}
+    .btn{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="ghost" aria-hidden="true"></span> Ghost Frame</div>
+    <h1>Pocket <span>Rotoscope</span></h1>
+    <p class="tag">Trace four frames. Watch the loop breathe.</p>
+  </header>
+
+  <div class="hint" id="hint">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v6l4 2" stroke="#63e6cf" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="#3a3e50" stroke-width="2"/></svg>
+    <div><b>Trace the faint guide</b> on each of the four frames, then press <span class="k">▶ Play</span>. The pink &amp; blue ghosts show your neighbouring frames so the motion lines up.</div>
+  </div>
+
+  <div class="stage-shell">
+    <div class="stage" id="stage">
+      <canvas id="board" aria-label="Drawing frame. Draw here with your finger, pen, or mouse to trace the current frame."></canvas>
+      <span class="stage-corner c-tl"></span><span class="stage-corner c-tr"></span>
+      <span class="stage-corner c-bl"></span><span class="stage-corner c-br"></span>
+      <span class="badge" id="badge">Frame 1 / 4</span>
+    </div>
+  </div>
+
+  <!-- Frame strip -->
+  <div class="strip" id="strip" role="group" aria-label="Frames — tap to select"></div>
+
+  <!-- Playback -->
+  <div class="panel">
+    <h2>Playback</h2>
+    <div class="row">
+      <button class="btn playbtn" id="play" aria-label="Play the animation loop" aria-pressed="false">
+        <svg id="playicon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="slider-wrap">
+        <label class="lbl" for="fps">Speed</label>
+        <input type="range" id="fps" min="2" max="12" step="1" value="6" aria-label="Playback speed in frames per second">
+        <span class="val" id="fpsval">6 fps</span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn ghosty" id="onion" aria-pressed="true" aria-label="Toggle onion-skin ghosts of neighbouring frames">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="12" r="6" stroke="#ff6b86" stroke-width="2"/><circle cx="15" cy="12" r="6" stroke="#54a8ff" stroke-width="2"/></svg>
+        Onion skin
+      </button>
+      <div class="slider-wrap">
+        <label class="lbl" for="onionop">Ghost</label>
+        <input type="range" id="onionop" min="10" max="80" step="5" value="45" aria-label="Onion-skin ghost opacity">
+        <span class="val" id="onionval">45%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawing tools -->
+  <div class="panel">
+    <h2>Brush</h2>
+    <div class="row">
+      <div class="swatches" id="swatches" role="group" aria-label="Brush colour"></div>
+    </div>
+    <div class="row">
+      <div class="slider-wrap">
+        <label class="lbl" for="size">Size</label>
+        <input type="range" id="size" min="4" max="40" step="1" value="11" aria-label="Brush size">
+        <span class="brush-size" aria-hidden="true"><span class="dot" id="sizedot"></span></span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="undo" aria-label="Undo last stroke on this frame">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Undo
+      </button>
+      <button class="btn" id="clear" aria-label="Clear all strokes on this frame">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Clear frame
+      </button>
+    </div>
+  </div>
+
+  <!-- Sources & export -->
+  <div class="panel">
+    <h2>Frames &amp; export</h2>
+    <div class="row">
+      <button class="btn" id="demo" aria-label="Load the built-in demo tracing guide onto all frames">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/></svg>
+        Demo guide
+      </button>
+      <button class="btn" id="importbtn" aria-label="Import a local image to trace onto this frame">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 16l4-5 3 3 4-5 5 7M4 6h16v12H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Import
+      </button>
+      <input type="file" id="fileinput" accept="image/*" aria-hidden="true" tabindex="-1">
+    </div>
+    <div class="row">
+      <button class="btn ghosty" id="reftoggle" aria-pressed="true" aria-label="Show or hide the reference guide underlay on this frame">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="2"/></svg>
+        Guide
+      </button>
+      <button class="btn primary" id="export" aria-label="Export the four frames as a sprite-sheet PNG">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export PNG
+      </button>
+    </div>
+  </div>
+
+  <footer>
+    <span class="lock">🔒 Everything stays in this browser tab.</span><br>
+    No network, no uploads, no accounts. Imported images never leave your device.
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr" id="live" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var ART = 512;               // logical art-space units (square)
+  var FRAMES = 4;
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- state ----
+  var frames = [];
+  for (var i=0;i<FRAMES;i++) frames.push({ strokes: [], ref: null }); // ref = 512x512 canvas or null
+  var cur = 0;
+  var color = '#1c1a22';
+  var brush = 11;
+  var onionOn = true;
+  var onionOp = 0.45;
+  var refVisible = true;
+  var fps = 6;
+
+  var PALETTE = ['#1c1a22','#e8433f','#f39a1e','#2ecc71','#3a8ffe','#8a5cf6','#f4efe3'];
+
+  // ---- elements ----
+  var stage = document.getElementById('stage');
+  var board = document.getElementById('board');
+  var ctx = board.getContext('2d');
+  var badge = document.getElementById('badge');
+  var live = document.getElementById('live');
+  var toastEl = document.getElementById('toast');
+
+  // offscreen background (paper + ref + onion) at backing resolution
+  var bg = document.createElement('canvas');
+  var bgctx = bg.getContext('2d');
+
+  var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2.5));
+
+  // ---------- sizing ----------
+  function setupSize(){
+    var rect = board.getBoundingClientRect();
+    var cssw = rect.width || 300;
+    var w = Math.round(cssw * dpr);
+    board.width = w; board.height = w;
+    bg.width = w; bg.height = w;
+    buildBg();
+    render();
+  }
+
+  function artScale(){ return board.width / ART; }
+
+  // ---------- drawing primitives ----------
+  function drawStroke(c, s){
+    var p = s.points;
+    c.strokeStyle = s.color;
+    c.fillStyle = s.color;
+    c.lineWidth = s.size;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    if (p.length === 1){
+      c.beginPath();
+      c.arc(p[0].x, p[0].y, Math.max(0.6, s.size/2), 0, Math.PI*2);
+      c.fill();
+      return;
+    }
+    c.beginPath();
+    c.moveTo(p[0].x, p[0].y);
+    for (var i=1;i<p.length-1;i++){
+      var a=p[i], b=p[i+1];
+      var mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      c.quadraticCurveTo(a.x, a.y, mx, my);
+    }
+    c.lineTo(p[p.length-1].x, p[p.length-1].y);
+    c.stroke();
+  }
+
+  // draw a set of strokes forcing a single tint (for onion ghosts)
+  function drawTinted(c, strokes, tint, alpha){
+    c.save();
+    c.globalAlpha = alpha;
+    for (var i=0;i<strokes.length;i++){
+      var s = strokes[i];
+      drawStroke(c, {points:s.points, color:tint, size:s.size});
+    }
+    c.restore();
+  }
+
+  // ---------- background compositing ----------
+  function buildBg(){
+    var sc = artScale();
+    bgctx.setTransform(1,0,0,1,0,0);
+    bgctx.clearRect(0,0,bg.width,bg.height);
+    bgctx.setTransform(sc,0,0,sc,0,0);
+    // reference underlay for current frame
+    if (refVisible && frames[cur].ref){
+      bgctx.save();
+      bgctx.globalAlpha = 0.5;
+      bgctx.drawImage(frames[cur].ref, 0, 0, ART, ART);
+      bgctx.restore();
+    }
+    // onion ghosts of neighbouring frames (looping neighbours)
+    if (onionOn){
+      var prev = (cur - 1 + FRAMES) % FRAMES;
+      var next = (cur + 1) % FRAMES;
+      if (next !== cur) drawTinted(bgctx, frames[next].strokes, '#54a8ff', onionOp*0.85);
+      if (prev !== cur && prev !== next) drawTinted(bgctx, frames[prev].strokes, '#ff6b86', onionOp);
+    }
+  }
+
+  // ---------- main render (editor) ----------
+  var liveStroke = null;
+  function render(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,board.width,board.height);
+    ctx.drawImage(bg, 0, 0);
+    var sc = artScale();
+    ctx.setTransform(sc,0,0,sc,0,0);
+    var strokes = frames[cur].strokes;
+    for (var i=0;i<strokes.length;i++) drawStroke(ctx, strokes[i]);
+    if (liveStroke) drawStroke(ctx, liveStroke);
+  }
+
+  // ---------- playback ----------
+  var playing = false, rafId = 0, lastT = 0, acc = 0, pf = 0;
+  function renderPlayFrame(idx){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,board.width,board.height);
+    var sc = artScale();
+    ctx.setTransform(sc,0,0,sc,0,0);
+    var strokes = frames[idx].strokes;
+    for (var i=0;i<strokes.length;i++) drawStroke(ctx, strokes[i]);
+  }
+  function playLoop(t){
+    if (!playing) return;
+    if (!lastT) lastT = t;
+    var dt = t - lastT; lastT = t; acc += dt;
+    var interval = 1000/fps;
+    if (acc >= interval){
+      acc = acc % interval;
+      pf = (pf + 1) % FRAMES;
+      renderPlayFrame(pf);
+      badge.textContent = 'Frame ' + (pf+1) + ' / 4';
+    }
+    rafId = requestAnimationFrame(playLoop);
+  }
+  function startPlay(){
+    var any = frames.some(function(f){ return f.strokes.length; });
+    if (!any){ toast('Draw something first — trace the guide, then play.'); return; }
+    playing = true; lastT = 0; acc = 0; pf = cur;
+    badge.classList.add('play');
+    setPlayIcon(true);
+    document.getElementById('play').setAttribute('aria-pressed','true');
+    renderPlayFrame(pf);
+    rafId = requestAnimationFrame(playLoop);
+    announce('Playing loop at ' + fps + ' frames per second');
+  }
+  function stopPlay(){
+    playing = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    badge.classList.remove('play');
+    setPlayIcon(false);
+    document.getElementById('play').setAttribute('aria-pressed','false');
+    cur = pf;
+    syncFrameUI();
+    buildBg(); render();
+  }
+  function setPlayIcon(isPlaying){
+    var el = document.getElementById('playicon');
+    el.innerHTML = isPlaying
+      ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>'
+      : '<path d="M8 5v14l11-7z"/>';
+    document.getElementById('play').setAttribute('aria-label', isPlaying ? 'Pause the animation loop' : 'Play the animation loop');
+  }
+
+  // ---------- pointer input ----------
+  function toArt(e){
+    var rect = board.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width * ART;
+    var y = (e.clientY - rect.top) / rect.height * ART;
+    return { x: clamp(x,0,ART), y: clamp(y,0,ART) };
+  }
+  function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+
+  var drawing = false, lastPt = null;
+  board.addEventListener('pointerdown', function(e){
+    if (playing) stopPlay();
+    e.preventDefault();
+    drawing = true;
+    try { board.setPointerCapture(e.pointerId); } catch(_){}
+    var p = toArt(e);
+    lastPt = p;
+    liveStroke = { color: color, size: brush, points: [p] };
+    render();
+  });
+  board.addEventListener('pointermove', function(e){
+    if (!drawing || !liveStroke) return;
+    e.preventDefault();
+    // coalesced events for smoother, denser sampling
+    var evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [e];
+    for (var i=0;i<evs.length;i++){
+      var p = toArt(evs[i]);
+      var d = Math.hypot(p.x-lastPt.x, p.y-lastPt.y);
+      if (d >= 1.1){ liveStroke.points.push(p); lastPt = p; }
+    }
+    render();
+  }, {passive:false});
+  function endStroke(e){
+    if (!drawing) return;
+    drawing = false;
+    if (liveStroke && liveStroke.points.length){
+      frames[cur].strokes.push(liveStroke);
+      updateThumb(cur);
+      // neighbour onion needs rebuild handled on frame change; but neighbours of others changed:
+    }
+    liveStroke = null;
+    render();
+  }
+  board.addEventListener('pointerup', endStroke);
+  board.addEventListener('pointercancel', endStroke);
+  board.addEventListener('pointerleave', function(e){ if(drawing) endStroke(e); });
+
+  // ---------- frame strip ----------
+  var strip = document.getElementById('strip');
+  var thumbs = [];
+  function buildStrip(){
+    strip.innerHTML = '';
+    thumbs = [];
+    for (var i=0;i<FRAMES;i++){
+      (function(i){
+        var b = document.createElement('button');
+        b.className = 'frame-btn' + (i===cur?' active':'');
+        b.setAttribute('aria-label','Frame '+(i+1)+' of 4');
+        b.setAttribute('aria-pressed', i===cur?'true':'false');
+        var pd = document.createElement('span'); pd.className='onion-dot prev'; pd.title='Pink ghost';
+        var nd = document.createElement('span'); nd.className='onion-dot next'; nd.title='Blue ghost';
+        var cv = document.createElement('canvas'); cv.width=120; cv.height=120;
+        var lab = document.createElement('span'); lab.className='n'; lab.textContent = 'F'+(i+1);
+        b.appendChild(pd); b.appendChild(nd); b.appendChild(cv); b.appendChild(lab);
+        b.addEventListener('click', function(){ selectFrame(i); });
+        strip.appendChild(b);
+        thumbs.push(cv);
+        updateThumb(i);
+      })(i);
+    }
+  }
+  function updateThumb(i){
+    var cv = thumbs[i]; if(!cv) return;
+    var c = cv.getContext('2d');
+    var sc = cv.width / ART;
+    c.setTransform(1,0,0,1,0,0);
+    c.clearRect(0,0,cv.width,cv.height);
+    // paper
+    c.fillStyle = '#f4efe3'; c.fillRect(0,0,cv.width,cv.height);
+    c.setTransform(sc,0,0,sc,0,0);
+    if (frames[i].ref){ c.save(); c.globalAlpha=0.28; c.drawImage(frames[i].ref,0,0,ART,ART); c.restore(); }
+    var s = frames[i].strokes;
+    for (var k=0;k<s.length;k++) drawStroke(c, s[k]);
+  }
+  function updateAllThumbs(){ for (var i=0;i<FRAMES;i++) updateThumb(i); }
+
+  function selectFrame(i){
+    if (playing) stopPlay();
+    cur = i;
+    syncFrameUI();
+    buildBg(); render();
+    announce('Frame ' + (i+1) + ' selected');
+  }
+  function syncFrameUI(){
+    var btns = strip.querySelectorAll('.frame-btn');
+    for (var k=0;k<btns.length;k++){
+      var on = (k===cur);
+      btns[k].classList.toggle('active', on);
+      btns[k].setAttribute('aria-pressed', on?'true':'false');
+    }
+    badge.textContent = 'Frame ' + (cur+1) + ' / 4';
+  }
+
+  // ---------- swatches ----------
+  var swWrap = document.getElementById('swatches');
+  function buildSwatches(){
+    PALETTE.forEach(function(col){
+      var b = document.createElement('button');
+      b.className = 'swatch';
+      b.style.background = col;
+      if (col === '#f4efe3') b.style.borderColor = '#c9c0ac';
+      b.setAttribute('aria-label','Brush colour ' + col);
+      b.setAttribute('aria-pressed', col===color?'true':'false');
+      b.addEventListener('click', function(){
+        color = col;
+        var all = swWrap.querySelectorAll('.swatch');
+        for (var k=0;k<all.length;k++) all[k].setAttribute('aria-pressed','false');
+        b.setAttribute('aria-pressed','true');
+        updateSizeDot();
+      });
+      swWrap.appendChild(b);
+    });
+  }
+  function updateSizeDot(){
+    var d = document.getElementById('sizedot');
+    var px = Math.max(6, Math.min(26, brush * 0.6));
+    d.style.width = px+'px'; d.style.height = px+'px';
+    d.style.background = (color==='#f4efe3') ? '#c9c0ac' : color;
+  }
+
+  // ---------- controls ----------
+  function fillRange(el){
+    var min=+el.min, max=+el.max, v=+el.value;
+    el.style.setProperty('--fill', ((v-min)/(max-min)*100)+'%');
+  }
+
+  document.getElementById('play').addEventListener('click', function(){
+    if (playing) stopPlay(); else startPlay();
+  });
+
+  var fpsEl = document.getElementById('fps');
+  fpsEl.addEventListener('input', function(){
+    fps = +fpsEl.value;
+    document.getElementById('fpsval').textContent = fps + ' fps';
+    fillRange(fpsEl);
+  });
+
+  var onionBtn = document.getElementById('onion');
+  onionBtn.addEventListener('click', function(){
+    onionOn = !onionOn;
+    onionBtn.setAttribute('aria-pressed', onionOn?'true':'false');
+    buildBg(); render();
+    announce(onionOn ? 'Onion skin on' : 'Onion skin off');
+  });
+  var onionEl = document.getElementById('onionop');
+  onionEl.addEventListener('input', function(){
+    onionOp = (+onionEl.value)/100;
+    document.getElementById('onionval').textContent = onionEl.value + '%';
+    fillRange(onionEl);
+    if (onionOn){ buildBg(); render(); }
+  });
+
+  var sizeEl = document.getElementById('size');
+  sizeEl.addEventListener('input', function(){
+    brush = +sizeEl.value;
+    fillRange(sizeEl);
+    updateSizeDot();
+  });
+
+  document.getElementById('undo').addEventListener('click', function(){
+    if (playing) stopPlay();
+    var s = frames[cur].strokes;
+    if (!s.length){ toast('Nothing to undo on this frame.'); return; }
+    s.pop();
+    updateThumb(cur);
+    buildBg(); render();
+    announce('Undid one stroke');
+  });
+  document.getElementById('clear').addEventListener('click', function(){
+    if (playing) stopPlay();
+    if (!frames[cur].strokes.length){ toast('This frame is already empty.'); return; }
+    frames[cur].strokes = [];
+    updateThumb(cur);
+    buildBg(); render();
+    announce('Cleared frame ' + (cur+1));
+  });
+
+  document.getElementById('reftoggle').addEventListener('click', function(){
+    refVisible = !refVisible;
+    this.setAttribute('aria-pressed', refVisible?'true':'false');
+    buildBg(); render();
+    announce(refVisible ? 'Guide shown' : 'Guide hidden');
+  });
+
+  // ---------- demo guide ----------
+  function makeRefCanvas(){
+    var c = document.createElement('canvas'); c.width=ART; c.height=ART; return c;
+  }
+  function buildDemo(){
+    // bouncing ball reference across 4 frames (guide outlines to trace)
+    var poses = [
+      { cy:150, rx:74, ry:76 },   // top
+      { cy:300, rx:72, ry:72 },   // falling
+      { cy:404, rx:98, ry:56 },   // squash at floor
+      { cy:300, rx:72, ry:72 }    // rising
+    ];
+    for (var i=0;i<FRAMES;i++){
+      var rc = makeRefCanvas();
+      var g = rc.getContext('2d');
+      g.clearRect(0,0,ART,ART);
+      // ground line
+      g.strokeStyle = 'rgba(60,50,30,0.28)';
+      g.lineWidth = 3;
+      g.beginPath(); g.moveTo(40,462); g.lineTo(472,462); g.stroke();
+      // guide ellipse (dashed)
+      var p = poses[i];
+      g.strokeStyle = 'rgba(40,34,22,0.42)';
+      g.lineWidth = 3.5;
+      g.setLineDash([9,8]);
+      g.beginPath();
+      g.ellipse(256, p.cy, p.rx, p.ry, 0, 0, Math.PI*2);
+      g.stroke();
+      g.setLineDash([]);
+      // small motion arrow hint
+      g.fillStyle = 'rgba(40,34,22,0.30)';
+      g.font = '600 22px -apple-system,sans-serif';
+      g.textAlign = 'center';
+      g.fillText('trace me', 256, p.cy + 6);
+      frames[i].ref = rc;
+      frames[i].strokes = frames[i].strokes; // keep any existing drawing
+    }
+    refVisible = true;
+    document.getElementById('reftoggle').setAttribute('aria-pressed','true');
+    updateAllThumbs();
+    buildBg(); render();
+  }
+  document.getElementById('demo').addEventListener('click', function(){
+    if (playing) stopPlay();
+    buildDemo();
+    toast('Demo guide loaded on all 4 frames — trace each circle.');
+    announce('Demo tracing guide loaded onto all frames');
+  });
+
+  // ---------- import ----------
+  var fileInput = document.getElementById('fileinput');
+  document.getElementById('importbtn').addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){
+    var file = fileInput.files && fileInput.files[0];
+    if (!file){ return; }
+    if (!/^image\//.test(file.type)){ toast('That file is not an image.'); fileInput.value=''; return; }
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var img = new Image();
+      img.onload = function(){
+        var rc = makeRefCanvas();
+        var g = rc.getContext('2d');
+        // contain fit, centered
+        var scale = Math.min(ART/img.width, ART/img.height);
+        var w = img.width*scale, h = img.height*scale;
+        g.drawImage(img, (ART-w)/2, (ART-h)/2, w, h);
+        frames[cur].ref = rc;
+        refVisible = true;
+        document.getElementById('reftoggle').setAttribute('aria-pressed','true');
+        updateThumb(cur);
+        buildBg(); render();
+        toast('Image loaded on frame ' + (cur+1) + ' — trace over it.');
+        announce('Reference image imported to frame ' + (cur+1));
+      };
+      img.onerror = function(){ toast('Could not read that image.'); };
+      img.src = ev.target.result;
+    };
+    reader.onerror = function(){ toast('Could not read that file.'); };
+    reader.readAsDataURL(file);
+    fileInput.value = '';
+  });
+
+  // ---------- export sprite sheet ----------
+  document.getElementById('export').addEventListener('click', function(){
+    if (playing) stopPlay();
+    var any = frames.some(function(f){ return f.strokes.length; });
+    if (!any){ toast('Draw at least one frame before exporting.'); return; }
+    var CELL = 320;
+    var out = document.createElement('canvas');
+    out.width = CELL*FRAMES; out.height = CELL;
+    var o = out.getContext('2d');
+    for (var i=0;i<FRAMES;i++){
+      o.save();
+      o.translate(i*CELL, 0);
+      // paper cell
+      o.fillStyle = '#f4efe3';
+      o.fillRect(0,0,CELL,CELL);
+      // strokes in art space -> cell
+      var sc = CELL/ART;
+      o.scale(sc, sc);
+      var s = frames[i].strokes;
+      for (var k=0;k<s.length;k++) drawStroke(o, s[k]);
+      o.restore();
+      // separator
+      if (i>0){ o.fillStyle='rgba(0,0,0,0.08)'; o.fillRect(i*CELL,0,1,CELL); }
+    }
+    var name = 'ghost-frame-spritesheet.png';
+    function fallback(){
+      try {
+        var url = out.toDataURL('image/png');
+        var a = document.createElement('a'); a.href=url; a.download=name;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('Exported ' + name);
+      } catch(err){ toast('Export not supported in this browser.'); }
+    }
+    if (out.toBlob){
+      try {
+        out.toBlob(function(blob){
+          if (!blob){ fallback(); return; }
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a'); a.href=url; a.download=name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+          toast('Exported ' + name + ' (' + (CELL*FRAMES) + '×' + CELL + ')');
+          announce('Sprite sheet exported as PNG');
+        }, 'image/png');
+      } catch(err){ fallback(); }
+    } else { fallback(); }
+  });
+
+  // ---------- toast / a11y ----------
+  var toastTimer = 0;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2600);
+  }
+  function announce(msg){ live.textContent = msg; }
+
+  // ---------- init ----------
+  function init(){
+    buildStrip();
+    buildSwatches();
+    fillRange(fpsEl); fillRange(onionEl); fillRange(sizeEl);
+    updateSizeDot();
+    // set swatch pressed state
+    var sws = swWrap.querySelectorAll('.swatch');
+    for (var k=0;k<sws.length;k++){ if (PALETTE[k]===color) sws[k].setAttribute('aria-pressed','true'); }
+    buildDemo();          // load demo guide so it is instantly usable
+    setupSize();
+  }
+
+  // resize handling
+  var ro;
+  if (window.ResizeObserver){
+    ro = new ResizeObserver(function(){ if(!playing) setupSize(); });
+    ro.observe(stage);
+  }
+  window.addEventListener('resize', function(){ if(!playing) setupSize(); });
+  window.addEventListener('orientationchange', function(){ setTimeout(setupSize, 250); });
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+</script>
+</body>
+</html>
