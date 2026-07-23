@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Longwave — an illustrative agent-memory darkroom. Watch a synthetic episode separate into exact wording, durable gist, and uncertain residue as you adjust rehearsal, compression, and interference. Local, deterministic, no score.">
+<title>Longwave — An Agent Memory Darkroom</title>
+<style>
+  :root{
+    --bg:#120a0c; --bg2:#180d0f; --panel:#1d1113; --panel2:#251518;
+    --line:#3a2124; --line2:#4a2a2e;
+    --ink:#f4e8e2; --mut:#c3a9a2; --mut2:#9a817c;
+    --safe:#ff5a4d;          /* darkroom safelight */
+    --exact:#ffca6b;         /* exact wording  */
+    --gist:#57e0c6;          /* durable gist   */
+    --residue:#d76a72;       /* uncertain residue */
+    --focus:#ffd98a;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(120% 90% at 50% -10%, #2a1214 0%, var(--bg) 55%, #0c0607 100%) fixed;
+    color:var(--ink);
+    font:16px/1.5 ui-rounded,"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:max(14px,env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom));
+    overflow-x:hidden;
+  }
+  .wrap{max-width:720px;margin:0 auto}
+  header{text-align:center;padding:10px 4px 6px}
+  .kicker{
+    display:inline-flex;align-items:center;gap:7px;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--safe);font-weight:700;
+    padding:5px 12px;border:1px solid var(--line2);border-radius:999px;
+    background:rgba(255,90,77,.06);
+  }
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--safe);box-shadow:0 0 10px var(--safe)}
+  h1{
+    margin:.5rem 0 .1rem;font-size:clamp(28px,8vw,44px);line-height:1.02;letter-spacing:-.02em;
+    background:linear-gradient(92deg,var(--exact),var(--safe) 55%,var(--gist));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    font-weight:800;
+  }
+  .sub{color:var(--mut);font-size:14.5px;max-width:52ch;margin:.2rem auto 0}
+  .note-il{
+    display:inline-block;margin-top:10px;font-size:11.5px;color:var(--mut2);
+    border:1px dashed var(--line2);border-radius:999px;padding:4px 12px;
+  }
+
+  .panel{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:14px;margin-top:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 14px 34px -22px #000;
+  }
+  .panel h2{
+    margin:0 0 4px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut2);
+    display:flex;align-items:center;gap:8px;font-weight:700;
+  }
+  .panel h2 .num{
+    width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    background:rgba(255,90,77,.12);color:var(--safe);font-size:11px;border:1px solid var(--line2);
+  }
+
+  /* ---- source ---- */
+  .srcbox{
+    background:#0e0708;border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;margin-top:8px;color:var(--ink);font-size:14.5px;line-height:1.45;
+    min-height:64px;
+  }
+  .srcbox .tag{display:block;font-size:11px;color:var(--gist);letter-spacing:.06em;margin-bottom:5px;font-weight:600}
+  textarea{
+    width:100%;background:#0e0708;color:var(--ink);border:1px solid var(--line2);border-radius:12px;
+    padding:11px 12px;font:inherit;font-size:14.5px;resize:vertical;min-height:70px;margin-top:8px;
+  }
+  textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  button{
+    font:inherit;font-weight:650;cursor:pointer;color:var(--ink);
+    background:var(--panel2);border:1px solid var(--line2);border-radius:12px;
+    min-height:44px;padding:0 15px;display:inline-flex;align-items:center;gap:8px;
+    transition:transform .12s ease,border-color .12s ease,background .12s ease;
+  }
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+  button.primary{background:linear-gradient(180deg,#ff6c5f,#e2382e);border-color:#ff7c70;color:#fff}
+  button.ghost{background:transparent}
+  .chartcap{color:var(--mut2);font-size:12px;margin-top:6px}
+  .counter{color:var(--mut2);font-size:11.5px;text-align:right;margin-top:5px}
+
+  /* ---- controls ---- */
+  .ctl{margin-top:14px}
+  .ctl:first-child{margin-top:4px}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .ctl .name{font-weight:700;font-size:14.5px}
+  .ctl .val{font-variant-numeric:tabular-nums;font-weight:700;color:var(--exact);font-size:13.5px}
+  .ctl .desc{color:var(--mut2);font-size:12px;margin:1px 0 2px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0;cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{outline:2px solid var(--focus);outline-offset:2px}
+  input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--safe),#5a2a2c);border:1px solid var(--line2)}
+  input[type=range]::-moz-range-track{height:8px;border-radius:999px;background:linear-gradient(90deg,var(--safe),#5a2a2c);border:1px solid var(--line2)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;margin-top:-10px;
+    background:radial-gradient(circle at 35% 30%,#fff,#ffca6b 40%,#c8801f);
+    border:2px solid #2a1214;box-shadow:0 3px 8px -2px #000, 0 0 0 4px rgba(255,202,107,.14);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:26px;height:26px;border:2px solid #2a1214;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#fff,#ffca6b 40%,#c8801f);box-shadow:0 3px 8px -2px #000;
+  }
+
+  /* ---- viz ---- */
+  .stage{position:relative;background:#0b0506;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .emulsion{display:block;width:100%;height:auto;touch-action:manipulation}
+  .frameband{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1a0e10,#120a0b)
+  }
+  .frameband .ep{font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+  .frameband .ep b{color:var(--exact)}
+  .frameband .live{font-size:11.5px;color:var(--mut2)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+  .legend .it{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--mut)}
+  .sw{width:14px;height:14px;border-radius:4px;flex:none;border:1px solid rgba(255,255,255,.15)}
+  .sw.e{background:var(--exact)} .sw.g{background:var(--gist)} .sw.r{background:var(--residue)}
+
+  .readout{
+    margin-top:11px;font-size:13.5px;line-height:1.5;color:var(--ink);
+    background:#0e0708;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+  }
+  .readout b.e{color:var(--exact)} .readout b.g{color:var(--gist)} .readout b.r{color:var(--residue)}
+  .readout .narr{color:var(--mut);font-size:12.5px;margin-top:6px}
+
+  /* ---- timeline ---- */
+  .tl{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .tl input[type=range]{flex:1}
+  .playbtn{min-width:52px;justify-content:center;font-size:18px}
+
+  /* contact sheet */
+  .contact{display:block;width:100%;height:auto;border-radius:10px;background:#0b0506;touch-action:manipulation}
+  .contact-lbl{display:flex;justify-content:space-between;color:var(--mut2);font-size:11px;margin-top:5px}
+
+  details.about{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  details.about summary{
+    cursor:pointer;padding:13px 14px;font-weight:700;font-size:13.5px;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;color:var(--ink);min-height:44px;
+  }
+  details.about summary::-webkit-details-marker{display:none}
+  details.about summary .chev{color:var(--safe);transition:transform .2s ease}
+  details.about[open] summary .chev{transform:rotate(90deg)}
+  details.about .body{padding:0 14px 14px;color:var(--mut);font-size:13px;line-height:1.55}
+  details.about .body p{margin:.5rem 0}
+  details.about code{background:#0e0708;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;color:var(--exact)}
+
+  footer{text-align:center;color:var(--mut2);font-size:11.5px;margin-top:22px;line-height:1.6}
+  .toast{
+    position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+    background:#2a1214;border:1px solid var(--line2);color:var(--ink);padding:11px 16px;border-radius:12px;
+    font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;z-index:40;
+    box-shadow:0 12px 30px -12px #000;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+  @media (min-width:680px){
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+    .grid2 .panel{margin-top:0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="kicker"><span class="dot"></span>Illustrative thought instrument</span>
+    <h1>Longwave</h1>
+    <p class="sub">An <strong>agent memory darkroom</strong>. Develop one episode over time and watch it separate into exact wording, durable gist, and uncertain residue.</p>
+    <span class="note-il">Not neuroscience · not a benchmark · not a prediction of any real model</span>
+  </header>
+
+  <div class="grid2">
+    <!-- SOURCE -->
+    <section class="panel" aria-labelledby="src-h">
+      <h2 id="src-h"><span class="num">1</span>The episode</h2>
+      <div class="srcbox" id="srcbox">
+        <span class="tag" id="srctag">Built-in synthetic episode</span>
+        <span id="srctext"></span>
+      </div>
+      <div class="row">
+        <button id="shuffle" class="ghost" type="button">🔀 Another sample</button>
+        <button id="usenote" class="ghost" type="button">✎ Use my note</button>
+      </div>
+      <div id="notewrap" hidden>
+        <label class="sr" for="note">Type a short local-only note</label>
+        <textarea id="note" maxlength="240" placeholder="Type one short memory or note (stays in this tab only)…"></textarea>
+        <div class="counter"><span id="ccount">0</span>/240 · stays in this tab, never saved or sent</div>
+        <div class="row">
+          <button id="develop" class="primary" type="button">Develop this note</button>
+          <button id="cancelnote" class="ghost" type="button">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTROLS -->
+    <section class="panel" aria-labelledby="ctl-h">
+      <h2 id="ctl-h"><span class="num">2</span>Darkroom controls</h2>
+
+      <div class="ctl">
+        <div class="top"><span class="name">Rehearsal interval</span><span class="val" id="rv">every 15</span></div>
+        <div class="desc">How often the agent revisits the episode. Frequent rehearsal keeps exact wording sharp across many more epochs.</div>
+        <input type="range" id="reh" min="0" max="100" value="60" step="1"
+               aria-label="Rehearsal interval" aria-describedby="rv">
+      </div>
+
+      <div class="ctl">
+        <div class="top"><span class="name">Semantic compression</span><span class="val" id="cv">medium</span></div>
+        <div class="desc">How hard meaning is squeezed. High compression trades exact words for a longer-lived gist.</div>
+        <input type="range" id="comp" min="0" max="100" value="45" step="1"
+               aria-label="Semantic compression" aria-describedby="cv">
+      </div>
+
+      <div class="ctl">
+        <div class="top"><span class="name">Interference</span><span class="val" id="iv">low</span></div>
+        <div class="desc">Competing information crowding the episode. Interference dissolves fragments into residue.</div>
+        <input type="range" id="intf" min="0" max="100" value="25" step="1"
+               aria-label="Interference" aria-describedby="iv">
+      </div>
+    </section>
+  </div>
+
+  <!-- STAGE -->
+  <section class="panel" aria-labelledby="dev-h">
+    <h2 id="dev-h"><span class="num">3</span>The developing tray</h2>
+
+    <div class="stage">
+      <div class="frameband">
+        <span class="ep">epoch <b id="epnum">0</b> / 100</span>
+        <span class="live" id="framehint">fresh exposure</span>
+      </div>
+      <canvas id="emul" class="emulsion" width="700" height="420"
+        role="img" aria-label="Emulsion view of the episode at the current epoch"></canvas>
+    </div>
+
+    <div class="legend" aria-hidden="true">
+      <span class="it"><span class="sw e"></span>exact wording</span>
+      <span class="it"><span class="sw g"></span>durable gist</span>
+      <span class="it"><span class="sw r"></span>uncertain residue</span>
+    </div>
+
+    <div class="readout" id="readout" aria-live="polite"></div>
+
+    <div class="tl" style="margin-top:12px">
+      <button id="play" class="playbtn primary" type="button" aria-label="Play the time-lapse">▶</button>
+      <label class="sr" for="time">Timeline epoch</label>
+      <input type="range" id="time" min="0" max="100" value="0" step="1" aria-label="Timeline epoch">
+    </div>
+    <div class="chartcap">Drag the timeline or tap a frame below to develop the episode forward.</div>
+
+    <canvas id="sheet" class="contact" width="700" height="150"
+      role="img" aria-label="Contact sheet: six frames of the episode across the timeline"></canvas>
+    <div class="contact-lbl"><span>epoch 0 — fresh</span><span>epoch 100 — long after</span></div>
+  </section>
+
+  <!-- RECEIPT -->
+  <section class="panel" aria-labelledby="rec-h">
+    <h2 id="rec-h"><span class="num">4</span>Memory-design receipt</h2>
+    <p class="chartcap" style="margin-top:2px">A compact record of your controls and what the illustration demonstrated — no score assigned.</p>
+    <div class="row">
+      <button id="copyreceipt" class="primary" type="button">⧉ Copy receipt</button>
+      <button id="dlsheet" class="ghost" type="button">⭳ Download SVG contact sheet</button>
+    </div>
+  </section>
+
+  <details class="about">
+    <summary>How the illustration works <span class="chev">›</span></summary>
+    <div class="body">
+      <p>Longwave is a <strong>deterministic thought instrument</strong>. The same episode and the same control values always produce exactly the same development — there is no randomness in the outcome and nothing is saved or sent.</p>
+      <p>The episode is split into fragments. Each fragment starts as fully legible <b style="color:var(--exact)">exact wording</b>. As epochs pass, each fragment loses focus at a rate set by the controls:</p>
+      <p>• <strong>Rehearsal interval</strong> sets how fast focus fades — raise it and exact wording stays legible across many more epochs of the contact sheet.<br>
+      • <strong>Semantic compression</strong> lets high-salience fragments survive as <b style="color:var(--gist)">durable gist</b> long after their exact wording is gone.<br>
+      • <strong>Interference</strong> speeds fading and pushes fragments into <b style="color:var(--residue)">uncertain residue</b>.</p>
+      <p>Filler fragments fade first; meaning-carrying fragments persist as gist; the rest becomes residue. It illustrates a familiar idea — <em>we keep the shape of a thing long after the exact words dissolve</em> — and is <strong>not</strong> a claim about any real system, brain, or benchmark.</p>
+    </div>
+  </details>
+
+  <footer>
+    Everything runs locally in this browser tab. Your typed notes never leave it and are never stored.<br>
+    Longwave · a daily surprise · <span id="today"></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- fictional, harmless built-in episodes ----------
+  var SAMPLES = [
+    {name:"Courier drone · night run",
+     text:"On the third pass the courier drone logged a warm updraft near the old glass foundry, rerouted past the copper kites, and marked that the lantern keeper had repainted the north door teal before dusk."},
+    {name:"Archive assistant · quiet shelf",
+     text:"The archive assistant filed the brittle ledger under maritime knots, mislabeled one page as tide charts, and left a note that the reading room clock ran nine minutes fast on foggy mornings."},
+    {name:"Greenhouse monitor · bay seven",
+     text:"During the night shift the greenhouse monitor recorded the pale moths returning to bay seven, flagged a cracked pane above the ferns, and remembered the watering valve stuck whenever the west wind rose."}
+  ];
+  var STOP = {"the":1,"a":1,"an":1,"and":1,"of":1,"to":1,"in":1,"on":1,"at":1,"as":1,"it":1,"its":1,
+    "that":1,"had":1,"has":1,"was":1,"were":1,"is":1,"be":1,"by":1,"for":1,"with":1,"one":1,"up":1,
+    "past":1,"near":1,"before":1,"whenever":1,"during":1,"had.":1};
+
+  // ---------- deterministic helpers ----------
+  function hashStr(s){var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return h>>>0;}
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function clamp(x,a,b){return x<a?a:x>b?b:x;}
+
+  function tokenize(text){
+    var raw=text.trim().split(/\s+/).filter(Boolean).slice(0,52);
+    return raw.map(function(w,i){
+      var clean=w.toLowerCase().replace(/[^a-z0-9]/g,"");
+      var h=hashStr(clean+"|"+i);
+      var base=(h%1000)/1000;               // 0..1 stable jitter
+      var s=0.30+0.55*base;
+      if(STOP[clean]) s*=0.32;
+      if(clean.length>=7) s=Math.min(1,s+0.18);
+      if(clean.length<=2) s*=0.6;
+      return {w:w, clean:clean, s:clamp(s,0.06,1)};
+    });
+  }
+
+  // core deterministic memory model -> state per token at epoch E
+  function interval(R){ return Math.round(clamp(40-0.34*R,4,40)); }
+
+  function classify(tok, E, R, C, N){
+    // exact-wording legibility: fresh=1, monotonic decay. Rehearsal slows the
+    // fade; interference speeds it; low-salience filler and compression drop
+    // exact wording faster. Fully deterministic in (E,R,C,N,salience).
+    var rate=0.020*(1+1.7*(N/100))/(1+1.5*(R/100));
+    var kEff=rate*(1+1.7*(1-tok.s))*(1+0.7*(C/100)*(1-tok.s));
+    var v=Math.exp(-kEff*E);
+    // durable gist: slow decay, lifted by compression, eroded by interference,
+    // carried mainly by high-salience fragments.
+    var kg=0.008*(1+0.9*(N/100))/(1+0.7*(C/100));
+    var g=(0.55+0.45*(C/100))*(0.5+0.5*tok.s)*Math.exp(-kg*E);
+    var gThresh=0.28*(1+0.30*(N/100));
+    var state;
+    if(v>=0.40) state="exact";
+    else if(g>=gThresh && tok.s>=0.42) state="gist";
+    else state="residue";
+    return {state:state, v:v, g:g};
+  }
+
+  function tally(toks,E,R,C,N){
+    var c={exact:0,gist:0,residue:0},arr=[];
+    for(var i=0;i<toks.length;i++){var st=classify(toks[i],E,R,C,N);c[st.state]++;arr.push(st);}
+    return {c:c,arr:arr};
+  }
+
+  // ---------- state ----------
+  var S={ toks:[], srcName:SAMPLES[0].name, srcText:SAMPLES[0].text,
+          R:60, C:45, N:25, E:0, sampleIdx:0, custom:false };
+  S.toks=tokenize(S.srcText);
+
+  var $=function(id){return document.getElementById(id);};
+  var COL={exact:"#ffca6b",gist:"#57e0c6",residue:"#d76a72"};
+
+  // ---------- readouts ----------
+  function rehLabel(R){var iv=interval(R);return "every "+iv;}
+  function compLabel(C){return C<20?"minimal":C<45?"light":C<70?"medium":C<88?"heavy":"aggressive";}
+  function intfLabel(N){return N<18?"quiet":N<40?"low":N<65?"moderate":N<85?"high":"severe";}
+
+  function syncCtlLabels(){
+    $("rv").textContent=rehLabel(S.R);
+    $("cv").textContent=compLabel(S.C);
+    $("iv").textContent=intfLabel(S.N);
+  }
+
+  // ---------- emulsion render ----------
+  function fit(canvas, cssH){
+    var dpr=Math.min(window.devicePixelRatio||1,2.5);
+    var w=canvas.clientWidth||canvas.parentNode.clientWidth||360;
+    canvas.width=Math.round(w*dpr);
+    canvas.height=Math.round(cssH*dpr);
+    canvas.style.height=cssH+"px";
+    var ctx=canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx:ctx,w:w,h:cssH};
+  }
+
+  function drawEmulsion(){
+    var stageH = Math.max(300, Math.min(460, Math.round((emul.clientWidth||360)*0.62)));
+    var f=fit(emul,stageH), ctx=f.ctx, W=f.w, H=f.h;
+    // base wash
+    var bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,"#12090a");bg.addColorStop(1,"#0a0405");
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+    var res=tally(S.toks,S.E,S.R,S.C,S.N);
+    var pad=16, x=pad, y=26, lh=34, fs=18;
+    ctx.textBaseline="alphabetic";
+    var seed=reduceMotion?12345:Math.floor(S.E)*2654435761>>>0;
+    var rnd=mulberry32(seed^hashStr(S.srcText));
+
+    for(var i=0;i<S.toks.length;i++){
+      var t=S.toks[i], st=res.arr[i];
+      ctx.font="600 "+fs+"px ui-rounded,system-ui,sans-serif";
+      var wdt=ctx.measureText(t.w).width;
+      if(x+wdt>W-pad){x=pad;y+=lh;}
+      if(y>H-14){break;}
+      var cx=x, cy=y;
+      if(st.state==="exact"){
+        var a=clamp(0.55+0.45*st.v,0.55,1);
+        ctx.fillStyle=COL.exact;ctx.globalAlpha=a;
+        ctx.shadowColor="rgba(255,202,107,.5)";ctx.shadowBlur=8*(a-0.4);
+        ctx.fillText(t.w,cx,cy);
+        ctx.shadowBlur=0;ctx.globalAlpha=1;
+      } else if(st.state==="gist"){
+        // soft teal block carrying meaning; wording no longer crisp
+        var gh=fs+8, gy=cy-fs+2;
+        ctx.globalAlpha=clamp(0.22+0.5*st.g,0.22,0.7);
+        roundRect(ctx,cx-3,gy-2,wdt+6,gh,7);
+        ctx.fillStyle=COL.gist;ctx.fill();
+        ctx.globalAlpha=clamp(0.30+0.4*st.g,0.3,0.72);
+        ctx.fillStyle="#06201c";
+        ctx.font="600 "+fs+"px ui-rounded,system-ui,sans-serif";
+        // scramble legibility: keep first letter, blur rest into dashes
+        var lbl=t.w.charAt(0)+"—".repeat(Math.max(1,Math.round((t.clean.length-1)/2)));
+        ctx.fillText(lbl,cx,cy);
+        ctx.globalAlpha=1;
+      } else {
+        // residue: grainy rose smudge, no legible word
+        var rh=fs+6, ry=cy-fs+3;
+        ctx.globalAlpha=0.16;ctx.fillStyle=COL.residue;
+        roundRect(ctx,cx-2,ry,wdt+4,rh,6);ctx.fill();
+        ctx.globalAlpha=1;
+        var dots=Math.max(6,Math.round(wdt/4));
+        for(var d=0;d<dots;d++){
+          ctx.globalAlpha=0.18+0.28*rnd();
+          ctx.fillStyle=COL.residue;
+          var dx=cx+rnd()*wdt, dy=ry+2+rnd()*(rh-4);
+          ctx.fillRect(dx,dy,1.6,1.6);
+        }
+        ctx.globalAlpha=1;
+      }
+      x+=wdt+ctx.measureText(" ").width;
+    }
+    // film grain veil
+    var grains=Math.round(W*H/650);
+    for(var gI=0;gI<grains;gI++){
+      ctx.globalAlpha=0.015+0.05*rnd();
+      ctx.fillStyle=rnd()>0.5?"#ffffff":"#000000";
+      ctx.fillRect(rnd()*W,rnd()*H,1,1);
+    }
+    ctx.globalAlpha=1;
+    // vignette + safelight edge
+    var vg=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.75);
+    vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,"rgba(0,0,0,.5)");
+    ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+  }
+
+  // ---------- contact sheet ----------
+  var SHEET_EP=[0,20,40,60,80,100];
+  function drawSheet(){
+    var H=132;
+    var f=fit(sheet,H), ctx=f.ctx, W=f.w;
+    ctx.clearRect(0,0,W,H);
+    var n=SHEET_EP.length, gap=8, fw=(W-gap*(n+1))/n, fh=H-30;
+    for(var i=0;i<n;i++){
+      var ep=SHEET_EP[i], fx=gap+i*(fw+gap), fy=8;
+      drawFrame(ctx,fx,fy,fw,fh,ep);
+      // label
+      ctx.fillStyle="#9a817c";ctx.font="600 11px ui-rounded,system-ui,sans-serif";
+      ctx.textAlign="center";ctx.fillText("ep "+ep,fx+fw/2,fy+fh+16);
+      ctx.textAlign="left";
+      // highlight current
+      var near=SHEET_EP.reduce(function(p,c){return Math.abs(c-S.E)<Math.abs(p-S.E)?c:p;});
+      if(ep===near){
+        ctx.strokeStyle="#ffca6b";ctx.lineWidth=2;
+        roundRect(ctx,fx-1,fy-1,fw+2,fh+2,7);ctx.stroke();
+      }
+    }
+  }
+  function drawFrame(ctx,fx,fy,fw,fh,ep){
+    ctx.fillStyle="#0a0405";roundRect(ctx,fx,fy,fw,fh,6);ctx.fill();
+    var res=tally(S.toks,ep,S.R,S.C,S.N);
+    var n=S.toks.length, cols=Math.ceil(Math.sqrt(n*fw/fh)), rows=Math.ceil(n/cols);
+    cols=Math.max(1,cols);rows=Math.max(1,rows);
+    var cw=(fw-6)/cols, ch=(fh-6)/rows, p=3;
+    var rnd=mulberry32(hashStr("f"+ep+S.srcText));
+    for(var i=0;i<n;i++){
+      var r=Math.floor(i/cols), c=i%cols;
+      var cx=fx+p+c*cw, cy=fy+p+r*ch;
+      var st=res.arr[i];
+      ctx.globalAlpha=st.state==="exact"?clamp(0.5+0.5*st.v,0.5,1):st.state==="gist"?0.62:0.5;
+      ctx.fillStyle=COL[st.state];
+      var m=1;
+      if(st.state==="residue"){
+        // grainy fill
+        ctx.globalAlpha=0.35;ctx.fillRect(cx+m,cy+m,cw-2*m,ch-2*m);
+        ctx.globalAlpha=0.5;
+        for(var d=0;d<3;d++)ctx.fillRect(cx+m+rnd()*(cw-2*m),cy+m+rnd()*(ch-2*m),1.3,1.3);
+      } else {
+        ctx.fillRect(cx+m,cy+m,cw-2*m,ch-2*m);
+      }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // ---------- summary / readout ----------
+  function updateReadout(){
+    var res=tally(S.toks,S.E,S.R,S.C,S.N), c=res.c;
+    $("epnum").textContent=Math.round(S.E);
+    $("time").value=S.E;
+    $("framehint").textContent = S.E<=2?"fresh exposure":
+      c.exact>=c.gist+c.residue?"still sharp":
+      c.residue>c.exact+c.gist?"mostly residue":"gist holding";
+
+    var iv=interval(S.R);
+    var html='<b class="e">'+c.exact+'</b> exact · '+
+             '<b class="g">'+c.gist+'</b> gist · '+
+             '<b class="r">'+c.residue+'</b> residue';
+    var narr;
+    if(S.E<=2){
+      narr="Fresh exposure — every fragment is still exact wording. Advance the timeline to develop it.";
+    } else {
+      var lead = c.exact>c.residue ?
+        "Rehearsal every "+iv+" epochs is keeping the sharpest fragments legible" :
+        "With rehearsal only every "+iv+" epochs, exact wording is slipping";
+      var mid = S.C>=60 ? "; heavy compression is preserving meaning as durable gist" :
+                S.C>=35 ? "; compression is carrying some meaning forward as gist" :
+                "; low compression means little survives once the words fade";
+      var tail = S.N>=60 ? "; high interference is dissolving the rest into residue." :
+                 S.N>=30 ? "; moderate interference is turning filler into residue." :
+                 "; low interference leaves the residue small.";
+      narr=lead+mid+tail;
+    }
+    $("readout").innerHTML=html+'<div class="narr">'+narr+'</div>';
+  }
+
+  function renderAll(){ drawEmulsion(); drawSheet(); updateReadout(); }
+
+  // ---------- receipt ----------
+  function receiptText(){
+    var res=tally(S.toks,S.E,S.R,S.C,S.N), c=res.c, iv=interval(S.R);
+    var src=S.custom?"your note":S.srcName;
+    var head=(S.srcText.length>58?S.srcText.slice(0,58)+"…":S.srcText);
+    var L=[];
+    L.push("LONGWAVE — memory-design receipt");
+    L.push("Illustrative thought instrument — not neuroscience, not a benchmark, not a prediction.");
+    L.push("");
+    L.push('Episode ('+src+', '+S.toks.length+" fragments):");
+    L.push('  "'+head+'"');
+    L.push("");
+    L.push("Controls");
+    L.push("  Rehearsal interval    "+S.R+"/100  -> rehearsed "+rehLabel(S.R)+" epochs");
+    L.push("  Semantic compression  "+S.C+"/100  ("+compLabel(S.C)+")");
+    L.push("  Interference          "+S.N+"/100  ("+intfLabel(S.N)+")");
+    L.push("  Timeline read at      epoch "+Math.round(S.E)+" of 100");
+    L.push("");
+    L.push("What the illustration showed at this epoch");
+    L.push("  "+c.exact+" fragments held as exact wording");
+    L.push("  "+c.gist+" fragments survived as durable gist");
+    L.push("  "+c.residue+" fragments dissolved into uncertain residue");
+    L.push("");
+    L.push("Across the run, exact wording faded first; rehearsal re-sharpened the");
+    L.push("strongest fragments; compression traded words for a longer-lived gist;");
+    L.push("interference converted the remainder to residue. No score assigned.");
+    L.push("");
+    L.push("Text stayed in this browser tab only · generated locally "+dateStr());
+    return L.join("\n");
+  }
+  function dateStr(){try{return new Date().toISOString().slice(0,10);}catch(e){return "";}}
+
+  function buildSVG(){
+    var W=880,pad=26,fw=124,fh=124,gap=18,y0=150;
+    var eps=[0,20,40,60,80,100];
+    var esc=function(s){return String(s).replace(/[&<>]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[m];});};
+    var parts=[];
+    parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="360" viewBox="0 0 '+W+' 360" font-family="ui-rounded,system-ui,Segoe UI,sans-serif">');
+    parts.push('<rect width="'+W+'" height="360" fill="#120a0c"/>');
+    parts.push('<text x="'+pad+'" y="42" fill="#ffca6b" font-size="26" font-weight="700">Longwave — contact sheet</text>');
+    parts.push('<text x="'+pad+'" y="66" fill="#c3a9a2" font-size="13">Illustrative thought instrument · not neuroscience, not a benchmark, not a prediction</text>');
+    var src=S.custom?"your note":esc(S.srcName);
+    parts.push('<text x="'+pad+'" y="92" fill="#9a817c" font-size="13">Episode: '+src+' · '+S.toks.length+' fragments · rehearsal '+esc(rehLabel(S.R))+' epochs · compression '+S.C+'/100 · interference '+S.N+'/100</text>');
+    // frames
+    for(var i=0;i<eps.length;i++){
+      var ep=eps[i], fx=pad+i*(fw+gap);
+      parts.push('<rect x="'+fx+'" y="'+y0+'" width="'+fw+'" height="'+fh+'" rx="8" fill="#0a0405" stroke="#3a2124"/>');
+      var res=tally(S.toks,ep,S.R,S.C,S.N);
+      var n=S.toks.length, cols=Math.ceil(Math.sqrt(n*fw/fh)), rows=Math.ceil(n/cols), cw=(fw-8)/cols, ch=(fh-8)/rows;
+      for(var t=0;t<n;t++){
+        var r=Math.floor(t/cols),c=t%cols,cx=fx+4+c*cw,cy=y0+4+r*ch,st=res.arr[t];
+        var col=COL[st.state],op=st.state==="exact"?clamp(0.5+0.5*st.v,0.5,1):st.state==="gist"?0.62:0.42;
+        parts.push('<rect x="'+cx.toFixed(1)+'" y="'+cy.toFixed(1)+'" width="'+(cw-2).toFixed(1)+'" height="'+(ch-2).toFixed(1)+'" fill="'+col+'" opacity="'+op.toFixed(2)+'"/>');
+      }
+      parts.push('<text x="'+(fx+fw/2)+'" y="'+(y0+fh+20)+'" fill="#9a817c" font-size="12" text-anchor="middle">epoch '+ep+'</text>');
+    }
+    // legend
+    var ly=y0+fh+52, lx=pad;
+    var leg=[["#ffca6b","exact wording"],["#57e0c6","durable gist"],["#d76a72","uncertain residue"]];
+    for(var k=0;k<leg.length;k++){
+      parts.push('<rect x="'+lx+'" y="'+(ly-11)+'" width="14" height="14" rx="3" fill="'+leg[k][0]+'"/>');
+      parts.push('<text x="'+(lx+20)+'" y="'+ly+'" fill="#c3a9a2" font-size="13">'+leg[k][1]+'</text>');
+      lx+=22+leg[k][1].length*7.6+22;
+    }
+    var res0=tally(S.toks,S.E,S.R,S.C,S.N).c;
+    parts.push('<text x="'+pad+'" y="'+(ly+34)+'" fill="#f4e8e2" font-size="13">At epoch '+Math.round(S.E)+': '+res0.exact+' exact · '+res0.gist+' gist · '+res0.residue+' residue. No score assigned · generated locally '+dateStr()+'.</text>');
+    parts.push('</svg>');
+    return parts.join("");
+  }
+
+  // ---------- toast ----------
+  var toastT;
+  function toast(msg){
+    var el=$("toast");el.textContent=msg;el.classList.add("show");
+    clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show");},1900);
+  }
+  function copyText(txt,okmsg){
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast(okmsg);},fallback);
+    } else fallback();
+    function fallback(){
+      var ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+      document.body.appendChild(ta);ta.focus();ta.select();
+      try{document.execCommand("copy");toast(okmsg);}catch(e){toast("Copy not available — select manually");}
+      document.body.removeChild(ta);
+    }
+  }
+
+  // ---------- source loading ----------
+  function loadSample(idx){
+    S.sampleIdx=idx;S.custom=false;S.srcName=SAMPLES[idx].name;S.srcText=SAMPLES[idx].text;
+    S.toks=tokenize(S.srcText);
+    $("srctag").textContent="Built-in synthetic episode — "+S.srcName;
+    $("srctext").textContent=S.srcText;
+    S.E=0;renderAll();
+  }
+  function loadNote(txt){
+    var clean=txt.trim();if(clean.split(/\s+/).filter(Boolean).length<3){toast("Add a few more words to develop");return false;}
+    S.custom=true;S.srcName="your note";S.srcText=clean;S.toks=tokenize(clean);
+    $("srctag").textContent="Your note (stays in this tab only)";
+    $("srctext").textContent=clean;
+    S.E=0;renderAll();return true;
+  }
+
+  // ---------- timeline play ----------
+  var playing=false, playTimer=null;
+  function setPlay(on){
+    playing=on;$("play").textContent=on?"⏸":"▶";
+    $("play").setAttribute("aria-label",on?"Pause the time-lapse":"Play the time-lapse");
+    if(on){
+      if(S.E>=100)S.E=0;
+      var stepMs=reduceMotion?150:40, inc=reduceMotion?4:1.4;
+      playTimer=setInterval(function(){
+        S.E=Math.min(100,S.E+inc);
+        renderAll();
+        if(S.E>=100){setPlay(false);}
+      },stepMs);
+    } else if(playTimer){clearInterval(playTimer);playTimer=null;}
+  }
+
+  // ---------- wire up ----------
+  function bindRange(id,key,after){
+    var el=$(id);
+    el.addEventListener("input",function(){S[key]=+el.value;syncCtlLabels();if(after)after();renderAll();});
+  }
+  bindRange("reh","R");
+  bindRange("comp","C");
+  bindRange("intf","N");
+  $("time").addEventListener("input",function(){if(playing)setPlay(false);S.E=+this.value;renderAll();});
+
+  $("play").addEventListener("click",function(){setPlay(!playing);});
+
+  $("shuffle").addEventListener("click",function(){
+    if(playing)setPlay(false);
+    loadSample((S.sampleIdx+1)%SAMPLES.length);
+    $("notewrap").hidden=true;
+    toast("Loaded: "+S.srcName);
+  });
+
+  $("usenote").addEventListener("click",function(){
+    var nw=$("notewrap");nw.hidden=!nw.hidden;
+    if(!nw.hidden){$("note").focus();}
+  });
+  $("cancelnote").addEventListener("click",function(){$("notewrap").hidden=true;});
+  $("note").addEventListener("input",function(){$("ccount").textContent=this.value.length;});
+  $("develop").addEventListener("click",function(){
+    if(loadNote($("note").value)){$("notewrap").hidden=true;if(playing)setPlay(false);toast("Developing your note");}
+  });
+
+  $("copyreceipt").addEventListener("click",function(){copyText(receiptText(),"Receipt copied to clipboard");});
+  $("dlsheet").addEventListener("click",function(){
+    var svg=buildSVG(), blob=new Blob([svg],{type:"image/svg+xml"});
+    var url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url;a.download="longwave-contact-sheet.svg";document.body.appendChild(a);a.click();
+    document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url);},1500);
+    toast("Contact sheet downloaded");
+  });
+
+  // tap contact sheet to jump epochs
+  sheet.addEventListener("click",function(ev){
+    var rect=sheet.getBoundingClientRect(), x=ev.clientX-rect.left;
+    var n=SHEET_EP.length, idx=clamp(Math.floor(x/(rect.width/n)),0,n-1);
+    if(playing)setPlay(false);
+    S.E=SHEET_EP[idx];renderAll();
+  });
+
+  // ---------- init ----------
+  $("today").textContent=dateStr();
+  $("srctag").textContent="Built-in synthetic episode — "+S.srcName;
+  $("srctext").textContent=S.srcText;
+  syncCtlLabels();
+  var emul=$("emul"), sheet=$("sheet");
+  renderAll();
+  var rT;
+  window.addEventListener("resize",function(){clearTimeout(rT);rT=setTimeout(renderAll,120);});
+})();
+</script>
+</body>
+</html>
