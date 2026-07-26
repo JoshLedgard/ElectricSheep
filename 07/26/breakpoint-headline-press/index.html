@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Breakpoint — A Headline Lockup Press</title>
+<meta name="description" content="Type one headline, tap the joints between words to bond or break them, and watch square, portrait, and landscape lockups set themselves live. Exports real SVG.">
+<style>
+  :root{
+    --paper:#e9e3d6;
+    --paper-2:#ded6c5;
+    --ink:#171410;
+    --ink-2:#3a342b;
+    --ink-3:#6b6355;
+    --rule:#c3b9a4;
+    --rule-2:#a99e86;
+    --hot:#c8402a;
+    --hot-ink:#fff6f0;
+    --brass:#8a6a2f;
+    --felt:#20303a;
+    --ok:#2e6b4f;
+    --shadow:0 1px 0 #fffaf0 inset, 0 2px 0 var(--rule-2), 0 4px 10px rgba(23,20,16,.18);
+    --shadow-in:0 2px 6px rgba(23,20,16,.28) inset, 0 1px 0 #fffaf0;
+    --sans:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+  body{
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(255,255,255,.5), transparent 42%),
+      radial-gradient(circle at 88% 92%, rgba(23,20,16,.08), transparent 46%);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-text-size-adjust:100%;
+    padding:0 0 56px;
+    line-height:1.45;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
+
+  /* ---------- masthead ---------- */
+  header{
+    border-bottom:3px double var(--rule-2);
+    background:linear-gradient(180deg,#f2ece0,#e4dccb);
+    padding:18px 0 14px;
+    margin-bottom:16px;
+  }
+  .plate{
+    display:inline-flex;align-items:center;gap:8px;
+    font:700 10px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;
+    color:var(--ink-3);border:1px solid var(--rule-2);border-radius:2px;
+    padding:6px 9px;background:#f6f1e6;
+  }
+  .plate b{color:var(--hot);font-weight:700}
+  h1{
+    font-size:30px;line-height:1.02;margin:12px 0 6px;letter-spacing:-.025em;font-weight:800;
+  }
+  h1 em{font-style:normal;color:var(--hot)}
+  .dek{margin:0;font-size:14px;color:var(--ink-2);max-width:60ch}
+  .steps{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+  .steps li{
+    font:600 11px/1 var(--sans);letter-spacing:.02em;color:var(--ink-2);
+    background:#f6f1e6;border:1px solid var(--rule);border-radius:999px;padding:7px 10px;
+  }
+  .steps li b{color:var(--hot);font-family:var(--mono);font-size:10px;margin-right:4px}
+
+  /* ---------- panels ---------- */
+  section{
+    background:linear-gradient(180deg,#f5f0e5,#ece5d6);
+    border:1px solid var(--rule-2);
+    border-radius:6px;
+    padding:14px;
+    margin:0 0 14px;
+    box-shadow:var(--shadow);
+  }
+  .head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .head h2{
+    margin:0;font:700 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .head .hint{font-size:11px;color:var(--ink-3);text-align:right}
+
+  label.fld{display:block;margin-bottom:10px}
+  label.fld > span{
+    display:block;font:700 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-3);margin-bottom:5px;
+  }
+  textarea,input[type=text]{
+    width:100%;font-family:var(--sans);font-size:16px;font-weight:600;color:var(--ink);
+    background:#fbf7ee;border:1px solid var(--rule-2);border-radius:4px;
+    padding:10px 11px;box-shadow:var(--shadow-in);resize:vertical;
+    min-height:48px;
+  }
+  textarea{line-height:1.3}
+  textarea:focus,input[type=text]:focus{outline:2px solid var(--hot);outline-offset:1px}
+  .count{font:600 10px/1 var(--mono);color:var(--ink-3);text-align:right;margin-top:4px;letter-spacing:.08em}
+
+  /* ---------- joint strip ---------- */
+  .strip{
+    display:flex;flex-wrap:wrap;align-items:stretch;gap:2px;
+    background:#fbf7ee;border:1px solid var(--rule-2);border-radius:4px;
+    padding:8px 6px;box-shadow:var(--shadow-in);
+  }
+  .word{
+    display:flex;align-items:center;min-height:44px;padding:0 8px;
+    font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink);
+    border-radius:3px;background:transparent;
+  }
+  .joint{
+    -webkit-appearance:none;appearance:none;
+    min-width:44px;min-height:44px;padding:0 2px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    border:1px dashed var(--rule-2);border-radius:5px;background:#f1ebdd;
+    color:var(--ink-3);cursor:pointer;touch-action:manipulation;
+    font-family:var(--mono);
+  }
+  .joint .glyph{font-size:15px;line-height:1;font-weight:700}
+  .joint .tag{font-size:8px;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+  .joint:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+  .joint.is-bond{
+    background:var(--felt);border:1px solid var(--felt);color:#eaf3f6;
+    box-shadow:0 2px 0 #0d1a20;
+  }
+  .joint.is-break{
+    background:var(--hot);border:1px solid #a3311f;color:var(--hot-ink);
+    box-shadow:0 2px 0 #8d2a1a;
+  }
+  .joint.is-break + .word{position:relative}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-size:11px;color:var(--ink-2)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .swatch{width:14px;height:14px;border-radius:3px;border:1px dashed var(--rule-2);background:#f1ebdd;flex:none}
+  .swatch.b{background:var(--felt);border:1px solid var(--felt)}
+  .swatch.k{background:var(--hot);border:1px solid #a3311f}
+
+  /* ---------- control rows ---------- */
+  .row{margin-bottom:11px}
+  .row:last-child{margin-bottom:0}
+  .row > .rl{
+    font:700 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);
+    display:block;margin-bottom:6px;
+  }
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{
+    -webkit-appearance:none;appearance:none;
+    flex:1 1 auto;min-width:76px;min-height:44px;padding:6px 10px;
+    font:700 12px/1.15 var(--sans);letter-spacing:.01em;color:var(--ink-2);
+    background:linear-gradient(180deg,#fbf7ee,#eee7d8);
+    border:1px solid var(--rule-2);border-radius:5px;cursor:pointer;
+    touch-action:manipulation;box-shadow:0 2px 0 var(--rule-2);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .seg button small{font:600 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .seg button[aria-pressed=true]{
+    background:linear-gradient(180deg,#2b3d48,#1b2a33);
+    border-color:#12202a;color:#f4efe3;box-shadow:0 1px 0 #0d1a20, 0 2px 5px rgba(0,0,0,.25) inset;
+    transform:translateY(1px);
+  }
+  .seg button[aria-pressed=true] small{color:#9fc0cc}
+  .seg button:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+  .seg button:active{transform:translateY(2px)}
+
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px}
+  .btn{
+    -webkit-appearance:none;appearance:none;
+    flex:1 1 160px;min-height:48px;padding:10px 12px;
+    font:700 13px/1.2 var(--sans);color:var(--hot-ink);
+    background:linear-gradient(180deg,#d24b32,#b8351f);
+    border:1px solid #932a17;border-radius:5px;cursor:pointer;
+    box-shadow:0 3px 0 #8d2a1a, 0 4px 10px rgba(23,20,16,.2);
+    touch-action:manipulation;
+  }
+  .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8d2a1a}
+  .btn:focus-visible{outline:2px solid var(--felt);outline-offset:2px}
+  .btn.ghost{
+    color:var(--ink-2);background:linear-gradient(180deg,#fbf7ee,#eee7d8);
+    border-color:var(--rule-2);box-shadow:0 3px 0 var(--rule-2);
+  }
+  .btn.ghost:active{box-shadow:0 1px 0 var(--rule-2)}
+  .status{
+    margin-top:9px;font:600 12px/1.4 var(--sans);color:var(--ok);min-height:17px;
+  }
+  .status.warn{color:var(--hot)}
+
+  /* ---------- lockups ---------- */
+  .lockups{display:grid;gap:14px}
+  .lock{
+    border:1px solid var(--rule-2);border-radius:6px;overflow:hidden;
+    background:#f7f2e8;box-shadow:var(--shadow);
+  }
+  .lock-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;background:linear-gradient(180deg,#f3ede1,#e7dfce);
+    border-bottom:1px solid var(--rule);
+  }
+  .lock-name{font:700 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2)}
+  .lock-meta{font:600 10px/1 var(--mono);letter-spacing:.06em;color:var(--ink-3);text-align:right}
+  .stage{position:relative;background:#ded6c5;padding:10px;display:block}
+  .stage svg{display:block;width:100%;height:auto;border-radius:2px;box-shadow:0 2px 8px rgba(23,20,16,.25)}
+  .stage .overlay{position:absolute;inset:10px;pointer-events:none}
+  .notes{list-style:none;margin:0;padding:9px 10px 11px;border-top:1px solid var(--rule);background:#f7f2e8}
+  .notes li{
+    font-size:12px;line-height:1.45;color:var(--ink-2);
+    padding-left:16px;position:relative;margin-bottom:4px;
+  }
+  .notes li:last-child{margin-bottom:0}
+  .notes li::before{
+    content:'—';position:absolute;left:0;top:0;color:var(--rule-2);font-family:var(--mono);
+  }
+  .notes li.flag{color:var(--hot)}
+  .notes li.flag::before{content:'!';color:var(--hot);font-weight:700}
+  .notes li.good::before{content:'✓';color:var(--ok);font-weight:700}
+
+  .foot{
+    text-align:center;font-size:11px;color:var(--ink-3);padding:6px 14px 0;line-height:1.6;
+  }
+  .foot b{color:var(--ink-2)}
+
+  @media (min-width:700px){
+    h1{font-size:38px}
+    .lockups{grid-template-columns:1fr 1fr}
+    .lock.wide{grid-column:1 / -1}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="plate">Breakpoint <b>·</b> Lockup Press</div>
+    <h1>Set one headline. <em>Three formats hold it.</em></h1>
+    <p class="dek">Type a headline. Tap the joints between words to <b>bond</b> pairs that must never split, or to <b>break</b> a line exactly where you want it. Square, portrait, and landscape lockups re-set themselves as you go, and export as real SVG.</p>
+    <ul class="steps">
+      <li><b>1</b> Edit the words</li>
+      <li><b>2</b> Tap a joint · auto → bond → break</li>
+      <li><b>3</b> Pick a treatment</li>
+      <li><b>4</b> Export SVG</li>
+    </ul>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <div class="head">
+      <h2>Copy</h2>
+      <div class="hint">Stays in this tab. Nothing is sent or saved.</div>
+    </div>
+    <label class="fld">
+      <span>Headline</span>
+      <textarea id="headline" rows="2" maxlength="140" spellcheck="true" autocomplete="off" placeholder="Type your headline"></textarea>
+      <div class="count" id="hcount"></div>
+    </label>
+    <label class="fld" style="margin-bottom:4px">
+      <span>Kicker <small style="font-family:var(--sans);letter-spacing:0;text-transform:none">(optional)</small></span>
+      <input id="kicker" type="text" maxlength="48" autocomplete="off" placeholder="Optional line above the headline">
+    </label>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Joints</h2>
+      <div class="hint">Tap between two words</div>
+    </div>
+    <div class="strip" id="strip"></div>
+    <div class="legend">
+      <span><i class="swatch"></i> Auto — may break here</span>
+      <span><i class="swatch b"></i> Bond — keep together</span>
+      <span><i class="swatch k"></i> Break — new line here</span>
+    </div>
+    <div class="btnrow" style="margin-top:11px">
+      <button class="btn ghost" type="button" id="clearJoints">Clear all joints</button>
+      <button class="btn ghost" type="button" id="loadExample">Load the example</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Press settings</h2>
+      <div class="hint">Applies to all three</div>
+    </div>
+    <div class="row">
+      <span class="rl">Treatment</span>
+      <div class="seg" id="segTreatment"></div>
+    </div>
+    <div class="row">
+      <span class="rl">Alignment</span>
+      <div class="seg" id="segAlign">
+        <button type="button" data-v="left">Left<small>flush</small></button>
+        <button type="button" data-v="center">Centre<small>axial</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="rl">Ragging</span>
+      <div class="seg" id="segRag">
+        <button type="button" data-v="greedy">Fill first<small>greedy</small></button>
+        <button type="button" data-v="balanced">Even lines<small>balanced</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="rl">Leading</span>
+      <div class="seg" id="segLead">
+        <button type="button" data-v="tight">Tight<small>0.92</small></button>
+        <button type="button" data-v="normal">Normal<small>1.06</small></button>
+        <button type="button" data-v="airy">Airy<small>1.24</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="rl">Guides</span>
+      <div class="seg" id="segGuides">
+        <button type="button" data-v="on">Guides on<small>margins + crop</small></button>
+        <button type="button" data-v="off">Guides off<small>clean</small></button>
+      </div>
+    </div>
+  </section>
+
+  <div class="lockups" id="lockups">
+    <div class="lock" id="lock-square">
+      <div class="lock-bar"><span class="lock-name">Square · 1080 × 1080</span><span class="lock-meta" id="meta-square"></span></div>
+      <div class="stage" id="stage-square"></div>
+      <ul class="notes" id="notes-square"></ul>
+    </div>
+    <div class="lock" id="lock-portrait">
+      <div class="lock-bar"><span class="lock-name">Portrait · 1080 × 1350</span><span class="lock-meta" id="meta-portrait"></span></div>
+      <div class="stage" id="stage-portrait"></div>
+      <ul class="notes" id="notes-portrait"></ul>
+    </div>
+    <div class="lock wide" id="lock-landscape">
+      <div class="lock-bar"><span class="lock-name">Landscape · 1920 × 1080</span><span class="lock-meta" id="meta-landscape"></span></div>
+      <div class="stage" id="stage-landscape"></div>
+      <ul class="notes" id="notes-landscape"></ul>
+    </div>
+  </div>
+
+  <section style="margin-top:14px">
+    <div class="head">
+      <h2>Export</h2>
+      <div class="hint">Vector SVG, built in this tab</div>
+    </div>
+    <div class="btnrow">
+      <button class="btn" type="button" id="expSheet">Download contact sheet (SVG)</button>
+      <button class="btn ghost" type="button" id="expEach">Download all three SVGs</button>
+      <button class="btn ghost" type="button" id="copySheet">Copy contact-sheet code</button>
+    </div>
+    <div class="status" id="status">Exports carry the type only — guides and crop marks stay in the preview.</div>
+  </section>
+
+  <p class="foot">
+    <b>Breakpoint</b> arranges the words you type and nothing else. No fonts, scripts, images, or requests come from outside this file;
+    your copy never leaves the tab and is not stored between visits.
+  </p>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============================================================
+     Treatments — each one is a complete typographic setting
+     ============================================================ */
+  var TREATMENTS = {
+    press: {
+      label:'Press', sub:'grotesk',
+      family:"'Helvetica Neue',Helvetica,Arial,sans-serif",
+      weight:800, upper:true, tracking:-0.018,
+      bg:'#f2ece0', ink:'#17140f', accent:'#c8402a',
+      kickerColor:'#c8402a', rule:'#17140f', ruleAbove:true, ribbon:false
+    },
+    broadsheet: {
+      label:'Broadsheet', sub:'serif',
+      family:"Georgia,'Times New Roman',Times,serif",
+      weight:700, upper:false, tracking:-0.012,
+      bg:'#fbf7ee', ink:'#141210', accent:'#7a2418',
+      kickerColor:'#7a2418', rule:'#141210', ruleAbove:false, ribbon:false, doubleRule:true
+    },
+    marquee: {
+      label:'Marquee', sub:'condensed',
+      family:"Impact,'Haettenschweiler','Arial Narrow',Helvetica,sans-serif",
+      weight:400, upper:true, tracking:0.004,
+      bg:'#12171c', ink:'#f5f0e4', accent:'#e8a838',
+      kickerColor:'#e8a838', rule:'#e8a838', ruleAbove:false, ribbon:false, baseRule:true
+    },
+    ribbon: {
+      label:'Ribbon', sub:'knockout',
+      family:"'Helvetica Neue',Helvetica,Arial,sans-serif",
+      weight:700, upper:false, tracking:-0.014,
+      bg:'#efe8da', ink:'#f7f3ea', accent:'#1f3a44',
+      kickerColor:'#1f3a44', rule:'#1f3a44', ruleAbove:false, ribbon:true
+    }
+  };
+  var TREAT_ORDER = ['press','broadsheet','marquee','ribbon'];
+
+  var LEADING = { tight:0.92, normal:1.06, airy:1.24 };
+
+  /* Formats. `crop` is the secondary framing a lockup usually survives:
+     a centred square pulled out of the portrait or landscape canvas. */
+  var FORMATS = [
+    { key:'square',    w:1080, h:1080, label:'Square',    pad:0.085, crop:null },
+    { key:'portrait',  w:1080, h:1350, label:'Portrait',  pad:0.085, crop:{x:0,y:135,w:1080,h:1080}, cropName:'square feed crop' },
+    { key:'landscape', w:1920, h:1080, label:'Landscape', pad:0.075, crop:{x:420,y:0,w:1080,h:1080}, cropName:'square thumbnail crop' }
+  ];
+
+  var EXAMPLE = {
+    headline:'Night Ferry Returns To Harbor After Twelve Quiet Years',
+    kicker:'Harbor Desk · Evening Notice',
+    joints:['bond','auto','bond','auto','break','auto','bond','bond']
+  };
+
+  var state = {
+    headline: EXAMPLE.headline,
+    kicker: EXAMPLE.kicker,
+    joints: EXAMPLE.joints.slice(),
+    treatment:'press',
+    align:'left',
+    rag:'balanced',
+    lead:'normal',
+    guides:'on'
+  };
+
+  var JOINT_CYCLE = ['auto','bond','break'];
+  var JOINT_UI = {
+    auto:{ glyph:'·', tag:'auto', cls:'' },
+    bond:{ glyph:'⌣', tag:'bond', cls:'is-bond' },
+    break:{ glyph:'¶', tag:'break', cls:'is-break' }
+  };
+
+  /* ============================================================
+     Measurement
+     ============================================================ */
+  var MEASURE_SIZE = 100;
+  var canvas = document.createElement('canvas');
+  var ctx = canvas.getContext('2d');
+
+  function measure(text, treat){
+    ctx.font = treat.weight + ' ' + MEASURE_SIZE + 'px ' + treat.family;
+    var base = ctx.measureText(text).width;
+    // tracking is expressed as a fraction of the type size, applied between glyphs
+    var gaps = Math.max(0, text.length - 1);
+    return base + gaps * treat.tracking * MEASURE_SIZE;
+  }
+
+  /* ============================================================
+     Words, joints, atoms
+     ============================================================ */
+  function words(str){
+    return String(str || '').replace(/\s+/g,' ').trim().split(' ').filter(function(w){ return w.length; });
+  }
+
+  function syncJoints(){
+    var n = Math.max(0, words(state.headline).length - 1);
+    var j = state.joints.slice(0, n);
+    while (j.length < n) j.push('auto');
+    state.joints = j;
+  }
+
+  /* An atom is an unbreakable run of words. `hard` marks a forced line end. */
+  function buildAtoms(){
+    var ws = words(state.headline);
+    var atoms = [];
+    if (!ws.length) return atoms;
+    var cur = ws[0];
+    for (var i = 1; i < ws.length; i++){
+      var j = state.joints[i-1] || 'auto';
+      if (j === 'bond'){ cur += ' ' + ws[i]; continue; }
+      atoms.push({ t: cur, hard: j === 'break' });
+      cur = ws[i];
+    }
+    atoms.push({ t: cur, hard:false });
+    return atoms;
+  }
+
+  /* ============================================================
+     Line breaking
+     ============================================================ */
+  function greedy(items, widths, spaceW, maxW){
+    var lines = [], cur = [], curW = 0;
+    for (var i = 0; i < items.length; i++){
+      var w = widths[i];
+      var add = cur.length ? spaceW + w : w;
+      if (cur.length && curW + add > maxW){
+        lines.push(cur); cur = [i]; curW = w;
+      } else {
+        cur.push(i); curW += add;
+      }
+    }
+    if (cur.length) lines.push(cur);
+    return lines;
+  }
+
+  function balanced(items, widths, spaceW, maxW, k){
+    var n = items.length;
+    if (k <= 1 || n <= 1) return greedy(items, widths, spaceW, maxW);
+    var run = [];
+    for (var i = 0; i <= n; i++){ run[i] = []; }
+    for (i = 0; i < n; i++){
+      var acc = 0;
+      for (var j = i; j < n; j++){
+        acc += widths[j] + (j > i ? spaceW : 0);
+        run[i][j] = acc;
+      }
+    }
+    var INF = 1e15;
+    var best = [], cut = [];
+    for (i = 0; i <= n; i++){ best.push([]); cut.push([]); for (var q = 0; q <= k; q++){ best[i][q] = INF; cut[i][q] = -1; } }
+    best[n][0] = 0;
+    for (i = n - 1; i >= 0; i--){
+      for (q = 1; q <= k; q++){
+        for (j = i; j < n; j++){
+          var w = run[i][j];
+          if (best[j+1][q-1] >= INF) continue;
+          var slack = maxW - w;
+          var cost = slack >= 0 ? slack * slack : (slack * slack) * 40 + 1e9; // overflow strongly penalised, never fatal
+          var total = cost + best[j+1][q-1];
+          if (total < best[i][q]){ best[i][q] = total; cut[i][q] = j; }
+        }
+      }
+    }
+    if (best[0][k] >= INF) return greedy(items, widths, spaceW, maxW);
+    var lines = [], pos = 0, left = k;
+    while (left > 0 && pos < n){
+      var end = cut[pos][left];
+      if (end < 0) break;
+      var line = [];
+      for (var m = pos; m <= end; m++) line.push(m);
+      lines.push(line);
+      pos = end + 1; left--;
+    }
+    if (pos < n) return greedy(items, widths, spaceW, maxW);
+    return lines;
+  }
+
+  /* Wrap atoms into lines at a given type size. Hard breaks split first. */
+  function wrapAtoms(atoms, w100, size, maxW, mode){
+    var scale = size / MEASURE_SIZE;
+    var spaceW = w100.space * scale;
+    var out = [];
+    var seg = [];
+    var segIdx = [];
+    for (var i = 0; i < atoms.length; i++){
+      seg.push(atoms[i]); segIdx.push(i);
+      if (atoms[i].hard || i === atoms.length - 1){
+        var widths = segIdx.map(function(ix){ return w100.atoms[ix] * scale; });
+        var k = greedy(seg, widths, spaceW, maxW).length;
+        var packed = (mode === 'balanced') ? balanced(seg, widths, spaceW, maxW, k)
+                                           : greedy(seg, widths, spaceW, maxW);
+        for (var L = 0; L < packed.length; L++){
+          var idxs = packed[L];
+          var text = idxs.map(function(ix){ return seg[ix].t; }).join(' ');
+          var lw = 0;
+          for (var q = 0; q < idxs.length; q++) lw += widths[idxs[q]] + (q ? spaceW : 0);
+          out.push({ text:text, w:lw, forced:false, atomCount:idxs.length });
+        }
+        if (out.length) out[out.length-1].forced = atoms[i].hard;
+        seg = []; segIdx = [];
+      }
+    }
+    return out;
+  }
+
+  /* ============================================================
+     Fitting + layout
+     ============================================================ */
+  function layout(fmt){
+    var treat = TREATMENTS[state.treatment];
+    var lead = LEADING[state.lead];
+    var pad = Math.round(Math.min(fmt.w, fmt.h) * fmt.pad);
+    var safe = { x:pad, y:pad, w:fmt.w - pad*2, h:fmt.h - pad*2 };
+
+    var atoms = buildAtoms();
+    var headText = atoms.map(function(a){ return a.t; }).join(' ');
+    if (!atoms.length){
+      return { fmt:fmt, treat:treat, safe:safe, pad:pad, lines:[], size:0, empty:true,
+               kicker:null, blockTop:safe.y, blockH:0, lead:lead };
+    }
+
+    var casing = function(s){ return treat.upper ? s.toUpperCase() : s; };
+    var w100 = {
+      atoms: atoms.map(function(a){ return measure(casing(a.t), treat); }),
+      space: measure(casing('n n'), treat) - measure(casing('nn'), treat)
+    };
+    if (!(w100.space > 0)) w100.space = MEASURE_SIZE * 0.28;
+
+    var kickerText = String(state.kicker || '').replace(/\s+/g,' ').trim();
+    var hasKicker = kickerText.length > 0;
+
+    var maxSize = safe.h * 0.62;
+    var minSize = 12;
+    var chosen = null;
+
+    for (var size = maxSize; size > minSize; size *= 0.975){
+      var lines = wrapAtoms(atoms, w100, size, safe.w, state.rag);
+      var widest = 0;
+      for (var i = 0; i < lines.length; i++) widest = Math.max(widest, lines[i].w);
+      var kSize = hasKicker ? Math.max(16, Math.min(size * 0.24, safe.h * 0.06)) : 0;
+      var kGap = hasKicker ? kSize * 1.5 : 0;
+      var totalH = lines.length * size * lead + kSize + kGap;
+      if (widest <= safe.w && totalH <= safe.h){
+        chosen = { size:size, lines:lines, widest:widest, kSize:kSize, kGap:kGap, totalH:totalH };
+        break;
+      }
+    }
+    if (!chosen){
+      var s = minSize;
+      var ls = wrapAtoms(atoms, w100, s, safe.w, state.rag);
+      var wd = 0;
+      for (var z = 0; z < ls.length; z++) wd = Math.max(wd, ls[z].w);
+      var ks = hasKicker ? 16 : 0;
+      chosen = { size:s, lines:ls, widest:wd, kSize:ks, kGap:hasKicker ? ks*1.5 : 0,
+                 totalH: ls.length * s * lead + ks + (hasKicker ? ks*1.5 : 0), starved:true };
+    }
+
+    var kicker = null;
+    if (hasKicker){
+      var kTrack = 0.16;
+      var kw = measure(kickerText.toUpperCase(), { weight:700, family:treat.family, tracking:kTrack })
+               * (chosen.kSize / MEASURE_SIZE);
+      var kSize = chosen.kSize;
+      if (kw > safe.w){ kSize = kSize * (safe.w / kw); kw = safe.w; }
+      kicker = { text:kickerText.toUpperCase(), size:kSize, w:kw, track:kTrack };
+    }
+
+    var blockH = chosen.totalH;
+    var blockTop = safe.y + Math.max(0, (safe.h - blockH) / 2);
+
+    return {
+      fmt:fmt, treat:treat, safe:safe, pad:pad, lead:lead,
+      lines:chosen.lines, size:chosen.size, widest:chosen.widest,
+      kicker:kicker, kGap:chosen.kGap, blockTop:blockTop, blockH:blockH,
+      starved:!!chosen.starved, headText:headText, empty:false
+    };
+  }
+
+  /* Geometry of each rendered line, shared by the SVG builder and the notes. */
+  function lineBoxes(L){
+    var boxes = [];
+    var y = L.blockTop;
+    if (L.kicker){ y += L.kicker.size + L.kGap; }
+    var lh = L.size * L.lead;
+    for (var i = 0; i < L.lines.length; i++){
+      var ln = L.lines[i];
+      var x = (state.align === 'center') ? (L.fmt.w - ln.w) / 2 : L.safe.x;
+      boxes.push({ x:x, y:y, w:ln.w, h:lh, text:ln.text, baseline: y + (lh + L.size * 0.72) / 2, index:i });
+      y += lh;
+    }
+    return boxes;
+  }
+
+  /* ============================================================
+     SVG
+     ============================================================ */
+  function esc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/"/g,'&quot;');
+  }
+  function n(v){ return Math.round(v * 100) / 100; }
+
+  function lockupBody(L, ox, oy){
+    var t = L.treat, f = L.fmt, out = [];
+    ox = ox || 0; oy = oy || 0;
+    var anchor = (state.align === 'center') ? 'middle' : 'start';
+    var ax = (state.align === 'center') ? f.w / 2 : L.safe.x;
+
+    out.push('<rect x="'+n(ox)+'" y="'+n(oy)+'" width="'+f.w+'" height="'+f.h+'" fill="'+t.bg+'"/>');
+    if (L.empty) return out.join('');
+
+    var boxes = lineBoxes(L);
+    var kicker = L.kicker;
+
+    if (kicker){
+      var ky = L.blockTop + kicker.size * 0.82;
+      var kx = (state.align === 'center') ? f.w / 2 : L.safe.x;
+      if (t.ruleAbove){
+        out.push('<rect x="'+n(ox + (state.align==="center" ? f.w/2 - kicker.w/2 : L.safe.x))+'" y="'+
+                 n(oy + L.blockTop - kicker.size * 0.95)+'" width="'+n(kicker.w)+'" height="'+
+                 n(Math.max(2, kicker.size*0.14))+'" fill="'+t.accent+'"/>');
+      }
+      out.push('<text x="'+n(ox+kx)+'" y="'+n(oy+ky)+'" fill="'+t.kickerColor+'" text-anchor="'+anchor+
+               '" font-family="'+esc(t.family)+'" font-size="'+n(kicker.size)+'" font-weight="700" letter-spacing="'+
+               n(kicker.size*kicker.track)+'">'+esc(kicker.text)+'</text>');
+      if (t.doubleRule){
+        var ry = L.blockTop + kicker.size * 1.5;
+        var rw = L.safe.w;
+        var rx = L.safe.x;
+        out.push('<rect x="'+n(ox+rx)+'" y="'+n(oy+ry)+'" width="'+n(rw)+'" height="2" fill="'+t.rule+'" opacity="0.75"/>');
+        out.push('<rect x="'+n(ox+rx)+'" y="'+n(oy+ry+6)+'" width="'+n(rw)+'" height="1" fill="'+t.rule+'" opacity="0.45"/>');
+      }
+    }
+
+    for (var i = 0; i < boxes.length; i++){
+      var b = boxes[i];
+      var text = L.treat.upper ? b.text.toUpperCase() : b.text;
+      if (t.ribbon){
+        var padX = L.size * 0.16;
+        var rx2 = (state.align === 'center') ? (f.w - b.w)/2 - padX : L.safe.x - padX;
+        out.push('<rect x="'+n(ox+rx2)+'" y="'+n(oy+b.y)+'" width="'+n(b.w + padX*2)+'" height="'+n(b.h)+
+                 '" fill="'+t.accent+'"/>');
+      }
+      out.push('<text x="'+n(ox+ax)+'" y="'+n(oy+b.baseline)+'" fill="'+t.ink+'" text-anchor="'+anchor+
+               '" font-family="'+esc(t.family)+'" font-size="'+n(L.size)+'" font-weight="'+t.weight+
+               '" letter-spacing="'+n(L.size*t.tracking)+'">'+esc(text)+'</text>');
+    }
+
+    if (t.baseRule && boxes.length){
+      var last = boxes[boxes.length-1];
+      out.push('<rect x="'+n(ox+L.safe.x)+'" y="'+n(oy+last.y+last.h+L.size*0.22)+'" width="'+n(L.safe.w)+
+               '" height="'+n(Math.max(3, L.size*0.045))+'" fill="'+t.rule+'"/>');
+    }
+    return out.join('');
+  }
+
+  function guideLayer(L, ox, oy){
+    var f = L.fmt, out = [];
+    ox = ox || 0; oy = oy || 0;
+    var dash = Math.max(6, f.w * 0.012);
+    out.push('<rect x="'+n(ox+L.safe.x)+'" y="'+n(oy+L.safe.y)+'" width="'+n(L.safe.w)+'" height="'+n(L.safe.h)+
+             '" fill="none" stroke="#c8402a" stroke-opacity="0.65" stroke-width="'+n(f.w*0.003)+
+             '" stroke-dasharray="'+n(dash)+' '+n(dash)+'"/>');
+    if (f.crop){
+      var c = f.crop;
+      out.push('<rect x="'+n(ox+c.x)+'" y="'+n(oy+c.y)+'" width="'+n(c.w)+'" height="'+n(c.h)+
+               '" fill="none" stroke="#1f3a44" stroke-opacity="0.8" stroke-width="'+n(f.w*0.004)+'"/>');
+      if (c.y > 0){
+        out.push('<rect x="'+n(ox)+'" y="'+n(oy)+'" width="'+f.w+'" height="'+n(c.y)+'" fill="#1f3a44" opacity="0.14"/>');
+        out.push('<rect x="'+n(ox)+'" y="'+n(oy+c.y+c.h)+'" width="'+f.w+'" height="'+n(f.h-c.y-c.h)+'" fill="#1f3a44" opacity="0.14"/>');
+      }
+      if (c.x > 0){
+        out.push('<rect x="'+n(ox)+'" y="'+n(oy)+'" width="'+n(c.x)+'" height="'+f.h+'" fill="#1f3a44" opacity="0.14"/>');
+        out.push('<rect x="'+n(ox+c.x+c.w)+'" y="'+n(oy)+'" width="'+n(f.w-c.x-c.w)+'" height="'+f.h+'" fill="#1f3a44" opacity="0.14"/>');
+      }
+    }
+    return out.join('');
+  }
+
+  function singleSVG(L, withGuides){
+    var f = L.fmt;
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+f.w+' '+f.h+'" width="'+f.w+'" height="'+f.h+
+           '" role="img" aria-label="'+esc(f.label+' lockup')+'">'+
+           lockupBody(L, 0, 0) + (withGuides ? guideLayer(L, 0, 0) : '') + '</svg>';
+  }
+
+  function contactSheet(layouts){
+    var M = 70, GAP = 60, LAB = 54;
+    var sq = layouts.square, po = layouts.portrait, la = layouts.landscape;
+    var topH = Math.max(sq.fmt.h, po.fmt.h);
+    var W = M*2 + sq.fmt.w + GAP + po.fmt.w;
+    var rowTwoY = M + LAB + topH + GAP + LAB;
+    var H = rowTwoY + la.fmt.h + M;
+    var innerW = W - M*2;
+    var laScale = innerW / la.fmt.w;
+
+    var parts = [];
+    parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+n(W)+' '+n(H)+'" width="'+n(W)+'" height="'+n(H)+
+               '" role="img" aria-label="Headline lockup contact sheet">');
+    parts.push('<rect x="0" y="0" width="'+n(W)+'" height="'+n(H)+'" fill="#e9e3d6"/>');
+    var mono = "ui-monospace,'SF Mono',Menlo,Consolas,monospace";
+    function label(x, y, txt){
+      return '<text x="'+n(x)+'" y="'+n(y)+'" fill="#6b6355" font-family="'+esc(mono)+
+             '" font-size="30" font-weight="700" letter-spacing="4">'+esc(txt)+'</text>';
+    }
+    parts.push(label(M, M - 14, 'BREAKPOINT — LOCKUP CONTACT SHEET · ' + TREATMENTS[state.treatment].label.toUpperCase()));
+
+    var y0 = M + LAB;
+    parts.push(label(M, y0 - 12, 'SQUARE 1080×1080'));
+    parts.push('<g>'+lockupBody(sq, M, y0)+'</g>');
+    parts.push('<rect x="'+n(M)+'" y="'+n(y0)+'" width="'+sq.fmt.w+'" height="'+sq.fmt.h+'" fill="none" stroke="#a99e86" stroke-width="3"/>');
+
+    var px = M + sq.fmt.w + GAP;
+    parts.push(label(px, y0 - 12, 'PORTRAIT 1080×1350'));
+    parts.push('<g>'+lockupBody(po, px, y0)+'</g>');
+    parts.push('<rect x="'+n(px)+'" y="'+n(y0)+'" width="'+po.fmt.w+'" height="'+po.fmt.h+'" fill="none" stroke="#a99e86" stroke-width="3"/>');
+
+    parts.push(label(M, rowTwoY - 12, 'LANDSCAPE 1920×1080'));
+    parts.push('<g transform="translate('+n(M)+' '+n(rowTwoY)+') scale('+n(laScale)+')">'+lockupBody(la, 0, 0)+'</g>');
+    parts.push('<rect x="'+n(M)+'" y="'+n(rowTwoY)+'" width="'+n(la.fmt.w*laScale)+'" height="'+n(la.fmt.h*laScale)+
+               '" fill="none" stroke="#a99e86" stroke-width="3"/>');
+    parts.push('</svg>');
+    return parts.join('');
+  }
+
+  /* ============================================================
+     Descriptive notes (no scores, no grades)
+     ============================================================ */
+  function notesFor(L){
+    var out = [];
+    if (L.empty){ out.push({ t:'Nothing set yet — type a headline above.', k:'flag' }); return out; }
+    var boxes = lineBoxes(L);
+    var f = L.fmt;
+    var lineWord = L.lines.length === 1 ? '1 line' : L.lines.length + ' lines';
+    var fill = Math.round((L.widest / L.safe.w) * 100);
+    out.push({ t: lineWord + ' at ' + Math.round(L.size) + ' px; the longest line runs ' + fill + '% of the column.' });
+
+    if (L.starved){
+      out.push({ t:'This much copy cannot fit inside the margins here — the type is at its floor and still crowding the edge.', k:'flag' });
+    }
+
+    // short trailing line
+    var last = L.lines[L.lines.length-1];
+    if (L.lines.length > 1 && last.w / L.safe.w < 0.28){
+      out.push({ t:'The last line is short (' + Math.round(last.w / L.safe.w * 100) + '% of the column) — bonding it to the words above pulls it up.', k:'flag' });
+    }
+
+    // forced break consequences
+    for (var i = 0; i < L.lines.length; i++){
+      if (L.lines[i].forced && i < L.lines.length - 1 && L.lines[i].w / L.safe.w < 0.45){
+        out.push({ t:'Your break after line ' + (i+1) + ' leaves it at ' + Math.round(L.lines[i].w / L.safe.w * 100) + '% width, so the rag steps in hard.' });
+        break;
+      }
+    }
+
+    // crop survival
+    if (f.crop){
+      var c = f.crop, outside = [];
+      for (i = 0; i < boxes.length; i++){
+        var b = boxes[i];
+        if (b.y < c.y || b.y + b.h > c.y + c.h || b.x < c.x || b.x + b.w > c.x + c.w) outside.push(i+1);
+      }
+      if (outside.length){
+        out.push({ t:'Line' + (outside.length>1?'s ':' ') + outside.join(', ') + ' fall outside the ' + f.cropName + ' — that part disappears if the image is squared off.', k:'flag' });
+      } else {
+        out.push({ t:'Every line survives the ' + f.cropName + '.', k:'good' });
+      }
+    } else {
+      out.push({ t:'No secondary crop here — the full canvas is the frame.' });
+    }
+
+    if (L.kicker && L.kicker.w >= L.safe.w - 1){
+      out.push({ t:'The kicker was pulled down to reach the margin; shortening it keeps it at full size.' });
+    }
+    return out;
+  }
+
+  function crossFormatNote(layouts){
+    var counts = FORMATS.map(function(f){ return layouts[f.key].lines.length; });
+    var same = counts.every(function(c){ return c === counts[0]; });
+    if (same) return 'All three formats set the headline in ' + counts[0] + (counts[0]===1?' line':' lines') + ' — the shape holds everywhere.';
+    return 'Line counts differ: square ' + counts[0] + ', portrait ' + counts[1] + ', landscape ' + counts[2] + '.';
+  }
+
+  /* ============================================================
+     Rendering the page
+     ============================================================ */
+  var el = {
+    headline: document.getElementById('headline'),
+    kicker: document.getElementById('kicker'),
+    hcount: document.getElementById('hcount'),
+    strip: document.getElementById('strip'),
+    status: document.getElementById('status')
+  };
+
+  var lastLayouts = null;
+
+  function renderStrip(){
+    var ws = words(state.headline);
+    var frag = document.createDocumentFragment();
+    if (!ws.length){
+      var p = document.createElement('div');
+      p.className = 'word';
+      p.style.color = 'var(--ink-3)';
+      p.textContent = 'Type a headline to place joints between its words.';
+      frag.appendChild(p);
+      el.strip.innerHTML = '';
+      el.strip.appendChild(frag);
+      return;
+    }
+    for (var i = 0; i < ws.length; i++){
+      if (i > 0){
+        var v = state.joints[i-1] || 'auto';
+        var ui = JOINT_UI[v];
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'joint ' + ui.cls;
+        b.setAttribute('data-i', String(i-1));
+        b.setAttribute('aria-label', 'Joint between ' + ws[i-1] + ' and ' + ws[i] + ': ' + v + '. Tap to change.');
+        b.title = 'auto → bond → break';
+        b.innerHTML = '<span class="glyph">' + ui.glyph + '</span><span class="tag">' + ui.tag + '</span>';
+        frag.appendChild(b);
+      }
+      var w = document.createElement('div');
+      w.className = 'word';
+      w.textContent = ws[i];
+      frag.appendChild(w);
+    }
+    el.strip.innerHTML = '';
+    el.strip.appendChild(frag);
+  }
+
+  function renderSegs(){
+    setSeg('segTreatment', state.treatment);
+    setSeg('segAlign', state.align);
+    setSeg('segRag', state.rag);
+    setSeg('segLead', state.lead);
+    setSeg('segGuides', state.guides);
+  }
+  function setSeg(id, value){
+    var box = document.getElementById(id);
+    var btns = box.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++){
+      btns[i].setAttribute('aria-pressed', btns[i].getAttribute('data-v') === value ? 'true' : 'false');
+    }
+  }
+
+  function render(){
+    syncJoints();
+    renderStrip();
+    renderSegs();
+    el.hcount.textContent = words(state.headline).length + ' words · ' + state.headline.length + '/140 characters';
+
+    var layouts = {};
+    FORMATS.forEach(function(f){ layouts[f.key] = layout(f); });
+    lastLayouts = layouts;
+
+    FORMATS.forEach(function(f){
+      var L = layouts[f.key];
+      var stage = document.getElementById('stage-' + f.key);
+      stage.innerHTML = singleSVG(L, state.guides === 'on');
+      var meta = document.getElementById('meta-' + f.key);
+      meta.textContent = L.empty ? '—' : (L.lines.length + (L.lines.length===1?' line':' lines') + ' · ' + Math.round(L.size) + ' px');
+      var ul = document.getElementById('notes-' + f.key);
+      var notes = notesFor(L);
+      ul.innerHTML = '';
+      notes.forEach(function(nn){
+        var li = document.createElement('li');
+        if (nn.k) li.className = nn.k;
+        li.textContent = nn.t;
+        ul.appendChild(li);
+      });
+      if (f.key === 'landscape' && !L.empty){
+        var li2 = document.createElement('li');
+        li2.textContent = crossFormatNote(layouts);
+        ul.appendChild(li2);
+      }
+    });
+  }
+
+  /* ============================================================
+     Export
+     ============================================================ */
+  function say(msg, warn){
+    el.status.textContent = msg;
+    el.status.className = 'status' + (warn ? ' warn' : '');
+  }
+
+  function slug(){
+    var s = words(state.headline).slice(0, 5).join('-').toLowerCase().replace(/[^a-z0-9-]/g,'');
+    return s || 'headline';
+  }
+
+  function download(filename, text){
+    try {
+      var blob = new Blob([text], { type:'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+      return true;
+    } catch (err){
+      return false;
+    }
+  }
+
+  document.getElementById('expSheet').addEventListener('click', function(){
+    if (!lastLayouts || lastLayouts.square.empty){ say('Type a headline first.', true); return; }
+    var ok = download('breakpoint-' + slug() + '-contact-sheet.svg', contactSheet(lastLayouts));
+    say(ok ? 'Contact sheet saved — all three lockups in one vector file.' : 'Your browser blocked the download.', !ok);
+  });
+
+  document.getElementById('expEach').addEventListener('click', function(){
+    if (!lastLayouts || lastLayouts.square.empty){ say('Type a headline first.', true); return; }
+    var made = 0;
+    FORMATS.forEach(function(f, i){
+      setTimeout(function(){
+        if (download('breakpoint-' + slug() + '-' + f.key + '.svg', singleSVG(lastLayouts[f.key], false))) made++;
+        if (i === FORMATS.length - 1){
+          setTimeout(function(){
+            say(made === 3 ? 'Three SVGs saved: square, portrait, landscape.'
+                           : 'Saved ' + made + ' of 3 — your browser may limit multiple downloads.', made !== 3);
+          }, 120);
+        }
+      }, i * 260);
+    });
+    say('Saving three files…');
+  });
+
+  document.getElementById('copySheet').addEventListener('click', function(){
+    if (!lastLayouts || lastLayouts.square.empty){ say('Type a headline first.', true); return; }
+    var code = contactSheet(lastLayouts);
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = code;
+      ta.setAttribute('readonly','');
+      ta.style.position = 'fixed'; ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e){ ok = false; }
+      document.body.removeChild(ta);
+      say(ok ? 'Contact-sheet SVG code copied to the clipboard.' : 'Copying was blocked — use the download button instead.', !ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(function(){
+        say('Contact-sheet SVG code copied to the clipboard.');
+      }, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  /* ============================================================
+     Input wiring
+     ============================================================ */
+  el.strip.addEventListener('click', function(ev){
+    var t = ev.target;
+    while (t && t !== el.strip && !t.classList.contains('joint')) t = t.parentNode;
+    if (!t || t === el.strip) return;
+    var i = parseInt(t.getAttribute('data-i'), 10);
+    if (isNaN(i)) return;
+    var cur = state.joints[i] || 'auto';
+    state.joints[i] = JOINT_CYCLE[(JOINT_CYCLE.indexOf(cur) + 1) % JOINT_CYCLE.length];
+    render();
+    var again = el.strip.querySelector('.joint[data-i="' + i + '"]');
+    if (again && document.activeElement !== document.body) { try { again.focus(); } catch (e){} }
+  });
+
+  el.headline.addEventListener('input', function(){
+    state.headline = el.headline.value;
+    render();
+  });
+  el.kicker.addEventListener('input', function(){
+    state.kicker = el.kicker.value;
+    render();
+  });
+
+  document.getElementById('clearJoints').addEventListener('click', function(){
+    state.joints = state.joints.map(function(){ return 'auto'; });
+    render();
+    say('All joints returned to auto.');
+  });
+
+  document.getElementById('loadExample').addEventListener('click', function(){
+    state.headline = EXAMPLE.headline;
+    state.kicker = EXAMPLE.kicker;
+    state.joints = EXAMPLE.joints.slice();
+    el.headline.value = state.headline;
+    el.kicker.value = state.kicker;
+    render();
+    say('Example reloaded — try tapping the red ¶ joint.');
+  });
+
+  function wireSeg(id, key){
+    document.getElementById(id).addEventListener('click', function(ev){
+      var t = ev.target;
+      while (t && t.tagName !== 'BUTTON' && t !== this) t = t.parentNode;
+      if (!t || t.tagName !== 'BUTTON') return;
+      var v = t.getAttribute('data-v');
+      if (!v) return;
+      state[key] = v;
+      render();
+    });
+  }
+  wireSeg('segTreatment','treatment');
+  wireSeg('segAlign','align');
+  wireSeg('segRag','rag');
+  wireSeg('segLead','lead');
+  wireSeg('segGuides','guides');
+
+  /* Build treatment buttons from the treatment table */
+  (function(){
+    var box = document.getElementById('segTreatment');
+    TREAT_ORDER.forEach(function(k){
+      var t = TREATMENTS[k];
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-v', k);
+      b.innerHTML = esc(t.label) + '<small>' + esc(t.sub) + '</small>';
+      box.appendChild(b);
+    });
+  })();
+
+  /* Boot */
+  el.headline.value = state.headline;
+  el.kicker.value = state.kicker;
+  render();
+})();
+</script>
+</body>
+</html>
