@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Afterlight — a pocket cyanotype studio. Compose silhouettes on a virtual sun-print sheet, hold to expose, swipe to rinse, export a PNG. Local, offline, single file.">
+<title>Afterlight — A Pocket Cyanotype Studio</title>
+<style>
+  :root{
+    --ink:#e8eef6;
+    --dim:#8fa3bd;
+    --bg0:#070b12;
+    --bg1:#0c1320;
+    --bg2:#121c2e;
+    --line:rgba(150,185,230,.16);
+    --line2:rgba(150,185,230,.28);
+    --blue:#3f7fc4;
+    --blue-deep:#0d2b52;
+    --sun:#ffcf7a;
+    --paper:#efe8d8;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #16233a 0%, transparent 60%),
+      radial-gradient(90% 60% at 110% 100%, #10233d 0%, transparent 55%),
+      var(--bg0);
+    color:var(--ink);
+    font:400 16px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100dvh;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{
+    width:100%;
+    max-width:560px;
+    margin:0 auto;
+    padding:14px 14px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------- header ---------- */
+  header.top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
+  .brand{
+    font-size:23px;letter-spacing:.13em;text-transform:uppercase;font-weight:600;
+    background:linear-gradient(100deg,#dfe9f6 10%,#7fb4e8 55%,#ffd79a 95%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .tagline{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .chip{
+    margin-left:auto;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    padding:5px 10px;border-radius:999px;border:1px solid var(--line2);
+    color:#bcd4f0;background:rgba(63,127,196,.12);white-space:nowrap;
+  }
+
+  /* ---------- sheet ---------- */
+  .stage{position:relative;margin:0 0 12px}
+  .sheet-wrap{
+    position:relative;
+    width:min(100%, calc(56dvh * 0.75));
+    margin:0 auto;
+    aspect-ratio:3/4;
+    border-radius:6px;
+    background:#1a2233;
+    box-shadow:0 18px 46px -18px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.07), 0 1px 0 rgba(255,255,255,.10) inset;
+    overflow:hidden;
+    touch-action:none;
+  }
+  canvas#sheet{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  .sun-wash{
+    position:absolute;inset:0;pointer-events:none;opacity:0;
+    background:radial-gradient(60% 42% at 50% -8%, rgba(255,214,140,.55), rgba(255,190,110,.10) 55%, transparent 72%);
+    mix-blend-mode:screen;
+    transition:opacity .35s ease;
+  }
+  body[data-phase="exposing"] .sun-wash{opacity:1}
+  .hint{
+    position:absolute;left:50%;bottom:9px;transform:translateX(-50%);
+    max-width:calc(100% - 22px);
+    font-size:12px;line-height:1.35;letter-spacing:.02em;text-align:center;
+    padding:7px 12px;border-radius:999px;
+    background:rgba(7,12,20,.72);color:#dce9f8;border:1px solid rgba(255,255,255,.13);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    pointer-events:none;
+  }
+
+  /* ---------- panels ---------- */
+  .panel{
+    border:1px solid var(--line);border-radius:var(--r);
+    background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
+    padding:11px;margin-bottom:11px;
+  }
+  .label{
+    font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    margin:0 0 8px;display:flex;align-items:center;gap:8px;
+  }
+  .label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* palette */
+  .palette{
+    display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;
+    padding:2px 2px 6px;margin:0 -2px;
+    scrollbar-width:thin;-webkit-overflow-scrolling:touch;
+  }
+  .palette::-webkit-scrollbar{height:5px}
+  .palette::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+  .stamp{
+    flex:0 0 auto;width:60px;min-height:74px;padding:5px 3px 4px;
+    border:1px solid var(--line);border-radius:11px;
+    background:linear-gradient(180deg,#122542,#0c1a30);
+    color:var(--dim);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font:inherit;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .stamp canvas{width:46px;height:46px;display:block;border-radius:7px}
+  .stamp:active{transform:translateY(1px);border-color:var(--line2)}
+  .stamp:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+
+  /* button grid */
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+  .btn{
+    min-height:46px;padding:6px 4px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border:1px solid var(--line);border-radius:11px;
+    background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    color:var(--ink);font:inherit;font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+    cursor:pointer;user-select:none;-webkit-user-select:none;
+  }
+  .btn .ic{font-size:16px;line-height:1;font-variant-emoji:text}
+  .btn:active{transform:translateY(1px);background:rgba(255,255,255,.11)}
+  .btn:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+  .btn[disabled]{opacity:.32;cursor:default;transform:none}
+  .btn.danger{color:#ffbcb0}
+  .btn.wide{flex-direction:row;gap:7px;font-size:11.5px}
+  .btn.primary{
+    border-color:rgba(255,207,122,.5);
+    background:linear-gradient(180deg,rgba(255,207,122,.22),rgba(255,207,122,.07));
+    color:#ffe4b6;
+  }
+
+  /* expose */
+  .expose-wrap{margin-bottom:11px}
+  .expose{
+    position:relative;width:100%;min-height:66px;
+    border-radius:15px;border:1px solid rgba(255,207,122,.42);
+    background:linear-gradient(180deg,rgba(255,207,122,.10),rgba(255,207,122,.03));
+    color:#ffe9c6;font:inherit;cursor:pointer;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    touch-action:none;user-select:none;-webkit-user-select:none;
+  }
+  .expose .fill{
+    position:absolute;left:0;top:0;bottom:0;width:100%;
+    transform-origin:left center;transform:scaleX(var(--p,0));
+    background:linear-gradient(90deg,rgba(255,196,104,.30),rgba(255,224,160,.42));
+    pointer-events:none;
+  }
+  .expose .txt{position:relative;font-size:15px;letter-spacing:.20em;text-transform:uppercase;font-weight:600}
+  .expose .sub{position:relative;font-size:10.5px;letter-spacing:.10em;color:#e5c99a;opacity:.9}
+  .expose:focus-visible{outline:2px solid var(--sun);outline-offset:3px}
+  body[data-phase="exposing"] .expose{border-color:rgba(255,224,160,.9);box-shadow:0 0 34px -6px rgba(255,196,104,.55)}
+  .expose[disabled]{opacity:.4}
+
+  /* rinse */
+  .rinse-track{
+    position:relative;height:12px;border-radius:99px;margin:2px 0 10px;
+    background:rgba(255,255,255,.07);border:1px solid var(--line);overflow:hidden;
+  }
+  .rinse-track i{
+    position:absolute;left:0;top:0;bottom:0;width:100%;
+    transform-origin:left center;transform:scaleX(var(--r,0));
+    background:linear-gradient(90deg,#1d4d86,#6fb2e6);
+  }
+
+  .field{display:flex;gap:8px;align-items:center;margin-bottom:9px}
+  .field label{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);flex:0 0 auto}
+  .field input{
+    flex:1;min-width:0;min-height:44px;padding:8px 11px;
+    border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--ink);
+    font:inherit;font-size:15px;
+  }
+  .field input:focus-visible{outline:2px solid var(--sun);outline-offset:1px}
+
+  .status{
+    min-height:17px;font-size:12px;color:var(--dim);text-align:center;margin:2px 0 10px;
+  }
+  .note{
+    font-size:11.5px;line-height:1.6;color:#7d92ad;border-top:1px solid var(--line);
+    padding-top:11px;margin:14px 0 0;
+  }
+  .note b{color:#a8bdd8;font-weight:600}
+
+  /* phase visibility */
+  [data-show]{display:none}
+  body[data-phase="compose"]  [data-show~="compose"],
+  body[data-phase="exposing"] [data-show~="exposing"],
+  body[data-phase="exposed"]  [data-show~="exposed"],
+  body[data-phase="rinsing"]  [data-show~="rinsing"],
+  body[data-phase="done"]     [data-show~="done"]{display:block}
+  body[data-phase="compose"]  .panel[data-show~="compose"],
+  body[data-phase="exposing"] .panel[data-show~="exposing"],
+  body[data-phase="exposed"]  .panel[data-show~="exposed"],
+  body[data-phase="rinsing"]  .panel[data-show~="rinsing"],
+  body[data-phase="done"]     .panel[data-show~="done"]{display:block}
+  body[data-phase="exposing"] .palette,
+  body[data-phase="exposing"] .grid4{opacity:.35;pointer-events:none}
+
+  @media (max-width:359px){
+    .brand{font-size:20px}
+    .stamp{width:54px}
+    .stamp canvas{width:42px;height:42px}
+  }
+  @media (min-width:520px){
+    .sheet-wrap{width:min(100%, calc(60dvh * 0.75))}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important}
+    .sun-wash{transition:none}
+  }
+</style>
+</head>
+<body data-phase="compose">
+<div class="app">
+
+  <header class="top">
+    <div class="brand">Afterlight</div>
+    <div class="tagline">pocket cyanotype studio</div>
+    <div class="chip" id="phaseChip">Compose</div>
+  </header>
+
+  <section class="stage">
+    <div class="sheet-wrap" id="sheetWrap">
+      <canvas id="sheet" aria-label="Cyanotype sheet. Drag silhouettes to arrange them; after exposing, swipe across to rinse."></canvas>
+      <div class="sun-wash" aria-hidden="true"></div>
+      <div class="hint" id="hint">Tap a silhouette to place it · drag on the sheet to move</div>
+    </div>
+  </section>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <!-- COMPOSE -->
+  <section class="panel" data-show="compose exposing">
+    <p class="label">Silhouettes</p>
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <section class="panel" data-show="compose exposing">
+    <p class="label" id="selLabel">Selected · nothing</p>
+    <div class="grid4" id="objBtns">
+      <button class="btn" id="rotL" type="button"><span class="ic" aria-hidden="true">↺</span>Turn</button>
+      <button class="btn" id="rotR" type="button"><span class="ic" aria-hidden="true">↻</span>Turn</button>
+      <button class="btn" id="down" type="button"><span class="ic" aria-hidden="true">–</span>Smaller</button>
+      <button class="btn" id="up" type="button"><span class="ic" aria-hidden="true">+</span>Bigger</button>
+      <button class="btn" id="flip" type="button"><span class="ic" aria-hidden="true">⇄</span>Mirror</button>
+      <button class="btn" id="dupe" type="button"><span class="ic" aria-hidden="true">⧉</span>Copy</button>
+      <button class="btn" id="front" type="button"><span class="ic" aria-hidden="true">⬆</span>Front</button>
+      <button class="btn danger" id="del" type="button"><span class="ic" aria-hidden="true">✕</span>Remove</button>
+    </div>
+  </section>
+
+  <section class="panel" data-show="compose exposing">
+    <div class="grid3">
+      <button class="btn" id="undo" type="button"><span class="ic" aria-hidden="true">⟲</span>Undo</button>
+      <button class="btn" id="demo" type="button"><span class="ic" aria-hidden="true">✦</span>Demo</button>
+      <button class="btn" id="clear" type="button"><span class="ic" aria-hidden="true">◻</span>Bare sheet</button>
+    </div>
+  </section>
+
+  <div class="expose-wrap" data-show="compose exposing">
+    <button class="expose" id="expose" type="button" aria-label="Press and hold to expose the sheet to light">
+      <span class="fill" aria-hidden="true"></span>
+      <span class="txt">Hold to expose</span>
+      <span class="sub" id="exposeSub">press and keep holding · about 3 seconds for a deep print</span>
+    </button>
+  </div>
+
+  <!-- RINSE -->
+  <section class="panel" data-show="exposed rinsing">
+    <p class="label">Rinse</p>
+    <div class="rinse-track" aria-hidden="true"><i id="rinseFill"></i></div>
+    <p style="margin:0 0 10px;font-size:13px;color:#b7c8de;line-height:1.5">
+      Drag a finger across the sheet, left to right, to wash the unexposed coating away and bring up the blue.
+    </p>
+    <div class="grid2">
+      <button class="btn wide" id="rinseBtn" type="button"><span class="ic" aria-hidden="true">≈</span>Rinse it for me</button>
+      <button class="btn wide" id="backCompose" type="button"><span class="ic" aria-hidden="true">↩</span>Recompose</button>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section class="panel" data-show="done">
+    <p class="label">Print</p>
+    <div class="field">
+      <label for="titleIn">Caption</label>
+      <input id="titleIn" type="text" maxlength="26" value="morning study" autocomplete="off" spellcheck="false" enterkeyhint="done">
+    </div>
+    <div class="grid3">
+      <button class="btn primary wide" id="exportBtn" type="button" style="grid-column:span 3"><span class="ic" aria-hidden="true">⤓</span>Export PNG</button>
+      <button class="btn" id="backCompose2" type="button"><span class="ic" aria-hidden="true">↩</span>Recompose</button>
+      <button class="btn" id="again" type="button"><span class="ic" aria-hidden="true">☀</span>Re-expose</button>
+      <button class="btn" id="fresh" type="button"><span class="ic" aria-hidden="true">◻</span>New sheet</button>
+    </div>
+  </section>
+
+  <p class="note">
+    <b>Honest framing.</b> Afterlight is a drawing instrument, not chemistry. Nothing is measured, graded, or predicted, and
+    no light sensor is involved — exposure is simply how long you hold the button. Everything runs in this tab: no network
+    requests, no storage, no accounts. Close the tab and the sheet is gone, so export the PNG if you want to keep it.
+  </p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ────────────────────────────────────────────────────────────
+   deterministic noise
+   ──────────────────────────────────────────────────────────── */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+var TAU = Math.PI * 2;
+var clamp = function(v, a, b){ return v < a ? a : v > b ? b : v; };
+var lerp  = function(a, b, t){ return a + (b - a) * t; };
+function mixRGB(a, b, t){
+  t = clamp(t, 0, 1);
+  return [Math.round(lerp(a[0],b[0],t)), Math.round(lerp(a[1],b[1],t)), Math.round(lerp(a[2],b[2],t))];
+}
+function rgba(c, a){ return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (a === undefined ? 1 : a) + ")"; }
+
+var reduceMotion = false;
+try {
+  var mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  reduceMotion = mq.matches;
+  if (mq.addEventListener) mq.addEventListener("change", function(e){ reduceMotion = e.matches; });
+} catch (e) {}
+
+/* ────────────────────────────────────────────────────────────
+   palette of colours (cyanotype-ish)
+   ──────────────────────────────────────────────────────────── */
+var PAPER       = [239, 232, 216];
+var SENSITIZED  = [201, 184, 128];   // fresh coating, dry
+var BURNT       = [ 62,  70,  74];   // fully light-struck, before rinse
+var RESIST_DRY  = [216, 203, 152];   // under a silhouette, before rinse
+var RESIST_WET  = [246, 243, 233];   // washed clean
+var WET_PALE    = [206, 214, 214];
+var WET_DEEP    = [  8,  39,  74];   // Prussian blue
+
+/* ────────────────────────────────────────────────────────────
+   silhouettes — all original inline path code, unit box -0.5..0.5
+   ──────────────────────────────────────────────────────────── */
+function sub(p, fn){ var s = new Path2D(); fn(s); p.addPath(s); }
+function ell(p, cx, cy, rx, ry, rot){ sub(p, function(s){ s.ellipse(cx, cy, rx, ry, rot || 0, 0, TAU); }); }
+function stemPath(p, x0, y0, cx, cy, x1, y1, w){
+  p.moveTo(x0 - w, y0);
+  p.quadraticCurveTo(cx - w, cy, x1 - w * 0.5, y1);
+  p.lineTo(x1 + w * 0.5, y1);
+  p.quadraticCurveTo(cx + w, cy, x0 + w, y0);
+  p.closePath();
+}
+function quadPt(t, a, c, b){
+  var m = 1 - t;
+  return { x: m*m*a.x + 2*m*t*c.x + t*t*b.x, y: m*m*a.y + 2*m*t*c.y + t*t*b.y };
+}
+
+var SHAPES = {
+  fern: { name: "Fern", rule: "nonzero", build: function(p){
+    stemPath(p, 0, 0.50, 0.015, 0.02, 0, -0.44, 0.016);
+    for (var i = 0; i <= 12; i++){
+      var t = i / 12;
+      var y = 0.42 - t * 0.86;
+      var L = 0.40 * (1 - Math.pow(t, 1.4)) + 0.035;
+      for (var s = -1; s <= 1; s += 2){
+        (function(side, y, L){
+          sub(p, function(q){
+            q.moveTo(0, y + 0.018);
+            q.quadraticCurveTo(side * L * 0.55, y + 0.075, side * L, y - L * 0.60);
+            q.quadraticCurveTo(side * L * 0.34, y - L * 0.20, 0, y - 0.02);
+            q.closePath();
+          });
+        })(s, y, L);
+      }
+    }
+  }},
+
+  sprig: { name: "Sprig", rule: "nonzero", build: function(p){
+    var a = { x: -0.02, y: 0.50 }, c = { x: 0.16, y: 0.04 }, b = { x: -0.04, y: -0.46 };
+    stemPath(p, a.x, a.y, c.x, c.y, b.x, b.y, 0.014);
+    for (var i = 1; i <= 7; i++){
+      var t = i / 8;
+      var pt = quadPt(t, a, c, b);
+      var side = (i % 2) ? 1 : -1;
+      var r = 0.175 * (1 - 0.42 * t) + 0.035;
+      ell(p, pt.x + side * r * 0.86, pt.y - 0.03, r, r * 0.70, side * 0.55 * (1 - 0.5 * t));
+    }
+  }},
+
+  ginkgo: { name: "Ginkgo", rule: "nonzero", build: function(p){
+    var bx = 0, by = 0.36;
+    stemPath(p, 0, 0.50, 0.02, 0.44, 0, 0.34, 0.013);
+    sub(p, function(q){
+      q.moveTo(bx, by);
+      var a, r, k;
+      for (k = 0; k <= 16; k++){
+        a = (-172 + k * (72 / 16)) * Math.PI / 180;
+        r = 0.50 * (0.94 + 0.06 * Math.sin(k * 0.9));
+        q.lineTo(bx + Math.cos(a) * r, by + Math.sin(a) * r * 1.42);
+      }
+      q.quadraticCurveTo(bx - 0.05, by - 0.30, bx, by - 0.24);
+      q.quadraticCurveTo(bx + 0.05, by - 0.30, bx + Math.cos(-78 * Math.PI/180) * 0.50, by + Math.sin(-78 * Math.PI/180) * 0.50 * 1.42);
+      for (k = 0; k <= 16; k++){
+        a = (-78 + k * (70 / 16)) * Math.PI / 180;
+        r = 0.50 * (0.94 + 0.06 * Math.sin(k * 0.9 + 1.6));
+        q.lineTo(bx + Math.cos(a) * r, by + Math.sin(a) * r * 1.42);
+      }
+      q.closePath();
+    });
+  }},
+
+  wheat: { name: "Wheat", rule: "nonzero", build: function(p){
+    stemPath(p, 0, 0.50, 0.02, 0.20, 0, -0.16, 0.014);
+    for (var i = 0; i < 8; i++){
+      var t = i / 7;
+      var y = 0.10 - t * 0.44;
+      var side = (i % 2) ? 1 : -1;
+      var r = 0.13 * (1 - 0.45 * t) + 0.028;
+      ell(p, side * (0.055 + r * 0.35), y, r * 0.52, r, side * -0.55);
+      sub(p, function(q){
+        q.moveTo(side * 0.05, y - r * 0.6);
+        q.lineTo(side * 0.20, y - r * 2.5);
+        q.lineTo(side * 0.075, y - r * 0.55);
+        q.closePath();
+      });
+    }
+    ell(p, 0, -0.40, 0.045, 0.085, 0);
+  }},
+
+  seedhead: { name: "Seed head", rule: "nonzero", build: function(p){
+    var cy = -0.08;
+    stemPath(p, 0, 0.50, 0.03, 0.24, 0, cy, 0.013);
+    for (var i = 0; i < 30; i++){
+      var a = (i / 30) * TAU + 0.11;
+      var R = 0.40 * (0.90 + 0.10 * Math.sin(i * 2.3));
+      var ca = Math.cos(a), sa = Math.sin(a);
+      sub(p, function(q){
+        q.moveTo(-sa * 0.008, cy + ca * 0.008);
+        q.lineTo(ca * R, cy + sa * R);
+        q.lineTo(sa * 0.008, cy - ca * 0.008);
+        q.closePath();
+      });
+      ell(p, ca * R, cy + sa * R, 0.019, 0.019, 0);
+    }
+    ell(p, 0, cy, 0.045, 0.045, 0);
+  }},
+
+  bloom: { name: "Bloom", rule: "nonzero", build: function(p){
+    for (var i = 0; i < 6; i++){
+      var a = (i / 6) * TAU - Math.PI / 2;
+      var ca = Math.cos(a), sa = Math.sin(a);
+      sub(p, function(q){
+        q.moveTo(ca * 0.07, sa * 0.07);
+        q.quadraticCurveTo(ca * 0.30 - sa * 0.24, sa * 0.30 + ca * 0.24, ca * 0.47, sa * 0.47);
+        q.quadraticCurveTo(ca * 0.30 + sa * 0.24, sa * 0.30 - ca * 0.24, ca * 0.07, sa * 0.07);
+        q.closePath();
+      });
+    }
+    ell(p, 0, 0, 0.105, 0.105, 0);
+  }},
+
+  ring: { name: "Ring", rule: "evenodd", build: function(p){
+    ell(p, 0, 0, 0.47, 0.47, 0);
+    ell(p, 0, 0, 0.345, 0.345, 0);
+  }},
+
+  crescent: { name: "Crescent", rule: "evenodd", build: function(p){
+    ell(p, -0.02, 0, 0.47, 0.47, 0);
+    ell(p, 0.17, -0.05, 0.42, 0.42, 0);
+  }},
+
+  chevron: { name: "Chevron", rule: "nonzero", build: function(p){
+    for (var k = 0; k < 2; k++){
+      var off = -0.20 + k * 0.34;
+      var th = 0.15 - k * 0.03;
+      sub(p, function(q){
+        q.moveTo(-0.46, off + 0.20);
+        q.lineTo(0, off - 0.16);
+        q.lineTo(0.46, off + 0.20);
+        q.lineTo(0.46, off + 0.20 + th);
+        q.lineTo(0, off - 0.16 + th);
+        q.lineTo(-0.46, off + 0.20 + th);
+        q.closePath();
+      });
+    }
+  }},
+
+  bars: { name: "Bars", rule: "nonzero", build: function(p){
+    for (var i = 0; i < 4; i++){
+      var x = -0.40 + i * 0.245;
+      var h = 0.90 - i * 0.145;
+      var w = 0.105;
+      sub(p, function(q){
+        if (q.roundRect) q.roundRect(x - w/2, -h/2 + 0.06, w, h, w/2);
+        else q.rect(x - w/2, -h/2 + 0.06, w, h);
+      });
+    }
+  }}
+};
+var SHAPE_KEYS = Object.keys(SHAPES);
+
+var pathCache = {};
+function shapePath(key){
+  if (!pathCache[key]){
+    var p = new Path2D();
+    SHAPES[key].build(p);
+    pathCache[key] = p;
+  }
+  return pathCache[key];
+}
+
+/* ────────────────────────────────────────────────────────────
+   sheet state
+   ──────────────────────────────────────────────────────────── */
+var state = {
+  shapes: [],
+  sel: null,
+  phase: "compose",
+  exposure: 0,
+  rinse: 0
+};
+var idSeq = 1;
+var stampSeq = 0;
+var history = [];
+
+function snapshot(){
+  history.push(JSON.stringify(state.shapes));
+  if (history.length > 60) history.shift();
+}
+function restore(){
+  if (!history.length) return false;
+  state.shapes = JSON.parse(history.pop());
+  if (state.sel && !state.shapes.some(function(s){ return s.id === state.sel; })) state.sel = null;
+  return true;
+}
+
+function DEMO(){
+  return [
+    { key: "fern",     x: 0.30, y: 0.40, s: 0.70, rot: -0.14, fx: 1 },
+    { key: "sprig",    x: 0.70, y: 0.29, s: 0.52, rot:  0.42, fx: -1 },
+    { key: "ginkgo",   x: 0.76, y: 0.63, s: 0.40, rot: -0.30, fx: 1 },
+    { key: "seedhead", x: 0.33, y: 0.79, s: 0.38, rot:  0.06, fx: 1 },
+    { key: "ring",     x: 0.585, y: 0.475, s: 0.28, rot: 0, fx: 1 },
+    { key: "wheat",    x: 0.135, y: 0.755, s: 0.34, rot: 0.22, fx: 1 },
+    { key: "bars",     x: 0.855, y: 0.885, s: 0.26, rot: -0.10, fx: 1 },
+    { key: "bloom",    x: 0.505, y: 0.135, s: 0.22, rot: 0, fx: 1 },
+    { key: "crescent", x: 0.155, y: 0.145, s: 0.20, rot: 0.9, fx: 1 }
+  ].map(function(o){ o.id = idSeq++; return o; });
+}
+
+/* ────────────────────────────────────────────────────────────
+   textures — deterministic, generated once
+   ──────────────────────────────────────────────────────────── */
+var grainTile = (function(){
+  var c = document.createElement("canvas");
+  c.width = c.height = 128;
+  var g = c.getContext("2d");
+  var img = g.createImageData(128, 128);
+  var rnd = mulberry32(20260728);
+  for (var i = 0; i < 128 * 128; i++){
+    var v = rnd();
+    var dark = v < 0.5;
+    var a = Math.pow(Math.abs(v - 0.5) * 2, 2.2) * 60;
+    img.data[i*4]   = dark ? 20 : 255;
+    img.data[i*4+1] = dark ? 26 : 252;
+    img.data[i*4+2] = dark ? 34 : 244;
+    img.data[i*4+3] = a;
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+})();
+
+var fibers = (function(){
+  var rnd = mulberry32(77201);
+  var out = [];
+  for (var i = 0; i < 90; i++){
+    out.push({
+      x: rnd(), y: rnd(),
+      len: 0.02 + rnd() * 0.09,
+      a: rnd() * Math.PI,
+      w: 0.4 + rnd() * 0.9,
+      o: 0.03 + rnd() * 0.07
+    });
+  }
+  return out;
+})();
+
+var mottles = (function(){
+  var rnd = mulberry32(31337);
+  var out = [];
+  for (var i = 0; i < 16; i++){
+    out.push({ x: rnd(), y: rnd(), r: 0.14 + rnd() * 0.34, k: rnd() < 0.45 ? -1 : 1, o: 0.05 + rnd() * 0.10 });
+  }
+  return out;
+})();
+
+var streaks = (function(){
+  var rnd = mulberry32(9081);
+  var out = [];
+  for (var i = 0; i < 14; i++){
+    out.push({ x: rnd(), w: 0.01 + rnd() * 0.05, o: 0.03 + rnd() * 0.07, k: rnd() < 0.5 ? -1 : 1, y0: rnd() * 0.3, y1: 0.7 + rnd() * 0.3 });
+  }
+  return out;
+})();
+
+// brushed edge of the coated area, in normalized coordinates
+var washPts = (function(){
+  var rnd = mulberry32(5150);
+  var m = 0.055, pts = [], i, t;
+  var wob = function(){ return (rnd() - 0.5) * 0.030; };
+  for (i = 0; i <= 14; i++){ t = i / 14; pts.push([m + t * (1 - 2*m), m + wob()]); }
+  for (i = 1; i <= 18; i++){ t = i / 18; pts.push([1 - m + wob(), m + t * (1 - 2*m)]); }
+  for (i = 1; i <= 14; i++){ t = i / 14; pts.push([1 - m - t * (1 - 2*m), 1 - m + wob()]); }
+  for (i = 1; i < 18; i++){ t = i / 18; pts.push([m + wob(), 1 - m - t * (1 - 2*m)]); }
+  return pts;
+})();
+
+function washPath(W, H){
+  var p = new Path2D();
+  p.moveTo(washPts[0][0] * W, washPts[0][1] * H);
+  for (var i = 1; i < washPts.length; i++){
+    var a = washPts[i - 1], b = washPts[i];
+    p.quadraticCurveTo(a[0] * W, a[1] * H, (a[0]+b[0])/2 * W, (a[1]+b[1])/2 * H);
+  }
+  p.closePath();
+  return p;
+}
+
+var grainPattern = null;
+function grainFill(ctx, W, H, scale, alpha){
+  if (!grainPattern) grainPattern = ctx.createPattern(grainTile, "repeat");
+  if (!grainPattern) return;
+  ctx.save();
+  try {
+    if (grainPattern.setTransform && typeof DOMMatrix === "function"){
+      grainPattern.setTransform(new DOMMatrix([scale, 0, 0, scale, 0, 0]));
+    }
+  } catch (e) {}
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = grainPattern;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+/* ────────────────────────────────────────────────────────────
+   the sheet painter — pure function of size + state
+   ──────────────────────────────────────────────────────────── */
+function paintSheet(ctx, W, H, exposure, rinsed, shapes){
+  var k = W / 380;
+  var e = Math.pow(clamp(exposure, 0, 1), 0.85);
+
+  var base, resist;
+  if (rinsed){
+    base   = mixRGB(mixRGB(PAPER, WET_PALE, Math.min(1, exposure * 4)), WET_DEEP, Math.pow(clamp(exposure,0,1), 0.78));
+    resist = mixRGB(RESIST_WET, [214, 224, 232], exposure * 0.55);
+  } else {
+    base   = mixRGB(SENSITIZED, BURNT, e);
+    resist = mixRGB(RESIST_DRY, [188, 176, 132], exposure * 0.5);
+  }
+
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+
+  // paper
+  ctx.fillStyle = rgba(PAPER);
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.lineCap = "round";
+  for (var f = 0; f < fibers.length; f++){
+    var fb = fibers[f];
+    ctx.strokeStyle = "rgba(120,104,74," + fb.o + ")";
+    ctx.lineWidth = fb.w * k;
+    ctx.beginPath();
+    ctx.moveTo(fb.x * W, fb.y * H);
+    ctx.lineTo((fb.x + Math.cos(fb.a) * fb.len) * W, (fb.y + Math.sin(fb.a) * fb.len) * H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // coated area
+  var wp = washPath(W, H);
+  ctx.save();
+  ctx.clip(wp);
+
+  ctx.fillStyle = rgba(base);
+  ctx.fillRect(0, 0, W, H);
+
+  // uneven wash
+  var mStrength = rinsed ? 0.85 : 0.55;
+  for (var i = 0; i < mottles.length; i++){
+    var m = mottles[i];
+    var gr = ctx.createRadialGradient(m.x * W, m.y * H, 0, m.x * W, m.y * H, m.r * W);
+    var tint = m.k < 0 ? [0, 0, 0] : [255, 255, 255];
+    gr.addColorStop(0, "rgba(" + tint[0] + "," + tint[1] + "," + tint[2] + "," + (m.o * mStrength) + ")");
+    gr.addColorStop(1, "rgba(" + tint[0] + "," + tint[1] + "," + tint[2] + ",0)");
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // brush streaks along the coating direction
+  for (var s2 = 0; s2 < streaks.length; s2++){
+    var st = streaks[s2];
+    var g2 = ctx.createLinearGradient(st.x * W, 0, (st.x + st.w) * W, 0);
+    var c2 = st.k < 0 ? "0,0,0" : "255,255,255";
+    g2.addColorStop(0, "rgba(" + c2 + ",0)");
+    g2.addColorStop(0.5, "rgba(" + c2 + "," + (st.o * mStrength) + ")");
+    g2.addColorStop(1, "rgba(" + c2 + ",0)");
+    ctx.fillStyle = g2;
+    ctx.fillRect(st.x * W, st.y0 * H, st.w * W, (st.y1 - st.y0) * H);
+  }
+
+  // silhouettes (resist) with a soft halo where light crept under the edge
+  var passes = [[1.045, 0.24], [1.018, 0.42], [1.0, 1.0]];
+  for (var n = 0; n < shapes.length; n++){
+    var sh = shapes[n];
+    var def = SHAPES[sh.key];
+    if (!def) continue;
+    var path = shapePath(sh.key);
+    var size = sh.s * W;
+    for (var q = 0; q < passes.length; q++){
+      ctx.save();
+      ctx.translate(sh.x * W, sh.y * H);
+      ctx.rotate(sh.rot);
+      ctx.scale(size * passes[q][0] * (sh.fx || 1), size * passes[q][0]);
+      ctx.globalAlpha = passes[q][1];
+      ctx.fillStyle = rgba(resist);
+      ctx.fill(path, def.rule);
+      ctx.restore();
+    }
+  }
+
+  // a whisper of the coating pooling at the sheet edge
+  ctx.restore();
+  ctx.save();
+  ctx.clip(wp);
+  ctx.globalAlpha = rinsed ? 0.30 : 0.20;
+  ctx.strokeStyle = rgba(rinsed ? WET_DEEP : [70, 62, 40]);
+  ctx.lineWidth = 9 * k;
+  ctx.stroke(wp);
+  ctx.globalAlpha = rinsed ? 0.16 : 0.12;
+  ctx.lineWidth = 22 * k;
+  ctx.stroke(wp);
+  ctx.restore();
+
+  // grain + vignette
+  grainFill(ctx, W, H, k * 0.75, rinsed ? 0.55 : 0.42);
+  var vg = ctx.createRadialGradient(W * 0.5, H * 0.45, W * 0.30, W * 0.5, H * 0.5, W * 0.92);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(18,14,6,0.16)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.restore();
+}
+
+/* ────────────────────────────────────────────────────────────
+   canvas plumbing
+   ──────────────────────────────────────────────────────────── */
+var canvas = document.getElementById("sheet");
+var ctx = canvas.getContext("2d");
+var wrap = document.getElementById("sheetWrap");
+var CW = 300, CH = 400, DPR = 1;
+
+var layerDry = document.createElement("canvas");
+var layerWet = document.createElement("canvas");
+var dryDirty = true, wetDirty = true;
+
+function markDirty(){ dryDirty = true; wetDirty = true; }
+
+function resize(){
+  var r = wrap.getBoundingClientRect();
+  if (!r.width) return;
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  CW = Math.max(80, Math.round(r.width * DPR));
+  CH = Math.max(80, Math.round(r.height * DPR));
+  if (canvas.width !== CW || canvas.height !== CH){
+    canvas.width = CW; canvas.height = CH;
+    layerDry.width = CW; layerDry.height = CH;
+    layerWet.width = CW; layerWet.height = CH;
+    markDirty();
+  }
+  draw();
+}
+
+function ensureLayers(){
+  if (dryDirty){
+    paintSheet(layerDry.getContext("2d"), CW, CH, state.exposure, false, state.shapes);
+    dryDirty = false;
+  }
+  if (state.rinse > 0 && wetDirty){
+    paintSheet(layerWet.getContext("2d"), CW, CH, state.exposure, true, state.shapes);
+    wetDirty = false;
+  }
+}
+
+function wipeFrontX(y){
+  // organic, slightly wavy rinse front
+  var base = state.rinse * (CW + CW * 0.16) - CW * 0.08;
+  return base + Math.sin(y / CH * 7.1) * CW * 0.028 + Math.sin(y / CH * 17.3 + 1.2) * CW * 0.012;
+}
+
+function drawSelection(){
+  if (state.phase !== "compose") return;
+  var sh = selected();
+  if (!sh) return;
+  var size = sh.s * CW;
+  var h = size * 0.5;
+  var c = Math.cos(sh.rot), s = Math.sin(sh.rot);
+  var cx = sh.x * CW, cy = sh.y * CH;
+  var corners = [[-h,-h],[h,-h],[h,h],[-h,h]].map(function(p){
+    return [cx + p[0]*c - p[1]*s, cy + p[0]*s + p[1]*c];
+  });
+  ctx.save();
+  ctx.lineWidth = 1.4 * DPR;
+  ctx.setLineDash([6 * DPR, 5 * DPR]);
+  ctx.strokeStyle = "rgba(20,44,78,.75)";
+  ctx.beginPath();
+  ctx.moveTo(corners[0][0], corners[0][1]);
+  for (var i = 1; i < 4; i++) ctx.lineTo(corners[i][0], corners[i][1]);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(255,255,255,.75)";
+  ctx.lineWidth = 1.1 * DPR;
+  ctx.stroke();
+
+  var hp = corners[2];
+  ctx.beginPath();
+  ctx.arc(hp[0], hp[1], 11 * DPR, 0, TAU);
+  ctx.fillStyle = "rgba(13,43,82,.92)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,240,214,.95)";
+  ctx.lineWidth = 1.6 * DPR;
+  ctx.stroke();
+  // little turn+size glyph
+  ctx.beginPath();
+  ctx.arc(hp[0], hp[1], 5 * DPR, 0.5, 5.1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function draw(){
+  ensureLayers();
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.drawImage(layerDry, 0, 0);
+
+  if (state.rinse > 0){
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(wipeFrontX(0), 0);
+    for (var y = 0; y <= CH; y += Math.max(4, CH / 48)) ctx.lineTo(wipeFrontX(y), y);
+    ctx.lineTo(wipeFrontX(CH), CH);
+    ctx.lineTo(0, CH);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(layerWet, 0, 0);
+    ctx.restore();
+
+    if (state.rinse < 1){
+      // wet edge: a bright meniscus with a darker soak just behind it
+      var fx = wipeFrontX(CH * 0.5);
+      var g = ctx.createLinearGradient(fx - CW * 0.10, 0, fx + CW * 0.045, 0);
+      g.addColorStop(0, "rgba(255,255,255,0)");
+      g.addColorStop(0.72, "rgba(190,225,255,.20)");
+      g.addColorStop(0.93, "rgba(255,255,255,.42)");
+      g.addColorStop(1, "rgba(120,150,180,0)");
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(fx - CW * 0.12, 0);
+      for (var y2 = 0; y2 <= CH; y2 += Math.max(4, CH / 48)) ctx.lineTo(wipeFrontX(y2) + CW * 0.045, y2);
+      ctx.lineTo(fx - CW * 0.12, CH);
+      ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, CW, CH);
+      ctx.restore();
+    }
+  }
+
+  drawSelection();
+}
+
+/* ────────────────────────────────────────────────────────────
+   selection helpers
+   ──────────────────────────────────────────────────────────── */
+function selected(){
+  if (state.sel == null) return null;
+  for (var i = 0; i < state.shapes.length; i++) if (state.shapes[i].id === state.sel) return state.shapes[i];
+  return null;
+}
+function hitTest(px, py){
+  for (var i = state.shapes.length - 1; i >= 0; i--){
+    var sh = state.shapes[i];
+    var dx = px - sh.x * CW, dy = py - sh.y * CH;
+    var c = Math.cos(-sh.rot), s = Math.sin(-sh.rot);
+    var lx = dx * c - dy * s, ly = dx * s + dy * c;
+    var h = sh.s * CW * 0.5 + 8 * DPR;
+    if (Math.abs(lx) <= h && Math.abs(ly) <= h) return sh;
+  }
+  return null;
+}
+function handlePos(sh){
+  var h = sh.s * CW * 0.5;
+  var c = Math.cos(sh.rot), s = Math.sin(sh.rot);
+  return [sh.x * CW + h * c - h * s, sh.y * CH + h * s + h * c];
+}
+
+/* ────────────────────────────────────────────────────────────
+   pointer interaction on the sheet
+   ──────────────────────────────────────────────────────────── */
+var pointers = new Map();
+var drag = null;
+var pinch = null;
+
+function localPt(ev){
+  var r = canvas.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) * (CW / r.width), y: (ev.clientY - r.top) * (CH / r.height) };
+}
+
+canvas.addEventListener("pointerdown", function(ev){
+  var p = localPt(ev);
+  pointers.set(ev.pointerId, p);
+  try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+
+  if (state.phase === "exposed" || state.phase === "rinsing"){
+    if (state.phase === "exposed") setPhase("rinsing");
+    applyRinse(p.x);
+    return;
+  }
+  if (state.phase !== "compose") return;
+
+  if (pointers.size === 2){
+    var sh = selected();
+    if (sh){
+      var arr = Array.from(pointers.values());
+      pinch = {
+        d0: Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y),
+        a0: Math.atan2(arr[1].y - arr[0].y, arr[1].x - arr[0].x),
+        s0: sh.s, r0: sh.rot
+      };
+      drag = null;
+    }
+    return;
+  }
+
+  var sel = selected();
+  if (sel){
+    var hp = handlePos(sel);
+    if (Math.hypot(p.x - hp[0], p.y - hp[1]) < 26 * DPR){
+      snapshot();
+      drag = {
+        mode: "handle", id: sel.id,
+        a0: Math.atan2(p.y - sel.y * CH, p.x - sel.x * CW),
+        d0: Math.max(1, Math.hypot(p.x - sel.x * CW, p.y - sel.y * CH)),
+        r0: sel.rot, s0: sel.s, moved: false
+      };
+      return;
+    }
+  }
+  var hit = hitTest(p.x, p.y);
+  if (hit){
+    state.sel = hit.id;
+    snapshot();
+    drag = { mode: "move", id: hit.id, ox: p.x - hit.x * CW, oy: p.y - hit.y * CH, moved: false };
+  } else {
+    state.sel = null;
+    drag = null;
+  }
+  syncSelUI();
+  draw();
+});
+
+canvas.addEventListener("pointermove", function(ev){
+  if (!pointers.has(ev.pointerId)) return;
+  var p = localPt(ev);
+  pointers.set(ev.pointerId, p);
+
+  if (state.phase === "rinsing"){ applyRinse(p.x); return; }
+  if (state.phase !== "compose") return;
+
+  var sh;
+  if (pinch && pointers.size >= 2){
+    sh = selected();
+    if (sh){
+      var arr = Array.from(pointers.values());
+      var d = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
+      var a = Math.atan2(arr[1].y - arr[0].y, arr[1].x - arr[0].x);
+      sh.s = clamp(pinch.s0 * (d / Math.max(1, pinch.d0)), 0.07, 1.25);
+      sh.rot = pinch.r0 + (a - pinch.a0);
+      markDirty(); draw(); syncSelUI();
+    }
+    return;
+  }
+
+  if (!drag) return;
+  sh = null;
+  for (var i = 0; i < state.shapes.length; i++) if (state.shapes[i].id === drag.id) sh = state.shapes[i];
+  if (!sh) return;
+
+  if (drag.mode === "move"){
+    sh.x = clamp((p.x - drag.ox) / CW, -0.08, 1.08);
+    sh.y = clamp((p.y - drag.oy) / CH, -0.08, 1.08);
+  } else {
+    var ang = Math.atan2(p.y - sh.y * CH, p.x - sh.x * CW);
+    var dist = Math.hypot(p.x - sh.x * CW, p.y - sh.y * CH);
+    sh.rot = drag.r0 + (ang - drag.a0);
+    sh.s = clamp(drag.s0 * (dist / drag.d0), 0.07, 1.25);
+  }
+  drag.moved = true;
+  markDirty();
+  draw();
+  syncSelUI();
+});
+
+function endPointer(ev){
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0){
+    if (drag && !drag.moved) history.pop();
+    drag = null;
+    if (state.phase === "rinsing" && state.rinse >= 0.985) finishRinse();
+  }
+}
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("contextmenu", function(ev){ ev.preventDefault(); });
+
+function applyRinse(x){
+  var v = clamp((x + CW * 0.08) / (CW * 1.16), 0, 1);
+  if (v > state.rinse){
+    state.rinse = v;
+    draw();
+    rinseFill.style.setProperty("--r", state.rinse.toFixed(3));
+    if (state.rinse >= 0.985) finishRinse();
+  }
+}
+
+function finishRinse(){
+  state.rinse = 1;
+  rinseFill.style.setProperty("--r", "1");
+  draw();
+  setPhase("done");
+  say("Rinsed. The blue is fixed — export it, or go back and rework the composition.");
+}
+
+/* ────────────────────────────────────────────────────────────
+   UI wiring
+   ──────────────────────────────────────────────────────────── */
+var $ = function(id){ return document.getElementById(id); };
+var hint = $("hint"), chip = $("phaseChip"), statusEl = $("status");
+var rinseFill = $("rinseFill");
+var exposeBtn = $("expose"), exposeSub = $("exposeSub");
+var selLabel = $("selLabel");
+
+var HINTS = {
+  compose:  "Tap a silhouette to place it · drag to move · corner dot turns and resizes",
+  exposing: "Keep holding — the coating is turning",
+  exposed:  "Swipe across the sheet, left to right, to rinse",
+  rinsing:  "Keep going to the far edge…",
+  done:     "Print finished · export it as a PNG"
+};
+
+function setPhase(p){
+  state.phase = p;
+  document.body.setAttribute("data-phase", p);
+  hint.textContent = HINTS[p];
+  chip.textContent = p === "compose" ? "Compose" : p === "exposing" ? "Exposing" : p === "exposed" ? "Exposed" : p === "rinsing" ? "Rinsing" : "Print";
+}
+function say(msg){ statusEl.textContent = msg || ""; }
+
+function syncSelUI(){
+  var sh = selected();
+  var on = !!sh && state.phase === "compose";
+  ["rotL","rotR","down","up","flip","dupe","front","del"].forEach(function(id){ $(id).disabled = !on; });
+  selLabel.firstChild.nodeValue = on
+    ? "Selected · " + SHAPES[sh.key].name + " · " + Math.round(sh.s * 100) + "% · " + (((Math.round(sh.rot * 180 / Math.PI) % 360) + 360) % 360) + "°"
+    : "Selected · nothing";
+}
+// keep the ::after rule working by ensuring a text node exists
+selLabel.textContent = "Selected · nothing";
+
+function addShape(key){
+  snapshot();
+  var n = stampSeq++;
+  var jitterX = ((n * 7) % 5 - 2) * 0.052;
+  var jitterY = ((n * 3) % 5 - 2) * 0.044;
+  var sh = { id: idSeq++, key: key, x: 0.5 + jitterX, y: 0.5 + jitterY, s: 0.34, rot: ((n * 11) % 7 - 3) * 0.09, fx: 1 };
+  state.shapes.push(sh);
+  state.sel = sh.id;
+  markDirty(); draw(); syncSelUI();
+  say(SHAPES[key].name + " placed. Drag it, or use the buttons below.");
+}
+
+function mutate(fn){
+  var sh = selected();
+  if (!sh) return;
+  snapshot();
+  fn(sh);
+  markDirty(); draw(); syncSelUI();
+}
+
+$("rotL").addEventListener("click", function(){ mutate(function(s){ s.rot -= Math.PI / 12; }); });
+$("rotR").addEventListener("click", function(){ mutate(function(s){ s.rot += Math.PI / 12; }); });
+$("down").addEventListener("click", function(){ mutate(function(s){ s.s = clamp(s.s * 0.88, 0.07, 1.25); }); });
+$("up").addEventListener("click",   function(){ mutate(function(s){ s.s = clamp(s.s * 1.14, 0.07, 1.25); }); });
+$("flip").addEventListener("click", function(){ mutate(function(s){ s.fx = (s.fx || 1) * -1; }); });
+$("front").addEventListener("click", function(){
+  mutate(function(s){
+    var i = state.shapes.indexOf(s);
+    state.shapes.splice(i, 1);
+    state.shapes.push(s);
+  });
+});
+$("dupe").addEventListener("click", function(){
+  var sh = selected();
+  if (!sh) return;
+  snapshot();
+  var copy = JSON.parse(JSON.stringify(sh));
+  copy.id = idSeq++;
+  copy.x = clamp(copy.x + 0.07, -0.08, 1.08);
+  copy.y = clamp(copy.y + 0.05, -0.08, 1.08);
+  state.shapes.push(copy);
+  state.sel = copy.id;
+  markDirty(); draw(); syncSelUI();
+});
+$("del").addEventListener("click", function(){
+  var sh = selected();
+  if (!sh) return;
+  snapshot();
+  state.shapes.splice(state.shapes.indexOf(sh), 1);
+  state.sel = null;
+  markDirty(); draw(); syncSelUI();
+  say("Removed.");
+});
+$("undo").addEventListener("click", function(){
+  if (restore()){ markDirty(); draw(); syncSelUI(); say("Stepped back."); }
+  else say("Nothing left to undo.");
+});
+$("demo").addEventListener("click", function(){
+  snapshot();
+  state.shapes = DEMO();
+  state.sel = null;
+  markDirty(); draw(); syncSelUI();
+  say("Demo arrangement loaded. Hold Expose when you like it.");
+});
+$("clear").addEventListener("click", function(){
+  snapshot();
+  state.shapes = [];
+  state.sel = null;
+  markDirty(); draw(); syncSelUI();
+  say("Bare sheet.");
+});
+
+/* ---------- expose: press and hold ---------- */
+var EXPOSE_MS = 3000;
+var holding = false, holdStart = 0, holdRAF = 0, holdBase = 0;
+
+function exposeFrame(ts){
+  if (!holding) return;
+  var t = holdBase + (ts - holdStart) / EXPOSE_MS;
+  state.exposure = clamp(t, 0, 1);
+  exposeBtn.style.setProperty("--p", state.exposure.toFixed(3));
+  dryDirty = true; wetDirty = true;
+  draw();
+  exposeSub.textContent = state.exposure >= 1
+    ? "fully exposed — let go"
+    : state.exposure > 0.6 ? "deep blue building…" : state.exposure > 0.25 ? "turning…" : "gathering light…";
+  if (state.exposure < 1) holdRAF = requestAnimationFrame(exposeFrame);
+}
+
+function startHold(){
+  if (state.phase !== "compose" || holding) return;
+  holding = true;
+  holdBase = 0;
+  state.exposure = 0;
+  state.rinse = 0;
+  state.sel = null;
+  syncSelUI();
+  setPhase("exposing");
+  say("");
+  holdStart = performance.now();
+  holdRAF = requestAnimationFrame(exposeFrame);
+}
+function endHold(){
+  if (!holding) return;
+  holding = false;
+  cancelAnimationFrame(holdRAF);
+  exposeSub.textContent = "press and keep holding · about 3 seconds for a deep print";
+  if (state.exposure < 0.12){
+    state.exposure = 0;
+    exposeBtn.style.setProperty("--p", "0");
+    markDirty(); draw();
+    setPhase("compose");
+    say("Too brief — the coating barely turned. Hold it longer.");
+    return;
+  }
+  setPhase("exposed");
+  say(state.exposure > 0.85 ? "A long exposure. This will rinse out deep." :
+      state.exposure > 0.45 ? "A steady exposure." : "A short exposure — expect a pale, airy print.");
+}
+
+exposeBtn.addEventListener("pointerdown", function(ev){ ev.preventDefault(); startHold(); });
+exposeBtn.addEventListener("pointerup", endHold);
+exposeBtn.addEventListener("pointercancel", endHold);
+exposeBtn.addEventListener("pointerleave", function(){ if (holding) endHold(); });
+exposeBtn.addEventListener("keydown", function(ev){
+  if (ev.key === " " || ev.key === "Enter"){ ev.preventDefault(); if (!ev.repeat) startHold(); }
+});
+exposeBtn.addEventListener("keyup", function(ev){
+  if (ev.key === " " || ev.key === "Enter"){ ev.preventDefault(); endHold(); }
+});
+window.addEventListener("blur", function(){ if (holding) endHold(); });
+
+/* ---------- rinse buttons ---------- */
+$("rinseBtn").addEventListener("click", function(){
+  if (state.phase !== "exposed" && state.phase !== "rinsing") return;
+  setPhase("rinsing");
+  if (reduceMotion){ finishRinse(); return; }
+  var from = state.rinse, t0 = performance.now(), dur = 1400 * (1 - from);
+  (function step(ts){
+    var k = clamp((ts - t0) / Math.max(1, dur), 0, 1);
+    state.rinse = from + (1 - from) * (k < 0.5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2);
+    rinseFill.style.setProperty("--r", state.rinse.toFixed(3));
+    draw();
+    if (k < 1) requestAnimationFrame(step); else finishRinse();
+  })(performance.now());
+});
+function backToCompose(){
+  state.exposure = 0; state.rinse = 0;
+  exposeBtn.style.setProperty("--p", "0");
+  rinseFill.style.setProperty("--r", "0");
+  markDirty(); draw();
+  setPhase("compose");
+  syncSelUI();
+  say("Back to the composition. The sheet is freshly coated.");
+}
+$("backCompose").addEventListener("click", backToCompose);
+$("backCompose2").addEventListener("click", backToCompose);
+$("again").addEventListener("click", function(){
+  backToCompose();
+  say("Fresh coating, same arrangement. Hold Expose again for a different depth.");
+});
+$("fresh").addEventListener("click", function(){
+  snapshot();
+  state.shapes = [];
+  backToCompose();
+  say("New sheet, nothing on it.");
+});
+
+/* ---------- export ---------- */
+function slug(s){
+  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "print";
+}
+$("exportBtn").addEventListener("click", function(){
+  var W = 1080, H = 1440, PAD = 46, CAP = 128;
+  var out = document.createElement("canvas");
+  out.width = W + PAD * 2;
+  out.height = H + PAD + CAP;
+  var o = out.getContext("2d");
+
+  o.fillStyle = rgba(PAPER);
+  o.fillRect(0, 0, out.width, out.height);
+
+  var tmp = document.createElement("canvas");
+  tmp.width = W; tmp.height = H;
+  paintSheet(tmp.getContext("2d"), W, H, state.exposure, true, state.shapes);
+  o.drawImage(tmp, PAD, PAD);
+
+  grainFill(o, out.width, out.height, 2.4, 0.30);
+
+  var title = ($("titleIn").value || "").trim().slice(0, 26);
+  o.textAlign = "center";
+  o.fillStyle = "rgba(18,44,74,.92)";
+  o.font = "500 34px ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  o.fillText(title || "untitled", out.width / 2, H + PAD + 56);
+  o.fillStyle = "rgba(18,44,74,.55)";
+  o.font = "500 19px ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  o.fillText("AFTERLIGHT · cyanotype study".split("").join(" "), out.width / 2, H + PAD + 92);
+
+  try {
+    out.toBlob(function(blob){
+      if (!blob){ say("Export failed in this browser."); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "afterlight-" + slug(title) + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      say("PNG exported (" + (out.width) + "×" + (out.height) + ").");
+    }, "image/png");
+  } catch (e){
+    say("Export failed in this browser.");
+  }
+});
+
+/* ---------- palette thumbnails ---------- */
+var paletteEl = $("palette");
+SHAPE_KEYS.forEach(function(key){
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "stamp";
+  b.setAttribute("aria-label", "Place a " + SHAPES[key].name.toLowerCase() + " silhouette on the sheet");
+
+  var c = document.createElement("canvas");
+  var d = Math.min(window.devicePixelRatio || 1, 3);
+  c.width = c.height = Math.round(46 * d);
+  var g = c.getContext("2d");
+  var gg = g.createLinearGradient(0, 0, 0, c.height);
+  gg.addColorStop(0, "#123a68");
+  gg.addColorStop(1, "#0a2246");
+  g.fillStyle = gg;
+  g.fillRect(0, 0, c.width, c.height);
+  g.save();
+  g.translate(c.width / 2, c.height / 2);
+  g.scale(c.width * 0.80, c.width * 0.80);
+  g.fillStyle = "rgba(238,244,232,.94)";
+  g.fill(shapePath(key), SHAPES[key].rule);
+  g.restore();
+
+  var t = document.createElement("span");
+  t.textContent = SHAPES[key].name;
+
+  b.appendChild(c);
+  b.appendChild(t);
+  b.addEventListener("click", function(){ if (state.phase === "compose") addShape(key); });
+  paletteEl.appendChild(b);
+});
+
+/* ---------- boot ---------- */
+state.shapes = DEMO();
+setPhase("compose");
+syncSelUI();
+
+if (window.ResizeObserver){
+  new ResizeObserver(function(){ resize(); }).observe(wrap);
+} else {
+  window.addEventListener("resize", resize);
+}
+window.addEventListener("orientationchange", function(){ setTimeout(resize, 250); });
+resize();
+requestAnimationFrame(resize);
+say("A demo arrangement is on the sheet. Rearrange it, then hold Expose.");
+
+})();
+</script>
+</body>
+</html>
