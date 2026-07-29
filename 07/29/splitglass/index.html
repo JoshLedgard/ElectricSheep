@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Splitglass — A Two-Audience Writing Lens</title>
+<meta name="description" content="Write one note, mark each phrase as shared or audience-specific, and read both finished versions side by side. Everything stays in this tab.">
+<style>
+  :root{
+    --bg-0:#0e1219;
+    --bg-1:#151b26;
+    --paper:#f6f2ea;
+    --paper-2:#efe9dd;
+    --ink:#1c212b;
+    --ink-soft:#4e5766;
+    --panel:rgba(255,255,255,.055);
+    --panel-line:rgba(255,255,255,.14);
+    --panel-text:#dfe5ef;
+    --panel-dim:#98a3b6;
+    --common:#8b7a4a;
+    --common-tint:rgba(196,167,96,.20);
+    --common-ink:#c9ad6a;
+    --lens-a:#cf6a56;
+    --lens-a-tint:rgba(207,106,86,.16);
+    --lens-a-strong:#e78a76;
+    --lens-b:#2f8f92;
+    --lens-b-tint:rgba(63,168,172,.16);
+    --lens-b-strong:#54c0c3;
+    --focus:#ffd166;
+    --radius:14px;
+    --shadow:0 18px 40px -22px rgba(0,0,0,.8);
+    --font-ui:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --font-read:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 12% -10%, rgba(207,106,86,.16), transparent 60%),
+      radial-gradient(120% 80% at 92% 0%, rgba(63,168,172,.16), transparent 62%),
+      linear-gradient(175deg,var(--bg-0),var(--bg-1) 55%,#10151d);
+    background-attachment:fixed;
+    color:var(--panel-text);
+    font-family:var(--font-ui);
+    font-size:17px;
+    line-height:1.5;
+    padding:0 0 4rem;
+    overflow-x:hidden;
+  }
+
+  .wrap{max-width:960px;margin:0 auto;padding:0 clamp(.85rem,3.5vw,1.6rem)}
+  main,section,.editor,.para,.legend{min-width:0;max-width:100%}
+
+  /* ---------- header ---------- */
+  header{padding:2.1rem 0 1.2rem}
+  .brandmark{
+    display:inline-flex;align-items:center;gap:.55rem;
+    font-size:.72rem;letter-spacing:.19em;text-transform:uppercase;
+    color:var(--panel-dim);margin-bottom:.7rem;
+  }
+  .brandmark .glasses{display:inline-flex;gap:3px}
+  .brandmark .glasses i{
+    width:14px;height:14px;border-radius:50%;border:2px solid currentColor;display:block;
+  }
+  .brandmark .glasses i:first-child{border-color:var(--lens-a-strong)}
+  .brandmark .glasses i:last-child{border-color:var(--lens-b-strong)}
+  h1{
+    font-family:var(--font-read);
+    font-size:clamp(2rem,8.5vw,3rem);
+    line-height:1.03;margin:0 0 .5rem;letter-spacing:-.02em;
+    color:#fff;font-weight:600;
+  }
+  h1 .split{
+    background:linear-gradient(100deg,var(--lens-a-strong) 0 47%,var(--common-ink) 47% 53%,var(--lens-b-strong) 53%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .tagline{margin:0 0 .9rem;color:var(--panel-dim);max-width:56ch;font-size:1rem}
+  .privacy{
+    display:flex;gap:.55rem;align-items:flex-start;
+    font-size:.86rem;color:var(--panel-dim);
+    border-left:2px solid var(--panel-line);padding-left:.7rem;max-width:60ch;
+  }
+
+  /* ---------- panels ---------- */
+  section{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:var(--radius);
+    padding:clamp(.9rem,3.2vw,1.35rem);
+    margin:1.1rem 0;
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(6px);
+  }
+  .panel-head{display:flex;flex-wrap:wrap;gap:.5rem .9rem;align-items:baseline;margin-bottom:.35rem}
+  h2{
+    font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;
+    margin:0;color:#fff;font-weight:700;
+  }
+  .step{
+    font-variant-numeric:tabular-nums;color:var(--panel-dim);
+    font-size:.7rem;letter-spacing:.16em;
+  }
+  .hint{margin:.15rem 0 .9rem;color:var(--panel-dim);font-size:.88rem;max-width:64ch}
+
+  /* ---------- buttons ---------- */
+  button{font:inherit;color:inherit;cursor:pointer}
+  .btn{
+    min-height:44px;padding:.55rem .9rem;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--panel-line);
+    border-radius:11px;
+    color:var(--panel-text);
+    font-size:.9rem;font-weight:600;
+    display:inline-flex;align-items:center;justify-content:center;gap:.45rem;
+    transition:background .16s ease,border-color .16s ease,transform .1s ease;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.36;cursor:not-allowed}
+  .btn.ghost{background:transparent}
+  .btn.lens-common{border-color:rgba(201,173,106,.5);background:rgba(201,173,106,.13);color:#f0dfb6}
+  .btn.lens-a{border-color:rgba(231,138,118,.5);background:rgba(231,138,118,.13);color:#f7c6ba}
+  .btn.lens-b{border-color:rgba(84,192,195,.5);background:rgba(84,192,195,.13);color:#b3e7e8}
+  @media (hover:hover){
+    .btn:hover:not([disabled]){background:rgba(255,255,255,.12)}
+  }
+  :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:.5rem}
+  .toolbar .btn{flex:1 1 auto;min-width:0}
+  .toolbar-sep{width:100%;height:0}
+
+  .badge-count{
+    font-size:.72rem;font-variant-numeric:tabular-nums;
+    background:rgba(0,0,0,.28);border-radius:999px;padding:.1rem .42rem;
+  }
+
+  /* ---------- editor ---------- */
+  .editor{
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:12px;
+    padding:.5rem clamp(.6rem,2.6vw,1rem) 1rem;
+    font-family:var(--font-read);
+    font-size:1.02rem;
+  }
+  .para-head{margin:.85rem 0 .1rem}
+  .para-head:first-child{margin-top:.4rem}
+  .para-sel{
+    min-height:44px;padding:.4rem .7rem;
+    background:transparent;border:1px dashed rgba(28,33,43,.24);
+    border-radius:9px;color:var(--ink-soft);
+    font-family:var(--font-ui);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    display:inline-flex;align-items:center;gap:.4rem;
+  }
+  @media (hover:hover){ .para-sel:hover{background:rgba(28,33,43,.06)} }
+  .para{margin:0;line-height:2.75;text-align:left}
+
+  .chip{
+    display:inline;
+    max-width:100%;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    padding:.62em .4em;
+    margin:0 .05em;
+    border:0;background:transparent;
+    font:inherit;color:var(--ink);
+    border-radius:7px;
+    text-align:left;
+    -webkit-tap-highlight-color:transparent;
+    box-decoration-break:clone;-webkit-box-decoration-break:clone;
+    transition:background-color .15s ease,box-shadow .15s ease;
+  }
+  .chip[data-lens="common"]{
+    background:var(--common-tint);
+    box-shadow:inset 0 -2px 0 rgba(139,122,74,.55);
+  }
+  .chip[data-lens="a"]{
+    background:var(--lens-a-tint);
+    box-shadow:inset 0 -3px 0 var(--lens-a), inset 0 -6px 0 rgba(207,106,86,.28);
+  }
+  .chip[data-lens="b"]{
+    background:var(--lens-b-tint);
+    box-shadow:inset 0 -2px 0 var(--lens-b);
+    text-decoration:underline;text-decoration-style:dotted;text-decoration-color:rgba(47,143,146,.75);text-underline-offset:5px;
+  }
+  .chip .mark{
+    font-family:var(--font-ui);font-size:.62em;font-weight:800;
+    vertical-align:.42em;letter-spacing:.04em;margin-left:.22em;
+  }
+  .chip[data-lens="a"] .mark{color:#a4432f}
+  .chip[data-lens="b"] .mark{color:#1c6c6f}
+  .chip[data-lens="common"] .mark{color:#7a6835}
+  .chip[aria-pressed="true"]{
+    background:#1c212b;color:var(--paper);
+    box-shadow:inset 0 0 0 2px #1c212b;
+  }
+  .chip[aria-pressed="true"] .mark{color:var(--paper)}
+  @media (hover:hover){
+    .chip:hover{background-color:rgba(28,33,43,.1)}
+    .chip[aria-pressed="true"]:hover{background:#2c3341}
+  }
+
+  .selbar{
+    display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:center;
+    margin:.9rem 0 .55rem;font-size:.85rem;color:var(--panel-dim);
+  }
+  .keytip{font-size:.8rem;color:var(--panel-dim);margin:.65rem 0 0}
+  kbd{
+    font-family:var(--font-ui);font-size:.78em;
+    border:1px solid var(--panel-line);border-radius:5px;
+    padding:.05rem .32rem;background:rgba(0,0,0,.3);
+  }
+
+  /* ---------- legend ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:.45rem;margin:.2rem 0 .9rem}
+  .legend span{
+    font-size:.76rem;padding:.28rem .6rem;border-radius:999px;
+    border:1px solid var(--panel-line);display:inline-flex;align-items:center;gap:.35rem;
+  }
+  .swatch{width:.7rem;height:.7rem;border-radius:3px;display:block}
+
+  /* ---------- preview ---------- */
+  .modes{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.85rem}
+  .mode{
+    min-height:44px;padding:.5rem .8rem;
+    border:1px solid var(--panel-line);border-radius:999px;
+    background:transparent;font-size:.85rem;font-weight:600;color:var(--panel-dim);
+  }
+  .mode[aria-pressed="true"]{background:#fff;color:#141922;border-color:#fff}
+
+  .sheet{
+    background:var(--paper);color:var(--ink);
+    border-radius:12px;padding:clamp(.85rem,3vw,1.25rem);
+    font-family:var(--font-read);line-height:1.62;
+  }
+  .sheet h3{
+    font-family:var(--font-ui);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;
+    margin:0 0 .6rem;color:var(--ink-soft);display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;
+  }
+  .sheet h3 .dot{width:.62rem;height:.62rem;border-radius:50%;flex:none}
+  .sheet p{margin:0 0 .85rem}
+  .sheet p:last-child{margin-bottom:0}
+  .sheet .empty{color:var(--ink-soft);font-style:italic}
+  .sheets{display:grid;gap:.8rem}
+  @media (min-width:720px){ .sheets.two{grid-template-columns:1fr 1fr} }
+
+  .only-a{background:linear-gradient(transparent 62%, var(--lens-a-tint) 62%)}
+  .only-b{background:linear-gradient(transparent 62%, var(--lens-b-tint) 62%)}
+
+  /* ---------- reveal compare ---------- */
+  .compare-rail{
+    position:relative;height:44px;margin:.2rem 0 .35rem;
+    display:flex;align-items:center;touch-action:none;
+  }
+  .compare-rail::before{
+    content:"";position:absolute;left:0;right:0;height:4px;border-radius:2px;
+    background:linear-gradient(90deg,var(--lens-a) ,var(--lens-b));opacity:.55;
+  }
+  .handle{
+    position:absolute;top:0;width:44px;height:44px;margin-left:-22px;
+    border-radius:50%;border:1px solid var(--panel-line);
+    background:#1a2029;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.9rem;letter-spacing:-.08em;
+    box-shadow:0 6px 16px -6px rgba(0,0,0,.9);
+    touch-action:none;
+  }
+  .compare{position:relative;display:grid;isolation:isolate;overflow:hidden;border-radius:12px}
+  .compare > .layer{grid-area:1/1;min-width:0}
+  .compare > .layer.top{clip-path:inset(0 50% 0 0)}
+  .divider{
+    position:absolute;top:0;bottom:0;width:2px;background:rgba(28,33,43,.55);
+    margin-left:-1px;pointer-events:none;z-index:3;
+  }
+  .compare-labels{
+    display:flex;justify-content:space-between;font-size:.76rem;color:var(--panel-dim);
+    margin-top:.4rem;gap:.6rem;
+  }
+
+  /* ---------- stats ---------- */
+  .stats{
+    display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.9rem;
+  }
+  .stat{
+    flex:1 1 30%;min-width:96px;
+    background:rgba(0,0,0,.22);border:1px solid var(--panel-line);border-radius:10px;
+    padding:.5rem .6rem;
+  }
+  .stat b{display:block;font-size:1.1rem;font-variant-numeric:tabular-nums;color:#fff}
+  .stat span{font-size:.72rem;color:var(--panel-dim);letter-spacing:.06em;text-transform:uppercase}
+
+  /* ---------- export ---------- */
+  .export-row{
+    display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;
+    padding:.7rem 0;border-top:1px solid var(--panel-line);
+  }
+  .export-row:first-of-type{border-top:0}
+  .export-name{flex:1 1 100%;font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:.45rem}
+  .export-row .btn{flex:1 1 auto}
+
+  /* ---------- own text ---------- */
+  details{
+    border:1px solid var(--panel-line);border-radius:11px;padding:.2rem .8rem;
+    background:rgba(0,0,0,.18);
+  }
+  summary{
+    min-height:44px;display:flex;align-items:center;gap:.5rem;
+    font-weight:700;font-size:.9rem;cursor:pointer;list-style:none;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"＋";font-size:1.05rem;color:var(--panel-dim)}
+  details[open] summary::before{content:"−"}
+  textarea{
+    width:100%;min-height:150px;resize:vertical;
+    background:var(--paper);color:var(--ink);
+    border:1px solid rgba(0,0,0,.25);border-radius:10px;
+    padding:.7rem;font-family:var(--font-read);font-size:1rem;line-height:1.55;
+  }
+  .name-grid{display:grid;gap:.6rem;margin:.2rem 0 .9rem}
+  @media (min-width:600px){ .name-grid{grid-template-columns:1fr 1fr} }
+  label{display:block;font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--panel-dim);margin-bottom:.3rem;font-weight:700}
+  input[type=text]{
+    width:100%;min-height:44px;padding:.5rem .7rem;
+    background:rgba(255,255,255,.06);color:var(--panel-text);
+    border:1px solid var(--panel-line);border-radius:10px;font:inherit;font-size:.95rem;
+  }
+
+  footer{color:var(--panel-dim);font-size:.82rem;text-align:center;margin-top:1.6rem;line-height:1.7}
+
+  .sr-only{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+  }
+  .status{
+    min-height:1.3em;font-size:.85rem;color:var(--common-ink);margin-top:.6rem;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brandmark">
+    <span class="glasses" aria-hidden="true"><i></i><i></i></span>
+    Splitglass
+  </div>
+  <h1>One note,<br><span class="split">two readings</span></h1>
+  <p class="tagline">Mark each phrase as shared, or as belonging to one audience. Splitglass keeps a single backbone and grows two finished versions from it — live, as you tap.</p>
+  <p class="privacy"><span aria-hidden="true">🔒</span> <span>Nothing you write leaves this tab. There is no server, no account, and no saving — closing the page clears everything.</span></p>
+</header>
+
+<main>
+
+  <!-- ============ EDITOR ============ -->
+  <section aria-labelledby="h-mark">
+    <div class="panel-head">
+      <h2 id="h-mark">Mark the phrases</h2>
+      <span class="step">STEP 1</span>
+    </div>
+    <p class="hint">Tap a phrase to select it, then choose where it belongs. Selected phrases turn dark. Tap again to deselect.</p>
+
+    <div class="legend" aria-hidden="true">
+      <span><i class="swatch" style="background:var(--common-ink)"></i> Shared backbone</span>
+      <span><i class="swatch" style="background:var(--lens-a-strong)"></i> Lens A only</span>
+      <span><i class="swatch" style="background:var(--lens-b-strong)"></i> Lens B only</span>
+    </div>
+
+    <div class="editor" id="editor"></div>
+
+    <div class="selbar">
+      <span id="selCount">Nothing selected</span>
+      <button class="btn ghost" type="button" id="clearSel" style="min-height:38px;padding:.3rem .7rem;font-size:.82rem">Clear selection</button>
+    </div>
+
+    <div class="toolbar" role="group" aria-label="Assign selected phrases">
+      <button class="btn lens-common" type="button" id="asCommon">Shared <span class="badge-count" id="cCommon">0</span></button>
+      <button class="btn lens-a" type="button" id="asA">Lens A <span class="badge-count" id="cA">0</span></button>
+      <button class="btn lens-b" type="button" id="asB">Lens B <span class="badge-count" id="cB">0</span></button>
+      <div class="toolbar-sep"></div>
+      <button class="btn ghost" type="button" id="doSplit">Split phrase</button>
+      <button class="btn ghost" type="button" id="doMerge">Merge</button>
+      <button class="btn ghost" type="button" id="doUndo">Undo</button>
+      <button class="btn ghost" type="button" id="doReset">Reset</button>
+    </div>
+
+    <p class="keytip">Keyboard: <kbd>Tab</kbd> / <kbd>←</kbd> <kbd>→</kbd> move between phrases, <kbd>Space</kbd> selects, <kbd>1</kbd> shared, <kbd>2</kbd> Lens A, <kbd>3</kbd> Lens B, <kbd>Esc</kbd> clears.</p>
+    <p class="status" id="editStatus" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ============ PREVIEW ============ -->
+  <section aria-labelledby="h-read">
+    <div class="panel-head">
+      <h2 id="h-read">Read it both ways</h2>
+      <span class="step">STEP 2</span>
+    </div>
+    <p class="hint">Switch lenses, or drag the compare handle to wipe between the two versions.</p>
+
+    <div class="modes" role="group" aria-label="Preview mode">
+      <button class="mode" type="button" data-mode="both" aria-pressed="true">Both</button>
+      <button class="mode" type="button" data-mode="a" aria-pressed="false">Solo A</button>
+      <button class="mode" type="button" data-mode="b" aria-pressed="false">Solo B</button>
+      <button class="mode" type="button" data-mode="core" aria-pressed="false">Backbone</button>
+      <button class="mode" type="button" data-mode="compare" aria-pressed="false">Compare</button>
+    </div>
+
+    <div id="previewArea"></div>
+
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <!-- ============ EXPORT ============ -->
+  <section aria-labelledby="h-take">
+    <div class="panel-head">
+      <h2 id="h-take">Take it with you</h2>
+      <span class="step">STEP 3</span>
+    </div>
+    <p class="hint">Copy to the clipboard, or download plain text files. Files are generated in this tab — nothing is uploaded.</p>
+
+    <div class="export-row">
+      <span class="export-name"><i class="swatch" style="background:var(--lens-a-strong)"></i> <span id="expNameA">Lens A version</span></span>
+      <button class="btn" type="button" data-copy="a">Copy</button>
+      <button class="btn" type="button" data-dl="a">Download .txt</button>
+    </div>
+    <div class="export-row">
+      <span class="export-name"><i class="swatch" style="background:var(--lens-b-strong)"></i> <span id="expNameB">Lens B version</span></span>
+      <button class="btn" type="button" data-copy="b">Copy</button>
+      <button class="btn" type="button" data-dl="b">Download .txt</button>
+    </div>
+    <div class="export-row">
+      <span class="export-name"><i class="swatch" style="background:var(--common-ink)"></i> Shared backbone</span>
+      <button class="btn" type="button" data-copy="core">Copy</button>
+      <button class="btn" type="button" data-dl="core">Download .txt</button>
+    </div>
+    <div class="export-row">
+      <span class="export-name">All three, in one file</span>
+      <button class="btn" type="button" data-copy="all">Copy</button>
+      <button class="btn" type="button" data-dl="all">Download .txt</button>
+    </div>
+    <p class="status" id="expStatus" role="status" aria-live="polite"></p>
+  </section>
+
+  <!-- ============ OWN TEXT ============ -->
+  <section aria-labelledby="h-own">
+    <div class="panel-head">
+      <h2 id="h-own">Your own note</h2>
+      <span class="step">OPTIONAL</span>
+    </div>
+    <div class="name-grid">
+      <div>
+        <label for="nameA">Name for Lens A</label>
+        <input type="text" id="nameA" maxlength="42" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label for="nameB">Name for Lens B</label>
+        <input type="text" id="nameB" maxlength="42" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <details>
+      <summary>Replace the sample with your own text</summary>
+      <p class="hint">Paste a short note. Splitglass breaks it into phrases at sentence ends and semicolons, keeps your paragraph breaks, and starts everything in the shared backbone. Nothing is sent anywhere.</p>
+      <label for="ownText" class="sr-only">Your note text</label>
+      <textarea id="ownText" placeholder="Paste or type a harmless note here…" spellcheck="true"></textarea>
+      <div class="toolbar" style="margin:.7rem 0 1rem">
+        <button class="btn" type="button" id="loadOwn">Split into phrases</button>
+        <button class="btn ghost" type="button" id="restoreSample">Restore the sample note</button>
+      </div>
+      <p class="status" id="ownStatus" role="status" aria-live="polite"></p>
+    </details>
+  </section>
+
+</main>
+
+<footer>
+  Splitglass · a bifocal editor for text you already wrote.<br>
+  Deterministic editing only — no generation, no scoring, no network.
+</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     The built-in sample note. Entirely invented, harmless copy: a small
+     reading room telling two audiences about the same schedule change.
+     ------------------------------------------------------------------ */
+  var SAMPLE_NAMES = { a: "Longtime members", b: "First-time visitors" };
+  var SAMPLE = [
+    [
+      { t: "The reading room is changing its evening hours starting next month.", l: "common" },
+      { t: "Doors will close at nine now, instead of eleven.", l: "common" },
+      { t: "You already know how the last half hour goes.", l: "a" },
+      { t: "A soft chime sounds fifteen minutes before closing, and the lamps dim slowly so nobody is startled.", l: "b" }
+    ],
+    [
+      { t: "The quiet floor keeps its usual rules.", l: "common" },
+      { t: "Nothing changes for you up there.", l: "a" },
+      { t: "That means no calls, no typing, and bags left in the alcove by the stairs.", l: "b" },
+      { t: "The window seats still fill up first.", l: "common" }
+    ],
+    [
+      { t: "If you want the later hours back, there is a sign-up sheet at the front desk.", l: "common" },
+      { t: "Add your name the way you did last spring.", l: "a" },
+      { t: "Ask anyone at the desk and they will point you to it.", l: "b" },
+      { t: "Every sheet gets read before the schedule is set again in autumn.", l: "common" }
+    ]
+  ];
+
+  var LENS_LABEL = { common: "shared backbone", a: "Lens A only", b: "Lens B only" };
+  var MARK = { common: "", a: "A", b: "B" };
+  var MAX_INPUT = 9000;
+
+  /* ------------------------- state ------------------------- */
+  var uid = 0;
+  var state = null;      // { paras: [ [ {id,t,l} ] ], names:{a,b} }
+  var sel = new Set();
+  var history = [];
+  var mode = "both";
+  var revealPct = 50;
+
+  function makeState(paras, names){
+    return {
+      paras: paras.map(function(p){
+        return p.map(function(ph){ return { id: ++uid, t: ph.t, l: ph.l || "common" }; });
+      }),
+      names: { a: names.a, b: names.b }
+    };
+  }
+  function cloneState(s){
+    return {
+      paras: s.paras.map(function(p){
+        return p.map(function(ph){ return { id: ph.id, t: ph.t, l: ph.l }; });
+      }),
+      names: { a: s.names.a, b: s.names.b }
+    };
+  }
+  function pushHistory(){
+    history.push({ state: cloneState(state), sel: Array.from(sel) });
+    if (history.length > 60) history.shift();
+    refreshUndo();
+  }
+  function refreshUndo(){ $("doUndo").disabled = history.length === 0; }
+
+  function $(id){ return document.getElementById(id); }
+  function allPhrases(){
+    var out = [];
+    state.paras.forEach(function(p){ p.forEach(function(ph){ out.push(ph); }); });
+    return out;
+  }
+
+  /* ------------------------- text plumbing ------------------------- */
+
+  // Split raw text into paragraphs of phrase strings.
+  function tokenize(raw){
+    var text = String(raw).replace(/\r\n?/g, "\n").replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, " ");
+    var blocks = text.split(/\n\s*\n+/);
+    var paras = [];
+    blocks.forEach(function(block){
+      var flat = block.replace(/\n+/g, " ").replace(/[ \t]+/g, " ").trim();
+      if (!flat) return;
+      var pieces = flat.match(/[^.!?…;]+(?:[.!?…;]+[""'’”)\]]*)?/g) || [flat];
+      var phrases = [];
+      pieces.forEach(function(piece){
+        var s = piece.trim();
+        if (s) phrases.push(s);
+      });
+      if (phrases.length) paras.push(phrases);
+    });
+    return paras;
+  }
+
+  // Join phrases with a single space, without creating space before punctuation.
+  function joinPhrases(list){
+    var s = list.join(" ");
+    s = s.replace(/\s+([,.;:!?…%)\]}»])/g, "$1");
+    s = s.replace(/([(\[{«])\s+/g, "$1");
+    s = s.replace(/[ \t]{2,}/g, " ");
+    return s.trim();
+  }
+
+  // Build the plain-text version for a lens: "a", "b" or "core".
+  function versionText(which){
+    var out = [];
+    state.paras.forEach(function(p){
+      var keep = p.filter(function(ph){
+        if (which === "core") return ph.l === "common";
+        return ph.l === "common" || ph.l === which;
+      }).map(function(ph){ return ph.t; });
+      if (keep.length) out.push(joinPhrases(keep));
+    });
+    return out.join("\n\n");
+  }
+
+  function wordCount(s){
+    var m = s.trim().match(/[^\s]+/g);
+    return m ? m.length : 0;
+  }
+
+  function lensName(which){
+    if (which === "a") return state.names.a || "Lens A";
+    if (which === "b") return state.names.b || "Lens B";
+    return "Shared backbone";
+  }
+
+  /* ------------------------- editor render ------------------------- */
+
+  function renderEditor(){
+    var ed = $("editor");
+    ed.innerHTML = "";
+    state.paras.forEach(function(para, pi){
+      var head = document.createElement("div");
+      head.className = "para-head";
+      var sb = document.createElement("button");
+      sb.type = "button";
+      sb.className = "para-sel";
+      sb.textContent = "¶ " + (pi + 1) + " — select all";
+      sb.addEventListener("click", function(){
+        var everySelected = para.every(function(ph){ return sel.has(ph.id); });
+        para.forEach(function(ph){ everySelected ? sel.delete(ph.id) : sel.add(ph.id); });
+        syncSelection();
+        say("editStatus", everySelected
+          ? "Paragraph " + (pi + 1) + " deselected."
+          : "Paragraph " + (pi + 1) + " selected — " + para.length + " phrases.");
+      });
+      head.appendChild(sb);
+      ed.appendChild(head);
+
+      var p = document.createElement("p");
+      p.className = "para";
+      para.forEach(function(ph){
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        b.dataset.id = String(ph.id);
+        b.dataset.lens = ph.l;
+        b.setAttribute("aria-pressed", sel.has(ph.id) ? "true" : "false");
+        b.appendChild(document.createTextNode(ph.t));
+        if (MARK[ph.l]) {
+          var m = document.createElement("span");
+          m.className = "mark";
+          m.textContent = MARK[ph.l];
+          m.setAttribute("aria-hidden", "true");
+          b.appendChild(m);
+        }
+        b.setAttribute("aria-label", ph.t + " — " + LENS_LABEL[ph.l]);
+        b.addEventListener("click", function(){
+          if (sel.has(ph.id)) sel.delete(ph.id); else sel.add(ph.id);
+          syncSelection();
+        });
+        p.appendChild(b);
+        p.appendChild(document.createTextNode(" "));
+      });
+      ed.appendChild(p);
+    });
+  }
+
+  // Cheap update: only touch what selection changes, keeping focus intact.
+  function syncSelection(){
+    var chips = $("editor").querySelectorAll(".chip");
+    for (var i = 0; i < chips.length; i++){
+      var id = Number(chips[i].dataset.id);
+      chips[i].setAttribute("aria-pressed", sel.has(id) ? "true" : "false");
+    }
+    updateSelBar();
+  }
+
+  function updateSelBar(){
+    var n = sel.size;
+    $("selCount").textContent = n === 0
+      ? "Nothing selected"
+      : n + (n === 1 ? " phrase selected" : " phrases selected");
+    $("clearSel").disabled = n === 0;
+    $("asCommon").disabled = n === 0;
+    $("asA").disabled = n === 0;
+    $("asB").disabled = n === 0;
+    $("doSplit").disabled = !splittable();
+    $("doMerge").disabled = !mergeable();
+  }
+
+  function updateCounts(){
+    var c = { common: 0, a: 0, b: 0 };
+    allPhrases().forEach(function(ph){ c[ph.l]++; });
+    $("cCommon").textContent = c.common;
+    $("cA").textContent = c.a;
+    $("cB").textContent = c.b;
+  }
+
+  /* ------------------------- actions ------------------------- */
+
+  // Re-rendering the editor destroys focus; put it back on a known phrase.
+  function focusChip(id){
+    if (id == null) return;
+    var el = $("editor").querySelector('.chip[data-id="' + id + '"]');
+    if (el) el.focus({ preventScroll: true });
+  }
+  function focusedChipId(){
+    var a = document.activeElement;
+    return (a && a.classList && a.classList.contains("chip")) ? Number(a.dataset.id) : null;
+  }
+
+  function assign(which){
+    if (!sel.size) return;
+    pushHistory();
+    var hadFocus = focusedChipId() !== null;
+    var first = null, n = 0;
+    allPhrases().forEach(function(ph){
+      if (sel.has(ph.id)) { ph.l = which; n++; if (first === null) first = ph.id; }
+    });
+    sel.clear();
+    renderAll();
+    if (hadFocus) focusChip(first);
+    say("editStatus", n + (n === 1 ? " phrase moved to " : " phrases moved to ") + LENS_LABEL[which] + ".");
+  }
+
+  function selectedPhrases(){
+    return allPhrases().filter(function(ph){ return sel.has(ph.id); });
+  }
+
+  function splittable(){
+    var s = selectedPhrases();
+    if (s.length !== 1) return false;
+    return /[,;]\s*\S/.test(s[0].t);
+  }
+
+  function doSplit(){
+    if (!splittable()) return;
+    var target = selectedPhrases()[0];
+    var chunks = (target.t.match(/[^,;]+[,;]?/g) || []).map(function(x){ return x.trim(); }).filter(Boolean);
+    if (chunks.length < 2) return;
+    pushHistory();
+    for (var pi = 0; pi < state.paras.length; pi++){
+      var idx = state.paras[pi].indexOf(target);
+      if (idx === -1) continue;
+      var made = chunks.map(function(c){ return { id: ++uid, t: c, l: target.l }; });
+      state.paras[pi].splice.apply(state.paras[pi], [idx, 1].concat(made));
+      sel.clear();
+      made.forEach(function(m){ sel.add(m.id); });
+      break;
+    }
+    var wasFocused = focusedChipId() !== null;
+    renderAll();
+    if (wasFocused) focusChip(Array.from(sel)[0]);
+    say("editStatus", "Split into " + chunks.length + " phrases. Assign each one separately.");
+  }
+
+  // Mergeable when the selection is 2+ neighbours inside one paragraph.
+  function mergeTarget(){
+    if (sel.size < 2) return null;
+    for (var pi = 0; pi < state.paras.length; pi++){
+      var para = state.paras[pi];
+      var idxs = [];
+      for (var i = 0; i < para.length; i++) if (sel.has(para[i].id)) idxs.push(i);
+      if (idxs.length !== sel.size) continue;          // selection spans paragraphs
+      if (idxs[idxs.length - 1] - idxs[0] !== idxs.length - 1) return null; // not adjacent
+      return { pi: pi, start: idxs[0], count: idxs.length };
+    }
+    return null;
+  }
+  function mergeable(){ return !!mergeTarget(); }
+
+  function doMerge(){
+    var t = mergeTarget();
+    if (!t) return;
+    pushHistory();
+    var para = state.paras[t.pi];
+    var group = para.slice(t.start, t.start + t.count);
+    var merged = {
+      id: ++uid,
+      t: joinPhrases(group.map(function(g){ return g.t; })),
+      l: group[0].l
+    };
+    para.splice(t.start, t.count, merged);
+    sel.clear();
+    sel.add(merged.id);
+    renderAll();
+    say("editStatus", "Merged " + t.count + " phrases into one.");
+  }
+
+  function undo(){
+    if (!history.length) return;
+    var prev = history.pop();
+    state = prev.state;
+    sel = new Set(prev.sel);
+    $("nameA").value = state.names.a;
+    $("nameB").value = state.names.b;
+    renderAll();
+    say("editStatus", "Undone.");
+  }
+
+  function reset(){
+    pushHistory();
+    state = makeState(SAMPLE, SAMPLE_NAMES);
+    sel.clear();
+    $("nameA").value = state.names.a;
+    $("nameB").value = state.names.b;
+    $("ownText").value = "";
+    renderAll();
+    say("editStatus", "Reset to the sample note.");
+  }
+
+  /* ------------------------- preview ------------------------- */
+
+  function sheet(which, extraClass){
+    var wrap = document.createElement("div");
+    wrap.className = "sheet " + (extraClass || "");
+
+    var h = document.createElement("h3");
+    var dot = document.createElement("i");
+    dot.className = "dot";
+    dot.style.background = which === "a" ? "var(--lens-a-strong)"
+                        : which === "b" ? "var(--lens-b-strong)"
+                        : "var(--common-ink)";
+    h.appendChild(dot);
+    h.appendChild(document.createTextNode(lensName(which)));
+    var wc = document.createElement("span");
+    wc.style.marginLeft = "auto";
+    wc.textContent = wordCount(versionText(which)) + " words";
+    h.appendChild(wc);
+    wrap.appendChild(h);
+
+    var any = false;
+    state.paras.forEach(function(para){
+      var keep = para.filter(function(ph){
+        if (which === "core") return ph.l === "common";
+        return ph.l === "common" || ph.l === which;
+      });
+      if (!keep.length) return;
+      any = true;
+      var p = document.createElement("p");
+      keep.forEach(function(ph, i){
+        var span = document.createElement("span");
+        if (ph.l === "a") span.className = "only-a";
+        else if (ph.l === "b") span.className = "only-b";
+        span.textContent = ph.t;
+        p.appendChild(span);
+        if (i < keep.length - 1) p.appendChild(document.createTextNode(" "));
+      });
+      wrap.appendChild(p);
+    });
+    if (!any){
+      var e = document.createElement("p");
+      e.className = "empty";
+      e.textContent = which === "core"
+        ? "No phrases are in the shared backbone yet."
+        : "Nothing is marked for this lens yet.";
+      wrap.appendChild(e);
+    }
+    return wrap;
+  }
+
+  function renderPreview(){
+    var area = $("previewArea");
+    area.innerHTML = "";
+
+    if (mode === "both"){
+      var g = document.createElement("div");
+      g.className = "sheets two";
+      g.appendChild(sheet("a"));
+      g.appendChild(sheet("b"));
+      area.appendChild(g);
+      return;
+    }
+    if (mode === "a" || mode === "b" || mode === "core"){
+      area.appendChild(sheet(mode));
+      return;
+    }
+
+    /* compare: draggable vertical reveal */
+    var rail = document.createElement("div");
+    rail.className = "compare-rail";
+    var handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "handle";
+    handle.id = "revealHandle";
+    handle.setAttribute("role", "slider");
+    handle.setAttribute("aria-label", "Compare reveal position");
+    handle.setAttribute("aria-valuemin", "0");
+    handle.setAttribute("aria-valuemax", "100");
+    handle.innerHTML = "<span aria-hidden='true'>◀▶</span>";
+    rail.appendChild(handle);
+    area.appendChild(rail);
+
+    var comp = document.createElement("div");
+    comp.className = "compare";
+    var bottom = sheet("b", "layer");
+    var top = sheet("a", "layer top");
+    top.id = "revealTop";
+    comp.appendChild(bottom);
+    comp.appendChild(top);
+    var div = document.createElement("div");
+    div.className = "divider";
+    div.id = "revealDivider";
+    comp.appendChild(div);
+    area.appendChild(comp);
+
+    var labels = document.createElement("div");
+    labels.className = "compare-labels";
+    var l1 = document.createElement("span"); l1.textContent = "◀ " + lensName("a");
+    var l2 = document.createElement("span"); l2.textContent = lensName("b") + " ▶";
+    labels.appendChild(l1); labels.appendChild(l2);
+    area.appendChild(labels);
+
+    wireReveal(rail, handle, comp);
+    applyReveal();
+  }
+
+  function applyReveal(){
+    var top = $("revealTop"), h = $("revealHandle"), d = $("revealDivider");
+    if (!top || !h) return;
+    top.style.clipPath = "inset(0 " + (100 - revealPct) + "% 0 0)";
+    h.style.left = revealPct + "%";
+    h.setAttribute("aria-valuenow", String(Math.round(revealPct)));
+    h.setAttribute("aria-valuetext", Math.round(revealPct) + "% " + lensName("a"));
+    if (d) d.style.left = revealPct + "%";
+  }
+
+  function wireReveal(rail, handle, comp){
+    var dragging = false;
+    function pctFrom(clientX){
+      var r = rail.getBoundingClientRect();
+      if (!r.width) return revealPct;
+      var p = ((clientX - r.left) / r.width) * 100;
+      return Math.max(0, Math.min(100, p));
+    }
+    function down(e){
+      dragging = true;
+      if (rail.setPointerCapture && e.pointerId !== undefined){
+        try { rail.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      revealPct = pctFrom(e.clientX);
+      applyReveal();
+      e.preventDefault();
+    }
+    function move(e){
+      if (!dragging) return;
+      revealPct = pctFrom(e.clientX);
+      applyReveal();
+      e.preventDefault();
+    }
+    function up(){ dragging = false; }
+
+    rail.addEventListener("pointerdown", down);
+    rail.addEventListener("pointermove", move);
+    rail.addEventListener("pointerup", up);
+    rail.addEventListener("pointercancel", up);
+    comp.addEventListener("pointerdown", function(e){
+      // tapping the panes also moves the reveal, but never blocks text selection drag
+      if (e.pointerType === "mouse" && e.buttons !== 1) return;
+      revealPct = pctFrom(e.clientX);
+      applyReveal();
+    });
+
+    handle.addEventListener("keydown", function(e){
+      var step = e.shiftKey ? 10 : 4;
+      var k = e.key;
+      if (k === "ArrowLeft" || k === "ArrowDown") { revealPct = Math.max(0, revealPct - step); }
+      else if (k === "ArrowRight" || k === "ArrowUp") { revealPct = Math.min(100, revealPct + step); }
+      else if (k === "Home") { revealPct = 0; }
+      else if (k === "End") { revealPct = 100; }
+      else return;
+      e.preventDefault();
+      applyReveal();
+    });
+  }
+
+  /* ------------------------- stats ------------------------- */
+
+  function renderStats(){
+    var a = versionText("a"), b = versionText("b"), core = versionText("core");
+    var wa = wordCount(a), wb = wordCount(b), wc = wordCount(core);
+    var total = allPhrases().length;
+    var shared = allPhrases().filter(function(p){ return p.l === "common"; }).length;
+    var pct = total ? Math.round((shared / total) * 100) : 0;
+
+    var rows = [
+      [wa, lensName("a") + " words"],
+      [wb, lensName("b") + " words"],
+      [wc, "backbone words"],
+      [pct + "%", "phrases shared"]
+    ];
+    var box = $("stats");
+    box.innerHTML = "";
+    rows.forEach(function(r){
+      var d = document.createElement("div");
+      d.className = "stat";
+      var bEl = document.createElement("b"); bEl.textContent = r[0];
+      var sEl = document.createElement("span"); sEl.textContent = r[1];
+      d.appendChild(bEl); d.appendChild(sEl);
+      box.appendChild(d);
+    });
+  }
+
+  function renderAll(){
+    renderEditor();
+    updateSelBar();
+    updateCounts();
+    renderPreview();
+    renderStats();
+    $("expNameA").textContent = lensName("a") + " version";
+    $("expNameB").textContent = lensName("b") + " version";
+    refreshUndo();
+  }
+
+  /* ------------------------- export ------------------------- */
+
+  function bundleText(){
+    var line = "----------------------------------------";
+    return [
+      "SPLITGLASS — one note, two readings",
+      "",
+      lensName("a").toUpperCase(),
+      line,
+      versionText("a") || "(empty)",
+      "",
+      "",
+      lensName("b").toUpperCase(),
+      line,
+      versionText("b") || "(empty)",
+      "",
+      "",
+      "SHARED BACKBONE",
+      line,
+      versionText("core") || "(empty)",
+      ""
+    ].join("\n");
+  }
+
+  function payload(kind){
+    return kind === "all" ? bundleText() : versionText(kind);
+  }
+
+  function slug(s){
+    return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "note";
+  }
+
+  function fileName(kind){
+    if (kind === "all") return "splitglass-both-versions.txt";
+    if (kind === "core") return "splitglass-shared-backbone.txt";
+    return "splitglass-" + slug(lensName(kind)) + ".txt";
+  }
+
+  function copyText(text, label){
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      say("expStatus", ok ? "Copied " + label + " to the clipboard." : "Copy blocked by the browser — select the text above instead.");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        say("expStatus", "Copied " + label + " to the clipboard.");
+      }, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function download(text, name, label){
+    try {
+      var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+      say("expStatus", "Downloaded " + name + " (" + label + ").");
+    } catch (e) {
+      say("expStatus", "This browser blocked the download — use Copy instead.");
+    }
+  }
+
+  function say(id, msg){
+    var el = $(id);
+    el.textContent = "";
+    // Re-set on the next frame so screen readers announce repeats.
+    requestAnimationFrame(function(){ el.textContent = msg; });
+  }
+
+  /* ------------------------- keyboard ------------------------- */
+
+  function chipList(){
+    return Array.prototype.slice.call($("editor").querySelectorAll(".chip"));
+  }
+
+  document.addEventListener("keydown", function(e){
+    var t = e.target;
+    var inEditor = t && t.classList && t.classList.contains("chip");
+    if (t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT")) return;
+
+    if (e.key === "Escape" && sel.size){
+      sel.clear();
+      syncSelection();
+      say("editStatus", "Selection cleared.");
+      return;
+    }
+    if (inEditor && (e.key === "ArrowRight" || e.key === "ArrowLeft")){
+      var chips = chipList();
+      var i = chips.indexOf(t);
+      var next = chips[i + (e.key === "ArrowRight" ? 1 : -1)];
+      if (next){ next.focus(); e.preventDefault(); }
+      return;
+    }
+    if (sel.size && (e.key === "1" || e.key === "2" || e.key === "3")){
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      assign(e.key === "1" ? "common" : e.key === "2" ? "a" : "b");
+      e.preventDefault();
+    }
+  });
+
+  /* ------------------------- wiring ------------------------- */
+
+  $("asCommon").addEventListener("click", function(){ assign("common"); });
+  $("asA").addEventListener("click", function(){ assign("a"); });
+  $("asB").addEventListener("click", function(){ assign("b"); });
+  $("doSplit").addEventListener("click", doSplit);
+  $("doMerge").addEventListener("click", doMerge);
+  $("doUndo").addEventListener("click", undo);
+  $("doReset").addEventListener("click", reset);
+  $("clearSel").addEventListener("click", function(){
+    sel.clear(); syncSelection(); say("editStatus", "Selection cleared.");
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".mode"), function(btn){
+    btn.addEventListener("click", function(){
+      mode = btn.dataset.mode;
+      Array.prototype.forEach.call(document.querySelectorAll(".mode"), function(o){
+        o.setAttribute("aria-pressed", o === btn ? "true" : "false");
+      });
+      renderPreview();
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function(btn){
+    btn.addEventListener("click", function(){
+      var k = btn.dataset.copy;
+      var label = k === "all" ? "all three versions" : lensName(k === "core" ? "core" : k);
+      copyText(payload(k), label);
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-dl]"), function(btn){
+    btn.addEventListener("click", function(){
+      var k = btn.dataset.dl;
+      var label = k === "all" ? "all three versions" : lensName(k === "core" ? "core" : k);
+      download(payload(k), fileName(k), label);
+    });
+  });
+
+  function onName(which, input){
+    input.addEventListener("input", function(){
+      state.names[which] = input.value.slice(0, 42);
+      renderPreview();
+      renderStats();
+      $("expNameA").textContent = lensName("a") + " version";
+      $("expNameB").textContent = lensName("b") + " version";
+    });
+  }
+
+  $("loadOwn").addEventListener("click", function(){
+    var raw = $("ownText").value;
+    var trimmed = raw.length > MAX_INPUT ? raw.slice(0, MAX_INPUT) : raw;
+    var paras = tokenize(trimmed);
+    if (!paras.length){
+      say("ownStatus", "Add some text first — Splitglass needs at least one sentence.");
+      return;
+    }
+    pushHistory();
+    var names = { a: $("nameA").value || "Lens A", b: $("nameB").value || "Lens B" };
+    state = makeState(paras.map(function(p){
+      return p.map(function(t){ return { t: t, l: "common" }; });
+    }), names);
+    sel.clear();
+    renderAll();
+    var n = allPhrases().length;
+    say("ownStatus", "Loaded " + n + " phrases in " + paras.length +
+      (paras.length === 1 ? " paragraph" : " paragraphs") +
+      ". Everything starts shared — now mark what belongs to one lens." +
+      (raw.length > MAX_INPUT ? " (Text was trimmed to " + MAX_INPUT + " characters.)" : ""));
+    document.querySelector(".editor").scrollIntoView({ block: "start" });
+  });
+
+  $("restoreSample").addEventListener("click", function(){
+    reset();
+    say("ownStatus", "Sample note restored.");
+  });
+
+  /* ------------------------- boot ------------------------- */
+
+  state = makeState(SAMPLE, SAMPLE_NAMES);
+  $("nameA").value = state.names.a;
+  $("nameB").value = state.names.b;
+  onName("a", $("nameA"));
+  onName("b", $("nameB"));
+  renderAll();
+})();
+</script>
+</body>
+</html>
