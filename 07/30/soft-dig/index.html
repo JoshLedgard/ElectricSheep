@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Soft Dig — A Pocket Excavation Puzzle</title>
+<meta name="description" content="Brush away a tactile little dig tray and lift three fictional relics. A private, self-contained browser game.">
+<style>
+:root{--ink:#30251c;--paper:#f4ead7;--sand:#b9804c;--deep:#442f25;--aqua:#2f7773;--orange:#d76842;--cream:#fff9ed}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#231b18;color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif}body{display:flex;justify-content:center;padding:0 0 env(safe-area-inset-bottom)}
+.shell{width:min(100%,680px);min-height:100vh;background:var(--paper);box-shadow:0 0 70px #0008;overflow:hidden}
+header{padding:20px 20px 14px;background:var(--cream);border-bottom:2px solid #dac6a7;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.eyebrow{font:700 11px/1.2 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#916548}.title{margin:3px 0 3px;font-size:clamp(25px,7vw,38px);line-height:1;letter-spacing:-.04em}.dek{margin:0;font-size:13px;color:#725e4e;max-width:400px}
+.stage{flex:none;min-width:72px;text-align:center;border:2px solid #d4b990;border-radius:14px;padding:7px 8px;background:#fffaf0;font-size:11px;color:#806143}.stage b{display:block;font-size:19px;color:var(--aqua)}
+.notice{min-height:50px;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#ead8b7;border-bottom:1px solid #c9aa7c}.notice strong{font-size:14px}.notice span{font-size:12px;color:#775d44}.pulse{animation:pulse 1s ease-in-out infinite alternate}@keyframes pulse{to{transform:translateY(-2px)}}
+.workbench{padding:12px}.tray{position:relative;border:8px solid #5b3b28;border-radius:22px;background:#8d5e3c;box-shadow:inset 0 0 0 3px #2f2119,0 8px 20px #50362155;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{width:100%;height:auto;display:block;aspect-ratio:4/3;touch-action:none}.hint{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);background:#342219df;color:#fff7e5;border:1px solid #fff5;padding:9px 14px;border-radius:999px;font-weight:750;font-size:13px;pointer-events:none;transition:.35s;white-space:nowrap}.hint.gone{opacity:0;transform:translate(-50%,-35%)}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.tool,.action{min-height:52px;border:2px solid #ceb58f;border-radius:14px;background:#fffaf0;color:#493528;font:750 14px/1 system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}.tool span{font-size:21px}.tool[aria-pressed="true"]{background:var(--aqua);color:white;border-color:#205e5a;box-shadow:inset 0 -3px #1c5552}.tool:focus-visible,.action:focus-visible{outline:4px solid #f2a85a;outline-offset:2px}
+.readout{margin:12px 2px 0;padding:12px 14px;background:#e8d9c1;border-radius:14px;display:flex;align-items:center;gap:12px}.meter{height:9px;flex:1;border-radius:10px;background:#c6ad89;overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--aqua);border-radius:inherit;transition:width .25s}.readout label{font:700 11px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em;color:#765b43}.readout output{font:800 12px ui-monospace,monospace;color:var(--aqua);min-width:34px;text-align:right}
+.actions{display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:10px}.action{min-height:48px}.action.primary{background:var(--orange);border-color:#a7442c;color:white}.action:disabled{opacity:.45;filter:grayscale(.5);cursor:not-allowed}
+.foot{padding:10px 18px 22px;color:#806d59;font-size:12px;line-height:1.45}.foot details{border-top:1px solid #d9c5a5;padding-top:10px}.foot summary{min-height:44px;display:flex;align-items:center;font-weight:750;cursor:pointer}.foot p{margin:4px 0}.final{position:fixed;inset:0;background:#211914eb;display:none;place-items:center;padding:22px;z-index:5}.final.show{display:grid}.final-card{width:min(430px,100%);background:var(--cream);border-radius:26px;padding:26px;text-align:center;box-shadow:0 25px 80px #0009}.final-art{font-size:64px;display:block;animation:rise .7s cubic-bezier(.2,.9,.2,1)}@keyframes rise{from{transform:translateY(30px) rotate(-8deg);opacity:0}}.final h2{font-size:31px;margin:8px 0}.final p{color:#715d4c;line-height:1.5}.final button{width:100%;margin-top:12px}
+@media(max-width:390px){header{padding:16px 14px 12px}.workbench{padding:9px}.tray{border-width:6px}.tool{font-size:12px;gap:4px}.tool span{font-size:18px}.notice{padding:8px 12px}.dek{font-size:12px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+<header><div><div class="eyebrow">Fictional hand-tool simulation</div><h1 class="title">Soft Dig</h1><p class="dek">Clear the tray gently. When the buried shape can breathe, lift it free.</p></div><div class="stage"><span>TRAY</span><b id="stageNo">1 / 3</b></div></header>
+<section class="notice" aria-live="polite"><div><strong id="relicName">Warm-up tray</strong><br><span id="status">Sweep anywhere to begin.</span></div><span id="toolGlyph" aria-hidden="true">🖌️</span></section>
+<section class="workbench">
+  <div class="tray"><canvas id="dig" width="800" height="600" aria-label="Sediment excavation tray. Drag the selected tool across it."></canvas><div class="hint" id="hint">Drag a tool across the sand</div></div>
+  <div class="tools" role="group" aria-label="Excavation tools">
+    <button class="tool" data-tool="brush" aria-pressed="true"><span>🖌️</span> Brush</button>
+    <button class="tool" data-tool="air" aria-pressed="false"><span>💨</span> Air puff</button>
+    <button class="tool" data-tool="pick" aria-pressed="false"><span>🥢</span> Wood pick</button>
+  </div>
+  <div class="readout"><label for="exposure">Edges uncovered</label><div class="meter" id="exposure"><i id="fill"></i></div><output id="percent">0%</output></div>
+  <div class="actions"><button class="action" id="restart">↻ Refill tray</button><button class="action primary" id="lift" disabled>Lift gently</button></div>
+</section>
+<section class="foot"><details><summary>How does this little tray work?</summary><p><b>Brush</b> clears a steady path. <b>Air puff</b> moves a broad, thin layer. <b>Wood pick</b> works in tight corners. Tool speed changes the marks, but nothing is scored and no relic can be damaged.</p><p>All sand, shapes, and sound are made locally in this tab. Soft Dig is playful fiction, not archaeological instruction.</p></details></section>
+</main>
+<div class="final" id="final"><div class="final-card"><span class="final-art">🏺</span><div class="eyebrow">Three quiet discoveries</div><h2>Tray complete.</h2><p>You uncovered a loopstone, a moon key, and a tiny rain cup — fictional objects with no history except the one your hands just gave them.</p><button class="action primary" id="again">Bury them again</button></div></div>
+<script>
+(()=>{
+'use strict';
+const canvas=document.querySelector('#dig'),ctx=canvas.getContext('2d',{alpha:false});
+const W=800,H=600,COLS=80,ROWS=60,CW=W/COLS,CH=H/ROWS;
+const stages=[
+ {name:'The loopstone', glyph:'◉', desc:'A rounded edge is waking up.', shape:'loop', hue:'#366e6d'},
+ {name:'The moon key', glyph:'☾', desc:'A hooked silhouette is appearing.', shape:'key', hue:'#b5573d'},
+ {name:'The rain cup', glyph:'∪', desc:'A small vessel waits underneath.', shape:'cup', hue:'#496c91'}
+];
+let stage=0,tool='brush',down=false,last=null,moved=false,ready=false,cells=[],particles=[],audio=null;
+const ui={stageNo:q('#stageNo'),name:q('#relicName'),status:q('#status'),glyph:q('#toolGlyph'),hint:q('#hint'),fill:q('#fill'),pct:q('#percent'),lift:q('#lift'),final:q('#final')};
+function q(s){return document.querySelector(s)}
+function seeded(n){n=Math.sin(n*127.1+stage*991.7)*43758.5453;return n-Math.floor(n)}
+function isRelic(x,y){const X=(x-W/2)/W,Y=(y-H/2)/H,s=stages[stage].shape;if(s==='loop'){let d=Math.hypot(X*.95,Y*1.25);return d<.255&&d>.13||Math.abs(X)<.055&&Y>.16&&Y<.3}if(s==='key'){let ring=Math.hypot(X+.15,Y+.04);return ring<.16&&ring>.08||X>-.05&&X<.28&&Math.abs(Y+.04)<.035||X>.19&&X<.26&&Y>-.04&&Y<.12}return (Math.abs(X)<.21&&Y>-.16&&Y<.19&&Math.abs(X)<.21-(Y+.16)*.22)||(Math.abs(X)>.2&&Math.abs(X)<.3&&Y>-.1&&Y<.09)}
+function reset(){cells=[];particles=[];ready=false;down=false;last=null;moved=false;ui.hint.classList.remove('gone');for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const r=seeded(y*COLS+x);cells.push({a:.77+r*.23,t:r});}for(let i=0;i<220;i++)particles.push({x:seeded(i+700)*W,y:seeded(i+900)*H,r:1+seeded(i+1100)*3,c:seeded(i+1300)});ui.name.textContent=stage===0?'Warm-up tray':stages[stage].name;ui.status.textContent='Sweep anywhere to begin.';ui.lift.disabled=true;progress();draw()}
+function relicPath(){ctx.beginPath();const s=stages[stage].shape;if(s==='loop'){ctx.arc(400,295,165,0,Math.PI*2);ctx.arc(400,295,82,0,Math.PI*2,true);ctx.rect(365,430,70,90)}else if(s==='key'){ctx.arc(285,280,102,0,Math.PI*2);ctx.arc(285,280,48,0,Math.PI*2,true);ctx.rect(380,258,245,44);ctx.rect(560,292,44,82)}else{ctx.moveTo(235,220);ctx.quadraticCurveTo(250,455,400,470);ctx.quadraticCurveTo(550,455,565,220);ctx.closePath();ctx.moveTo(560,260);ctx.bezierCurveTo(700,230,690,405,550,385)}}
+function drawRelic(){ctx.save();ctx.fillStyle='#3b281f';relicPath();ctx.fill();ctx.translate(0,-7);const g=ctx.createLinearGradient(220,180,600,470);g.addColorStop(0,'#f1c67a');g.addColorStop(.5,stages[stage].hue);g.addColorStop(1,'#263f3f');ctx.fillStyle=g;relicPath();ctx.fill();ctx.strokeStyle='#ffe4a766';ctx.lineWidth=7;relicPath();ctx.stroke();ctx.globalAlpha=.34;ctx.strokeStyle='#fff3c5';ctx.lineWidth=3;for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(400,300,55+i*20,.2,1.5);ctx.stroke()}ctx.restore()}
+function draw(){ctx.fillStyle='#7d5438';ctx.fillRect(0,0,W,H);drawRelic();for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const c=cells[y*COLS+x];if(c.a<.025)continue;const light=52+c.t*15;ctx.globalAlpha=Math.min(1,c.a);ctx.fillStyle=`hsl(${27+c.t*7} 43% ${light}%)`;ctx.fillRect(x*CW-1,y*CH-1,CW+2,CH+2)}ctx.globalAlpha=1;for(const p of particles){const ix=Math.min(COLS-1,Math.floor(p.x/CW)),iy=Math.min(ROWS-1,Math.floor(p.y/CH));if(cells[iy*COLS+ix].a>.12){ctx.fillStyle=p.c>.5?'#e3ba78':'#7a4e32';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}}ctx.strokeStyle='#fff4d51e';ctx.lineWidth=2;ctx.strokeRect(8,8,W-16,H-16)}
+function apply(x,y,speed){const spec=tool==='brush'?{r:38,p:.12}:{r:tool==='air'?72:21,p:tool==='air'?.045:.24};const power=spec.p*Math.max(.58,Math.min(1.45,speed/9));const minX=Math.max(0,Math.floor((x-spec.r)/CW)),maxX=Math.min(COLS-1,Math.ceil((x+spec.r)/CW)),minY=Math.max(0,Math.floor((y-spec.r)/CH)),maxY=Math.min(ROWS-1,Math.ceil((y+spec.r)/CH));for(let yy=minY;yy<=maxY;yy++)for(let xx=minX;xx<=maxX;xx++){const d=Math.hypot(xx*CW+CW/2-x,yy*CH+CH/2-y)/spec.r;if(d<1){const c=cells[yy*COLS+xx];c.a=Math.max(0,c.a-power*(1-d)*(tool==='brush'?.7+seeded(xx+yy*99)*.6:1))}}moved=true;ui.hint.classList.add('gone');progress();draw();sound(speed)}
+function progress(){let total=0,clear=0;for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){if(isRelic(x*CW+CW/2,y*CH+CH/2)){total++;clear+=1-cells[y*COLS+x].a}}const p=Math.round(clear/total*100);ui.fill.style.width=p+'%';ui.pct.textContent=p+'%';if(moved){ui.name.textContent=stages[stage].name;ui.status.textContent=p<25?'There is something under here…':p<62?stages[stage].desc:p<76?'Trace a little more of its edge.':'The shape is free enough to lift.'}if(p>=76&&!ready){ready=true;ui.lift.disabled=false;ui.lift.classList.add('pulse');softChime()}}
+function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();down=true;canvas.setPointerCapture(e.pointerId);last=point(e);apply(last.x,last.y,7)});canvas.addEventListener('pointermove',e=>{if(!down)return;e.preventDefault();const p=point(e),d=Math.hypot(p.x-last.x,p.y-last.y);if(d>2){const steps=Math.max(1,Math.ceil(d/12));for(let i=1;i<=steps;i++)apply(last.x+(p.x-last.x)*i/steps,last.y+(p.y-last.y)*i/steps,d);last=p}});canvas.addEventListener('pointerup',()=>{down=false;last=null});canvas.addEventListener('pointercancel',()=>{down=false;last=null});
+document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>{tool=b.dataset.tool;document.querySelectorAll('.tool').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));ui.glyph.textContent=tool==='brush'?'🖌️':tool==='air'?'💨':'🥢';ui.status.textContent=tool==='brush'?'Brush in slow overlapping strokes.':tool==='air'?'Broad and gentle — good for the surface.':'Useful around a nearly visible edge.';softTick()}));
+q('#restart').addEventListener('click',reset);ui.lift.addEventListener('click',()=>{if(!ready)return;ui.lift.classList.remove('pulse');softChime();stage++;if(stage>=stages.length){ui.final.classList.add('show')}else reset()});q('#again').addEventListener('click',()=>{stage=0;ui.final.classList.remove('show');reset()});
+function sound(speed=6){if(!down||Math.random()>.16)return;try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.value=95+Math.min(speed,20)*3;g.gain.setValueAtTime(.008,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.035);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.04)}catch(_){}}
+function softTick(){sound(9)}function softChime(){try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();[0,110].forEach((ms,i)=>setTimeout(()=>{const o=audio.createOscillator(),g=audio.createGain();o.frequency.value=[440,660][i];g.gain.setValueAtTime(.035,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.35);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.4)},ms))}catch(_){}}
+reset();
+})();
+</script>
+</body>
+</html>
