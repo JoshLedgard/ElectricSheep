@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171819">
+<title>Counterweight — A Kinetic Mobile Workbench</title>
+<style>
+:root{--ink:#25231f;--paper:#eee8dc;--soft:#d5cbb8;--rust:#c75b3c;--blue:#456a73;--gold:#d6a33f;--night:#171819}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--night);color:var(--paper);font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,select{font:inherit}button{touch-action:manipulation}.app{min-height:100svh;display:grid;grid-template-rows:auto minmax(410px,1fr) auto;overflow:hidden;background:radial-gradient(circle at 50% 25%,#353432 0,#202120 45%,#131514 100%)}
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px clamp(16px,4vw,38px) 8px;z-index:2}h1{font-family:Georgia,serif;font-weight:500;font-size:clamp(25px,5vw,42px);letter-spacing:-.035em;margin:0}.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#b6ad9d;margin:0 0 5px}.intro{max-width:430px;color:#bcb4a6;font-size:12px;line-height:1.45;text-align:right;margin:5px 0 0}
+.stage{position:relative;min-height:410px;overflow:hidden}.stage:before{content:"";position:absolute;inset:2% 7% 6%;border:1px solid rgba(255,255,255,.055);border-radius:50% 50% 45% 45%;background:radial-gradient(ellipse at 50% 30%,rgba(255,244,217,.09),transparent 57%);pointer-events:none}svg{width:100%;height:100%;min-height:410px;display:block;touch-action:none;user-select:none;-webkit-user-select:none}.wire{stroke:#beb5a6;stroke-width:1.2;fill:none;vector-effect:non-scaling-stroke}.bar{stroke:#e2dbcd;stroke-width:3;stroke-linecap:round;vector-effect:non-scaling-stroke}.joint{fill:#e4dccd}.weight{cursor:grab;filter:drop-shadow(0 7px 7px rgba(0,0,0,.3));stroke:rgba(255,255,255,.35);stroke-width:1.2;vector-effect:non-scaling-stroke}.weight:active{cursor:grabbing}.halo{fill:none;stroke:#fff;stroke-width:1.5;opacity:0;pointer-events:none}.dragging .halo{opacity:.42;stroke-dasharray:3 4}.hint{position:absolute;left:50%;top:16px;transform:translateX(-50%);padding:8px 12px;border:1px solid rgba(255,255,255,.1);border-radius:99px;background:rgba(10,11,10,.45);backdrop-filter:blur(8px);font-size:11px;color:#d2cabb;white-space:nowrap;pointer-events:none;transition:opacity .4s}.hint.gone{opacity:0}.breath{position:absolute;inset:auto 0 18px;text-align:center;color:#9b9589;font-size:10px;letter-spacing:.12em;text-transform:uppercase;pointer-events:none}
+.controls{position:relative;z-index:3;display:grid;grid-template-columns:1fr auto;gap:12px;padding:12px max(14px,env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));border-top:1px solid rgba(255,255,255,.08);background:rgba(16,17,16,.9);backdrop-filter:blur(14px)}.tools{display:flex;gap:8px;flex-wrap:wrap}.btn{min-height:46px;border:1px solid rgba(255,255,255,.13);border-radius:13px;background:#282a28;color:#eee8dc;padding:0 15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}.btn:active{transform:translateY(1px);background:#333531}.btn.primary{background:var(--paper);color:var(--ink);border-color:var(--paper)}.dot{width:11px;height:11px;border-radius:50%;background:var(--rust);box-shadow:13px 0 0 var(--gold),26px 0 0 var(--blue);margin-right:25px}.moods{display:flex;border:1px solid rgba(255,255,255,.13);border-radius:13px;overflow:hidden}.mood{width:46px;min-height:46px;border:0;border-right:1px solid rgba(255,255,255,.1);background:#262826;color:#ddd4c3;cursor:pointer}.mood:last-child{border:0}.mood[aria-pressed=true]{background:#d9d0c0;color:#222}.status{grid-column:1/-1;color:#8f8a80;font-size:10px;min-height:14px;letter-spacing:.04em}
+@media(max-width:600px){.app{grid-template-rows:auto minmax(470px,1fr) auto}header{display:block}.intro{text-align:left;margin-top:6px;max-width:360px}.stage,.stage svg{min-height:470px}.controls{grid-template-columns:1fr}.moods{position:absolute;right:14px;top:-56px}.btn{padding:0 12px}.tools{display:grid;grid-template-columns:repeat(3,1fr)}.tools .btn{font-size:12px}.status{grid-column:1}.breath{bottom:10px}}
+@media(prefers-reduced-motion:reduce){.hint{transition:none}}
+</style>
+</head>
+<body>
+<main class="app">
+<header><div><p class="eyebrow">Object 08 · kinetic study</p><h1>Counterweight</h1></div><p class="intro">Slide the hanging forms along their arms. Give the sculpture a breath. Let imbalance become motion.</p></header>
+<section class="stage" id="stage" aria-label="Interactive hanging mobile">
+<div class="hint" id="hint">Drag any shape sideways along its arm</div>
+<svg id="mobile" viewBox="0 0 760 560" role="img" aria-label="A kinetic mobile with four draggable abstract weights">
+<defs><radialGradient id="glow"><stop stop-color="#fff4d8" stop-opacity=".17"/><stop offset="1" stop-color="#fff4d8" stop-opacity="0"/></radialGradient></defs>
+<circle id="light" cx="380" cy="235" r="280" fill="url(#glow)"/>
+<line class="wire" x1="380" y1="0" x2="380" y2="65"/><circle class="joint" cx="380" cy="65" r="4"/>
+<g id="upper" transform="translate(380 65)"><line class="bar" x1="-180" y1="0" x2="180" y2="0"/><circle class="joint" r="4"/>
+ <g id="leftHang"><line class="wire" x1="-128" y1="0" x2="-128" y2="92"/><g id="leftBar" transform="translate(-128 92)"><line class="bar" x1="-118" y1="0" x2="118" y2="0"/><circle class="joint" r="3.5"/>
+   <g class="piece" data-id="0"><line class="wire drop"/><circle class="halo" r="29"/><path class="weight" fill="#c75b3c" d="M-21,-23 C7,-32 28,-10 20,16 C10,36 -17,34 -27,10 C-31,-3 -28,-15 -21,-23Z"/></g>
+   <g class="piece" data-id="1"><line class="wire drop"/><circle class="halo" r="27"/><path class="weight" fill="#d6a33f" d="M0,-27 L25,18 Q5,34 -23,19Z"/></g>
+ </g></g>
+ <g id="rightHang"><line class="wire" x1="130" y1="0" x2="130" y2="128"/><g id="rightBar" transform="translate(130 128)"><line class="bar" x1="-112" y1="0" x2="112" y2="0"/><circle class="joint" r="3.5"/>
+   <g class="piece" data-id="2"><line class="wire drop"/><circle class="halo" r="30"/><rect class="weight" fill="#456a73" x="-23" y="-23" width="46" height="46" rx="7" transform="rotate(13)"/></g>
+   <g class="piece" data-id="3"><line class="wire drop"/><circle class="halo" r="27"/><path class="weight" fill="#ddd3c3" d="M0,-27 A27,27 0 1,1 -1,-27Z M0,-14 A14,14 0 1,0 1,-14Z" fill-rule="evenodd"/></g>
+ </g></g>
+</g>
+</svg>
+<div class="breath" id="caption">four bodies · three pivots · one quiet room</div>
+</section>
+<footer class="controls">
+<div class="tools"><button class="btn primary" id="breeze"><span aria-hidden="true">≈</span> Give a breath</button><button class="btn" id="shuffle"><span class="dot" aria-hidden="true"></span>Remix</button><button class="btn" id="export"><span aria-hidden="true">↓</span> Keep SVG</button></div>
+<div class="moods" aria-label="Light mood"><button class="mood" data-mood="dawn" aria-pressed="false" aria-label="Dawn light">◐</button><button class="mood" data-mood="room" aria-pressed="true" aria-label="Room light">●</button><button class="mood" data-mood="blue" aria-pressed="false" aria-label="Blue light">◒</button></div>
+<div class="status" id="status" aria-live="polite">The workbench is ready.</div>
+</footer>
+</main>
+<script>
+(()=>{
+'use strict';
+const svg=document.getElementById('mobile'), upper=document.getElementById('upper'), leftBar=document.getElementById('leftBar'), rightBar=document.getElementById('rightBar');
+const status=document.getElementById('status'), hint=document.getElementById('hint'), reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const items=[
+ {x:-75,m:1.3,len:82,bar:'left'}, {x:72,m:.9,len:116,bar:'left'},
+ {x:-66,m:1.15,len:86,bar:'right'}, {x:70,m:.8,len:120,bar:'right'}
+];
+const motion={upper:{a:0,v:0},left:{a:0,v:0},right:{a:0,v:0}};
+const limits={left:96,right:90}; let dragging=null, first=true, last=performance.now();
+function target(bar){const group=items.filter(i=>i.bar===bar);const torque=group.reduce((s,i)=>s+i.x*i.m,0), mass=group.reduce((s,i)=>s+i.m,0);return Math.max(-13,Math.min(13,torque/(mass*7.2)));}
+function upperTarget(){const lm=items.filter(i=>i.bar==='left').reduce((s,i)=>s+i.m,0), rm=items.filter(i=>i.bar==='right').reduce((s,i)=>s+i.m,0);return Math.max(-9,Math.min(9,(rm-lm)*4.2+(target('right')-target('left'))*.08));}
+function setTransforms(){upper.setAttribute('transform',`translate(380 65) rotate(${motion.upper.a.toFixed(2)})`);leftBar.setAttribute('transform',`translate(-128 92) rotate(${motion.left.a.toFixed(2)})`);rightBar.setAttribute('transform',`translate(130 128) rotate(${motion.right.a.toFixed(2)})`);items.forEach((it,n)=>{const g=svg.querySelector(`[data-id="${n}"]`);g.setAttribute('transform',`translate(${it.x.toFixed(1)} ${it.len})`);const line=g.querySelector('.drop');line.setAttribute('x1','0');line.setAttribute('y1',String(-it.len));line.setAttribute('x2','0');line.setAttribute('y2','-30')})}
+function tick(now){const dt=Math.min(.035,(now-last)/1000);last=now;const targets={upper:upperTarget(),left:target('left'),right:target('right')};for(const k of Object.keys(motion)){const q=motion[k];q.v+=(targets[k]-q.a)*(reduced?15:8)*dt;q.v*=Math.pow(reduced?.35:.965,dt*60);q.a+=q.v*dt*60;if(reduced){q.a=targets[k];q.v=0}}setTransforms();requestAnimationFrame(tick)}
+function point(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+svg.querySelectorAll('.piece').forEach(g=>{g.addEventListener('pointerdown',e=>{e.preventDefault();const id=+g.dataset.id;dragging={id,start:point(e).x,x:items[id].x};g.classList.add('dragging');g.setPointerCapture(e.pointerId);if(first){hint.classList.add('gone');first=false}status.textContent='Slide sideways — the whole structure responds.'});g.addEventListener('pointermove',e=>{if(!dragging||dragging.id!==+g.dataset.id)return;const it=items[dragging.id], lim=limits[it.bar];it.x=Math.max(-lim,Math.min(lim,dragging.x+(point(e).x-dragging.start)));motion[it.bar].v+=(it.x-dragging.x)*.002;setTransforms()});const done=()=>{if(dragging&&dragging.id===+g.dataset.id){g.classList.remove('dragging');dragging=null;status.textContent='Released. Watch the counterweights find their rest.'}};g.addEventListener('pointerup',done);g.addEventListener('pointercancel',done)});
+document.getElementById('breeze').addEventListener('click',()=>{motion.upper.v+=(Math.random()-.5)*1.1;motion.left.v-=1.3;motion.right.v+=1.6;status.textContent='A small breath moves through the room.'});
+document.getElementById('shuffle').addEventListener('click',()=>{items.forEach((it,n)=>{const vals=[-82,-54,48,78];it.x=vals[(n+Math.floor(Math.random()*3))%4]+(Math.random()*12-6)});motion.upper.v=.7;motion.left.v=-1;motion.right.v=1.2;hint.classList.add('gone');status.textContent='A new arrangement is hanging.'});
+const moods={room:{bg:'radial-gradient(circle at 50% 25%,#353432 0,#202120 45%,#131514 100%)',glow:'#fff4d8'},dawn:{bg:'radial-gradient(circle at 28% 20%,#755d4c 0,#332d2b 44%,#171817 100%)',glow:'#ffd49a'},blue:{bg:'radial-gradient(circle at 72% 22%,#314553 0,#20282c 44%,#121719 100%)',glow:'#b9e5ff'}};
+document.querySelectorAll('.mood').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.mood').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');const m=moods[b.dataset.mood];document.querySelector('.app').style.background=m.bg;document.querySelector('#glow stop').setAttribute('stop-color',m.glow);status.textContent=`${b.getAttribute('aria-label')} selected.`}));
+document.getElementById('export').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns','http://www.w3.org/2000/svg');copy.setAttribute('width','760');copy.setAttribute('height','560');const bg=document.createElementNS('http://www.w3.org/2000/svg','rect');bg.setAttribute('width','760');bg.setAttribute('height','560');bg.setAttribute('fill','#202120');copy.insertBefore(bg,copy.firstChild);copy.querySelectorAll('.halo').forEach(x=>x.remove());const blob=new Blob([new XMLSerializer().serializeToString(copy)],{type:'image/svg+xml'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='counterweight-mobile.svg';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status.textContent='Your mobile was saved as a real SVG.'});
+setTransforms();requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
