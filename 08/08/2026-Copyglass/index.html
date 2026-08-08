@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Copyglass — A Microcopy Pressure Lab</title>
+<meta name="description" content="Put short interface copy under real pressure: squeeze the frame, enlarge the type, simulate translation growth, and watch actual buttons, toasts, notifications and share cards wrap, clip and truncate." />
+<style>
+  :root{
+    --paper:#f2ece1;
+    --paper-2:#e8e0d1;
+    --ink:#1e1b17;
+    --ink-2:#585044;
+    --ink-3:#8a8072;
+    --rule:#d3c9b6;
+    --glass:#256f6a;
+    --glass-soft:#dcece9;
+    --warn:#a86a12;
+    --warn-soft:#f6e7cd;
+    --clip:#a83c2c;
+    --clip-soft:#f6dcd6;
+    --ok:#3f6b3a;
+    --shadow:0 1px 0 rgba(30,27,23,.06), 0 8px 22px -14px rgba(30,27,23,.5);
+    --r:14px;
+    font-synthesis-weight: none;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    background:
+      radial-gradient(120% 60% at 50% -10%, #fbf7ef 0%, rgba(251,247,239,0) 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.45;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px;}
+
+  /* ---------- header ---------- */
+  header.top{margin-bottom:16px;}
+  .brandrow{display:flex;align-items:center;gap:10px;}
+  .lens{
+    width:34px;height:34px;flex:0 0 34px;border-radius:50%;
+    border:2px solid var(--ink);
+    background:radial-gradient(circle at 32% 30%, #ffffff 0 18%, var(--glass-soft) 19% 62%, #bcd7d3 63% 100%);
+    position:relative;
+  }
+  .lens::after{
+    content:"";position:absolute;right:-7px;bottom:-5px;width:14px;height:4px;border-radius:3px;
+    background:var(--ink);transform:rotate(40deg);
+  }
+  h1{font-size:1.32rem;line-height:1.15;margin:0;letter-spacing:-.02em;}
+  h1 .sub{display:block;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-top:3px;}
+  .cue{
+    margin:12px 0 0;padding:10px 12px;border-radius:12px;
+    background:var(--glass-soft);border:1px solid #bfd8d4;
+    font-size:.83rem;color:#1d4b48;
+  }
+  .cue b{font-weight:700;}
+
+  /* ---------- panels ---------- */
+  section.panel{
+    background:#fbf8f2;border:1px solid var(--rule);border-radius:var(--r);
+    padding:14px;margin-top:16px;box-shadow:var(--shadow);
+  }
+  .panel > h2{
+    font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);
+    margin:0 0 10px;font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:baseline;
+  }
+  .panel > h2 .note{letter-spacing:0;text-transform:none;font-weight:500;font-size:.74rem;color:var(--ink-3);}
+
+  /* ---------- stage ---------- */
+  .stagewrap{position:relative;padding:0 24px;}
+  .stage{
+    margin:0 auto;position:relative;
+    background:#efe9de;border-radius:12px;padding:12px 10px;
+    border:1px dashed #c6bba6;
+    transition:none;
+  }
+  .grip{
+    position:absolute;top:0;bottom:0;width:24px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:0;padding:0;margin:0;cursor:ew-resize;
+    touch-action:none;color:var(--ink-2);
+  }
+  /* widen the real hit area to a comfortable 44px without moving the visual */
+  .grip::before{content:"";position:absolute;top:0;bottom:0;width:44px;}
+  .grip.left{left:0;} .grip.right{right:0;}
+  .grip.left::before{left:0;} .grip.right::before{right:0;}
+  .grip i{
+    display:block;width:6px;height:52px;border-radius:4px;
+    background:repeating-linear-gradient(180deg,var(--ink-2) 0 3px, transparent 3px 6px);
+    border-left:2px solid var(--ink-2);border-right:2px solid var(--ink-2);
+  }
+  .grip:focus-visible{outline:3px solid var(--glass);outline-offset:-2px;border-radius:8px;}
+  .grip.hint i{animation:nudge 1.6s ease-in-out 3;}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-4px)}}
+  .widthtag{
+    position:absolute;left:50%;transform:translateX(-50%);top:-9px;
+    background:var(--ink);color:#fbf8f2;font-size:.63rem;letter-spacing:.08em;
+    padding:2px 8px;border-radius:20px;font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+
+  /* specimens share this scale */
+  .stage{--s:1;}
+  .spec{margin:0 0 12px;}
+  .spec:last-child{margin-bottom:0;}
+  .spec-label{
+    font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:#8d8471;
+    margin:0 0 5px 2px;font-weight:700;
+  }
+  .spec-label.on{color:var(--glass);}
+
+  /* button specimen */
+  .btnrow{display:flex;gap:8px;}
+  .ui-btn{
+    flex:1 1 auto;min-width:0;border-radius:10px;border:1px solid #1c3f3d;
+    background:var(--glass);color:#f4fbfa;font-weight:650;
+    font-size:calc(15px * var(--s));line-height:1.2;
+    padding:calc(11px * var(--s)) 12px;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .ui-btn.ghost{flex:0 1 auto;background:transparent;color:#204b48;border-color:#a9c3c0;font-weight:600;}
+
+  /* toast specimen */
+  .ui-toast{
+    background:#22201c;color:#f4efe4;border-radius:12px;padding:calc(10px * var(--s)) 12px;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .ui-toast .dot{width:8px;height:8px;border-radius:50%;background:#7fc9a6;flex:0 0 8px;margin-top:calc(6px * var(--s));}
+  .ui-toast .txt{min-width:0;flex:1 1 auto;}
+  .ui-toast .t{
+    font-size:calc(13.5px * var(--s));font-weight:700;line-height:1.25;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .ui-toast .b{
+    font-size:calc(12.5px * var(--s));line-height:1.35;color:#cfc7b8;margin-top:2px;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  }
+  .ui-toast .a{
+    flex:0 0 auto;font-size:calc(12.5px * var(--s));font-weight:700;color:#8fd3c9;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34%;
+    padding:calc(4px * var(--s)) 0 0;
+  }
+
+  /* notification specimen */
+  .ui-note{
+    background:#fdfbf6;border:1px solid #ded4c1;border-radius:14px;
+    padding:calc(10px * var(--s)) 11px;display:flex;gap:9px;
+  }
+  .ui-note .icon{
+    width:calc(26px * var(--s));height:calc(26px * var(--s));border-radius:7px;flex:0 0 auto;
+    background:linear-gradient(140deg,#e0b13f,#c2622f);
+  }
+  .ui-note .col{min-width:0;flex:1 1 auto;}
+  .ui-note .head{display:flex;gap:6px;align-items:baseline;}
+  .ui-note .app{
+    font-size:calc(11px * var(--s));font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8b7f68;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+  }
+  .ui-note .when{font-size:calc(10.5px * var(--s));color:#a99d86;flex:0 0 auto;margin-left:auto;}
+  .ui-note .t{
+    font-size:calc(13.5px * var(--s));font-weight:700;line-height:1.25;margin-top:1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .ui-note .b{
+    font-size:calc(12.5px * var(--s));line-height:1.35;color:#6b6252;margin-top:2px;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  }
+
+  /* share card specimen */
+  .ui-share{
+    border:1px solid #d8cdb8;border-radius:14px;overflow:hidden;background:#fdfbf6;
+  }
+  .ui-share .art{
+    height:calc(52px * var(--s));
+    background:
+      linear-gradient(120deg,#256f6a 0 34%, #e0b13f 34% 58%, #c2622f 58% 78%, #22201c 78%);
+  }
+  .ui-share .pad{padding:calc(10px * var(--s)) 11px calc(11px * var(--s));}
+  .ui-share .eyebrow{
+    font-size:calc(10.5px * var(--s));letter-spacing:.13em;text-transform:uppercase;color:#8b7f68;font-weight:700;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .ui-share .h{
+    font-size:calc(16px * var(--s));font-weight:750;line-height:1.2;letter-spacing:-.01em;margin-top:3px;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  }
+  .ui-share .s{
+    font-size:calc(12.5px * var(--s));line-height:1.35;color:#6b6252;margin-top:4px;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  }
+  .ui-share .cta{
+    margin-top:calc(9px * var(--s));display:inline-block;max-width:100%;
+    border:1px solid #b9ab90;border-radius:8px;background:#f1eadb;
+    font-size:calc(12.5px * var(--s));font-weight:700;padding:calc(7px * var(--s)) 10px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* strain outline drawn on measured slots */
+  [data-slot].strain-clip{box-shadow:inset 0 0 0 1.5px var(--clip);border-radius:4px;}
+  [data-slot].strain-wrap{box-shadow:inset 0 0 0 1.5px rgba(168,106,18,.55);border-radius:4px;}
+
+  /* ---------- controls ---------- */
+  .ctl{margin-bottom:14px;}
+  .ctl:last-child{margin-bottom:0;}
+  .ctl-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
+  .ctl-head label{font-size:.83rem;font-weight:650;}
+  .ctl-head output{font-size:.78rem;color:var(--ink-2);font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0;
+    display:block;
+  }
+  input[type=range]:focus{outline:none;}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(37,111,106,.35);}
+  input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 4px rgba(37,111,106,.35);}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:10px;border-radius:6px;background:
+      repeating-linear-gradient(90deg,#cfc4ae 0 1px, transparent 1px 12px), var(--paper-2);
+    border:1px solid var(--rule);
+  }
+  input[type=range]::-moz-range-track{
+    height:10px;border-radius:6px;background:
+      repeating-linear-gradient(90deg,#cfc4ae 0 1px, transparent 1px 12px), var(--paper-2);
+    border:1px solid var(--rule);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;
+    background:#fbf8f2;border:2.5px solid var(--glass);margin-top:-9px;cursor:grab;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:26px;height:26px;border-radius:50%;background:#fbf8f2;border:2.5px solid var(--glass);cursor:grab;
+  }
+
+  .seg{display:flex;flex-wrap:wrap;gap:6px;}
+  .seg button{
+    flex:1 1 auto;min-height:44px;min-width:0;padding:6px 8px;border-radius:10px;
+    border:1px solid var(--rule);background:#f5f0e6;color:var(--ink-2);
+    font:inherit;font-size:.79rem;font-weight:650;cursor:pointer;line-height:1.15;
+  }
+  .seg button[aria-pressed="true"], .seg button[aria-selected="true"]{
+    background:var(--glass);border-color:#1c3f3d;color:#f4fbfa;
+  }
+  .seg button:focus-visible{outline:3px solid var(--ink);outline-offset:2px;}
+  .seg .growth-note{display:block;font-size:.66rem;font-weight:500;opacity:.75;margin-top:1px;}
+
+  /* editor */
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .fields{display:grid;gap:10px;}
+  .field label{display:block;font-size:.74rem;font-weight:700;color:var(--ink-2);margin-bottom:4px;}
+  .field textarea{
+    width:100%;min-height:48px;resize:vertical;border-radius:10px;border:1px solid var(--rule);
+    background:#fffdf8;color:var(--ink);font:inherit;font-size:.9rem;line-height:1.35;padding:9px 10px;
+  }
+  .field textarea:focus{outline:3px solid rgba(37,111,106,.4);outline-offset:1px;border-color:var(--glass);}
+  .field .cnt{font-size:.68rem;color:var(--ink-3);margin-top:3px;font-variant-numeric:tabular-nums;}
+
+  .rowbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  .btn{
+    min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--ink);
+    background:var(--ink);color:#fbf8f2;font:inherit;font-size:.84rem;font-weight:650;cursor:pointer;
+  }
+  .btn.alt{background:#f5f0e6;color:var(--ink);border-color:var(--rule);}
+  .btn:focus-visible{outline:3px solid var(--glass);outline-offset:2px;}
+
+  /* readout */
+  .summary{
+    font-size:.85rem;color:var(--ink-2);margin:0 0 10px;padding:9px 11px;border-radius:10px;
+    background:var(--paper-2);border:1px solid var(--rule);
+  }
+  .summary b{color:var(--ink);}
+  ul.readout{list-style:none;margin:0;padding:0;}
+  ul.readout li{
+    display:flex;gap:9px;padding:9px 0;border-top:1px solid var(--rule);
+  }
+  ul.readout li:first-child{border-top:0;}
+  .pip{width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:6px;background:var(--ok);}
+  .pip.wrap{background:var(--warn);}
+  .pip.clip{background:var(--clip);}
+  .r-name{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-3);}
+  .r-msg{font-size:.86rem;line-height:1.35;}
+  .r-msg .em{font-weight:700;}
+  li.clip .r-msg .em{color:var(--clip);}
+  li.wrap .r-msg .em{color:var(--warn);}
+  .r-txt{font-size:.75rem;color:var(--ink-3);margin-top:2px;overflow-wrap:anywhere;}
+
+  pre.snap{
+    white-space:pre-wrap;overflow-wrap:anywhere;background:#22201c;color:#e9e2d4;
+    border-radius:12px;padding:12px;font-size:.72rem;line-height:1.45;margin:12px 0 0;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-height:270px;overflow:auto;
+  }
+  .hidden{display:none;}
+  footer.foot{margin-top:22px;font-size:.74rem;color:var(--ink-3);text-align:center;line-height:1.5;}
+  .gauge{position:fixed;left:-99999px;top:0;visibility:hidden;pointer-events:none;}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brandrow">
+      <div class="lens" aria-hidden="true"></div>
+      <h1>Copyglass<span class="sub">A microcopy pressure lab</span></h1>
+    </div>
+    <p class="cue">Four real interface pieces are loaded below. <b>Drag the ribbed grips</b> to squeeze the frame, push the type up, or simulate translation growth — the readout names exactly what wraps, clips, or gets cut off. No scores, just what the DOM actually does.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="stage-h">
+    <h2 id="stage-h">Specimens <span class="note" id="stage-note">live DOM</span></h2>
+    <div class="stagewrap" id="stagewrap">
+      <button class="grip left hint" id="gripL" role="slider" aria-orientation="horizontal" aria-label="Squeeze the frame from the left edge" aria-valuemin="180" aria-valuemax="440" aria-valuenow="330" aria-valuetext="330 pixels wide"><i></i></button>
+      <button class="grip right hint" id="gripR" role="slider" aria-orientation="horizontal" aria-label="Squeeze the frame from the right edge" aria-valuemin="180" aria-valuemax="440" aria-valuenow="330" aria-valuetext="330 pixels wide"><i></i></button>
+      <div class="stage" id="stage">
+        <div class="widthtag" id="widthtag">—</div>
+
+        <div class="spec" data-spec="button">
+          <p class="spec-label" data-spec-label="button">Action row</p>
+          <div class="btnrow">
+            <div class="ui-btn" data-slot="btn.primary" data-mode="nowrap">—</div>
+            <div class="ui-btn ghost" data-slot="btn.secondary" data-mode="nowrap">—</div>
+          </div>
+        </div>
+
+        <div class="spec" data-spec="toast">
+          <p class="spec-label" data-spec-label="toast">Toast</p>
+          <div class="ui-toast">
+            <span class="dot" aria-hidden="true"></span>
+            <div class="txt">
+              <div class="t" data-slot="toast.title" data-mode="nowrap">—</div>
+              <div class="b" data-slot="toast.body" data-mode="clamp" data-lines="2">—</div>
+            </div>
+            <div class="a" data-slot="toast.action" data-mode="nowrap">—</div>
+          </div>
+        </div>
+
+        <div class="spec" data-spec="note">
+          <p class="spec-label" data-spec-label="note">Notification</p>
+          <div class="ui-note">
+            <span class="icon" aria-hidden="true"></span>
+            <div class="col">
+              <div class="head">
+                <div class="app" data-slot="note.app" data-mode="nowrap">—</div>
+                <div class="when">now</div>
+              </div>
+              <div class="t" data-slot="note.title" data-mode="nowrap">—</div>
+              <div class="b" data-slot="note.body" data-mode="clamp" data-lines="2">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="spec" data-spec="share">
+          <p class="spec-label" data-spec-label="share">Share card</p>
+          <div class="ui-share">
+            <div class="art" aria-hidden="true"></div>
+            <div class="pad">
+              <div class="eyebrow" data-slot="share.eyebrow" data-mode="nowrap">—</div>
+              <div class="h" data-slot="share.headline" data-mode="clamp" data-lines="2">—</div>
+              <div class="s" data-slot="share.sub" data-mode="clamp" data-lines="2">—</div>
+              <div class="cta" data-slot="share.cta" data-mode="nowrap">—</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="rig-h">
+    <h2 id="rig-h">Pressure rig</h2>
+
+    <div class="ctl">
+      <div class="ctl-head">
+        <label for="wRange">Available width</label>
+        <output id="wOut" for="wRange">—</output>
+      </div>
+      <input type="range" id="wRange" min="180" max="440" step="1" value="330" />
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-head">
+        <label for="sRange">Type size</label>
+        <output id="sOut" for="sRange">100%</output>
+      </div>
+      <input type="range" id="sRange" min="85" max="185" step="5" value="100" />
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-head"><label id="growth-h">Translation growth</label></div>
+      <div class="seg" role="group" aria-labelledby="growth-h" id="growthSeg">
+        <button type="button" data-growth="1" aria-pressed="true">Source<span class="growth-note">as written</span></button>
+        <button type="button" data-growth="1.18" aria-pressed="false">Modest<span class="growth-note">+18%</span></button>
+        <button type="button" data-growth="1.35" aria-pressed="false">Typical<span class="growth-note">+35%</span></button>
+        <button type="button" data-growth="1.6" aria-pressed="false">Worst<span class="growth-note">+60%</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="ed-h">
+    <h2 id="ed-h">Copy under test <span class="note">edits stay in this browser</span></h2>
+    <div class="tabs seg" role="tablist" aria-label="Choose a surface to edit" id="tabs">
+      <button type="button" role="tab" id="tab-button" aria-selected="true" aria-controls="fields" data-tab="button">Button</button>
+      <button type="button" role="tab" id="tab-toast" aria-selected="false" aria-controls="fields" data-tab="toast">Toast</button>
+      <button type="button" role="tab" id="tab-note" aria-selected="false" aria-controls="fields" data-tab="note">Notification</button>
+      <button type="button" role="tab" id="tab-share" aria-selected="false" aria-controls="fields" data-tab="share">Share card</button>
+    </div>
+    <div class="fields" id="fields" role="tabpanel" aria-labelledby="tab-button"></div>
+    <div class="rowbtns">
+      <button type="button" class="btn alt" id="cycleBtn">Load another example set</button>
+      <button type="button" class="btn alt" id="resetBtn">Reset this surface</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="out-h">
+    <h2 id="out-h">Readout <span class="note" id="filterNote"></span></h2>
+    <p class="summary" id="summary">—</p>
+    <div class="seg" style="margin-bottom:10px" role="group" aria-label="Filter readout">
+      <button type="button" id="fStrain" aria-pressed="true">Under strain</button>
+      <button type="button" id="fAll" aria-pressed="false">Every slot</button>
+    </div>
+    <ul class="readout" id="readout" aria-live="polite"></ul>
+    <div class="rowbtns">
+      <button type="button" class="btn" id="snapBtn">Copy snapshot</button>
+      <button type="button" class="btn alt" id="showSnapBtn" aria-expanded="false" aria-controls="snap">Show snapshot text</button>
+    </div>
+    <pre class="snap hidden" id="snap" tabindex="0"></pre>
+  </section>
+
+  <footer class="foot">
+    Copyglass runs entirely in this page — no network, no storage, no accounts.<br />
+    All specimen text is invented for the lab.
+  </footer>
+</div>
+
+<div class="gauge" id="gauge" aria-hidden="true"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     Copy sets — all fictional, all harmless.
+  ------------------------------------------------------------------ */
+  var SETS = [
+    {
+      name: "Draft-saving flow",
+      copy: {
+        "btn.primary": "Save draft and keep editing",
+        "btn.secondary": "Discard",
+        "toast.title": "Draft saved to this device",
+        "toast.body": "Nothing leaves your browser until you choose to share it with someone.",
+        "toast.action": "Undo",
+        "note.app": "Lanternwick Notes",
+        "note.title": "Two reminders are waiting",
+        "note.body": "Both were set for this afternoon. Open the list to snooze them or clear them out.",
+        "share.eyebrow": "Shared preview",
+        "share.headline": "A quieter way to keep short notes",
+        "share.sub": "Made for small thoughts, long lists, and the messy middle of a project.",
+        "share.cta": "Open the preview"
+      }
+    },
+    {
+      name: "Empty-state nudge",
+      copy: {
+        "btn.primary": "Add your first entry",
+        "btn.secondary": "Not now",
+        "toast.title": "Nothing here yet",
+        "toast.body": "Entries you add show up in this space, newest first, with the oldest tucked below.",
+        "toast.action": "Show me how",
+        "note.app": "Pebblecourt Planner",
+        "note.title": "Your week is still empty",
+        "note.body": "Add one thing and the planner will start suggesting sensible times for the rest.",
+        "share.eyebrow": "Getting started",
+        "share.headline": "Start with one small entry",
+        "share.sub": "You can rename, reorder, or delete anything later — nothing is locked in.",
+        "share.cta": "Add an entry"
+      }
+    },
+    {
+      name: "Gentle error",
+      copy: {
+        "btn.primary": "Try that again",
+        "btn.secondary": "Back",
+        "toast.title": "That step didn't finish",
+        "toast.body": "Your text is still here. Try once more, or step back and keep what you had.",
+        "toast.action": "Retry",
+        "note.app": "Marrowfield Studio",
+        "note.title": "One item needs another look",
+        "note.body": "It stopped partway through. Everything else in the batch finished normally.",
+        "share.eyebrow": "Status note",
+        "share.headline": "One item needs another look",
+        "share.sub": "The rest finished normally. Nothing was lost while this one waited.",
+        "share.cta": "Review the item"
+      }
+    },
+    {
+      name: "Long-label torture test",
+      copy: {
+        "btn.primary": "Save changes and continue to the summary",
+        "btn.secondary": "Discard everything",
+        "toast.title": "Your preferences were updated everywhere",
+        "toast.body": "The change applies to every surface that reads these preferences, including the compact ones you rarely open.",
+        "toast.action": "Undo the change",
+        "note.app": "Quillhaven Workshop Notifications",
+        "note.title": "A scheduled summary is ready to read",
+        "note.body": "It covers everything from the past seven days, grouped by the labels you set up when you started.",
+        "share.eyebrow": "Weekly summary preview",
+        "share.headline": "Everything from the past seven days, grouped the way you asked",
+        "share.sub": "Skim the headlines, open what matters, and let the rest quietly settle into the archive.",
+        "share.cta": "Read the whole summary"
+      }
+    }
+  ];
+
+  var FIELDS = {
+    button: [
+      { slot: "btn.primary",   label: "Primary button label" },
+      { slot: "btn.secondary", label: "Secondary button label" }
+    ],
+    toast: [
+      { slot: "toast.title",  label: "Toast title (one line, ellipsis)" },
+      { slot: "toast.body",   label: "Toast body (clamped to 2 lines)" },
+      { slot: "toast.action", label: "Toast action label" }
+    ],
+    note: [
+      { slot: "note.app",   label: "App name (one line)" },
+      { slot: "note.title", label: "Notification title (one line)" },
+      { slot: "note.body",  label: "Notification body (clamped to 2 lines)" }
+    ],
+    share: [
+      { slot: "share.eyebrow",  label: "Eyebrow (one line)" },
+      { slot: "share.headline", label: "Headline (clamped to 2 lines)" },
+      { slot: "share.sub",      label: "Subtitle (clamped to 2 lines)" },
+      { slot: "share.cta",      label: "Card button label" }
+    ]
+  };
+
+  var SPEC_NAMES = { button: "Action row", toast: "Toast", note: "Notification", share: "Share card" };
+  var SLOT_NAMES = {
+    "btn.primary": "Primary button", "btn.secondary": "Secondary button",
+    "toast.title": "Toast title", "toast.body": "Toast body", "toast.action": "Toast action",
+    "note.app": "App name", "note.title": "Notification title", "note.body": "Notification body",
+    "share.eyebrow": "Eyebrow", "share.headline": "Headline", "share.sub": "Subtitle", "share.cta": "Card button"
+  };
+
+  var state = {
+    setIndex: 0,
+    copy: Object.assign({}, SETS[0].copy),
+    tab: "button",
+    width: 330,
+    scale: 100,
+    growth: 1,
+    filterAll: false
+  };
+
+  /* ------------------------------------------------------------------
+     Deterministic "translation growth" — invented morphology, no real
+     language claimed. Same input + same level always yields the same text.
+  ------------------------------------------------------------------ */
+  var SUFFIXES = ["ung", "heit", "keit", "erung", "ische", "ationen", "lichkeit", "samkeit"];
+
+  function hash(str) {
+    var h = 2166136261, i;
+    for (i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function grow(text, ratio) {
+    if (!text || ratio <= 1.001) return text;
+    var target = Math.round(text.length * ratio);
+    var parts = text.split(/(\s+)/);
+    var idx = [];
+    for (var i = 0; i < parts.length; i++) {
+      if (/[A-Za-z]{4,}/.test(parts[i])) idx.push(i);
+    }
+    if (!idx.length) return text;
+    idx.sort(function (a, b) {
+      var d = (hash(parts[a]) % 101) - (hash(parts[b]) % 101);
+      return d !== 0 ? d : a - b;
+    });
+
+    function total() { return parts.join("").length; }
+
+    // Pass 1..4: append invented suffixes to progressively more words.
+    for (var round = 0; round < 4 && total() < target; round++) {
+      for (var k = 0; k < idx.length && total() < target; k++) {
+        var w = parts[idx[k]];
+        var m = w.match(/^([^A-Za-z]*)([A-Za-z]+)([\s\S]*)$/);
+        if (!m || m[2].length < 4) continue;
+        var suf = SUFFIXES[(hash(w) + round) % SUFFIXES.length];
+        parts[idx[k]] = m[1] + m[2] + suf + m[3];
+      }
+    }
+
+    // High pressure also welds neighbours into compound words, which is
+    // where unbreakable tokens really come from.
+    if (ratio >= 1.5) {
+      for (var j = 0; j + 2 < parts.length; j += 2) {
+        if (!/[A-Za-z]{5,}/.test(parts[j]) || !parts[j + 2]) continue;
+        if (hash(parts[j] + "|weld") % 3 !== 0) continue;
+        var nxt = parts[j + 2].match(/^([A-Za-z]{4,})([\s\S]*)$/);
+        if (!nxt) continue;
+        parts[j] = parts[j] + nxt[1].toLowerCase();
+        parts[j + 2] = nxt[2];
+        parts[j + 1] = parts[j + 2] ? parts[j + 1] : "";
+        j += 2;
+      }
+      parts = parts.filter(function (p, n) { return p !== "" || n === 0; });
+    }
+
+    return parts.join("").replace(/\s{2,}/g, " ").trim();
+  }
+
+  /* ------------------------------------------------------------------
+     Measurement gauge — an offscreen node that mirrors a slot's typography
+     so we can ask real questions: how wide is this text, how many lines
+     does it need, how much is hidden.
+  ------------------------------------------------------------------ */
+  var gauge = document.getElementById("gauge");
+
+  function syncGauge(el, cs, wrapMode, width) {
+    gauge.style.font = cs.font || (cs.fontStyle + " " + cs.fontVariant + " " + cs.fontWeight + " " + cs.fontSize + "/" + cs.lineHeight + " " + cs.fontFamily);
+    gauge.style.fontFamily = cs.fontFamily;
+    gauge.style.fontSize = cs.fontSize;
+    gauge.style.fontWeight = cs.fontWeight;
+    gauge.style.lineHeight = cs.lineHeight;
+    gauge.style.letterSpacing = cs.letterSpacing;
+    gauge.style.textTransform = cs.textTransform;
+    gauge.style.wordSpacing = cs.wordSpacing;
+    gauge.style.whiteSpace = wrapMode ? "normal" : "pre";
+    gauge.style.overflowWrap = cs.overflowWrap;
+    gauge.style.wordBreak = cs.wordBreak;
+    gauge.style.width = wrapMode ? width + "px" : "auto";
+    gauge.style.display = wrapMode ? "block" : "inline-block";
+  }
+
+  function textWidth(el, cs, str) {
+    syncGauge(el, cs, false, 0);
+    gauge.textContent = str;
+    return gauge.getBoundingClientRect().width;
+  }
+
+  function textLines(el, cs, str, width, lh) {
+    syncGauge(el, cs, true, width);
+    gauge.textContent = str;
+    var h = gauge.getBoundingClientRect().height;
+    return Math.max(1, Math.round(h / lh));
+  }
+
+  function lineHeightOf(cs) {
+    var lh = parseFloat(cs.lineHeight);
+    if (isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.2;
+    return lh;
+  }
+
+  function innerWidth(el, cs) {
+    return el.getBoundingClientRect().width
+      - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+      - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+  }
+
+  // How many characters survive before the ellipsis kicks in.
+  function visibleChars(el, cs, str, avail) {
+    var lo = 0, hi = str.length, mid;
+    while (lo < hi) {
+      mid = (lo + hi + 1) >> 1;
+      if (textWidth(el, cs, str.slice(0, mid) + "…") <= avail) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  function longestWord(el, cs, str, avail) {
+    var words = str.split(/\s+/).filter(Boolean);
+    var worst = null, w, width;
+    for (var i = 0; i < words.length; i++) {
+      w = words[i];
+      width = textWidth(el, cs, w);
+      if (width > avail && (!worst || width > worst.width)) worst = { word: w, width: width };
+    }
+    return worst;
+  }
+
+  /* ------------------------------------------------------------------
+     Rendering
+  ------------------------------------------------------------------ */
+  var stage = document.getElementById("stage");
+  var stagewrap = document.getElementById("stagewrap");
+  var widthtag = document.getElementById("widthtag");
+  var wRange = document.getElementById("wRange");
+  var sRange = document.getElementById("sRange");
+  var wOut = document.getElementById("wOut");
+  var sOut = document.getElementById("sOut");
+  var readout = document.getElementById("readout");
+  var summary = document.getElementById("summary");
+  var fieldsEl = document.getElementById("fields");
+  var slots = Array.prototype.slice.call(stage.querySelectorAll("[data-slot]"));
+
+  function maxWidth() {
+    var avail = stagewrap.getBoundingClientRect().width - 44; // room for both grips
+    return Math.max(200, Math.min(440, Math.round(avail)));
+  }
+
+  function clampWidth(w) {
+    return Math.max(180, Math.min(maxWidth(), Math.round(w)));
+  }
+
+  function renderStage() {
+    stage.style.width = state.width + "px";
+    stage.style.setProperty("--s", (state.scale / 100).toFixed(3));
+    widthtag.textContent = state.width + " px wide";
+    wRange.max = String(maxWidth());
+    wRange.value = String(state.width);
+    wOut.textContent = state.width + " px";
+    sOut.textContent = state.scale + "%";
+    sRange.value = String(state.scale);
+    slots.forEach(function (el) {
+      var raw = state.copy[el.dataset.slot] || "";
+      el.textContent = grow(raw, state.growth) || " ";
+    });
+  }
+
+  var findings = [];
+
+  function measure() {
+    findings = [];
+    slots.forEach(function (el) {
+      var slot = el.dataset.slot;
+      var shown = el.textContent;
+      var cs = getComputedStyle(el);
+      var avail = innerWidth(el, cs);
+      var lh = lineHeightOf(cs);
+      var item = { slot: slot, name: SLOT_NAMES[slot], spec: slot.split(".")[0], text: shown, level: "ok", msg: "" };
+
+      if (avail <= 1) { item.msg = "No room left to render at all."; item.level = "clip"; findings.push(item); return; }
+
+      if (el.dataset.mode === "nowrap") {
+        var full = textWidth(el, cs, shown);
+        if (full > avail + 0.5) {
+          var keep = visibleChars(el, cs, shown, avail);
+          var hidden = Math.max(1, shown.length - keep);
+          item.level = "clip";
+          item.msg = "Cut off — about <span class=\"em\">" + hidden + " character" + (hidden === 1 ? "" : "s") +
+            "</span> sit behind the ellipsis. Readers see “" + esc(shown.slice(0, keep).replace(/\s+$/, "")) + "…”.";
+        } else {
+          var slack = Math.round(avail - full);
+          item.msg = "Fits on one line with " + slack + " px to spare.";
+        }
+      } else {
+        var maxLines = parseInt(el.dataset.lines, 10) || 2;
+        var lines = textLines(el, cs, shown, avail, lh);
+        var worst = longestWord(el, cs, shown, avail);
+        if (lines > maxLines) {
+          item.level = "clip";
+          var lost = lines - maxLines;
+          item.msg = "Needs <span class=\"em\">" + lines + " lines</span> but only " + maxLines +
+            " are shown — " + lost + " line" + (lost === 1 ? "" : "s") + " of meaning never reaches the reader.";
+        } else if (lines > 1) {
+          item.level = "wrap";
+          item.msg = "Wraps to <span class=\"em\">" + lines + " lines</span> of the " + maxLines + " allowed — one more word and it clips.";
+          if (lines < maxLines) {
+            item.level = "ok";
+            item.msg = "Wraps to " + lines + " lines, " + (maxLines - lines) + " line" + (maxLines - lines === 1 ? "" : "s") + " still free.";
+          }
+        } else {
+          item.msg = "Sits comfortably on a single line.";
+        }
+        if (worst) {
+          item.level = "clip";
+          item.msg += " An unbreakable word, “" + esc(worst.word) + "”, is <span class=\"em\">" +
+            Math.round(worst.width - avail) + " px wider</span> than its column.";
+        }
+      }
+      findings.push(item);
+    });
+
+    // Paint strain outlines directly on the specimens.
+    slots.forEach(function (el, i) {
+      el.classList.remove("strain-clip", "strain-wrap");
+      var lv = findings[i].level;
+      if (lv === "clip") el.classList.add("strain-clip");
+      else if (lv === "wrap") el.classList.add("strain-wrap");
+    });
+
+    // A specimen label lights up when anything inside it is clipped.
+    Object.keys(SPEC_NAMES).forEach(function (key) {
+      var lab = stage.querySelector('[data-spec-label="' + key + '"]');
+      var bad = findings.some(function (f) { return specKey(f.slot) === key && f.level === "clip"; });
+      lab.classList.toggle("on", bad);
+      lab.textContent = SPEC_NAMES[key] + (bad ? " · losing text" : "");
+    });
+  }
+
+  function specKey(slot) {
+    var head = slot.split(".")[0];
+    return head === "btn" ? "button" : head;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function renderReadout() {
+    var clips = findings.filter(function (f) { return f.level === "clip"; }).length;
+    var wraps = findings.filter(function (f) { return f.level === "wrap"; }).length;
+    var parts = [];
+    if (clips) parts.push("<b>" + clips + "</b> losing text");
+    if (wraps) parts.push("<b>" + wraps + "</b> on the last safe line");
+    summary.innerHTML = parts.length
+      ? "At " + state.width + " px, " + state.scale + "% type and " + growthLabel() + ": " + parts.join(", ") +
+        " out of " + findings.length + " text slots."
+      : "At " + state.width + " px, " + state.scale + "% type and " + growthLabel() +
+        ", every one of the " + findings.length + " slots renders in full.";
+
+    var list = state.filterAll ? findings : findings.filter(function (f) { return f.level !== "ok"; });
+    readout.innerHTML = "";
+    if (!list.length) {
+      var li = document.createElement("li");
+      li.innerHTML = '<span class="pip"></span><div><div class="r-msg">Nothing is under strain right now. Squeeze the frame or raise the growth level to find the breaking point.</div></div>';
+      readout.appendChild(li);
+      return;
+    }
+    list.forEach(function (f) {
+      var li = document.createElement("li");
+      li.className = f.level;
+      li.innerHTML =
+        '<span class="pip ' + (f.level === "ok" ? "" : f.level) + '"></span>' +
+        '<div><div class="r-name">' + esc(f.name) + "</div>" +
+        '<div class="r-msg">' + f.msg + "</div>" +
+        '<div class="r-txt">rendered: “' + esc(f.text) + '”</div></div>';
+      readout.appendChild(li);
+    });
+  }
+
+  function growthLabel() {
+    if (state.growth <= 1.001) return "source wording";
+    return "growth +" + Math.round((state.growth - 1) * 100) + "%";
+  }
+
+  function update() {
+    renderStage();
+    measure();
+    renderReadout();
+  }
+
+  /* ------------------------------------------------------------------
+     Editor
+  ------------------------------------------------------------------ */
+  function renderFields() {
+    fieldsEl.innerHTML = "";
+    fieldsEl.setAttribute("aria-labelledby", "tab-" + state.tab);
+    FIELDS[state.tab].forEach(function (f) {
+      var wrapEl = document.createElement("div");
+      wrapEl.className = "field";
+      var id = "f-" + f.slot.replace(".", "-");
+      var lab = document.createElement("label");
+      lab.setAttribute("for", id);
+      lab.textContent = f.label;
+      var ta = document.createElement("textarea");
+      ta.id = id;
+      ta.rows = 2;
+      ta.value = state.copy[f.slot];
+      ta.setAttribute("spellcheck", "true");
+      var cnt = document.createElement("div");
+      cnt.className = "cnt";
+      var setCnt = function () {
+        var grown = grow(ta.value, state.growth);
+        cnt.textContent = ta.value.length + " characters" +
+          (state.growth > 1.001 ? " → " + grown.length + " after growth" : "");
+      };
+      setCnt();
+      ta.addEventListener("input", function () {
+        state.copy[f.slot] = ta.value;
+        setCnt();
+        update();
+      });
+      wrapEl.appendChild(lab);
+      wrapEl.appendChild(ta);
+      wrapEl.appendChild(cnt);
+      fieldsEl.appendChild(wrapEl);
+    });
+  }
+
+  var tabs = document.getElementById("tabs");
+  tabs.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-tab]");
+    if (!b) return;
+    state.tab = b.dataset.tab;
+    Array.prototype.forEach.call(tabs.querySelectorAll("button"), function (x) {
+      x.setAttribute("aria-selected", String(x === b));
+    });
+    renderFields();
+  });
+  tabs.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    var btns = Array.prototype.slice.call(tabs.querySelectorAll("button"));
+    var i = btns.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    var n = btns[(i + (e.key === "ArrowRight" ? 1 : btns.length - 1)) % btns.length];
+    n.focus();
+    n.click();
+  });
+
+  document.getElementById("cycleBtn").addEventListener("click", function () {
+    state.setIndex = (state.setIndex + 1) % SETS.length;
+    state.copy = Object.assign({}, SETS[state.setIndex].copy);
+    document.getElementById("stage-note").textContent = SETS[state.setIndex].name;
+    renderFields();
+    update();
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    FIELDS[state.tab].forEach(function (f) {
+      state.copy[f.slot] = SETS[state.setIndex].copy[f.slot];
+    });
+    renderFields();
+    update();
+  });
+
+  /* ------------------------------------------------------------------
+     Rig controls: sliders, segmented growth, and draggable edge grips
+  ------------------------------------------------------------------ */
+  wRange.addEventListener("input", function () {
+    state.width = clampWidth(parseInt(wRange.value, 10));
+    update();
+  });
+  sRange.addEventListener("input", function () {
+    state.scale = parseInt(sRange.value, 10);
+    update();
+  });
+
+  document.getElementById("growthSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-growth]");
+    if (!b) return;
+    state.growth = parseFloat(b.dataset.growth);
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function (x) {
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    renderFields();
+    update();
+  });
+
+  function attachGrip(el, sign) {
+    var active = false;
+    el.addEventListener("pointerdown", function (e) {
+      active = true;
+      el.setPointerCapture(e.pointerId);
+      Array.prototype.forEach.call(document.querySelectorAll(".grip"), function (g) { g.classList.remove("hint"); });
+      e.preventDefault();
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!active) return;
+      var r = stagewrap.getBoundingClientRect();
+      var center = r.left + r.width / 2;
+      state.width = clampWidth(2 * sign * (e.clientX - center));
+      update();
+    });
+    function end(e) {
+      if (!active) return;
+      active = false;
+      try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+    el.addEventListener("keydown", function (e) {
+      var step = e.shiftKey ? 20 : 4;
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") { state.width = clampWidth(state.width - step); }
+      else if (e.key === "ArrowRight" || e.key === "ArrowUp") { state.width = clampWidth(state.width + step); }
+      else if (e.key === "Home") { state.width = clampWidth(180); }
+      else if (e.key === "End") { state.width = clampWidth(9999); }
+      else return;
+      e.preventDefault();
+      update();
+    });
+  }
+  attachGrip(document.getElementById("gripL"), -1);
+  attachGrip(document.getElementById("gripR"), 1);
+
+  /* ------------------------------------------------------------------
+     Filter + snapshot
+  ------------------------------------------------------------------ */
+  var fStrain = document.getElementById("fStrain");
+  var fAll = document.getElementById("fAll");
+  function setFilter(all) {
+    state.filterAll = all;
+    fStrain.setAttribute("aria-pressed", String(!all));
+    fAll.setAttribute("aria-pressed", String(all));
+    renderReadout();
+  }
+  fStrain.addEventListener("click", function () { setFilter(false); });
+  fAll.addEventListener("click", function () { setFilter(true); });
+
+  function snapshotText() {
+    var L = [];
+    L.push("COPYGLASS — microcopy pressure snapshot");
+    L.push("Frame " + state.width + " px  ·  type " + state.scale + "%  ·  " + growthLabel());
+    L.push("Example set: " + SETS[state.setIndex].name);
+    L.push("");
+    ["button", "toast", "note", "share"].forEach(function (key) {
+      L.push(SPEC_NAMES[key].toUpperCase());
+      findings.filter(function (f) { return specKey(f.slot) === key; }).forEach(function (f) {
+        var mark = f.level === "clip" ? "!!" : (f.level === "wrap" ? " !" : "  ");
+        L.push("  " + mark + " " + f.name);
+        L.push("       source:   " + (state.copy[f.slot] || ""));
+        if (state.growth > 1.001) L.push("       rendered: " + f.text);
+        L.push("       state:    " + f.msg.replace(/<[^>]+>/g, ""));
+      });
+      L.push("");
+    });
+    L.push("!! = text is being lost   ! = on the last line that fits");
+    return L.join("\n");
+  }
+
+  var snap = document.getElementById("snap");
+  var snapBtn = document.getElementById("snapBtn");
+  var showSnapBtn = document.getElementById("showSnapBtn");
+
+  showSnapBtn.addEventListener("click", function () {
+    var open = snap.classList.toggle("hidden") === false;
+    showSnapBtn.setAttribute("aria-expanded", String(open));
+    showSnapBtn.textContent = open ? "Hide snapshot text" : "Show snapshot text";
+    if (open) { snap.textContent = snapshotText(); snap.focus(); }
+  });
+
+  snapBtn.addEventListener("click", function () {
+    var text = snapshotText();
+    var done = function (ok) {
+      snapBtn.textContent = ok ? "Snapshot copied" : "Press-and-hold to copy below";
+      if (!ok) {
+        snap.classList.remove("hidden");
+        showSnapBtn.setAttribute("aria-expanded", "true");
+        showSnapBtn.textContent = "Hide snapshot text";
+        snap.textContent = text;
+      }
+      setTimeout(function () { snapBtn.textContent = "Copy snapshot"; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  });
+
+  function fallback(text, done) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "readonly");
+    ta.style.cssText = "position:fixed;left:-9999px;top:0;";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    done(ok);
+  }
+
+  /* ------------------------------------------------------------------
+     Boot
+  ------------------------------------------------------------------ */
+  function boot() {
+    state.width = clampWidth(Math.min(330, maxWidth()));
+    document.getElementById("stage-note").textContent = SETS[0].name;
+    renderFields();
+    update();
+    // Nudge into a state that already shows something interesting.
+    setTimeout(function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".grip"), function (g) {
+        g.classList.remove("hint");
+      });
+    }, 6000);
+  }
+
+  var rt;
+  window.addEventListener("resize", function () {
+    clearTimeout(rt);
+    rt = setTimeout(function () {
+      state.width = clampWidth(state.width);
+      update();
+    }, 120);
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { update(); });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
