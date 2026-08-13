@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadence — A Prose Rhythm Workbench</title>
+<meta name="description" content="A local writing workbench that turns prose into a sentence-rhythm strip you can tap, edit, audition, and compare against a pinned draft.">
+<meta name="color-scheme" content="light dark">
+<style>
+  :root {
+    --paper: #f3ede1;
+    --paper-2: #fbf7ef;
+    --panel: #fffdf8;
+    --ink: #1d1a15;
+    --ink-2: #4a443a;
+    --ink-3: #857d6f;
+    --rule: #ded4c2;
+    --rule-2: #cabfa8;
+    --accent: #b8442a;
+    --accent-soft: rgba(184, 68, 42, 0.14);
+    --cool: #216b6b;
+    --cool-soft: rgba(33, 107, 107, 0.13);
+    --gold: #9a7213;
+    --gold-soft: rgba(154, 114, 19, 0.15);
+    --shadow: 0 1px 0 rgba(29,26,21,.06), 0 8px 22px -18px rgba(29,26,21,.55);
+    --radius: 14px;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14120f;
+      --paper-2: #1b1815;
+      --panel: #201c18;
+      --ink: #f0e9dc;
+      --ink-2: #c4baa9;
+      --ink-3: #8e8474;
+      --rule: #332d26;
+      --rule-2: #4a4137;
+      --accent: #f08a68;
+      --accent-soft: rgba(240, 138, 104, 0.18);
+      --cool: #6fc9c1;
+      --cool-soft: rgba(111, 201, 193, 0.16);
+      --gold: #d7b25a;
+      --gold-soft: rgba(215, 178, 90, 0.18);
+      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 10px 26px -18px rgba(0,0,0,.9);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    background-image:
+      radial-gradient(120% 60% at 50% -10%, var(--paper-2), transparent 60%);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    padding: 0 0 env(safe-area-inset-bottom);
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 64px; }
+
+  header.top { padding: 8px 0 18px; border-bottom: 1px solid var(--rule); margin-bottom: 18px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; letter-spacing: -.02em;
+    font-size: clamp(1.9rem, 7vw, 2.9rem); line-height: 1.05; margin: 0 0 6px;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lede { margin: 0; color: var(--ink-2); font-size: 15px; max-width: 56ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .layout { display: grid; gap: 16px; }
+  @media (min-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; }
+    .col-b { position: sticky; top: 16px; }
+  }
+  .col-a, .col-b { display: grid; gap: 16px; min-width: 0; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+    min-width: 0;
+  }
+  .panel > h2 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--ink-3);
+    margin: 0 0 10px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  .panel > h2 .hint { font-family: var(--sans); letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--ink-3); }
+
+  /* ---------- rhythm strip ---------- */
+  .strip { display: flex; flex-wrap: wrap; gap: 6px; }
+  .beat {
+    position: relative;
+    appearance: none;
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+    background: var(--cool-soft);
+    color: var(--ink);
+    min-height: 46px;
+    min-width: 46px;
+    padding: 5px 8px 6px;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+    touch-action: manipulation;
+  }
+  .beat .idx { font-family: var(--mono); font-size: 10px; color: var(--ink-3); display: block; line-height: 1; }
+  .beat .cap {
+    position: absolute; right: 6px; bottom: 4px;
+    font-family: var(--serif); font-size: 13px; color: var(--ink-2); line-height: 1;
+  }
+  .beat .ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; }
+  .beat .ticks i { position: absolute; top: 2px; bottom: 2px; width: 2px; background: var(--ink-3); opacity: .55; border-radius: 2px; }
+  .beat.short { background: var(--accent-soft); }
+  .beat.medium { background: var(--cool-soft); }
+  .beat.long { background: var(--gold-soft); }
+  .beat[aria-pressed="true"] {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent), 0 6px 16px -12px var(--accent);
+    transform: translateY(-1px);
+  }
+  .beat.sounding { box-shadow: inset 0 0 0 2px var(--accent); }
+  .beat:focus-visible, .btn:focus-visible, textarea:focus-visible, a:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--rule-2); display: inline-block; }
+  .swatch.short { background: var(--accent-soft); }
+  .swatch.medium { background: var(--cool-soft); }
+  .swatch.long { background: var(--gold-soft); }
+
+  .contour-wrap { margin-top: 12px; border-top: 1px dashed var(--rule); padding-top: 10px; }
+  svg.contour { display: block; width: 100%; height: 86px; overflow: visible; }
+  .contour .grid-line { stroke: var(--rule); stroke-width: 1; }
+  .contour .line-b { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+  .contour .line-a { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 4 4; opacity: .85; }
+  .contour .dot { fill: var(--accent); }
+  .contour .dot.sel { fill: var(--ink); }
+  .contour-key { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; }
+
+  /* ---------- editor ---------- */
+  .editor-wrap { position: relative; border: 1px solid var(--rule-2); border-radius: 12px; background: var(--paper-2); overflow: hidden; }
+  .editor-wrap .layer, .editor-wrap textarea {
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    letter-spacing: 0;
+    padding: 14px;
+    border: 0;
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    tab-size: 4;
+  }
+  .editor-wrap .layer {
+    position: absolute; inset: 0; overflow: hidden;
+    color: transparent; pointer-events: none; z-index: 1;
+  }
+  .editor-wrap .layer mark { background: var(--accent-soft); color: transparent; border-radius: 3px; box-shadow: 0 0 0 1px var(--accent-soft); }
+  .editor-wrap textarea {
+    position: relative; z-index: 2; display: block; width: 100%;
+    height: 42vh; min-height: 240px; max-height: 60vh;
+    background: transparent; color: var(--ink); caret-color: var(--accent);
+    resize: none; outline: none; overflow-y: auto;
+  }
+  .editor-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 8px; letter-spacing: .04em; }
+
+  .btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .btn {
+    appearance: none; border: 1px solid var(--rule-2); background: var(--paper-2); color: var(--ink);
+    font: 500 14px/1 var(--sans); min-height: 44px; padding: 0 14px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    cursor: pointer; touch-action: manipulation;
+    transition: background-color .15s ease, border-color .15s ease, transform .12s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff8f2; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #211008; } }
+  .btn.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .btn .k { font-family: var(--mono); font-size: 11px; color: currentColor; opacity: .7; }
+
+  /* ---------- detail ---------- */
+  .detail-quote {
+    font-family: var(--serif); font-size: 16px; line-height: 1.55; color: var(--ink);
+    border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; margin: 0 0 10px;
+    max-height: 8.5em; overflow: auto;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+  .facts li {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+    border: 1px solid var(--rule); border-radius: 999px; padding: 5px 9px; color: var(--ink-2);
+    background: var(--paper-2);
+  }
+  .nav-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---------- summary ---------- */
+  ul.summary { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+  ul.summary li { font-size: 14.5px; color: var(--ink-2); padding-left: 16px; position: relative; }
+  ul.summary li::before {
+    content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 2px; background: var(--accent); border-radius: 2px;
+  }
+  ul.summary li b { color: var(--ink); font-weight: 600; }
+  .disclaim { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); border-top: 1px dashed var(--rule); padding-top: 9px; }
+
+  /* ---------- compare ---------- */
+  .mini-strip { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; }
+  .mini {
+    height: 14px; border-radius: 4px; border: 1px solid var(--rule-2); background: var(--cool-soft);
+  }
+  .mini.short { background: var(--accent-soft); }
+  .mini.long { background: var(--gold-soft); }
+  .cmp-label { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-top: 10px; }
+
+  .note { font-size: 13px; color: var(--ink-3); margin: 10px 0 0; }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%) translateY(140%);
+    background: var(--ink); color: var(--paper); border-radius: 999px;
+    padding: 10px 8px 10px 16px; font-size: 14px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 12px 30px -14px rgba(0,0,0,.7); z-index: 40; max-width: calc(100vw - 24px);
+    transition: transform .24s ease; pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast button {
+    appearance: none; border: 1px solid rgba(255,255,255,.35); background: transparent; color: inherit;
+    border-radius: 999px; min-height: 32px; padding: 0 12px; font: 500 13px/1 var(--sans); cursor: pointer;
+  }
+  .toast button:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+
+  footer.foot { margin-top: 22px; border-top: 1px solid var(--rule); padding-top: 12px; font-size: 12.5px; color: var(--ink-3); }
+  .sr {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Local writing instrument</p>
+    <h1>Cadence <em>—</em> a prose rhythm workbench</h1>
+    <p class="lede">Every sentence becomes a <b>beat</b>: wide for long, narrow for short, ticked where the clauses break. Tap a beat to find it in the text. Edit the text and the rhythm moves with you.</p>
+  </header>
+
+  <div class="layout">
+
+    <section class="col-a">
+
+      <section class="panel" aria-labelledby="strip-h">
+        <h2 id="strip-h">Rhythm strip <span class="hint">tap a beat &middot; arrow keys move between beats</span></h2>
+        <div class="strip" id="strip" role="group" aria-label="Sentence beats"></div>
+        <p class="legend" aria-hidden="true">
+          <span><i class="swatch short"></i> short (1&ndash;8 words)</span>
+          <span><i class="swatch medium"></i> measured (9&ndash;23)</span>
+          <span><i class="swatch long"></i> long (24+)</span>
+          <span>&middot; ticks = clause breaks</span>
+        </p>
+        <div class="contour-wrap">
+          <svg class="contour" id="contour" role="img" aria-labelledby="contour-desc"><desc id="contour-desc">Line chart of sentence lengths in order.</desc></svg>
+          <p class="contour-key" id="contour-key">Length contour, sentence by sentence</p>
+        </div>
+        <p class="note" id="strip-note" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="detail-h">
+        <h2 id="detail-h">Focused beat <span class="hint" id="detail-sub">nothing selected</span></h2>
+        <blockquote class="detail-quote" id="detail-quote">Tap any beat above to bring its sentence here.</blockquote>
+        <ul class="facts" id="detail-facts"></ul>
+        <div class="nav-row">
+          <button class="btn" id="prev-btn" type="button">&#8592; Previous</button>
+          <button class="btn" id="next-btn" type="button">Next &#8594;</button>
+          <button class="btn" id="jump-btn" type="button">Edit this sentence</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="audio-h">
+        <h2 id="audio-h">Audition <span class="hint">optional synthesized percussion, starts only when you press play</span></h2>
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn primary" id="play-btn" type="button">&#9654; Play rhythm</button>
+          <button class="btn" id="stop-btn" type="button" disabled>&#9632; Stop</button>
+          <button class="btn" id="mute-btn" type="button" aria-pressed="false">Mute</button>
+        </div>
+        <p class="note" id="audio-note">Low thump per sentence, light tick per clause break. No speech, no microphone, no files &mdash; just tones made in this tab.</p>
+      </section>
+
+    </section>
+
+    <section class="col-b">
+
+      <section class="panel" aria-labelledby="editor-h">
+        <h2 id="editor-h">Text <span class="hint">edit freely &mdash; the strip follows</span></h2>
+        <div class="editor-wrap">
+          <div class="layer" id="layer" aria-hidden="true"></div>
+          <textarea id="editor" spellcheck="true" aria-label="Prose editor" aria-describedby="editor-meta"></textarea>
+        </div>
+        <p class="editor-meta" id="editor-meta"></p>
+        <div class="btnrow">
+          <button class="btn" id="copy-btn" type="button">Copy text</button>
+          <button class="btn" id="dl-btn" type="button">Download .txt</button>
+          <button class="btn" id="pin-btn" type="button">Pin as draft A</button>
+          <button class="btn" id="cmp-btn" type="button" aria-pressed="false" disabled>Compare A/B</button>
+          <button class="btn" id="reset-btn" type="button">Load sample</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="summary-h">
+        <h2 id="summary-h">Shape of the draft</h2>
+        <ul class="summary" id="summary" aria-live="polite"></ul>
+        <p class="disclaim">This describes the shape of your sentences &mdash; counts, spans, and patterns. It is not a rating, and there is no such thing as a correct contour here.</p>
+      </section>
+
+      <section class="panel" id="cmp-panel" aria-labelledby="cmp-h" hidden>
+        <h2 id="cmp-h">A / B snapshot</h2>
+        <div id="cmp-body"></div>
+        <div class="btnrow">
+          <button class="btn" id="restore-btn" type="button">Restore draft A</button>
+          <button class="btn" id="clearpin-btn" type="button">Clear pin</button>
+        </div>
+      </section>
+
+    </section>
+  </div>
+
+  <footer class="foot">
+    Cadence runs entirely inside this browser tab. Nothing is uploaded, saved to disk, or remembered after you close it &mdash; the sample text below is fictional.
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toast-msg"></span>
+  <button type="button" id="toast-action" hidden></button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   * Sample copy (fictional, neutral)
+   * ------------------------------------------------------------------ */
+  var SAMPLE = [
+    "The tide clock in the hallway had been wrong for eleven years, and nobody in the house minded.",
+    "Mira wound it every Sunday anyway.",
+    "It was, her grandmother insisted, a machine for remembering rather than a machine for knowing, which is a distinction that takes most people a lifetime and a half to accept, and which Mira accepted at nine years old while balanced on a kitchen stool with a cold brass key in her fist.",
+    "Did it matter that the hands lagged 3.5 hours behind the sea?",
+    "Not once.",
+    "Dr. Alvez from the ferry office offered to repair it one wet October — he had the tools, the patience, and a small sincere love of gears — but Mira said no thank you, and meant it.",
+    "She liked the lag.",
+    "She liked knowing that the house ran on a slower ocean than the one outside, that the hallway kept its own weather, and that a visitor could stand there for a full minute before deciding what to ask.",
+    "Every so often someone did stop, tilt their head, and ask what time the clock was keeping.",
+    "“Its own,” she would say.",
+    "Then she would put the kettle on, and the afternoon would fold back into its ordinary shape: unhurried, unmeasured, entirely enough."
+  ].join(" ");
+
+  /* ------------------------------------------------------------------ *
+   * Sentence segmentation
+   * ------------------------------------------------------------------ */
+  var ABBREV = {};
+  ("mr mrs ms dr prof sr jr st mt vs etc fig no inc ltd co corp ave rd blvd approx est dept " +
+   "jan feb mar apr jun jul aug sept sep oct nov dec mon tue tues wed thu thur thurs fri sat sun " +
+   "al eg ie cf ca pp vol ed rev gen col capt lt sgt hon").split(" ").forEach(function (w) { ABBREV[w] = true; });
+
+  var CLOSERS = "\"'’”)]}»›";
+
+  function isTerm(c) { return c === "." || c === "!" || c === "?" || c === "…"; }
+
+  function scanSentences(text) {
+    var res = [];
+    var n = text.length;
+    var start = 0;
+    var i = 0;
+
+    function push(a, b) {
+      while (a < b && /\s/.test(text.charAt(a))) a++;
+      while (b > a && /\s/.test(text.charAt(b - 1))) b--;
+      if (b > a) res.push({ start: a, end: b });
+    }
+
+    while (i < n) {
+      var c = text.charAt(i);
+
+      if (c === "\n" || c === "\r") {
+        var j = i, newlines = 0;
+        while (j < n && /[\r\n\t ]/.test(text.charAt(j))) {
+          if (text.charAt(j) === "\n") newlines++;
+          j++;
+        }
+        var before = text.slice(start, i).replace(/\s+$/, "");
+        var lastCh = before.charAt(before.length - 1);
+        var ahead = text.slice(j, j + 4);
+        var hard = newlines >= 2 || isTerm(lastCh) || /^[-–—*•]/.test(ahead) || /^\d+[.)]/.test(ahead);
+        if (hard) { push(start, i); start = j; }
+        i = j;
+        continue;
+      }
+
+      if (isTerm(c)) {
+        var k = i;
+        while (k < n && isTerm(text.charAt(k))) k++;
+        while (k < n && CLOSERS.indexOf(text.charAt(k)) >= 0) k++;
+        var atEnd = k >= n;
+        var followedBySpace = !atEnd && /\s/.test(text.charAt(k));
+
+        if (atEnd || followedBySpace) {
+          var singleDot = (c === "." && k === i + 1);
+          if (singleDot) {
+            var prevChunk = text.slice(Math.max(0, i - 24), i);
+            var m = prevChunk.match(/([A-Za-z]+)$/);
+            var word = m ? m[1].toLowerCase() : "";
+            var isInitial = !!m && m[1].length === 1 && m[1] === m[1].toUpperCase();
+            if ((word && ABBREV[word]) || isInitial) { i = k; continue; }
+            var nxt = text.slice(k).match(/^\s*(\S)/);
+            if (nxt && /[a-z]/.test(nxt[1])) { i = k; continue; }
+          }
+          push(start, k);
+          start = k;
+          i = k;
+          continue;
+        }
+        i = k;
+        continue;
+      }
+      i++;
+    }
+    if (start < n) push(start, n);
+    return res;
+  }
+
+  function intlSentences(text) {
+    var out = [];
+    try {
+      if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") return out;
+      var seg = new Intl.Segmenter("en", { granularity: "sentence" });
+      var it = seg.segment(text);
+      var arr = Array.from ? Array.from(it) : [];
+      for (var i = 0; i < arr.length; i++) {
+        var piece = arr[i];
+        var a = piece.index, b = piece.index + piece.segment.length;
+        while (a < b && /\s/.test(text.charAt(a))) a++;
+        while (b > a && /\s/.test(text.charAt(b - 1))) b--;
+        if (b > a) out.push({ start: a, end: b });
+      }
+    } catch (e) { return []; }
+    return out;
+  }
+
+  function crudeSentences(text) {
+    var out = [];
+    var re = /\S[\s\S]*?(?:[.!?…]+["'’”)\]]*(?=\s|$)|\n|$)/g;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      if (!m[0].trim()) { if (re.lastIndex <= m.index) re.lastIndex = m.index + 1; continue; }
+      var a = m.index, b = m.index + m[0].length;
+      while (a < b && /\s/.test(text.charAt(a))) a++;
+      while (b > a && /\s/.test(text.charAt(b - 1))) b--;
+      if (b > a) out.push({ start: a, end: b });
+      if (re.lastIndex <= m.index) re.lastIndex = m.index + 1;
+    }
+    if (!out.length && text.trim()) {
+      var s = 0, e = text.length;
+      while (s < e && /\s/.test(text.charAt(s))) s++;
+      while (e > s && /\s/.test(text.charAt(e - 1))) e--;
+      if (e > s) out.push({ start: s, end: e });
+    }
+    return out;
+  }
+
+  function segmentSentences(text) {
+    if (!text || !text.trim()) return [];
+    var res = [];
+    try { res = scanSentences(text); } catch (e) { res = []; }
+    if (!res.length) { res = intlSentences(text); }
+    if (!res.length) { res = crudeSentences(text); }
+    return res;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Measurement
+   * ------------------------------------------------------------------ */
+  var WORD_RE;
+  try { WORD_RE = new RegExp("[\\p{L}\\p{N}][\\p{L}\\p{N}'’\\-]*", "gu"); }
+  catch (e) { WORD_RE = /[A-Za-z0-9][A-Za-z0-9'’\-]*/g; }
+
+  function countWords(s) {
+    WORD_RE.lastIndex = 0;
+    var m = s.match(WORD_RE);
+    return m ? m.length : 0;
+  }
+
+  function classOf(words) { return words <= 8 ? "short" : (words >= 24 ? "long" : "medium"); }
+
+  function endingOf(s) {
+    var t = s.replace(/["'’”)\]\}»›\s]+$/, "");
+    var last = t.charAt(t.length - 1);
+    if (last === "?") return { key: "question", cap: "?", label: "a question mark" };
+    if (last === "!") return { key: "exclaim", cap: "!", label: "an exclamation point" };
+    if (last === "…" || /\.\.\.$/.test(t)) return { key: "trail", cap: "…", label: "an ellipsis" };
+    if (last === ".") return { key: "period", cap: "·", label: "a period" };
+    if (last === ":" || last === ";") return { key: "open", cap: last, label: "a " + (last === ":" ? "colon" : "semicolon") };
+    return { key: "open", cap: "┈", label: "no terminal punctuation" };
+  }
+
+  function measure(text, seg, index) {
+    var raw = text.slice(seg.start, seg.end);
+    var words = countWords(raw);
+    var marks = (raw.slice(0, -1).match(/[,;:—–]|\s-\s/g) || []).length;
+    var chars = raw.length;
+    return {
+      i: index,
+      start: seg.start,
+      end: seg.end,
+      text: raw,
+      words: words,
+      marks: marks,
+      chars: chars,
+      cls: classOf(words),
+      end_: endingOf(raw)
+    };
+  }
+
+  function analyze(text) {
+    var segs = segmentSentences(text);
+    var truncated = 0;
+    if (segs.length > 400) { truncated = segs.length - 400; segs = segs.slice(0, 400); }
+    var list = segs.map(function (s, i) { return measure(text, s, i); });
+    return { text: text, beats: list, truncated: truncated };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * State
+   * ------------------------------------------------------------------ */
+  var state = {
+    analysis: analyze(SAMPLE),
+    selected: -1,
+    pinned: null,        // { text, analysis }
+    comparing: false,
+    resetBackup: null
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var editor = $("editor");
+  var layer = $("layer");
+  var strip = $("strip");
+  var contour = $("contour");
+
+  /* ------------------------------------------------------------------ *
+   * Rendering
+   * ------------------------------------------------------------------ */
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function renderLayer() {
+    var text = state.analysis.text;
+    var sel = state.selected;
+    var beats = state.analysis.beats;
+    var html;
+    if (sel >= 0 && sel < beats.length) {
+      var b = beats[sel];
+      html = esc(text.slice(0, b.start)) + '<mark id="hl">' + esc(text.slice(b.start, b.end)) + "</mark>" + esc(text.slice(b.end));
+    } else {
+      html = esc(text);
+    }
+    if (/\n$/.test(text)) html += "&nbsp;";
+    layer.innerHTML = html;
+    layer.scrollTop = editor.scrollTop;
+  }
+
+  function beatWidth(words) {
+    var w = 46 + Math.min(words, 60) * 7.5;
+    return Math.round(w);
+  }
+
+  function renderStrip() {
+    var beats = state.analysis.beats;
+    strip.innerHTML = "";
+    if (!beats.length) {
+      var empty = document.createElement("p");
+      empty.className = "note";
+      empty.textContent = "No sentences yet. Type or paste prose into the text panel and the beats appear here.";
+      strip.appendChild(empty);
+      renderContour();
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    beats.forEach(function (b, i) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "beat " + b.cls;
+      btn.style.width = beatWidth(b.words) + "px";
+      btn.style.maxWidth = "100%";
+      btn.setAttribute("data-i", String(i));
+      btn.setAttribute("aria-pressed", state.selected === i ? "true" : "false");
+      btn.setAttribute("aria-label",
+        "Sentence " + (i + 1) + ", " + b.words + (b.words === 1 ? " word" : " words") +
+        ", " + b.marks + (b.marks === 1 ? " clause break" : " clause breaks") +
+        ", ends with " + b.end_.label);
+
+      var idx = document.createElement("span");
+      idx.className = "idx";
+      idx.textContent = String(i + 1);
+      btn.appendChild(idx);
+
+      var cap = document.createElement("span");
+      cap.className = "cap";
+      cap.setAttribute("aria-hidden", "true");
+      cap.textContent = b.end_.cap;
+      btn.appendChild(cap);
+
+      if (b.marks > 0) {
+        var ticks = document.createElement("span");
+        ticks.className = "ticks";
+        ticks.setAttribute("aria-hidden", "true");
+        var shown = Math.min(b.marks, 8);
+        for (var t = 0; t < shown; t++) {
+          var tick = document.createElement("i");
+          tick.style.left = Math.round(((t + 1) / (shown + 1)) * 100) + "%";
+          ticks.appendChild(tick);
+        }
+        btn.appendChild(ticks);
+      }
+      frag.appendChild(btn);
+    });
+    strip.appendChild(frag);
+
+    var note = $("strip-note");
+    if (state.analysis.truncated > 0) {
+      note.hidden = false;
+      note.textContent = "Showing the first 400 sentences; " + state.analysis.truncated + " more are in the text but not drawn.";
+    } else {
+      note.hidden = true;
+      note.textContent = "";
+    }
+    renderContour();
+  }
+
+  function contourPoints(beats, width, height, maxW) {
+    var pts = [];
+    var n = beats.length;
+    if (!n) return pts;
+    var pad = 8;
+    var usable = Math.max(10, width - pad * 2);
+    for (var i = 0; i < n; i++) {
+      var x = pad + (n === 1 ? usable / 2 : (i / (n - 1)) * usable);
+      var ratio = maxW ? beats[i].words / maxW : 0;
+      var y = height - 8 - ratio * (height - 20);
+      pts.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+    }
+    return pts;
+  }
+
+  function renderContour() {
+    var width = Math.max(240, contour.clientWidth || strip.clientWidth || 300);
+    var height = 86;
+    var beats = state.analysis.beats;
+    var aBeats = (state.comparing && state.pinned) ? state.pinned.analysis.beats : null;
+    var maxW = 1;
+    beats.forEach(function (b) { if (b.words > maxW) maxW = b.words; });
+    if (aBeats) aBeats.forEach(function (b) { if (b.words > maxW) maxW = b.words; });
+
+    var ns = "http://www.w3.org/2000/svg";
+    contour.setAttribute("viewBox", "0 0 " + width + " " + height);
+    contour.setAttribute("preserveAspectRatio", "none");
+    while (contour.lastChild) contour.removeChild(contour.lastChild);
+
+    var desc = document.createElementNS(ns, "desc");
+    desc.id = "contour-desc";
+    desc.textContent = beats.length
+      ? "Line showing sentence length in order, from 0 to " + maxW + " words."
+      : "Empty length contour.";
+    contour.appendChild(desc);
+
+    [0.5, 0.75, 1].forEach(function (f) {
+      var y = height - 8 - f * (height - 20);
+      var ln = document.createElementNS(ns, "line");
+      ln.setAttribute("x1", "0"); ln.setAttribute("x2", String(width));
+      ln.setAttribute("y1", String(y)); ln.setAttribute("y2", String(y));
+      ln.setAttribute("class", "grid-line");
+      contour.appendChild(ln);
+    });
+
+    function poly(pts, cls) {
+      if (pts.length < 1) return;
+      var d = pts.map(function (p, i) { return (i ? "L" : "M") + p[0] + " " + p[1]; }).join(" ");
+      var path = document.createElementNS(ns, "path");
+      path.setAttribute("d", d);
+      path.setAttribute("class", cls);
+      contour.appendChild(path);
+    }
+
+    if (aBeats) poly(contourPoints(aBeats, width, height, maxW), "line-a");
+    var pts = contourPoints(beats, width, height, maxW);
+    poly(pts, "line-b");
+
+    if (state.selected >= 0 && state.selected < pts.length) {
+      var p = pts[state.selected];
+      var dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("cx", String(p[0]));
+      dot.setAttribute("cy", String(p[1]));
+      dot.setAttribute("r", "4");
+      dot.setAttribute("class", "dot sel");
+      contour.appendChild(dot);
+    }
+
+    $("contour-key").textContent = aBeats
+      ? "Length contour — dashed line is draft A, solid line is the current draft (peak " + maxW + " words)"
+      : "Length contour, sentence by sentence (peak " + maxW + " words)";
+  }
+
+  function median(nums) {
+    if (!nums.length) return 0;
+    var s = nums.slice().sort(function (a, b) { return a - b; });
+    var mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+  }
+
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+
+  function evenestRun(beats) {
+    var best = { start: 0, len: 1, spread: 0 };
+    var i = 0;
+    while (i < beats.length) {
+      var j = i, lo = beats[i].words, hi = beats[i].words;
+      while (j + 1 < beats.length) {
+        var nlo = Math.min(lo, beats[j + 1].words);
+        var nhi = Math.max(hi, beats[j + 1].words);
+        if (nhi - nlo > 5) break;
+        lo = nlo; hi = nhi; j++;
+      }
+      if (j - i + 1 > best.len) best = { start: i, len: j - i + 1, spread: hi - lo };
+      i = (j > i) ? j : i + 1;
+    }
+    return best;
+  }
+
+  function describe(analysis) {
+    var beats = analysis.beats;
+    var out = [];
+    if (!beats.length) {
+      out.push("Nothing to describe yet — the text panel is empty.");
+      return out;
+    }
+    var lens = beats.map(function (b) { return b.words; });
+    var total = lens.reduce(function (a, b) { return a + b; }, 0);
+    var min = Math.min.apply(null, lens);
+    var max = Math.max.apply(null, lens);
+    var med = median(lens);
+    var paras = (analysis.text.trim().split(/\n\s*\n/).filter(function (p) { return p.trim(); }).length) || 1;
+
+    out.push("<b>" + plural(beats.length, "sentence", "sentences") + "</b> across " +
+             plural(paras, "paragraph", "paragraphs") + ", " + plural(total, "word", "words") + " in all.");
+
+    out.push("Beats run <b>" + min + " to " + max + " words</b>, with a middle length of " + med + ".");
+
+    var counts = { short: 0, medium: 0, long: 0 };
+    beats.forEach(function (b) { counts[b.cls]++; });
+    out.push("Texture: <b>" + counts.short + " short</b>, " + counts.medium + " measured, " + counts.long + " long.");
+
+    var flips = 0;
+    for (var i = 2; i < lens.length; i++) {
+      var d1 = lens[i - 1] - lens[i - 2];
+      var d2 = lens[i] - lens[i - 1];
+      if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) flips++;
+    }
+    if (lens.length >= 3) {
+      out.push("The length line changes direction <b>" + plural(flips, "time", "times") + "</b> over " +
+               (lens.length - 1) + " steps.");
+    }
+
+    var run = evenestRun(beats);
+    if (run.len >= 3) {
+      out.push("Steadiest stretch: sentences <b>" + (run.start + 1) + "–" + (run.start + run.len) +
+               "</b> stay within " + run.spread + " words of each other.");
+    }
+
+    var longest = beats.reduce(function (a, b) { return b.words > a.words ? b : a; });
+    var shortest = beats.reduce(function (a, b) { return b.words < a.words ? b : a; });
+    out.push("Widest beat is <b>#" + (longest.i + 1) + "</b> (" + longest.words + " words); narrowest is <b>#" +
+             (shortest.i + 1) + "</b> (" + shortest.words + ").");
+
+    var ends = { period: 0, question: 0, exclaim: 0, trail: 0, open: 0 };
+    beats.forEach(function (b) { ends[b.end_.key]++; });
+    var endBits = [];
+    if (ends.period) endBits.push(plural(ends.period, "period", "periods"));
+    if (ends.question) endBits.push(plural(ends.question, "question", "questions"));
+    if (ends.exclaim) endBits.push(plural(ends.exclaim, "exclamation", "exclamations"));
+    if (ends.trail) endBits.push(plural(ends.trail, "ellipsis", "ellipses"));
+    if (ends.open) endBits.push(plural(ends.open, "open ending", "open endings"));
+    out.push("Endings: " + endBits.join(", ") + ".");
+
+    var marks = beats.reduce(function (a, b) { return a + b.marks; }, 0);
+    var busiest = beats.reduce(function (a, b) { return b.marks > a.marks ? b : a; });
+    if (marks > 0) {
+      out.push(plural(marks, "clause break", "clause breaks") + " in total; the busiest is <b>#" +
+               (busiest.i + 1) + "</b> with " + busiest.marks + ".");
+    } else {
+      out.push("No internal commas, semicolons, colons, or dashes — every beat runs unbroken.");
+    }
+    return out;
+  }
+
+  function renderSummary() {
+    var ul = $("summary");
+    ul.innerHTML = "";
+    describe(state.analysis).forEach(function (line) {
+      var li = document.createElement("li");
+      li.innerHTML = line;
+      ul.appendChild(li);
+    });
+  }
+
+  function renderMeta() {
+    var beats = state.analysis.beats;
+    var words = beats.reduce(function (a, b) { return a + b.words; }, 0);
+    var chars = state.analysis.text.length;
+    $("editor-meta").textContent = beats.length + " sentences · " + words + " words · " + chars + " characters";
+  }
+
+  function renderDetail() {
+    var beats = state.analysis.beats;
+    var i = state.selected;
+    var quote = $("detail-quote");
+    var facts = $("detail-facts");
+    var sub = $("detail-sub");
+    facts.innerHTML = "";
+    if (i < 0 || i >= beats.length) {
+      quote.textContent = "Tap any beat above to bring its sentence here.";
+      sub.textContent = "nothing selected";
+      $("prev-btn").disabled = !beats.length;
+      $("next-btn").disabled = !beats.length;
+      $("jump-btn").disabled = true;
+      return;
+    }
+    var b = beats[i];
+    quote.textContent = b.text;
+    sub.textContent = "sentence " + (i + 1) + " of " + beats.length;
+    var items = [
+      b.words + (b.words === 1 ? " word" : " words"),
+      b.cls === "short" ? "short beat" : (b.cls === "long" ? "long beat" : "measured beat"),
+      b.marks + (b.marks === 1 ? " clause break" : " clause breaks"),
+      "ends on " + b.end_.label,
+      b.chars + " characters"
+    ];
+    items.forEach(function (t) {
+      var li = document.createElement("li");
+      li.textContent = t;
+      facts.appendChild(li);
+    });
+    $("prev-btn").disabled = false;
+    $("next-btn").disabled = false;
+    $("jump-btn").disabled = false;
+  }
+
+  function renderCompare() {
+    var panel = $("cmp-panel");
+    var body = $("cmp-body");
+    var btn = $("cmp-btn");
+    btn.disabled = !state.pinned;
+    btn.setAttribute("aria-pressed", state.comparing ? "true" : "false");
+    btn.classList.toggle("on", state.comparing);
+    if (!state.pinned || !state.comparing) { panel.hidden = true; return; }
+    panel.hidden = false;
+
+    var A = state.pinned.analysis, B = state.analysis;
+    var aLens = A.beats.map(function (b) { return b.words; });
+    var bLens = B.beats.map(function (b) { return b.words; });
+    var aWords = aLens.reduce(function (x, y) { return x + y; }, 0);
+    var bWords = bLens.reduce(function (x, y) { return x + y; }, 0);
+    var aMed = median(aLens), bMed = median(bLens);
+    var aMax = aLens.length ? Math.max.apply(null, aLens) : 0;
+    var bMax = bLens.length ? Math.max.apply(null, bLens) : 0;
+    var peak = Math.max(1, aMax, bMax);
+
+    function delta(a, b, unit) {
+      var d = b - a;
+      if (d === 0) return "unchanged at " + a + " " + unit;
+      return a + " → " + b + " " + unit + " (" + (d > 0 ? "+" : "") + d + ")";
+    }
+
+    function miniStrip(beats, label) {
+      var wrap = document.createElement("div");
+      var lab = document.createElement("p");
+      lab.className = "cmp-label";
+      lab.textContent = label;
+      wrap.appendChild(lab);
+      var row = document.createElement("div");
+      row.className = "mini-strip";
+      beats.slice(0, 120).forEach(function (b) {
+        var d = document.createElement("div");
+        d.className = "mini " + b.cls;
+        d.style.width = Math.max(6, Math.round((b.words / peak) * 120)) + "px";
+        d.title = "Sentence " + (b.i + 1) + ": " + b.words + " words";
+        row.appendChild(d);
+      });
+      wrap.appendChild(row);
+      if (beats.length > 120) {
+        var more = document.createElement("p");
+        more.className = "note";
+        more.textContent = "(first 120 of " + beats.length + " sentences drawn)";
+        wrap.appendChild(more);
+      }
+      return wrap;
+    }
+
+    body.innerHTML = "";
+    body.appendChild(miniStrip(A.beats, "Draft A (pinned)"));
+    body.appendChild(miniStrip(B.beats, "Draft B (current)"));
+
+    var ul = document.createElement("ul");
+    ul.className = "summary";
+    ul.style.marginTop = "12px";
+    [
+      "Sentences: " + delta(A.beats.length, B.beats.length, "sentences"),
+      "Words: " + delta(aWords, bWords, "words"),
+      "Middle length: " + delta(aMed, bMed, "words"),
+      "Widest beat: " + delta(aMax, bMax, "words"),
+      (state.pinned.text === B.text
+        ? "The two drafts are identical right now."
+        : "The drafts differ; draft A is held in memory only for this tab.")
+    ].forEach(function (t) {
+      var li = document.createElement("li");
+      li.textContent = t;
+      ul.appendChild(li);
+    });
+    body.appendChild(ul);
+  }
+
+  function renderAll() {
+    renderStrip();
+    renderLayer();
+    renderSummary();
+    renderMeta();
+    renderDetail();
+    renderCompare();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Selection + navigation
+   * ------------------------------------------------------------------ */
+  function select(i, opts) {
+    var beats = state.analysis.beats;
+    if (!beats.length) { state.selected = -1; renderDetail(); return; }
+    if (i < 0) i = 0;
+    if (i > beats.length - 1) i = beats.length - 1;
+    state.selected = i;
+    Array.prototype.forEach.call(strip.querySelectorAll(".beat"), function (el) {
+      el.setAttribute("aria-pressed", Number(el.getAttribute("data-i")) === i ? "true" : "false");
+    });
+    renderLayer();
+    renderDetail();
+    renderContour();
+    scrollHighlightIntoView();
+    if (opts && opts.focusBeat) {
+      var el = strip.querySelector('.beat[data-i="' + i + '"]');
+      if (el) el.focus();
+    }
+  }
+
+  function scrollHighlightIntoView() {
+    var hl = document.getElementById("hl");
+    if (!hl) return;
+    var target = hl.offsetTop - editor.clientHeight / 2 + hl.offsetHeight / 2;
+    var max = Math.max(0, editor.scrollHeight - editor.clientHeight);
+    var top = Math.min(Math.max(0, target), max);
+    editor.scrollTop = top;
+    layer.scrollTop = top;
+  }
+
+  function jumpToText() {
+    var beats = state.analysis.beats;
+    var i = state.selected;
+    if (i < 0 || i >= beats.length) return;
+    var b = beats[i];
+    editor.focus();
+    try { editor.setSelectionRange(b.start, b.end); } catch (e) { /* ignore */ }
+    scrollHighlightIntoView();
+  }
+
+  function sentenceAtCaret() {
+    var pos = editor.selectionStart;
+    var beats = state.analysis.beats;
+    for (var i = 0; i < beats.length; i++) {
+      if (pos >= beats[i].start && pos <= beats[i].end) return i;
+    }
+    return -1;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Editing
+   * ------------------------------------------------------------------ */
+  var reanalyzeTimer = null;
+
+  function setText(text, opts) {
+    editor.value = text;
+    state.analysis = analyze(text);
+    state.selected = (opts && typeof opts.select === "number") ? opts.select : -1;
+    if (state.selected >= state.analysis.beats.length) state.selected = -1;
+    stopAudio(true);
+    renderAll();
+  }
+
+  function onEdit() {
+    if (reanalyzeTimer) clearTimeout(reanalyzeTimer);
+    reanalyzeTimer = setTimeout(function () {
+      reanalyzeTimer = null;
+      var prevSel = state.selected;
+      var caretPos = editor.selectionStart;
+      state.analysis = analyze(editor.value);
+      var beats = state.analysis.beats;
+      if (!beats.length) {
+        state.selected = -1;
+      } else {
+        var found = -1;
+        for (var i = 0; i < beats.length; i++) {
+          if (caretPos >= beats[i].start && caretPos <= beats[i].end) { found = i; break; }
+        }
+        state.selected = (found >= 0) ? found : Math.min(Math.max(prevSel, -1), beats.length - 1);
+      }
+      if (playing) stopAudio(true);
+      renderAll();
+    }, 110);
+  }
+
+  editor.addEventListener("input", onEdit);
+  editor.addEventListener("scroll", function () { layer.scrollTop = editor.scrollTop; });
+  editor.addEventListener("click", function () {
+    var i = sentenceAtCaret();
+    if (i >= 0 && i !== state.selected) select(i);
+  });
+  editor.addEventListener("keyup", function (e) {
+    if (e.key && e.key.indexOf("Arrow") === 0) {
+      var i = sentenceAtCaret();
+      if (i >= 0 && i !== state.selected) select(i);
+    }
+  });
+
+  strip.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".beat") : null;
+    if (!btn) return;
+    select(Number(btn.getAttribute("data-i")));
+  });
+
+  strip.addEventListener("keydown", function (e) {
+    var btn = e.target.closest ? e.target.closest(".beat") : null;
+    if (!btn) return;
+    var i = Number(btn.getAttribute("data-i"));
+    var n = state.analysis.beats.length;
+    var next = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = Math.min(n - 1, i + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = Math.max(0, i - 1);
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = n - 1;
+    if (next !== null) {
+      e.preventDefault();
+      select(next, { focusBeat: true });
+    }
+  });
+
+  $("prev-btn").addEventListener("click", function () {
+    select(state.selected <= 0 ? state.analysis.beats.length - 1 : state.selected - 1);
+  });
+  $("next-btn").addEventListener("click", function () {
+    var n = state.analysis.beats.length;
+    select(state.selected < 0 || state.selected >= n - 1 ? 0 : state.selected + 1);
+  });
+  $("jump-btn").addEventListener("click", jumpToText);
+
+  /* ------------------------------------------------------------------ *
+   * Toast
+   * ------------------------------------------------------------------ */
+  var toastTimer = null;
+  function toast(msg, actionLabel, action) {
+    var t = $("toast"), m = $("toast-msg"), a = $("toast-action");
+    m.textContent = msg;
+    if (actionLabel && action) {
+      a.hidden = false;
+      a.textContent = actionLabel;
+      a.onclick = function () { hideToast(); action(); };
+    } else {
+      a.hidden = true;
+      a.onclick = null;
+    }
+    t.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, actionLabel ? 7000 : 2600);
+  }
+  function hideToast() {
+    $("toast").classList.remove("show");
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Copy / download / pin / reset
+   * ------------------------------------------------------------------ */
+  $("copy-btn").addEventListener("click", function () {
+    var text = editor.value;
+    function fallback() {
+      try {
+        editor.focus();
+        editor.setSelectionRange(0, editor.value.length);
+        var ok = document.execCommand && document.execCommand("copy");
+        toast(ok ? "Text copied to the clipboard." : "Copy blocked — the text is selected, press your copy shortcut.");
+      } catch (e) {
+        toast("Copy blocked — select the text and copy manually.");
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        toast("Text copied to the clipboard.");
+      }, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  $("dl-btn").addEventListener("click", function () {
+    try {
+      var blob = new Blob([editor.value], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "cadence-draft.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast("Saved cadence-draft.txt to your downloads.");
+    } catch (e) {
+      toast("Download unavailable in this browser — use Copy text instead.");
+    }
+  });
+
+  $("pin-btn").addEventListener("click", function () {
+    state.pinned = { text: editor.value, analysis: analyze(editor.value) };
+    state.comparing = true;
+    $("pin-btn").textContent = "Re-pin draft A";
+    renderCompare();
+    renderContour();
+    toast("Draft A pinned. Revise freely — the comparison updates as you type.");
+  });
+
+  $("cmp-btn").addEventListener("click", function () {
+    if (!state.pinned) return;
+    state.comparing = !state.comparing;
+    renderCompare();
+    renderContour();
+  });
+
+  $("restore-btn").addEventListener("click", function () {
+    if (!state.pinned) return;
+    var backup = editor.value;
+    setText(state.pinned.text);
+    renderCompare();
+    toast("Draft A restored.", "Undo", function () { setText(backup); renderCompare(); });
+  });
+
+  $("clearpin-btn").addEventListener("click", function () {
+    state.pinned = null;
+    state.comparing = false;
+    $("pin-btn").textContent = "Pin as draft A";
+    renderCompare();
+    renderContour();
+    toast("Pin cleared.");
+  });
+
+  $("reset-btn").addEventListener("click", function () {
+    var backup = editor.value;
+    setText(SAMPLE);
+    renderCompare();
+    if (backup !== SAMPLE) {
+      toast("Sample text loaded.", "Undo", function () { setText(backup); renderCompare(); });
+    } else {
+      toast("Sample text loaded.");
+    }
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Audio audition (Web Audio, user-gesture only, no assets)
+   * ------------------------------------------------------------------ */
+  var ac = null, master = null, playing = false, muted = false;
+  var scheduled = [], timers = [], noiseBuf = null;
+  var AUDIO_CAP = 48;
+
+  function ensureAudio() {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return false;
+    if (!ac) {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.85;
+      master.connect(ac.destination);
+    }
+    if (ac.state === "suspended" && ac.resume) ac.resume();
+    if (!noiseBuf) {
+      var len = Math.floor(ac.sampleRate * 0.25);
+      noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
+      var data = noiseBuf.getChannelData(0);
+      var seed = 1337;
+      for (var i = 0; i < len; i++) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        data[i] = ((seed / 0x7fffffff) * 2 - 1) * (1 - i / len);
+      }
+    }
+    return true;
+  }
+
+  function thump(t, freq, level) {
+    var osc = ac.createOscillator();
+    var g = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq * 1.9, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq), t + 0.09);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.3);
+    scheduled.push(osc);
+  }
+
+  function tick(t, level, bright) {
+    var src = ac.createBufferSource();
+    src.buffer = noiseBuf;
+    var bp = ac.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = bright;
+    bp.Q.value = 1.4;
+    var g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(level, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.10);
+    src.connect(bp); bp.connect(g); g.connect(master);
+    src.start(t); src.stop(t + 0.14);
+    scheduled.push(src);
+  }
+
+  function playRhythm() {
+    var beats = state.analysis.beats;
+    if (!beats.length) { toast("Nothing to audition yet — add some prose first."); return; }
+    if (!ensureAudio()) { toast("This browser has no Web Audio support, so the audition is unavailable."); return; }
+    stopAudio(true);
+    playing = true;
+    $("play-btn").disabled = true;
+    $("stop-btn").disabled = false;
+
+    var use = beats.slice(0, AUDIO_CAP);
+    var t0 = ac.currentTime + 0.12;
+    var cursor = 0;
+
+    use.forEach(function (b, i) {
+      var dur = Math.min(1.8, Math.max(0.22, 0.055 * b.words + 0.16));
+      var at = t0 + cursor;
+      var freq = b.end_.key === "question" ? 176 : (b.end_.key === "exclaim" ? 132 : 96);
+      thump(at, freq, b.cls === "long" ? 0.34 : 0.28);
+      var marks = Math.min(b.marks, 8);
+      for (var m = 0; m < marks; m++) {
+        tick(at + dur * ((m + 1) / (marks + 1)), 0.16, 2600 + m * 220);
+      }
+      if (b.end_.key === "question") tick(at + dur * 0.92, 0.13, 5200);
+
+      var delayMs = Math.round((at - ac.currentTime) * 1000);
+      timers.push(setTimeout(function () { markSounding(i); }, Math.max(0, delayMs)));
+      cursor += dur + 0.10;
+    });
+
+    var totalMs = Math.round((cursor + 0.5) * 1000);
+    timers.push(setTimeout(function () { stopAudio(false); }, totalMs));
+
+    if (beats.length > AUDIO_CAP) {
+      $("audio-note").textContent = "Auditioning the first " + AUDIO_CAP + " of " + beats.length +
+        " sentences. Low thump per sentence, light tick per clause break — no speech, no microphone, no files.";
+    }
+  }
+
+  function markSounding(i) {
+    Array.prototype.forEach.call(strip.querySelectorAll(".beat.sounding"), function (el) {
+      el.classList.remove("sounding");
+    });
+    var el = strip.querySelector('.beat[data-i="' + i + '"]');
+    if (el) el.classList.add("sounding");
+  }
+
+  function stopAudio(silent) {
+    timers.forEach(function (t) { clearTimeout(t); });
+    timers = [];
+    scheduled.forEach(function (node) {
+      try { node.stop(0); } catch (e) { /* already stopped */ }
+      try { node.disconnect(); } catch (e) { /* ignore */ }
+    });
+    scheduled = [];
+    Array.prototype.forEach.call(strip.querySelectorAll(".beat.sounding"), function (el) {
+      el.classList.remove("sounding");
+    });
+    playing = false;
+    $("play-btn").disabled = false;
+    $("stop-btn").disabled = true;
+    if (!silent) { /* natural finish */ }
+  }
+
+  $("play-btn").addEventListener("click", playRhythm);
+  $("stop-btn").addEventListener("click", function () { stopAudio(true); });
+  $("mute-btn").addEventListener("click", function () {
+    muted = !muted;
+    var btn = $("mute-btn");
+    btn.setAttribute("aria-pressed", muted ? "true" : "false");
+    btn.classList.toggle("on", muted);
+    btn.textContent = muted ? "Unmute" : "Mute";
+    if (master) {
+      try { master.gain.setTargetAtTime(muted ? 0 : 0.85, ac.currentTime, 0.02); }
+      catch (e) { master.gain.value = muted ? 0 : 0.85; }
+    }
+  });
+
+  window.addEventListener("pagehide", function () { stopAudio(true); });
+
+  /* ------------------------------------------------------------------ *
+   * Resize
+   * ------------------------------------------------------------------ */
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { renderContour(); renderLayer(); }, 120);
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Boot
+   * ------------------------------------------------------------------ */
+  editor.value = SAMPLE;
+  state.analysis = analyze(SAMPLE);
+  renderAll();
+})();
+</script>
+</body>
+</html>
