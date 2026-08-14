@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Redactile — A Screenshot Privacy Workbench</title>
+<meta name="description" content="Paint pixelation and blackout over a screenshot, number the parts that matter, and export a genuinely altered PNG. Everything stays in the tab.">
+<style>
+  /* ============================================================
+     REDACTILE — clearance desk for screenshots
+     Two-ink riso treatment on newsprint stock.
+     ============================================================ */
+  :root{
+    --stock:      #DCDDD3;
+    --stock-hi:   #EBECE4;
+    --stock-lo:   #C6C8BB;
+    --ink:        #14171A;
+    --ink-soft:   #4A5055;
+    --seal:       #123E86;   /* riso blue  — what has been sealed */
+    --live:       #FF2E77;   /* riso pink  — what you are doing now */
+    --rule:       #9EA294;
+
+    --shadow: 4px 4px 0 var(--ink);
+    --shadow-sm: 3px 3px 0 var(--ink);
+
+    --display: "Avenir Next Condensed", "Arial Narrow", "Helvetica Neue", Helvetica, sans-serif;
+    --body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+    --tap: 44px;
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+
+  html,body{ margin:0; padding:0; }
+  body{
+    background-color: var(--stock);
+    background-image:
+      radial-gradient(var(--stock-lo) 0.9px, transparent 0.9px),
+      radial-gradient(var(--stock-lo) 0.9px, transparent 0.9px);
+    background-size: 10px 10px, 10px 10px;
+    background-position: 0 0, 5px 5px;
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 18px 14px 56px; }
+
+  /* ---------- masthead ---------- */
+  header{ margin-bottom: 18px; }
+  .mast{
+    display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;
+    border-bottom: 3px solid var(--ink); padding-bottom: 10px;
+  }
+  .wordmark{
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(34px, 11.5vw, 76px);
+    line-height: 0.86;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin: 0;
+    display:flex;
+  }
+  .wordmark span{
+    position: relative;
+    display:inline-block;
+  }
+  /* page-load: the wordmark redacts itself, then clears */
+  .wordmark span::after{
+    content:"";
+    position:absolute; left:-4%; right:-4%; top:8%; bottom:14%;
+    background: var(--seal);
+    transform-origin: right center;
+    animation: unseal 620ms cubic-bezier(.7,0,.2,1) forwards;
+    animation-delay: calc(var(--i) * 55ms + 260ms);
+  }
+  @keyframes unseal{ from{ transform: scaleX(1);} to{ transform: scaleX(0);} }
+
+  .kicker{
+    font-family: var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--seal);
+    padding-bottom: 10px;
+  }
+  .standfirst{
+    margin: 12px 0 0;
+    max-width: 60ch;
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+  .standfirst b{ color: var(--ink); }
+
+  /* ---------- shared panel look ---------- */
+  .panel{
+    background: var(--stock-hi);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+    margin-top: 18px;
+  }
+  .panel-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    font-family: var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .panel-head em{
+    font-style: normal;
+    font-family: var(--mono);
+    letter-spacing: 0;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-transform: none;
+  }
+
+  /* ---------- the plate (canvas stage) ---------- */
+  .stage{
+    background: var(--stock-lo);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    padding: 12px;
+    display:flex; align-items:center; justify-content:center;
+    min-height: 220px;
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .stage.drop-armed{ background: #d6d3c0; box-shadow: var(--shadow), inset 0 0 0 3px var(--live); }
+
+  .plate{ position: relative; display:block; line-height:0; width:100%; max-width:100%; min-width:0; }
+  canvas#view{
+    display:block;
+    max-width: 100%;
+    max-height: 56vh;
+    width: 100%; height: auto;
+    background: #fff;
+    border: 2px solid var(--ink);
+    cursor: crosshair;
+    touch-action: none;              /* paint tools own the gesture */
+  }
+  .plate[data-tool="pin"] canvas#view{ cursor: copy; }
+  .plate.peeking canvas#view{ cursor: zoom-out; }
+
+  /* pins */
+  .pinlayer{ position:absolute; inset:0; pointer-events:none; }
+  .plate.peeking .pinlayer{ opacity:0; }
+  .pin{
+    position:absolute;
+    pointer-events:auto;
+    width: var(--tap); height: var(--tap);
+    margin: calc(var(--tap) / -2) 0 0 calc(var(--tap) / -2);
+    padding:0; border:0; background:transparent;
+    display:grid; place-items:center;
+    cursor: grab;
+    touch-action: none;
+    color: inherit;
+  }
+  .pin:active{ cursor: grabbing; }
+  .pin i{
+    font-style: normal;
+    display:grid; place-items:center;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--live);
+    border: 2px solid var(--ink);
+    box-shadow: 2px 2px 0 var(--ink);
+    font-family: var(--mono);
+    font-size: 14px; font-weight: 700;
+    color: var(--ink);
+    transition: transform 120ms ease;
+  }
+  .pin[data-sel="1"] i{ background: var(--stock-hi); outline: 3px solid var(--live); outline-offset: 2px; }
+  .pin:focus-visible{ outline:none; }
+  .pin:focus-visible i{ outline: 3px solid var(--seal); outline-offset: 3px; transform: scale(1.08); }
+
+  /* coach + badges over the plate */
+  .coach{
+    position:absolute; left:50%; top:50%; transform: translate(-50%,-50%);
+    background: var(--ink); color: var(--stock-hi);
+    font-family: var(--display); text-transform: uppercase; letter-spacing:.14em;
+    font-size: 13px; font-weight:600;
+    padding: 10px 14px; border-radius: 2px;
+    pointer-events:none; text-align:center; max-width: 84%;
+    box-shadow: 3px 3px 0 var(--live);
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ transform: translate(-50%,-50%);} 50%{ transform: translate(-50%,calc(-50% - 5px)); } }
+  .coach[hidden]{ display:none; }
+
+  .beforetag{
+    position:absolute; left:12px; top:12px;
+    background: var(--seal); color:#fff;
+    font-family: var(--display); text-transform:uppercase; letter-spacing:.2em;
+    font-size: 12px; font-weight:700; padding: 6px 10px; border-radius:2px;
+    pointer-events:none;
+  }
+  .beforetag[hidden]{ display:none; }
+
+  .stamp{
+    position:absolute; left:50%; top:50%;
+    transform: translate(-50%,-50%) rotate(-9deg) scale(1);
+    border: 4px solid var(--live); color: var(--live);
+    font-family: var(--display); text-transform: uppercase; letter-spacing:.12em;
+    font-weight: 700; font-size: clamp(18px, 5vw, 30px);
+    padding: 8px 18px; border-radius: 4px;
+    pointer-events:none; opacity: 0;
+    background: rgba(235,236,228,.72);
+  }
+  .stamp.hit{ animation: thump 1500ms ease-out forwards; }
+  @keyframes thump{
+    0%{ opacity:0; transform: translate(-50%,-50%) rotate(-9deg) scale(2.1); }
+    16%{ opacity:1; transform: translate(-50%,-50%) rotate(-9deg) scale(1); }
+    72%{ opacity:1; }
+    100%{ opacity:0; transform: translate(-50%,-50%) rotate(-9deg) scale(1); }
+  }
+
+  /* ---------- controls ---------- */
+  .toolgrid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .btn{
+    font-family: var(--display);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-weight: 600;
+    font-size: 14px;
+    min-height: var(--tap);
+    padding: 8px 10px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background: var(--stock-hi);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 90ms ease, box-shadow 90ms ease, background 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+    text-align:center;
+  }
+  .btn:hover{ background:#fff; }
+  .btn:active{ transform: translate(3px,3px); box-shadow: 0 0 0 var(--ink); }
+  .btn:focus-visible{ outline: 3px solid var(--live); outline-offset: 2px; }
+  .btn[aria-pressed="true"]{ background: var(--ink); color: var(--stock-hi); box-shadow: 3px 3px 0 var(--live); }
+  .btn:disabled{ opacity:.38; cursor:not-allowed; box-shadow: var(--shadow-sm); transform:none; }
+  .btn .swatch{
+    width:16px; height:16px; border:2px solid currentColor; flex:none;
+  }
+  .btn .swatch.px{
+    background-image: linear-gradient(45deg, currentColor 25%, transparent 25% 50%, currentColor 50% 75%, transparent 75%);
+    background-size: 8px 8px;
+  }
+  .btn .swatch.sd{ background: currentColor; }
+  .btn.wide{ grid-column: 1 / -1; }
+  .btn.primary{ background: var(--live); color: var(--ink); }
+  .btn.primary:hover{ background:#ff5a92; }
+  .btn.hold{ background: var(--seal); color:#fff; }
+  .btn.hold:hover{ background:#1a56ad; }
+
+  .row{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px; margin-top:8px; }
+
+  .field{ margin-top: 14px; }
+  .field label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family: var(--display); text-transform:uppercase; letter-spacing:.14em;
+    font-size: 12px; font-weight:700; margin-bottom: 6px;
+  }
+  .field label var{ font-family: var(--mono); font-style:normal; font-size:12px; color: var(--seal); letter-spacing:0; }
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height: var(--tap); background:transparent; margin:0; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height: 12px; background: var(--stock); border:2px solid var(--ink); border-radius:2px;
+  }
+  input[type=range]::-moz-range-track{
+    height: 12px; background: var(--stock); border:2px solid var(--ink); border-radius:2px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width: 26px; height: 30px; margin-top: -11px;
+    background: var(--live); border:2px solid var(--ink); border-radius:2px;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  input[type=range]::-moz-range-thumb{
+    width: 26px; height: 30px;
+    background: var(--live); border:2px solid var(--ink); border-radius:2px;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  input[type=range]:focus-visible{ outline: 3px solid var(--seal); outline-offset: 2px; border-radius:3px; }
+
+  /* ---------- ledger ---------- */
+  .meter{
+    display:flex; align-items:center; gap:10px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .meter .bar{
+    flex:1; height: 12px; border:2px solid var(--ink); background: var(--stock);
+    position:relative; overflow:hidden; border-radius:2px;
+  }
+  .meter .bar b{
+    position:absolute; inset:0 auto 0 0; width:0%;
+    background-image: repeating-linear-gradient(45deg, var(--seal) 0 5px, #2a5fae 5px 10px);
+    transition: width 220ms ease;
+  }
+  .meter strong{ font-family: var(--mono); color: var(--ink); font-size:12px; }
+
+  ol.ledger{
+    list-style:none; margin:0; padding:0;
+    font-family: var(--mono); font-size: 12.5px;
+    max-height: 190px; overflow-y: auto;
+  }
+  ol.ledger li{
+    display:flex; gap:10px; align-items:center;
+    padding: 7px 0; border-bottom: 1px dashed var(--rule);
+  }
+  ol.ledger li:last-child{ border-bottom:0; }
+  ol.ledger .n{ color: var(--seal); font-weight:700; flex:none; }
+  ol.ledger .what{ flex:1; min-width:0; overflow-wrap:anywhere; }
+  ol.ledger .sz{ color: var(--ink-soft); flex:none; }
+  ol.ledger .chip{
+    flex:none; font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    border:1.5px solid var(--ink); padding:1px 6px; border-radius:2px;
+  }
+  ol.ledger .chip.px{ background:var(--stock); }
+  ol.ledger .chip.sd{ background: var(--ink); color: var(--stock-hi); }
+  ol.ledger .chip.cl{ background: var(--live); }
+  .empty{
+    font-family: var(--body); font-size: 14px; color: var(--ink-soft);
+    border: 2px dashed var(--rule); border-radius:3px; padding: 14px; text-align:center;
+  }
+  .empty b{ display:block; font-family: var(--display); text-transform:uppercase; letter-spacing:.14em; color:var(--ink); font-size:13px; margin-bottom:4px; }
+
+  /* ---------- status ---------- */
+  .status{
+    margin-top: 12px;
+    font-family: var(--mono); font-size: 12px;
+    border-left: 4px solid var(--seal);
+    padding: 8px 10px;
+    background: var(--stock);
+    border-radius: 0 3px 3px 0;
+    min-height: 36px;
+    display:flex; align-items:center;
+  }
+  .status[data-kind="warn"]{ border-left-color: var(--live); }
+
+  /* ---------- help ---------- */
+  details.help{
+    margin-top: 18px; border: 2px solid var(--ink); border-radius:3px;
+    background: var(--stock-hi); box-shadow: var(--shadow);
+  }
+  details.help > summary{
+    list-style:none; cursor:pointer;
+    min-height: var(--tap); display:flex; align-items:center; gap:10px;
+    padding: 10px 14px;
+    font-family: var(--display); text-transform:uppercase; letter-spacing:.16em;
+    font-size:12.5px; font-weight:700;
+  }
+  details.help > summary::-webkit-details-marker{ display:none; }
+  details.help > summary::before{
+    content:"+"; font-family: var(--mono); font-size:16px; color: var(--live); font-weight:700;
+  }
+  details.help[open] > summary::before{ content:"–"; }
+  details.help > summary:focus-visible{ outline:3px solid var(--live); outline-offset:-3px; }
+  .help-body{ padding: 0 14px 14px; border-top:2px solid var(--ink); padding-top:12px; }
+  .help-body dl{ margin:0; display:grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size:14px; }
+  .help-body dt{ font-family: var(--mono); font-size:12px; color: var(--seal); font-weight:700; }
+  .help-body dd{ margin:0; color: var(--ink-soft); }
+  .help-body p{ font-size:14px; color: var(--ink-soft); }
+
+  footer{
+    margin-top: 26px; border-top: 3px solid var(--ink); padding-top: 12px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft);
+    display:flex; flex-wrap:wrap; gap: 6px 16px; justify-content:space-between;
+  }
+  footer b{ color: var(--seal); }
+
+  .sr{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+  }
+
+  /* ---------- desk layout ---------- */
+  .desk,.col-a,.col-b,.panel{ min-width:0; }
+
+  @media (max-width: 600px){
+    .mast{ align-items:flex-start; }
+    .wordmark{ width:100%; }
+    .kicker{ width:100%; padding:2px 0 0; }
+  }
+
+  @media (min-width: 900px){
+    .desk{ display:grid; grid-template-columns: minmax(0,1.45fr) minmax(320px,1fr); gap: 18px; align-items:start; }
+    .desk > .col-a > .panel:first-child,
+    .desk > .col-b > .panel:first-child{ margin-top:0; }
+    .stage{ margin-top:0; }
+    canvas#view{ max-height: 64vh; }
+    .toolgrid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .wordmark span::after{ transform: scaleX(0); }
+    .stamp.hit{ animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mast">
+      <h1 class="wordmark" aria-label="Redactile">
+        <span style="--i:0" aria-hidden="true">R</span><span style="--i:1" aria-hidden="true">E</span><span style="--i:2" aria-hidden="true">D</span><span style="--i:3" aria-hidden="true">A</span><span style="--i:4" aria-hidden="true">C</span><span style="--i:5" aria-hidden="true">T</span><span style="--i:6" aria-hidden="true">I</span><span style="--i:7" aria-hidden="true">L</span><span style="--i:8" aria-hidden="true">E</span>
+      </h1>
+      <div class="kicker">Clearance desk</div>
+    </div>
+    <p class="standfirst">
+      You need to show someone the screen. You do not need to show them <em>all</em> of it.
+      Paint over what should not travel, number what should, then export a PNG whose pixels
+      have genuinely changed. <b>Nothing leaves this tab</b> — no upload, no server, no storage.
+    </p>
+  </header>
+
+  <div class="desk">
+    <div class="col-a">
+
+      <div class="stage" id="stage">
+        <div class="plate" id="plate" data-tool="pixelate">
+          <canvas id="view" width="1280" height="860"
+                  aria-label="Screenshot being redacted. Drag across the image with a mouse, pen, or finger to cover an area."></canvas>
+          <div class="pinlayer" id="pinlayer"></div>
+          <div class="coach" id="coach">Drag across anything that should not travel</div>
+          <div class="beforetag" id="beforetag" hidden>Original</div>
+          <div class="stamp" id="stamp" aria-hidden="true">Cleared</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span>Tools</span><em id="toolhint">pixelate</em></div>
+        <div class="toolgrid" role="group" aria-label="Redaction tool">
+          <button class="btn" id="t-pixelate" type="button" aria-pressed="true">
+            <span class="swatch px" aria-hidden="true"></span>Pixelate
+          </button>
+          <button class="btn" id="t-solid" type="button" aria-pressed="false">
+            <span class="swatch sd" aria-hidden="true"></span>Blackout
+          </button>
+          <button class="btn" id="t-pin" type="button" aria-pressed="false">
+            Add callout
+          </button>
+          <button class="btn hold" id="peek" type="button" aria-describedby="peekhelp">
+            Hold to compare
+          </button>
+        </div>
+        <span id="peekhelp" class="sr">Press and hold to see the original underneath. Release to return to the redacted version.</span>
+
+        <div class="field">
+          <label for="size">Brush width <var id="sizeout">48 px</var></label>
+          <input type="range" id="size" min="16" max="180" step="2" value="48">
+        </div>
+
+        <div class="row">
+          <button class="btn" id="undo" type="button" disabled>Undo</button>
+          <button class="btn" id="redo" type="button" disabled>Redo</button>
+          <button class="btn" id="clear" type="button" disabled>Clear</button>
+        </div>
+
+        <div class="row" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          <button class="btn" id="import" type="button">Open image</button>
+          <button class="btn" id="pastebtn" type="button">Paste image</button>
+        </div>
+        <div class="row" style="grid-template-columns:1fr">
+          <button class="btn primary" id="export" type="button">Export redacted PNG</button>
+        </div>
+        <div class="row" style="grid-template-columns:1fr" id="pinrow" hidden>
+          <button class="btn" id="delpin" type="button">Remove callout <span id="delpinnum"></span></button>
+        </div>
+
+        <input type="file" id="file" accept="image/*" class="sr" tabindex="-1" aria-hidden="true">
+        <div class="status" id="status" role="status" aria-live="polite" data-kind="ok">Demo screenshot loaded. Start covering things.</div>
+      </div>
+    </div>
+
+    <div class="col-b">
+      <div class="panel">
+        <div class="panel-head"><span>Clearance ledger</span><em id="dims">—</em></div>
+        <div class="meter" aria-hidden="true">
+          <span>SEALED</span>
+          <span class="bar"><b id="covbar"></b></span>
+          <strong id="covout">0.0%</strong>
+        </div>
+        <p class="sr" id="covsr" aria-live="polite">Nothing sealed yet.</p>
+        <ol class="ledger" id="ledger"></ol>
+        <div class="empty" id="ledgerempty">
+          <b>Nothing sealed yet</b>
+          Every stroke and callout you add gets logged here, in order, with the share of the frame it covers.
+        </div>
+      </div>
+
+      <details class="help">
+        <summary>How this works</summary>
+        <div class="help-body">
+          <dl>
+            <dt>Pixelate</dt><dd>Averages the real pixels into blocks. The detail is gone from the file, not hidden behind a filter.</dd>
+            <dt>Blackout</dt><dd>Paints an opaque bar. Use it when even the shape of the thing is too much.</dd>
+            <dt>Add callout</dt><dd>Tap the image to drop a numbered marker. Drag it, or focus it and nudge with the arrow keys. Backspace removes it.</dd>
+            <dt>Hold to compare</dt><dd>Press and hold to reveal the original. Release to snap back.</dd>
+            <dt>Open / Paste</dt><dd>Load your own screenshot from this device, paste one with ⌘V or Ctrl+V, or drop a file onto the plate.</dd>
+            <dt>Export</dt><dd>Downloads a flattened PNG — redactions and callouts baked in, original pixels unrecoverable.</dd>
+          </dl>
+          <p>
+            Brush painting needs a pointer — mouse, pen, or finger. Callouts are fully keyboard-operable.
+            Your image is decoded and edited in this page's memory only; it is never sent anywhere, never
+            written to storage, and disappears when you close the tab.
+          </p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <footer>
+    <span>Redactile — a screenshot privacy workbench</span>
+    <span><b>In-tab processing.</b> No network. No storage. No analytics.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- constants + element refs ---------------- */
+  var MAXDIM = 1600;                 // cap working resolution, bounds memory
+  var HISTORY_MAX = 60;
+
+  var view      = document.getElementById('view');
+  var vctx      = view.getContext('2d');
+  var plate     = document.getElementById('plate');
+  var stage     = document.getElementById('stage');
+  var pinlayer  = document.getElementById('pinlayer');
+  var coach     = document.getElementById('coach');
+  var beforetag = document.getElementById('beforetag');
+  var stampEl   = document.getElementById('stamp');
+  var statusEl  = document.getElementById('status');
+  var ledgerEl  = document.getElementById('ledger');
+  var ledgerEmpty = document.getElementById('ledgerempty');
+  var covbar    = document.getElementById('covbar');
+  var covout    = document.getElementById('covout');
+  var covsr     = document.getElementById('covsr');
+  var dimsEl    = document.getElementById('dims');
+  var sizeEl    = document.getElementById('size');
+  var sizeOut   = document.getElementById('sizeout');
+  var toolhint  = document.getElementById('toolhint');
+  var fileEl    = document.getElementById('file');
+  var pinRow    = document.getElementById('pinrow');
+  var delPinNum = document.getElementById('delpinnum');
+
+  var btn = {
+    pixelate: document.getElementById('t-pixelate'),
+    solid:    document.getElementById('t-solid'),
+    pin:      document.getElementById('t-pin'),
+    peek:     document.getElementById('peek'),
+    undo:     document.getElementById('undo'),
+    redo:     document.getElementById('redo'),
+    clear:    document.getElementById('clear'),
+    imp:      document.getElementById('import'),
+    paste:    document.getElementById('pastebtn'),
+    exp:      document.getElementById('export'),
+    delpin:   document.getElementById('delpin')
+  };
+
+  /* ---------------- model ---------------- */
+  var base = document.createElement('canvas');   // pristine image
+  var work = document.createElement('canvas');   // redacted image (the export source)
+  var bctx = base.getContext('2d');
+  var wctx = work.getContext('2d', { willReadFrequently: true });
+
+  var W = 0, H = 0;
+  var ops  = [];      // [{kind:'pixelate'|'solid', size, cell, pts:[{x,y}], cov}]
+  var pins = [];      // [{x,y}]
+  var past = [], future = [];
+  var tool = 'pixelate';
+  var brush = 48;
+  var peeking = false;
+  var selPin = -1;
+  var tainted = false;
+
+  // coarse coverage grid, recomputed on every render
+  var covCell = 8, covW = 0, covH = 0, cov = null, covMarked = 0;
+
+  /* ---------------- tiny helpers ---------------- */
+  function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+
+  function say(msg, kind){
+    statusEl.textContent = msg;
+    statusEl.setAttribute('data-kind', kind || 'ok');
+  }
+
+  function cellFor(size){ return clamp(Math.round(size / 3.4), 5, 44); }
+
+  /* ---------------- built-in demo screenshot ----------------
+     A fictional app frame. Every human-shaped string is drawn as
+     "greeked" bars, so the demo contains no readable identity,
+     contact, credential, or money value — only generic UI nouns. */
+  function makeDemo(){
+    var c = document.createElement('canvas');
+    c.width = 1280; c.height = 860;
+    var g = c.getContext('2d');
+    var seed = 20260814;
+    function rnd(){ seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+    function rr(x, y, w, h, r){
+      r = Math.min(r, w / 2, h / 2);
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+    }
+    function bar(x, y, w, h, col, r){ g.fillStyle = col; rr(x, y, w, h, r === undefined ? h / 2 : r); g.fill(); }
+    function card(x, y, w, h){
+      g.fillStyle = '#FFFFFF'; rr(x, y, w, h, 10); g.fill();
+      g.strokeStyle = '#DCE1E7'; g.lineWidth = 2; g.stroke();
+    }
+    function label(t, x, y, size, col, weight){
+      g.fillStyle = col;
+      g.font = (weight || 600) + ' ' + size + 'px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+      g.textBaseline = 'alphabetic';
+      g.fillText(t, x, y);
+    }
+
+    // window + chrome
+    g.fillStyle = '#EFF1F4'; g.fillRect(0, 0, 1280, 860);
+    g.fillStyle = '#DFE3E8'; g.fillRect(0, 0, 1280, 56);
+    g.fillStyle = '#B7BEC6';
+    [26, 52, 78].forEach(function(x){ g.beginPath(); g.arc(x, 28, 7, 0, 6.2832); g.fill(); });
+    g.textAlign = 'center';
+    label('Workspace — Overview', 640, 34, 16, '#78828C');
+    g.textAlign = 'left';
+
+    // sidebar
+    g.fillStyle = '#1D2431'; g.fillRect(0, 56, 246, 804);
+    bar(18, 78, 210, 48, '#2C374A', 10);
+    bar(30, 92, 20, 20, '#4E8BE8', 6);
+    bar(60, 94, 96, 8, '#8FA0B6');
+    bar(60, 110, 132, 7, '#5B6A80');
+    var navY = 152;
+    for (var i = 0; i < 8; i++){
+      if (i === 2){ bar(12, navY - 12, 222, 40, '#2F3B50', 8); bar(12, navY - 12, 4, 40, '#4E8BE8', 2); }
+      bar(30, navY - 4, 16, 16, i === 2 ? '#7FB0F5' : '#48566B', 4);
+      bar(58, navY, 60 + Math.floor(rnd() * 92), 9, i === 2 ? '#DDE6F3' : '#586880');
+      navY += 46;
+    }
+    bar(18, 762, 210, 56, '#2C374A', 10);
+    g.fillStyle = '#4E8BE8'; g.beginPath(); g.arc(48, 790, 18, 0, 6.2832); g.fill();
+    bar(78, 780, 84, 9, '#93A3B8');
+    bar(78, 798, 118, 8, '#5B6A80');
+
+    // main heading
+    label('Overview', 286, 116, 30, '#1A2029', 700);
+    bar(286, 132, 300, 10, '#C3CAD3');
+
+    // stat cards
+    var stats = [['24', 'Items'], ['7', 'Open'], ['3', 'Draft']];
+    for (var s = 0; s < 3; s++){
+      var sx = 286 + s * 264;
+      card(sx, 164, 240, 104);
+      label(stats[s][0], sx + 22, 226, 40, '#1A2029', 700);
+      label(stats[s][1], sx + 22, 250, 14, '#7B858F', 600);
+      bar(sx + 190, 186, 28, 28, '#EAF0FB', 8);
+    }
+
+    // members panel — the obvious redaction target
+    card(286, 296, 616, 300);
+    label('Members', 310, 332, 17, '#1A2029', 700);
+    bar(846, 318, 32, 20, '#EAF0FB', 6);
+    var avatarInks = ['#E86A8C', '#4E8BE8', '#3FAE8C', '#E8A33F', '#8C6AE8'];
+    for (var m = 0; m < 5; m++){
+      var my = 358 + m * 46;
+      g.fillStyle = avatarInks[m];
+      g.beginPath(); g.arc(330, my + 12, 16, 0, 6.2832); g.fill();
+      bar(358, my + 2, 96 + Math.floor(rnd() * 104), 11, '#3C4650');
+      bar(358, my + 20, 130 + Math.floor(rnd() * 150), 9, '#B6BEC7');
+      bar(792, my + 4, 78, 20, '#EDF1F6', 10);
+      bar(804, my + 11, 40 + Math.floor(rnd() * 18), 7, '#93A0AE');
+    }
+
+    // shared link panel
+    card(286, 616, 616, 128);
+    label('Shared link', 310, 652, 15, '#1A2029', 700);
+    g.fillStyle = '#F4F6F9'; rr(310, 668, 448, 44, 8); g.fill();
+    g.strokeStyle = '#DCE1E7'; g.lineWidth = 2; g.stroke();
+    var lx = 326;
+    for (var t = 0; t < 26; t++){
+      var lw = 6 + Math.floor(rnd() * 12);
+      bar(lx, 683, lw, 13, '#9AA5B1', 2);
+      lx += lw + 5;
+      if (lx > 736) break;
+    }
+    g.fillStyle = '#4E8BE8'; rr(772, 668, 106, 44, 8); g.fill();
+    g.textAlign = 'center';
+    label('Copy', 825, 696, 15, '#FFFFFF', 700);
+    g.textAlign = 'left';
+
+    // notes + attachments column
+    card(922, 296, 330, 300);
+    label('Notes', 946, 332, 15, '#1A2029', 700);
+    for (var n = 0; n < 9; n++){
+      bar(946, 354 + n * 24, 180 + Math.floor(rnd() * 100), 10, n % 3 === 2 ? '#CDD4DC' : '#B0B9C3');
+    }
+    card(922, 616, 330, 128);
+    label('Attachments', 946, 652, 15, '#1A2029', 700);
+    var thumbInks = [['#FFD9C7', '#FF9A6B'], ['#CFE3FF', '#6BA6FF'], ['#D8F3E5', '#5BC79C'], ['#EDE0FF', '#A788F0']];
+    for (var a = 0; a < 4; a++){
+      var ax = 946 + a * 74;
+      var grd = g.createLinearGradient(ax, 666, ax + 58, 712);
+      grd.addColorStop(0, thumbInks[a][0]); grd.addColorStop(1, thumbInks[a][1]);
+      g.fillStyle = grd; rr(ax, 666, 58, 46, 6); g.fill();
+      bar(ax, 718, 40 + Math.floor(rnd() * 16), 7, '#BCC4CD');
+    }
+
+    // footer strip
+    g.fillStyle = '#E5E9EE'; g.fillRect(246, 800, 1034, 60);
+    bar(286, 824, 210, 10, '#A8B2BC');
+    bar(1096, 816, 156, 28, '#CBD3DC', 8);
+
+    return c;
+  }
+
+  /* ---------------- image loading ---------------- */
+  function adoptSource(src, srcW, srcH, label){
+    var scale = Math.min(1, MAXDIM / Math.max(srcW, srcH));
+    W = Math.max(1, Math.round(srcW * scale));
+    H = Math.max(1, Math.round(srcH * scale));
+
+    base.width = W; base.height = H;
+    work.width = W; work.height = H;
+    view.width = W; view.height = H;
+
+    bctx.clearRect(0, 0, W, H);
+    bctx.drawImage(src, 0, 0, W, H);
+
+    // confirm the canvas is readable before promising an export
+    tainted = false;
+    try { bctx.getImageData(0, 0, 1, 1); }
+    catch (err){ tainted = true; }
+
+    covCell = Math.max(4, Math.round(Math.max(W, H) / 170));
+    covW = Math.ceil(W / covCell); covH = Math.ceil(H / covCell);
+    cov = new Uint8Array(covW * covH);
+
+    ops = []; pins = []; past = []; future = []; selPin = -1;
+    rerender(); renderPins(); renderLedger(); syncButtons();
+    dimsEl.textContent = W + ' × ' + H;
+    coach.hidden = false;
+    if (tainted){
+      say('That image is cross-origin protected, so it cannot be read or exported. Open a local file instead.', 'warn');
+    } else {
+      say(label, 'ok');
+    }
+  }
+
+  function loadFromBlob(blob, note){
+    if (!blob || (blob.type && blob.type.indexOf('image/') !== 0)){
+      say('That was not an image file. Try a PNG, JPEG, or WebP screenshot.', 'warn');
+      return;
+    }
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function(){
+      try {
+        adoptSource(img, img.naturalWidth || img.width, img.naturalHeight || img.height, note);
+      } catch (err){
+        say('That image could not be opened. Try a different file.', 'warn');
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      say('That image could not be decoded. Try a PNG or JPEG.', 'warn');
+    };
+    img.src = url;
+  }
+
+  /* ---------------- coverage ---------------- */
+  function markCov(x, y, r){
+    var x0 = clamp(Math.floor((x - r) / covCell), 0, covW - 1);
+    var x1 = clamp(Math.floor((x + r) / covCell), 0, covW - 1);
+    var y0 = clamp(Math.floor((y - r) / covCell), 0, covH - 1);
+    var y1 = clamp(Math.floor((y + r) / covCell), 0, covH - 1);
+    var n = 0;
+    for (var gy = y0; gy <= y1; gy++){
+      for (var gx = x0; gx <= x1; gx++){
+        var cx = gx * covCell + covCell / 2, cy = gy * covCell + covCell / 2;
+        if ((cx - x) * (cx - x) + (cy - y) * (cy - y) > r * r) continue;
+        var idx = gy * covW + gx;
+        if (!cov[idx]){ cov[idx] = 1; covMarked++; n++; }
+      }
+    }
+    return n;
+  }
+
+  function updateCoverage(){
+    var total = covW * covH || 1;
+    var pct = covMarked / total * 100;
+    var txt = (pct < 0.05 && pct > 0 ? '<0.1' : pct.toFixed(1)) + '%';
+    covout.textContent = txt;
+    covbar.style.width = clamp(pct, 0, 100) + '%';
+    covsr.textContent = ops.length
+      ? ops.length + ' area' + (ops.length === 1 ? '' : 's') + ' sealed, ' + txt + ' of the frame.'
+      : 'Nothing sealed yet.';
+  }
+
+  /* ---------------- painting ---------------- */
+  function avgColor(data, sx, sy, cell){
+    var r = 0, g = 0, b = 0, count = 0;
+    var x1 = Math.min(sx + cell, W), y1 = Math.min(sy + cell, H);
+    var x0 = Math.max(sx, 0), y0 = Math.max(sy, 0);
+    var step = cell > 12 ? 2 : 1;
+    for (var y = y0; y < y1; y += step){
+      var row = y * W;
+      for (var x = x0; x < x1; x += step){
+        var i = (row + x) * 4;
+        r += data[i]; g += data[i + 1]; b += data[i + 2];
+        count++;
+      }
+    }
+    if (!count) return 'rgb(128,128,128)';
+    return 'rgb(' + ((r / count) | 0) + ',' + ((g / count) | 0) + ',' + ((b / count) | 0) + ')';
+  }
+
+  function stampPixel(ctx, snap, x, y, size, cell, done){
+    var half = size / 2;
+    var cx0 = Math.floor((x - half) / cell) * cell;
+    var cy0 = Math.floor((y - half) / cell) * cell;
+    var cx1 = Math.ceil((x + half) / cell) * cell;
+    var cy1 = Math.ceil((y + half) / cell) * cell;
+    for (var cy = cy0; cy < cy1; cy += cell){
+      if (cy + cell <= 0 || cy >= H) continue;
+      for (var cx = cx0; cx < cx1; cx += cell){
+        if (cx + cell <= 0 || cx >= W) continue;
+        var mx = cx + cell / 2, my = cy + cell / 2;
+        if ((mx - x) * (mx - x) + (my - y) * (my - y) > half * half) continue;
+        var key = cx + ':' + cy;
+        if (done){ if (done[key]) continue; done[key] = 1; }
+        ctx.fillStyle = avgColor(snap, cx, cy, cell);
+        ctx.fillRect(cx, cy, cell, cell);
+      }
+    }
+    markCov(x, y, half);
+  }
+
+  function strokeSolid(ctx, pts, size){
+    ctx.save();
+    ctx.fillStyle = '#0E1113';
+    ctx.strokeStyle = '#0E1113';
+    ctx.lineWidth = size;
+    // round joins AND caps so a stroke replayed as one path matches the
+    // segment-by-segment version drawn live — otherwise undo/redo would
+    // subtly reshape the bar.
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (pts.length === 1){
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, size / 2, 0, 6.2832);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // walk the polyline so fast drags do not under-report coverage
+    markCov(pts[0].x, pts[0].y, size / 2);
+    for (var j = 1; j < pts.length; j++){
+      var a = pts[j - 1], b = pts[j];
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var steps = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy) / Math.max(2, size / 3)));
+      for (var k = 1; k <= steps; k++) markCov(a.x + dx * k / steps, a.y + dy * k / steps, size / 2);
+    }
+  }
+
+  function applyOp(ctx, op){
+    if (op.kind === 'solid'){ strokeSolid(ctx, op.pts, op.size); return; }
+    var snap = ctx.getImageData(0, 0, W, H).data;
+    var done = {};
+    var pts = op.pts, step = Math.max(2, op.cell / 2);
+    for (var i = 0; i < pts.length; i++){
+      if (i > 0){
+        var a = pts[i - 1], b = pts[i];
+        var dx = b.x - a.x, dy = b.y - a.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        var n = Math.floor(dist / step);
+        for (var k = 1; k <= n; k++){
+          stampPixel(ctx, snap, a.x + dx * k / n, a.y + dy * k / n, op.size, op.cell, done);
+        }
+      }
+      stampPixel(ctx, snap, pts[i].x, pts[i].y, op.size, op.cell, done);
+    }
+  }
+
+  function rerender(){
+    if (!W) return;
+    wctx.clearRect(0, 0, W, H);
+    wctx.drawImage(base, 0, 0);
+    if (cov){ cov.fill(0); }
+    covMarked = 0;
+    for (var i = 0; i < ops.length; i++) applyOp(wctx, ops[i]);
+    blit();
+    updateCoverage();
+  }
+
+  function blit(){
+    vctx.clearRect(0, 0, W, H);
+    vctx.drawImage(peeking ? base : work, 0, 0);
+  }
+
+  /* ---------------- history ---------------- */
+  function snapshot(){
+    return {
+      ops: ops.map(function(o){
+        return { kind: o.kind, size: o.size, cell: o.cell, pts: o.pts.map(function(p){ return { x: p.x, y: p.y }; }) };
+      }),
+      pins: pins.map(function(p){ return { x: p.x, y: p.y }; })
+    };
+  }
+  function pushHistory(){
+    past.push(snapshot());
+    if (past.length > HISTORY_MAX) past.shift();
+    future.length = 0;
+  }
+  function restore(s){
+    ops = s.ops; pins = s.pins;
+    selPin = -1;
+    rerender(); renderPins(); renderLedger(); syncButtons();
+  }
+  function undo(){
+    if (!past.length) return;
+    future.push(snapshot());
+    restore(past.pop());
+    say('Undone. ' + describeState(), 'ok');
+  }
+  function redo(){
+    if (!future.length) return;
+    past.push(snapshot());
+    restore(future.pop());
+    say('Redone. ' + describeState(), 'ok');
+  }
+  function describeState(){
+    return ops.length + ' redaction' + (ops.length === 1 ? '' : 's') + ', ' + pins.length + ' callout' + (pins.length === 1 ? '' : 's') + '.';
+  }
+
+  function syncButtons(){
+    btn.undo.disabled = !past.length;
+    btn.redo.disabled = !future.length;
+    btn.clear.disabled = !(ops.length || pins.length);
+    if (ops.length || pins.length) coach.hidden = true;
+    if (selPin >= 0){
+      pinRow.hidden = false;
+      delPinNum.textContent = String(selPin + 1);
+    } else {
+      pinRow.hidden = true;
+      delPinNum.textContent = '';
+    }
+  }
+
+  /* ---------------- ledger ---------------- */
+  function renderLedger(){
+    ledgerEl.innerHTML = '';
+    var rows = [];
+    ops.forEach(function(o, i){
+      rows.push({
+        n: i + 1,
+        chip: o.kind === 'solid' ? 'sd' : 'px',
+        chipText: o.kind === 'solid' ? 'Black' : 'Pixel',
+        what: o.kind === 'solid' ? 'Opaque bar painted' : 'Detail averaged into ' + o.cell + 'px blocks',
+        sz: o.size + 'px'
+      });
+    });
+    pins.forEach(function(p, i){
+      rows.push({
+        n: i + 1,
+        chip: 'cl',
+        chipText: 'Call',
+        what: 'Callout marker placed',
+        sz: Math.round(p.x / W * 100) + ',' + Math.round(p.y / H * 100)
+      });
+    });
+    rows.forEach(function(r){
+      var li = document.createElement('li');
+      var n = document.createElement('span'); n.className = 'n';
+      n.textContent = (r.n < 10 ? '0' : '') + r.n;
+      var chip = document.createElement('span'); chip.className = 'chip ' + r.chip; chip.textContent = r.chipText;
+      var what = document.createElement('span'); what.className = 'what'; what.textContent = r.what;
+      var sz = document.createElement('span'); sz.className = 'sz'; sz.textContent = r.sz;
+      li.appendChild(n); li.appendChild(chip); li.appendChild(what); li.appendChild(sz);
+      ledgerEl.appendChild(li);
+    });
+    ledgerEmpty.hidden = rows.length > 0;
+    ledgerEl.hidden = rows.length === 0;
+  }
+
+  /* ---------------- pins ---------------- */
+  function renderPins(){
+    pinlayer.innerHTML = '';
+    pins.forEach(function(p, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pin';
+      b.style.left = (p.x / W * 100) + '%';
+      b.style.top  = (p.y / H * 100) + '%';
+      b.setAttribute('data-i', String(i));
+      if (i === selPin) b.setAttribute('data-sel', '1');
+      b.setAttribute('aria-label', 'Callout ' + (i + 1) + '. Drag or use arrow keys to move. Backspace to remove.');
+      var s = document.createElement('i');
+      s.textContent = String(i + 1);
+      b.appendChild(s);
+      pinlayer.appendChild(b);
+    });
+  }
+
+  function pinDown(e){
+    var b = e.target.closest ? e.target.closest('.pin') : null;
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var i = parseInt(b.getAttribute('data-i'), 10);
+    selPin = i; renderPins(); syncButtons();
+    var before = snapshot();
+    var startX = e.clientX, startY = e.clientY, moved = false;
+    var origin = { x: pins[i].x, y: pins[i].y };
+    var rect = view.getBoundingClientRect();
+    var sx = W / rect.width, sy = H / rect.height;
+    var target = pinlayer.querySelector('.pin[data-i="' + i + '"]');
+    try { target.setPointerCapture(e.pointerId); } catch (err){}
+
+    function move(ev){
+      var dx = (ev.clientX - startX) * sx, dy = (ev.clientY - startY) * sy;
+      if (Math.abs(ev.clientX - startX) > 3 || Math.abs(ev.clientY - startY) > 3) moved = true;
+      pins[i].x = clamp(origin.x + dx, 0, W);
+      pins[i].y = clamp(origin.y + dy, 0, H);
+      target.style.left = (pins[i].x / W * 100) + '%';
+      target.style.top  = (pins[i].y / H * 100) + '%';
+      ev.preventDefault();
+    }
+    function up(){
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      target.removeEventListener('pointercancel', up);
+      if (moved){
+        past.push(before); if (past.length > HISTORY_MAX) past.shift();
+        future.length = 0;
+        renderLedger(); syncButtons();
+        say('Callout ' + (i + 1) + ' moved.', 'ok');
+      } else {
+        say('Callout ' + (i + 1) + ' selected.', 'ok');
+      }
+    }
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+  }
+
+  function removePin(i){
+    if (i < 0 || i >= pins.length) return;
+    pushHistory();
+    pins.splice(i, 1);
+    selPin = -1;
+    renderPins(); renderLedger(); syncButtons();
+    say('Callout removed. ' + describeState(), 'ok');
+  }
+
+  pinlayer.addEventListener('pointerdown', pinDown);
+  var nudgeBefore = null;   // state captured before an arrow-key nudge run
+  pinlayer.addEventListener('keydown', function(e){
+    var b = e.target.closest ? e.target.closest('.pin') : null;
+    if (!b) return;
+    var i = parseInt(b.getAttribute('data-i'), 10);
+    var stepX = W / 100, stepY = H / 100;
+    var isArrow = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key) !== -1;
+    if (isArrow && !nudgeBefore) nudgeBefore = snapshot();
+    var handled = true;
+    if (e.key === 'ArrowLeft')       pins[i].x = clamp(pins[i].x - stepX, 0, W);
+    else if (e.key === 'ArrowRight') pins[i].x = clamp(pins[i].x + stepX, 0, W);
+    else if (e.key === 'ArrowUp')    pins[i].y = clamp(pins[i].y - stepY, 0, H);
+    else if (e.key === 'ArrowDown')  pins[i].y = clamp(pins[i].y + stepY, 0, H);
+    else if (e.key === 'Backspace' || e.key === 'Delete'){ removePin(i); return; }
+    else if (e.key === 'Enter' || e.key === ' '){ selPin = i; renderPins(); syncButtons();
+      var again = pinlayer.querySelector('.pin[data-i="' + i + '"]'); if (again) again.focus(); }
+    else handled = false;
+    if (!handled) return;
+    e.preventDefault();
+    b.style.left = (pins[i].x / W * 100) + '%';
+    b.style.top  = (pins[i].y / H * 100) + '%';
+    renderLedger();
+  });
+  pinlayer.addEventListener('keyup', function(e){
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key) === -1) return;
+    if (!nudgeBefore) return;
+    // commit the whole nudge run as one undoable step, recording the state
+    // as it stood BEFORE the first arrow press
+    past.push(nudgeBefore); if (past.length > HISTORY_MAX) past.shift();
+    nudgeBefore = null;
+    future.length = 0;
+    syncButtons();
+  });
+
+  /* ---------------- drawing on the plate ---------------- */
+  var drawing = false, liveOp = null, liveSnap = null, liveDone = null, lastPt = null;
+
+  function toImage(e){
+    var r = view.getBoundingClientRect();
+    return {
+      x: clamp((e.clientX - r.left) * (W / r.width), 0, W),
+      y: clamp((e.clientY - r.top)  * (H / r.height), 0, H)
+    };
+  }
+
+  view.addEventListener('pointerdown', function(e){
+    if (!W || peeking) return;
+    if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+    var p = toImage(e);
+
+    if (tool === 'pin'){
+      e.preventDefault();
+      pushHistory();
+      pins.push({ x: p.x, y: p.y });
+      selPin = pins.length - 1;
+      renderPins(); renderLedger(); syncButtons();
+      say('Callout ' + pins.length + ' placed. Drag it, or use the arrow keys.', 'ok');
+      return;
+    }
+
+    e.preventDefault();
+    try { view.setPointerCapture(e.pointerId); } catch (err){}
+    drawing = true;
+    selPin = -1; renderPins();
+    pushHistory();
+    liveOp = { kind: tool, size: brush, cell: cellFor(brush), pts: [p] };
+    lastPt = p;
+    if (tool === 'pixelate'){
+      liveSnap = wctx.getImageData(0, 0, W, H).data;
+      liveDone = {};
+      stampPixel(wctx, liveSnap, p.x, p.y, brush, liveOp.cell, liveDone);
+    } else {
+      strokeSolid(wctx, [p], brush);
+    }
+    blit(); updateCoverage();
+    coach.hidden = true;
+  });
+
+  view.addEventListener('pointermove', function(e){
+    if (!drawing) return;
+    e.preventDefault();
+    var p = toImage(e);
+    var dx = p.x - lastPt.x, dy = p.y - lastPt.y;
+    if (dx * dx + dy * dy < 4) return;
+
+    if (liveOp.kind === 'pixelate'){
+      var step = Math.max(2, liveOp.cell / 2);
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var n = Math.max(1, Math.floor(dist / step));
+      for (var k = 1; k <= n; k++){
+        stampPixel(wctx, liveSnap, lastPt.x + dx * k / n, lastPt.y + dy * k / n, liveOp.size, liveOp.cell, liveDone);
+      }
+    } else {
+      strokeSolid(wctx, [lastPt, p], liveOp.size);
+    }
+    liveOp.pts.push(p);
+    lastPt = p;
+    blit(); updateCoverage();
+  });
+
+  function endStroke(e){
+    if (!drawing) return;
+    drawing = false;
+    try { view.releasePointerCapture(e.pointerId); } catch (err){}
+    if (liveOp && liveOp.pts.length){
+      ops.push(liveOp);
+      renderLedger();
+      say((liveOp.kind === 'solid' ? 'Blacked out' : 'Pixelated') + ' an area. ' + covout.textContent + ' of the frame is sealed.', 'ok');
+    }
+    liveOp = null; liveSnap = null; liveDone = null; lastPt = null;
+    syncButtons();
+  }
+  view.addEventListener('pointerup', endStroke);
+  view.addEventListener('pointercancel', endStroke);
+  view.addEventListener('lostpointercapture', function(e){ if (drawing) endStroke(e); });
+
+  /* ---------------- tools ---------------- */
+  function setTool(t){
+    tool = t;
+    btn.pixelate.setAttribute('aria-pressed', String(t === 'pixelate'));
+    btn.solid.setAttribute('aria-pressed', String(t === 'solid'));
+    btn.pin.setAttribute('aria-pressed', String(t === 'pin'));
+    plate.setAttribute('data-tool', t);
+    // let the page scroll from the plate when no brush is armed
+    view.style.touchAction = (t === 'pin') ? 'manipulation' : 'none';
+    toolhint.textContent = t === 'pin' ? 'tap to place' : (t === 'solid' ? 'blackout' : 'pixelate');
+    say(t === 'pin'
+      ? 'Callout tool armed. Tap the image to drop a numbered marker.'
+      : (t === 'solid' ? 'Blackout armed. Drag to paint an opaque bar.' : 'Pixelate armed. Drag to average detail into blocks.'), 'ok');
+  }
+  btn.pixelate.addEventListener('click', function(){ setTool('pixelate'); });
+  btn.solid.addEventListener('click', function(){ setTool('solid'); });
+  btn.pin.addEventListener('click', function(){ setTool('pin'); });
+
+  sizeEl.addEventListener('input', function(){
+    brush = parseInt(sizeEl.value, 10);
+    sizeOut.textContent = brush + ' px';
+  });
+
+  btn.undo.addEventListener('click', undo);
+  btn.redo.addEventListener('click', redo);
+  btn.clear.addEventListener('click', function(){
+    if (!ops.length && !pins.length) return;
+    pushHistory();
+    ops = []; pins = []; selPin = -1;
+    rerender(); renderPins(); renderLedger(); syncButtons();
+    coach.hidden = false;
+    say('All redactions and callouts removed. The image is back to the original.', 'ok');
+  });
+
+  /* ---------------- press-and-hold compare ---------------- */
+  function setPeek(on){
+    if (!W) return;
+    if (peeking === on) return;
+    peeking = on;
+    plate.classList.toggle('peeking', on);
+    beforetag.hidden = !on;
+    blit();
+  }
+  ['pointerdown'].forEach(function(t){ btn.peek.addEventListener(t, function(e){ e.preventDefault(); btn.peek.focus(); setPeek(true); }); });
+  ['pointerup','pointercancel','pointerleave'].forEach(function(t){ btn.peek.addEventListener(t, function(){ setPeek(false); }); });
+  btn.peek.addEventListener('keydown', function(e){ if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); setPeek(true); } });
+  btn.peek.addEventListener('keyup', function(e){ if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); setPeek(false); } });
+  btn.peek.addEventListener('blur', function(){ setPeek(false); });
+  window.addEventListener('blur', function(){ setPeek(false); });
+
+  /* ---------------- import / paste / drop ---------------- */
+  btn.imp.addEventListener('click', function(){ fileEl.click(); });
+  fileEl.addEventListener('change', function(){
+    var f = fileEl.files && fileEl.files[0];
+    if (f) loadFromBlob(f, 'Opened a local image. Redactions cleared.');
+    fileEl.value = '';
+  });
+
+  window.addEventListener('paste', function(e){
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++){
+      if (items[i].type && items[i].type.indexOf('image/') === 0){
+        var f = items[i].getAsFile();
+        if (f){ e.preventDefault(); loadFromBlob(f, 'Pasted an image. Redactions cleared.'); return; }
+      }
+    }
+  });
+
+  btn.paste.addEventListener('click', function(){
+    if (!navigator.clipboard || !navigator.clipboard.read){
+      say('This browser will not hand over the clipboard on request. Press ⌘V or Ctrl+V instead, or use Open image.', 'warn');
+      return;
+    }
+    navigator.clipboard.read().then(function(items){
+      for (var i = 0; i < items.length; i++){
+        var types = items[i].types || [];
+        for (var t = 0; t < types.length; t++){
+          if (types[t].indexOf('image/') === 0){
+            return items[i].getType(types[t]).then(function(blob){
+              loadFromBlob(blob, 'Pasted an image from the clipboard. Redactions cleared.');
+            });
+          }
+        }
+      }
+      say('No image on the clipboard. Copy a screenshot first, then try again.', 'warn');
+    }).catch(function(){
+      say('Clipboard access was blocked. Press ⌘V or Ctrl+V instead, or use Open image.', 'warn');
+    });
+  });
+
+  ['dragenter','dragover'].forEach(function(t){
+    stage.addEventListener(t, function(e){ e.preventDefault(); stage.classList.add('drop-armed'); });
+  });
+  ['dragleave','dragend'].forEach(function(t){
+    stage.addEventListener(t, function(){ stage.classList.remove('drop-armed'); });
+  });
+  stage.addEventListener('drop', function(e){
+    e.preventDefault();
+    stage.classList.remove('drop-armed');
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFromBlob(f, 'Dropped an image. Redactions cleared.');
+  });
+
+  /* ---------------- export ---------------- */
+  function drawPinsTo(ctx){
+    var r = clamp(Math.round(W / 38), 15, 38);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 ' + Math.round(r * 1.05) + 'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+    pins.forEach(function(p, i){
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.2832);
+      ctx.fillStyle = '#FF2E77'; ctx.fill();
+      ctx.lineWidth = Math.max(2, r * 0.14);
+      ctx.strokeStyle = '#14171A'; ctx.stroke();
+      ctx.fillStyle = '#14171A';
+      ctx.fillText(String(i + 1), p.x, p.y + r * 0.04);
+    });
+    ctx.restore();
+  }
+
+  var stampTimer = 0;
+  btn.exp.addEventListener('click', function(){
+    if (!W){ say('Nothing to export yet.', 'warn'); return; }
+    if (tainted){ say('This image is cross-origin protected and cannot be exported. Open a local file instead.', 'warn'); return; }
+    var out = document.createElement('canvas');
+    out.width = W; out.height = H;
+    var octx = out.getContext('2d');
+    octx.drawImage(work, 0, 0);
+    drawPinsTo(octx);
+
+    var finish = function(blob){
+      if (!blob){ say('The browser refused to encode the PNG. Try again, or reload the page.', 'warn'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var d = new Date();
+      var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+      a.href = url;
+      a.download = 'redactile-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+      stampEl.classList.remove('hit');
+      void stampEl.offsetWidth;
+      stampEl.classList.add('hit');
+      // reduced-motion users get no animation, so retire the stamp by hand
+      clearTimeout(stampTimer);
+      stampTimer = setTimeout(function(){ stampEl.classList.remove('hit'); }, 1700);
+      say('Exported ' + W + ' × ' + H + ' PNG — ' + ops.length + ' redaction' + (ops.length === 1 ? '' : 's') + ' and ' + pins.length + ' callout' + (pins.length === 1 ? '' : 's') + ' baked in.', 'ok');
+    };
+
+    try {
+      if (out.toBlob) out.toBlob(finish, 'image/png');
+      else {
+        // very old engines: fall back to a data URL
+        var href = out.toDataURL('image/png');
+        var a2 = document.createElement('a');
+        a2.href = href; a2.download = 'redactile.png';
+        document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+        say('Exported a redacted PNG.', 'ok');
+      }
+    } catch (err){
+      say('Export was blocked by the browser for this image. Open a local file and try again.', 'warn');
+    }
+  });
+
+  btn.delpin.addEventListener('click', function(){ removePin(selPin); });
+
+  /* ---------------- keyboard shortcuts ---------------- */
+  window.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    var meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key.toLowerCase() === 'z'){
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+    } else if (!meta && e.key === '1'){ setTool('pixelate'); }
+    else if (!meta && e.key === '2'){ setTool('solid'); }
+    else if (!meta && e.key === '3'){ setTool('pin'); }
+  });
+
+  /* ---------------- boot ---------------- */
+  sizeOut.textContent = brush + ' px';
+  adoptSource(makeDemo(), 1280, 860, 'Demo screenshot loaded. Drag across anything that should not travel.');
+})();
+</script>
+</body>
+</html>
