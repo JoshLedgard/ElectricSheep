@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Commit Loom — A Tactile Repository Time-Lapse</title>
+<meta name="description" content="Paste a git log and watch it weave: files become horizontal bands, commits become raised knots. Scrub, replay, inspect, filter, and export a real SVG or PNG. Everything stays in your tab.">
+<meta name="color-scheme" content="light">
+<style>
+  :root{
+    --linen:#efe7d8;
+    --linen-2:#e5dbc7;
+    --panel:#f8f3e8;
+    --ink:#1b1812;
+    --ink-2:#4b4536;
+    --ink-3:#6f6754;
+    --rule:rgba(27,24,18,0.16);
+    --rule-2:rgba(27,24,18,0.08);
+    --madder:#b23b2b;
+    --madder-ink:#8d2c1e;
+    --indigo:#243354;
+    --ochre:#a9762a;
+    --cloth:#141a24;
+    --focus:#1f5fb0;
+    --r:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--linen);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(27,24,18,0.030) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(0deg, rgba(27,24,18,0.022) 0 1px, transparent 1px 6px);
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5;
+    font-size:16px;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+  .wrap{max-width:980px;margin:0 auto;padding:18px 14px 64px}
+  @media(min-width:760px){.wrap{padding:28px 24px 80px}}
+
+  /* ---------- header ---------- */
+  header{margin-bottom:16px}
+  .kicker{
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin-bottom:6px;
+  }
+  h1{
+    font-size:clamp(1.55rem,6.4vw,2.5rem);
+    line-height:1.05;letter-spacing:-0.025em;font-weight:800;
+  }
+  h1 em{font-style:normal;color:var(--madder)}
+  .tagline{margin-top:8px;color:var(--ink-2);font-size:14.5px;max-width:60ch}
+  .selvedge{
+    height:9px;margin:14px 0 0;border-radius:99px;
+    background:repeating-linear-gradient(90deg,var(--madder) 0 10px,var(--indigo) 10px 18px,var(--ochre) 18px 24px,var(--ink) 24px 26px);
+    opacity:.85;
+  }
+
+  /* ---------- generic panel ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--rule);
+    border-radius:var(--r);
+    padding:14px;
+    margin-top:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 2px 8px rgba(27,24,18,.05);
+  }
+  .panel h2{
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:700;margin-bottom:10px;
+  }
+
+  /* ---------- controls ---------- */
+  button, select, input, textarea{font:inherit;color:inherit}
+  .btn{
+    min-height:44px;padding:10px 15px;border-radius:9px;
+    border:1px solid var(--rule);
+    background:linear-gradient(#fffdf7,#efe7d6);
+    color:var(--ink);font-weight:650;font-size:14.5px;
+    cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(27,24,18,.10);
+  }
+  .btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(27,24,18,.12) inset}
+  .btn.primary{
+    background:linear-gradient(#c2452f,#9d3122);
+    border-color:#7d2416;color:#fff6ef;
+  }
+  .btn.ghost{background:transparent;box-shadow:none}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .btn:focus-visible, .chip:focus-visible, a:focus-visible, input:focus-visible,
+  select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, summary:focus-visible{
+    outline:3px solid var(--focus);outline-offset:2px;
+  }
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .grow{flex:1 1 auto;min-width:0}
+
+  /* ---------- loom ---------- */
+  .loom{
+    margin-top:14px;border-radius:var(--r);overflow:hidden;
+    border:1px solid #0b0f16;background:var(--cloth);
+    box-shadow:0 6px 20px rgba(20,26,36,.28);
+  }
+  .loom-top{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 12px;background:#101620;border-bottom:1px solid rgba(233,222,196,.12);
+  }
+  .loom-title{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:#a99f88;font-weight:700;
+  }
+  .loom-pos{font-size:12px;color:#e9dec4;font-variant-numeric:tabular-nums}
+  #ruler{display:block;width:100%;height:52px;touch-action:none;cursor:ew-resize}
+  .weave-scroll{
+    max-height:min(50vh,420px);overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    border-top:1px solid rgba(233,222,196,.10);
+  }
+  #weave{display:block;width:100%;touch-action:pan-y;cursor:crosshair}
+  #weave:focus-visible{outline:3px solid #7fb3ff;outline-offset:-3px}
+  .loom-legend{
+    display:flex;flex-wrap:wrap;gap:6px 14px;padding:9px 12px;
+    background:#101620;border-top:1px solid rgba(233,222,196,.12);
+    font-size:11.5px;color:#a99f88;
+  }
+  .loom-legend b{color:#e2d8c0;font-weight:650}
+
+  /* ---------- transport ---------- */
+  .transport{margin-top:12px}
+  .scrub-wrap{padding:2px 0 4px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;
+    background:transparent;height:44px;margin:0;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:12px;border-radius:99px;
+    background:linear-gradient(90deg,var(--indigo),var(--ochre));
+    border:1px solid rgba(27,24,18,.25);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:30px;height:30px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#fff,#e7ddc8 45%,#b9ac90);
+    border:2px solid var(--ink);margin-top:-10px;
+    box-shadow:0 2px 5px rgba(27,24,18,.35);
+  }
+  input[type=range]::-moz-range-track{
+    height:12px;border-radius:99px;
+    background:linear-gradient(90deg,var(--indigo),var(--ochre));
+    border:1px solid rgba(27,24,18,.25);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:28px;height:28px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#fff,#e7ddc8 45%,#b9ac90);
+    border:2px solid var(--ink);box-shadow:0 2px 5px rgba(27,24,18,.35);
+  }
+  select{
+    min-height:44px;padding:8px 10px;border-radius:9px;
+    border:1px solid var(--rule);background:#fffdf7;
+  }
+  label.lbl{font-size:12px;letter-spacing:.10em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+  @media(min-width:560px){.stats{grid-template-columns:repeat(4,1fr)}}
+  .stat{
+    background:var(--panel);border:1px solid var(--rule);border-radius:9px;padding:9px 11px;
+  }
+  .stat b{display:block;font-size:20px;line-height:1.15;font-variant-numeric:tabular-nums}
+  .stat span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+
+  /* ---------- filters ---------- */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    min-height:44px;padding:8px 13px;border-radius:99px;cursor:pointer;
+    border:1px solid var(--rule);background:#fffdf7;
+    display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;
+  }
+  .chip .sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(27,24,18,.35);flex:none}
+  .chip[aria-pressed="false"]{opacity:.5;background:transparent;text-decoration:line-through}
+  .field{
+    min-height:44px;width:100%;padding:10px 12px;border-radius:9px;
+    border:1px solid var(--rule);background:#fffdf7;
+  }
+  .hint{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+
+  /* ---------- inspector ---------- */
+  .insp-head{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+  .sha{
+    font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;
+    background:var(--ink);color:#f3ead6;padding:3px 8px;border-radius:6px;
+  }
+  .who{display:inline-flex;align-items:center;gap:7px;font-weight:650;font-size:14.5px}
+  .who .sw{width:12px;height:12px;border-radius:3px;border:1px solid rgba(27,24,18,.4)}
+  .when{font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .subject{margin-top:9px;font-size:16.5px;font-weight:650;line-height:1.35}
+  .files{list-style:none;margin-top:11px;display:flex;flex-direction:column;gap:5px}
+  .files li{
+    display:flex;align-items:center;gap:9px;font-size:13.5px;
+    padding:7px 9px;border-radius:7px;background:var(--linen-2);
+  }
+  .files .badge{
+    flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    padding:3px 6px;border-radius:5px;background:var(--indigo);color:#eef3ff;
+  }
+  .files .badge.first{background:#2f6b4f}
+  .files .badge.gone{background:#8d2c1e}
+  .files .badge.moved{background:#7a5a12}
+  .files .p{
+    flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+  }
+  .files .n{flex:none;font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink-3)}
+  .files .n .add{color:#2f6b4f;font-weight:700}
+  .files .n .del{color:#8d2c1e;font-weight:700}
+
+  /* ---------- input / errors ---------- */
+  details.io{margin-top:14px}
+  details.io > summary{
+    list-style:none;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:9px;
+    padding:10px 14px;border:1px solid var(--rule);border-radius:var(--r);
+    background:var(--panel);font-weight:700;font-size:14.5px;
+  }
+  details.io > summary::-webkit-details-marker{display:none}
+  details.io > summary::before{content:"▸";color:var(--madder);font-size:15px}
+  details.io[open] > summary::before{content:"▾"}
+  details.io > summary .sub{font-weight:500;color:var(--ink-3);font-size:13px}
+  .io-body{
+    border:1px solid var(--rule);border-top:none;
+    border-radius:0 0 var(--r) var(--r);background:var(--panel);padding:14px;
+    margin-top:-1px;
+  }
+  pre.cmd{
+    background:var(--cloth);color:#e9dec4;padding:11px 12px;border-radius:8px;
+    overflow-x:auto;font-size:12.5px;line-height:1.6;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  textarea{
+    width:100%;min-height:150px;padding:11px;border-radius:9px;resize:vertical;
+    border:1px solid var(--rule);background:#fffdf7;
+    font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5;
+  }
+  .msg{
+    margin-top:11px;padding:11px 12px;border-radius:9px;font-size:14px;
+    border:1px solid;display:none;
+  }
+  .msg.show{display:block}
+  .msg.err{background:#fbe9e4;border-color:#d9a396;color:#7d2416}
+  .msg.ok{background:#e6f1e8;border-color:#a3c4ac;color:#245038}
+  .msg ul{margin:6px 0 0 18px;font-size:13px}
+
+  .commit-list{list-style:none;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto}
+  .commit-list button{
+    width:100%;text-align:left;min-height:44px;padding:8px 10px;border-radius:7px;
+    border:1px solid var(--rule-2);background:#fffdf7;cursor:pointer;
+    display:flex;gap:9px;align-items:center;font-size:13.5px;
+  }
+  .commit-list button[aria-current="true"]{border-color:var(--madder);background:#fdeee9}
+  .commit-list .sw{width:11px;height:11px;border-radius:3px;flex:none;border:1px solid rgba(27,24,18,.4)}
+  .commit-list .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  footer{margin-top:26px;font-size:12.5px;color:var(--ink-3);line-height:1.7}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Daily Surprise · 15 Aug 2026</div>
+    <h1>Commit&nbsp;<em>Loom</em></h1>
+    <p class="tagline">A tactile repository time-lapse. Every file becomes a horizontal band of cloth; every commit becomes a raised knot pressed into it. Scrub the shuttle back and forth and watch the fabric of a project get woven, one commit at a time.</p>
+    <div class="selvedge" aria-hidden="true"></div>
+  </header>
+
+  <div class="stats" id="stats" aria-label="Log summary">
+    <div class="stat"><b id="s-commits">—</b><span>commits</span></div>
+    <div class="stat"><b id="s-files">—</b><span>bands</span></div>
+    <div class="stat"><b id="s-authors">—</b><span>hands</span></div>
+    <div class="stat"><b id="s-span">—</b><span>span</span></div>
+  </div>
+
+  <section class="loom" aria-label="Woven time-lapse">
+    <div class="loom-top">
+      <span class="loom-title">The Cloth</span>
+      <span class="loom-pos mono" id="posread">—</span>
+    </div>
+    <canvas id="ruler" aria-hidden="true"></canvas>
+    <div class="weave-scroll" id="weaveScroll">
+      <canvas id="weave" tabindex="0" role="img"
+        aria-label="Woven time-lapse of the loaded git log. Use the commit slider or the commit list below to move through it.">
+      </canvas>
+    </div>
+    <div class="loom-legend">
+      <span><b>Knot height</b> = lines changed</span>
+      <span><b>Knot colour</b> = who wove it</span>
+      <span><b>Faint</b> = not woven yet</span>
+      <span><b>Drag sideways</b> on the cloth to scrub</span>
+    </div>
+  </section>
+
+  <div class="panel transport">
+    <h2>Shuttle</h2>
+    <div class="scrub-wrap">
+      <label class="sr" for="scrub">Commit position</label>
+      <input type="range" id="scrub" min="0" max="0" value="0" step="1"
+             aria-valuetext="no commits loaded">
+    </div>
+    <div class="row">
+      <button class="btn primary" id="play" aria-pressed="false">▶︎ Weave</button>
+      <button class="btn" id="stepBack" aria-label="Previous commit">◀︎</button>
+      <button class="btn" id="stepFwd" aria-label="Next commit">▶︎</button>
+      <button class="btn ghost" id="rewind">⟲ Rewind</button>
+      <span class="grow"></span>
+      <label class="lbl" for="speed">Speed</label>
+      <select id="speed" aria-label="Playback speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+    </div>
+    <p class="hint">Keyboard: <b>space</b> weave / pause · <b>←</b> <b>→</b> step a commit · <b>Home</b> / <b>End</b> jump to either selvedge.</p>
+  </div>
+
+  <div class="panel" id="inspector">
+    <h2>Knot Inspector</h2>
+    <div id="inspBody">
+      <p class="hint" id="inspEmpty">Tap a knot on the cloth, or move the shuttle, to inspect a commit.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Sort the Threads</h2>
+    <div class="chips" id="authorChips" role="group" aria-label="Filter by author"></div>
+    <div class="row" style="margin-top:10px">
+      <div class="grow">
+        <label class="sr" for="pathFilter">Filter bands by path</label>
+        <input class="field" type="search" id="pathFilter" placeholder="Filter bands by path, e.g. src/ or .ts" autocomplete="off" spellcheck="false">
+      </div>
+      <label class="lbl" for="sortMode">Order</label>
+      <select id="sortMode" aria-label="Band order">
+        <option value="first">First touched</option>
+        <option value="busy">Busiest first</option>
+        <option value="name">Path A–Z</option>
+      </select>
+    </div>
+    <p class="hint" id="filterNote">—</p>
+  </div>
+
+  <div class="panel">
+    <h2>Take It Off The Loom</h2>
+    <div class="row">
+      <button class="btn" id="expSvg">⬇︎ Export SVG</button>
+      <button class="btn" id="expPng">⬇︎ Export PNG</button>
+    </div>
+    <p class="hint">Exports exactly what is on the cloth right now — the same filters, the same shuttle position. Files are generated in your tab and saved straight to your device.</p>
+  </div>
+
+  <details class="io" id="ioPanel">
+    <summary>Weave your own log <span class="sub">— paste git output, nothing leaves this tab</span></summary>
+    <div class="io-body">
+      <p style="font-size:14px;margin-bottom:9px">Run this in any repository and paste the output below:</p>
+      <pre class="cmd" id="cmdText">git log --pretty=format:"%h|%an|%ad|%s" --date=short --numstat --reverse</pre>
+      <div class="row" style="margin-top:9px">
+        <button class="btn" id="copyCmd">⧉ Copy command</button>
+        <button class="btn ghost" id="loadSample">↺ Reload sample cloth</button>
+        <button class="btn ghost" id="clearInput">Clear</button>
+      </div>
+      <p class="hint">Also accepted: <code class="mono">--name-status</code> instead of <code class="mono">--numstat</code>, the plain
+        <code class="mono">commit / Author: / Date:</code> format, and logs in either chronological direction. Author emails are
+        discarded during parsing and never displayed.</p>
+      <label class="sr" for="logInput">git log text</label>
+      <textarea id="logInput" spellcheck="false" placeholder="Paste git log output here…"></textarea>
+      <div class="row" style="margin-top:9px">
+        <button class="btn primary" id="weaveBtn">Weave this log</button>
+      </div>
+      <div class="msg" id="msg" role="status"></div>
+    </div>
+  </details>
+
+  <details class="io">
+    <summary>Commit list <span class="sub">— text view of the cloth</span></summary>
+    <div class="io-body">
+      <p class="hint" style="margin:0 0 9px">Every knot in the current filter, in order. Selecting one moves the shuttle.</p>
+      <ul class="commit-list" id="commitList"></ul>
+    </div>
+  </details>
+
+  <footer>
+    <p><strong>Commit Loom</strong> — a self-contained page. No network calls, no libraries, no storage: reload and the cloth is fresh. The sample log is entirely invented.</p>
+  </footer>
+
+  <p class="sr" id="live" aria-live="polite" role="status"></p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Palette
+   ============================================================ */
+var THREADS = ['#e9a83c','#e2564a','#63c2a0','#79a8e8','#c58fd8','#f0d489','#8ed6cc','#ef8f6a'];
+var CLOTH   = '#141a24';
+var CLOTH_2 = '#19212e';
+var WARP    = 'rgba(214,198,166,';
+var HEAD    = '#ff6b4a';
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============================================================
+   Fictional sample log — generated deterministically so the
+   textarea holds real, parseable text the parser must handle.
+   Everything below is invented placeholder data.
+   ============================================================ */
+var SAMPLE_FILES = [
+  ['src/loom/warp-engine.ts',10],['src/loom/weft-buffer.ts',8],['src/loom/pattern-cache.ts',6],
+  ['src/loom/shuttle.ts',5],['src/ui/panel-shell.tsx',9],['src/ui/thread-picker.tsx',6],
+  ['src/ui/toolbar.tsx',5],['src/ui/theme.css',4],['src/data/log-parser.ts',8],
+  ['src/data/sample-fixture.ts',3],['src/utils/format-span.ts',4],['src/utils/seeded-random.ts',2],
+  ['tests/log-parser.test.ts',6],['tests/warp-engine.test.ts',5],['tests/shuttle.test.ts',3],
+  ['docs/getting-started.md',4],['docs/format-notes.md',3],['assets/cloth-texture.png',1],
+  ['package.json',3]
+];
+var SAMPLE_AUTHORS = [
+  ['Ada Renner',7],['Milo Vance',6],['Ines Faro',5],['Otto Bell',4],['Wren Castille',3]
+];
+var SAMPLE_MSGS = [
+  'Tighten warp spacing math','Add fallback for empty logs','Refactor weft buffer allocation',
+  'Fix off-by-one in column indexing','Document the accepted text format','Speed up pattern cache lookups',
+  'Cover parser edge cases with tests','Polish toolbar spacing on narrow widths','Handle CRLF line endings',
+  'Rename thread picker props for clarity','Drop unused formatting helper','Guard against zero-length rows',
+  'Make the shuttle honour reduced motion','Cache band heights between redraws','Trim dead branches in the buffer',
+  'Improve contrast of dim bands','Extract span formatting into a helper','Fix flaky ordering in fixtures',
+  'Simplify the seeded random helper','Add keyboard stepping to the shuttle','Round knot sizes to whole pixels',
+  'Reuse one buffer instead of three','Clarify wording in the getting-started notes','Batch redraws during scrubbing',
+  'Accept both status and count columns','Stop clamping the last column early','Widen touch targets on the picker',
+  'Split the theme file by concern','Remove a stale test fixture','Record the format decision in notes'
+];
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function weightedPool(pairs){
+  var pool = [];
+  for (var i=0;i<pairs.length;i++){ for (var j=0;j<pairs[i][1];j++) pool.push(pairs[i][0]); }
+  return pool;
+}
+function buildSampleLog(){
+  var rnd = mulberry32(20260815);
+  var filePool = weightedPool(SAMPLE_FILES);
+  var authorPool = weightedPool(SAMPLE_AUTHORS);
+  var hex = '0123456789abcdef';
+  var day = 0, out = [];
+  var start = Date.UTC(2026, 4, 4); // 4 May 2026, invented
+  for (var i=0;i<54;i++){
+    day += 1 + Math.floor(rnd()*2.6);
+    var d = new Date(start + day*86400000);
+    var date = d.toISOString().slice(0,10);
+    var sha = '';
+    for (var s=0;s<7;s++) sha += hex[Math.floor(rnd()*16)];
+    var author = authorPool[Math.floor(rnd()*authorPool.length)];
+    var msg = SAMPLE_MSGS[Math.floor(rnd()*SAMPLE_MSGS.length)];
+    out.push(sha + '|' + author + '|' + date + '|' + msg);
+    var n = 1 + Math.floor(rnd()*3.7), used = {};
+    for (var f=0; f<n; f++){
+      var p = filePool[Math.floor(rnd()*filePool.length)];
+      if (used[p]) continue;
+      used[p] = 1;
+      if (p.indexOf('.png') > -1){ out.push('-\t-\t' + p); continue; }
+      var add = 1 + Math.floor(Math.pow(rnd(),2.1)*140);
+      var del = Math.floor(Math.pow(rnd(),2.6)*70);
+      out.push(add + '\t' + del + '\t' + p);
+    }
+    out.push('');
+  }
+  return out.join('\n').replace(/\n+$/,'\n');
+}
+
+/* ============================================================
+   Parser — tolerant of several real git log shapes
+   ============================================================ */
+function normPath(p){
+  p = String(p).trim().replace(/^"(.*)"$/,'$1');
+  var brace = p.match(/^(.*)\{(.*?)\s*=>\s*(.*?)\}(.*)$/);
+  if (brace) return (brace[1] + brace[3] + brace[4]).replace(/\/{2,}/g,'/');
+  var arrow = p.split(/\s+=>\s+/);
+  if (arrow.length === 2) return arrow[1].trim();
+  return p;
+}
+function toNum(v){ return v === '-' ? null : (parseInt(v,10) || 0); }
+
+function parseFileLine(line){
+  var parts = line.split('\t');
+  if (parts.length < 2) parts = line.split(/\s{2,}/);
+  parts = parts.map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
+
+  if (parts.length >= 3 && /^(\d+|-)$/.test(parts[0]) && /^(\d+|-)$/.test(parts[1])){
+    return { path: normPath(parts.slice(2).join(' ')), add: toNum(parts[0]), del: toNum(parts[1]), status: '' };
+  }
+  if (parts.length >= 2 && /^[AMDRCTUX]\d*$/.test(parts[0])){
+    var st = parts[0].charAt(0);
+    var path = normPath(parts.length >= 3 ? parts.slice(2).join(' ') : parts[1]);
+    return { path: path, add: null, del: null, status: st };
+  }
+  // last resort: single-space numstat ("12 3 src/a.ts")
+  var loose = line.trim().split(/\s+/);
+  if (loose.length >= 3 && /^(\d+|-)$/.test(loose[0]) && /^(\d+|-)$/.test(loose[1])){
+    return { path: normPath(loose.slice(2).join(' ')), add: toNum(loose[0]), del: toNum(loose[1]), status: '' };
+  }
+  return null;
+}
+
+function parseDate(s){
+  if (!s) return null;
+  var t = Date.parse(s);
+  if (!isNaN(t)) return t;
+  var m = String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return Date.UTC(+m[1], +m[2]-1, +m[3]);
+  return null;
+}
+
+function parseLog(text){
+  var lines = String(text).replace(/\r\n?/g,'\n').split('\n');
+  var commits = [], cur = null, warnings = [], sawFileLine = false, awaitingSubject = false;
+
+  for (var i=0;i<lines.length;i++){
+    var raw = lines[i];
+    var line = raw.replace(/\s+$/,'');
+    if (!line.trim()) continue;
+    if (/^\*\s/.test(line)) line = line.replace(/^\*\s+/,''); // tolerate --graph bullets
+
+    // plain format: "commit <sha>"
+    var cm = line.match(/^commit\s+([0-9a-fA-F]{6,40})/);
+    if (cm){
+      cur = { sha: cm[1].slice(0,7), author:'', date:'', subject:'', files:[], ts:null };
+      commits.push(cur); awaitingSubject = true; continue;
+    }
+    if (cur && /^Author:\s/i.test(line)){
+      cur.author = line.replace(/^Author:\s*/i,'').replace(/<[^>]*>/g,'').trim() || 'unknown';
+      continue;
+    }
+    if (cur && /^(AuthorDate|Date|CommitDate):\s/i.test(line)){
+      if (!cur.date){ cur.date = line.replace(/^\w+:\s*/,'').trim(); cur.ts = parseDate(cur.date); }
+      continue;
+    }
+    if (cur && /^(Merge|commit-ish):\s/i.test(line)) continue;
+    if (cur && awaitingSubject && /^ {4}\S/.test(raw)){
+      cur.subject = raw.trim(); awaitingSubject = false; continue;
+    }
+
+    // pipe format: "sha|author|date|subject"
+    if (line.indexOf('\t') === -1 && line.indexOf('|') > -1){
+      var parts = line.split('|');
+      if (parts.length >= 4){
+        var sha = parts[0].trim().replace(/^['"]|['"]$/g,'');
+        cur = {
+          sha: sha.slice(0,10) || '·',
+          author: (parts[1].trim().replace(/<[^>]*>/g,'').trim()) || 'unknown',
+          date: parts[2].trim(),
+          subject: parts.slice(3).join('|').trim(),
+          files: [], ts: parseDate(parts[2].trim())
+        };
+        commits.push(cur); awaitingSubject = false; continue;
+      }
+    }
+
+    if (cur){
+      var f = parseFileLine(line);
+      if (f && f.path){ cur.files.push(f); sawFileLine = true; }
+    }
+  }
+
+  // direction: git defaults to newest-first
+  var withTs = commits.filter(function(c){ return c.ts != null; });
+  if (withTs.length >= 2 && withTs[0].ts > withTs[withTs.length-1].ts) commits.reverse();
+
+  // derive per-file "first seen in this window"
+  var seen = Object.create(null);
+  commits.forEach(function(c, idx){
+    c.index = idx;
+    c.churn = 0;
+    c.files.forEach(function(f){
+      if (!f.status) f.status = seen[f.path] ? 'M' : 'F'; // F = first seen here
+      if (f.status === 'A') f.status = 'F';
+      seen[f.path] = 1;
+      c.churn += (f.add || 0) + (f.del || 0);
+    });
+  });
+
+  if (commits.length && !sawFileLine){
+    warnings.push('Commits parsed, but no file rows were found. Add --numstat or --name-status so there is something to weave.');
+  }
+  var noFiles = commits.filter(function(c){ return !c.files.length; }).length;
+  if (sawFileLine && noFiles > commits.length * 0.6){
+    warnings.push(noFiles + ' commits had no file rows and will show as empty columns.');
+  }
+  return { commits: commits, warnings: warnings };
+}
+
+/* ============================================================
+   State
+   ============================================================ */
+var S = {
+  commits: [],
+  authors: [],
+  colorOf: {},
+  offAuthors: Object.create(null),
+  pathFilter: '',
+  sortMode: 'first',
+  pos: 0,            // float commit position
+  playing: false,
+  speed: 1,
+  selected: -1
+};
+var V = { commits: [], files: [], maxChurn: 1, touchIndex: null };
+var L = { gutter: 130, rowH: 22, colW: 6, w: 320, h: 200, pad: 6 };
+
+var $ = function(id){ return document.getElementById(id); };
+var weave = $('weave'), ruler = $('ruler');
+var wctx = weave.getContext('2d'), rctx = ruler.getContext('2d');
+
+/* ============================================================
+   Derived view (filters)
+   ============================================================ */
+function rebuildView(){
+  var pf = S.pathFilter.trim().toLowerCase();
+  var cs = S.commits.filter(function(c){ return !S.offAuthors[c.author]; });
+
+  var stats = Object.create(null), order = [];
+  cs.forEach(function(c){
+    c.files.forEach(function(f){
+      if (pf && f.path.toLowerCase().indexOf(pf) === -1) return;
+      if (!stats[f.path]){ stats[f.path] = { path:f.path, touches:0, churn:0, first: c.index }; order.push(f.path); }
+      stats[f.path].touches++;
+      stats[f.path].churn += (f.add||0) + (f.del||0);
+    });
+  });
+
+  var files = order.map(function(p){ return stats[p]; });
+  if (S.sortMode === 'busy') files.sort(function(a,b){ return b.touches - a.touches || a.first - b.first; });
+  else if (S.sortMode === 'name') files.sort(function(a,b){ return a.path < b.path ? -1 : a.path > b.path ? 1 : 0; });
+  else files.sort(function(a,b){ return a.first - b.first; });
+
+  var rowOf = Object.create(null);
+  files.forEach(function(f,i){ rowOf[f.path] = i; });
+
+  // flat touch list: {col, row, churn, status, color}
+  var touches = [], maxChurn = 1;
+  cs.forEach(function(c, col){
+    c.viewCol = col;
+    c.files.forEach(function(f){
+      var r = rowOf[f.path];
+      if (r === undefined) return;
+      var churn = (f.add == null && f.del == null) ? 14 : (f.add||0) + (f.del||0);
+      if (churn > maxChurn) maxChurn = churn;
+      touches.push({ col: col, row: r, churn: churn, status: f.status, color: S.colorOf[c.author] || THREADS[0] });
+    });
+  });
+
+  V.commits = cs; V.files = files; V.touches = touches; V.maxChurn = maxChurn;
+
+  if (S.pos > cs.length - 1) S.pos = Math.max(0, cs.length - 1);
+  if (S.selected >= cs.length) S.selected = cs.length - 1;
+}
+
+/* ============================================================
+   Layout + rendering
+   ============================================================ */
+function measure(){
+  var cssW = Math.max(240, weave.parentNode.clientWidth);
+  L.w = cssW;
+  L.gutter = cssW < 400 ? 96 : (cssW < 620 ? 124 : 176);
+  L.rowH = cssW < 400 ? 19 : 23;
+  var n = Math.max(1, V.commits.length);
+  L.colW = Math.max(0.6, (cssW - L.gutter - 8) / n);
+  L.h = Math.max(96, V.files.length * L.rowH + L.pad*2);
+  sizeCanvas(weave, cssW, L.h);
+  sizeCanvas(ruler, cssW, 52);
+}
+function sizeCanvas(cv, w, h){
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  cv.style.height = h + 'px';
+  var c = cv.getContext('2d');
+  c.setTransform(dpr,0,0,dpr,0,0);
+  return c;
+}
+
+function colX(col){ return L.gutter + col * L.colW + L.colW/2; }
+function headX(){ return L.gutter + (S.pos + 0.5) * L.colW; }
+
+function truncate(ctx, text, max){
+  if (ctx.measureText(text).width <= max) return text;
+  var t = text;
+  while (t.length > 1 && ctx.measureText('…' + t).width > max) t = t.slice(1);
+  return '…' + t;
+}
+
+function renderWeave(ctx, o){
+  var w = o.w, h = o.h, g = o.gutter, rowH = o.rowH, colW = o.colW;
+  var n = V.commits.length, pos = o.pos;
+
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = CLOTH; ctx.fillRect(0,0,w,h);
+
+  if (!n || !V.files.length){
+    ctx.fillStyle = '#8f8874';
+    ctx.font = '13px ui-sans-serif, -apple-system, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(n ? 'No bands match this filter.' : 'The loom is empty — load a log to string it.', w/2, h/2);
+    ctx.textAlign = 'left';
+    return;
+  }
+
+  var headPx = g + (pos + 1) * colW;
+
+  // alternating cloth bands
+  for (var r=0;r<V.files.length;r++){
+    var y = o.pad + r*rowH;
+    ctx.fillStyle = (r % 2) ? CLOTH_2 : CLOTH;
+    ctx.fillRect(0, y, w, rowH);
+  }
+
+  // gutter ground
+  ctx.fillStyle = 'rgba(9,12,18,0.55)';
+  ctx.fillRect(0, 0, g - 4, h);
+
+  // warp striations across the whole cloth
+  var stride = colW >= 5 ? 1 : Math.ceil(5 / colW);
+  ctx.lineWidth = 1;
+  for (var c0=0;c0<n;c0+=stride){
+    var x = Math.round(g + c0*colW) + 0.5;
+    ctx.strokeStyle = 'rgba(233,222,196,0.05)';
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+
+  // per-band weft
+  ctx.textBaseline = 'middle';
+  for (var r2=0;r2<V.files.length;r2++){
+    var yy = o.pad + r2*rowH, cy = yy + rowH/2;
+    var over = (r2 % 2) === 0;
+
+    // unwoven remainder (ghost warp)
+    ctx.fillStyle = WARP + '0.035)';
+    ctx.fillRect(g, cy - rowH*0.30, w - g - 4, rowH*0.60);
+
+    // woven portion
+    var wovenW = Math.max(0, Math.min(headPx, w - 4) - g);
+    if (wovenW > 0){
+      ctx.fillStyle = WARP + '0.10)';
+      ctx.fillRect(g, cy - rowH*0.30, wovenW, rowH*0.60);
+      // three thread hairlines give the band its twist
+      ctx.fillStyle = WARP + (over ? '0.15)' : '0.11)');
+      ctx.fillRect(g, Math.round(cy - rowH*0.22), wovenW, 1);
+      ctx.fillRect(g, Math.round(cy + rowH*0.20), wovenW, 1);
+      ctx.fillStyle = WARP + (over ? '0.09)' : '0.14)');
+      ctx.fillRect(g, Math.round(cy), wovenW, 1);
+    }
+
+    // label
+    var woven = V.files[r2].first <= (V.commits[Math.round(pos)] ? V.commits[Math.round(pos)].index : 0);
+    ctx.font = (rowH < 21 ? '10.5px ' : '11.5px ') + 'ui-monospace, Menlo, monospace';
+    ctx.fillStyle = woven ? '#e6dcc6' : '#7e7663';
+    ctx.textAlign = 'right';
+    ctx.fillText(truncate(ctx, V.files[r2].path, g - 14), g - 9, cy);
+    ctx.textAlign = 'left';
+  }
+
+  // selvedge line
+  ctx.strokeStyle = 'rgba(233,222,196,0.22)';
+  ctx.beginPath(); ctx.moveTo(g - 3.5, 0); ctx.lineTo(g - 3.5, h); ctx.stroke();
+
+  // knots
+  var kw = Math.max(1.4, Math.min(colW * 0.72, 15));
+  var mx = Math.sqrt(V.maxChurn);
+  for (var t=0;t<V.touches.length;t++){
+    var k = V.touches[t];
+    var woven2 = k.col <= pos;
+    var frac = Math.min(1, Math.sqrt(k.churn) / mx);
+    var kh = Math.max(3, rowH * (0.30 + 0.58 * frac));
+    var kx = g + k.col*colW + (colW - kw)/2;
+    var ky = o.pad + k.row*rowH + (rowH - kh)/2;
+
+    ctx.globalAlpha = woven2 ? 1 : 0.16;
+    ctx.fillStyle = k.color;
+    if (kw >= 4){ roundRect(ctx, kx, ky, kw, kh, Math.min(2.5, kw/3)); ctx.fill(); }
+    else ctx.fillRect(kx, ky, kw, kh);
+
+    if (woven2 && kw >= 6 && kh >= 9){
+      // punched hole
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#0d1119';
+      ctx.beginPath();
+      ctx.arc(kx + kw/2, ky + kh/2, Math.min(kw, kh) * 0.16, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // status caps
+      if (k.status === 'F'){ ctx.fillStyle = '#fff6e2'; ctx.fillRect(kx, ky, kw, 1.6); }
+      else if (k.status === 'D'){ ctx.fillStyle = '#0d1119'; ctx.fillRect(kx, ky + kh/2 - 0.8, kw, 1.6); }
+      else if (k.status === 'R' || k.status === 'C'){ ctx.fillStyle = '#0d1119'; ctx.fillRect(kx + kw/2 - 0.8, ky, 1.6, kh); }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // selected column
+  if (o.selected >= 0 && o.selected < n){
+    var sx = Math.round(g + o.selected*colW + colW/2) + 0.5;
+    ctx.strokeStyle = 'rgba(255,246,226,0.85)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, h); ctx.stroke();
+  }
+
+  // the beater bar / shuttle line
+  var hx = Math.min(w - 2, Math.max(g, headPx));
+  var grd = ctx.createLinearGradient(hx-26, 0, hx, 0);
+  grd.addColorStop(0,'rgba(255,107,74,0)'); grd.addColorStop(1,'rgba(255,107,74,0.30)');
+  ctx.fillStyle = grd; ctx.fillRect(hx-26, 0, 26, h);
+  ctx.fillStyle = HEAD; ctx.fillRect(Math.round(hx) - 1, 0, 2, h);
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function renderRuler(){
+  var w = L.w, h = 52, g = L.gutter, n = V.commits.length;
+  rctx.clearRect(0,0,w,h);
+  rctx.fillStyle = '#101620'; rctx.fillRect(0,0,w,h);
+  rctx.fillStyle = '#8d8471';
+  rctx.font = '10px ui-monospace, Menlo, monospace';
+  rctx.textBaseline = 'middle';
+  rctx.textAlign = 'right';
+  rctx.fillText('shuttle', g - 9, h/2);
+  rctx.textAlign = 'left';
+  if (!n) return;
+
+  var maxF = 1;
+  for (var i=0;i<n;i++) maxF = Math.max(maxF, V.commits[i].files.length);
+  var bw = Math.max(1, Math.min(L.colW * 0.72, 14));
+  for (var c=0;c<n;c++){
+    var cm = V.commits[c];
+    var bh = 6 + (h - 16) * (cm.files.length / maxF);
+    var x = g + c*L.colW + (L.colW - bw)/2;
+    rctx.globalAlpha = c <= S.pos ? 0.95 : 0.22;
+    rctx.fillStyle = S.colorOf[cm.author] || THREADS[0];
+    rctx.fillRect(x, h - 5 - bh, bw, bh);
+  }
+  rctx.globalAlpha = 1;
+  // baseline
+  rctx.fillStyle = 'rgba(233,222,196,0.25)';
+  rctx.fillRect(g, h - 5, w - g - 4, 1);
+  // head
+  var hx = Math.round(g + (S.pos + 0.5) * L.colW);
+  rctx.fillStyle = HEAD;
+  rctx.fillRect(hx - 1, 4, 2, h - 8);
+  rctx.beginPath();
+  rctx.moveTo(hx - 6, 2); rctx.lineTo(hx + 6, 2); rctx.lineTo(hx, 11);
+  rctx.closePath(); rctx.fill();
+}
+
+var pendingDraw = false;
+function draw(){
+  if (pendingDraw) return;
+  pendingDraw = true;
+  requestAnimationFrame(function(){
+    pendingDraw = false;
+    renderWeave(wctx, { w:L.w, h:L.h, gutter:L.gutter, rowH:L.rowH, colW:L.colW, pad:L.pad, pos:S.pos, selected:S.selected });
+    renderRuler();
+  });
+}
+
+/* ============================================================
+   Chrome updates
+   ============================================================ */
+function fmtDate(c){ return c.date || '—'; }
+function statusInfo(st){
+  if (st === 'F') return ['first','first'];
+  if (st === 'D') return ['gone','removed'];
+  if (st === 'R' || st === 'C') return ['moved','moved'];
+  return ['','edit'];
+}
+
+function updateStats(){
+  $('s-commits').textContent = V.commits.length ? V.commits.length : '—';
+  $('s-files').textContent = V.files.length ? V.files.length : '—';
+  var set = Object.create(null), na = 0;
+  V.commits.forEach(function(c){ if (!set[c.author]){ set[c.author]=1; na++; } });
+  $('s-authors').textContent = na || '—';
+  var span = '—';
+  if (V.commits.length){
+    var a = V.commits[0].ts, b = V.commits[V.commits.length-1].ts;
+    if (a != null && b != null){
+      var days = Math.max(1, Math.round((b-a)/86400000));
+      span = days >= 365 ? (days/365).toFixed(1) + 'y' : (days >= 60 ? Math.round(days/30) + 'mo' : days + 'd');
+    } else span = V.commits.length + '×';
+  }
+  $('s-span').textContent = span;
+}
+
+function updateScrub(){
+  var sc = $('scrub');
+  var n = V.commits.length;
+  sc.max = String(Math.max(0, n - 1));
+  sc.value = String(Math.round(S.pos));
+  sc.disabled = n === 0;
+  var c = V.commits[Math.round(S.pos)];
+  sc.setAttribute('aria-valuetext', n ? ('commit ' + (Math.round(S.pos)+1) + ' of ' + n + (c ? ', ' + fmtDate(c) : '')) : 'no commits loaded');
+  $('posread').textContent = n ? ((Math.round(S.pos)+1) + ' / ' + n + (c && c.date ? '  ·  ' + c.date : '')) : '—';
+}
+
+function renderInspector(){
+  var body = $('inspBody');
+  var i = S.selected >= 0 ? S.selected : Math.round(S.pos);
+  var c = V.commits[i];
+  if (!c){
+    body.innerHTML = '<p class="hint">Tap a knot on the cloth, or move the shuttle, to inspect a commit.</p>';
+    return;
+  }
+  var color = S.colorOf[c.author] || THREADS[0];
+  var files = c.files.map(function(f){
+    var si = statusInfo(f.status);
+    var counts = (f.add == null && f.del == null)
+      ? '<span class="n">binary</span>'
+      : '<span class="n"><span class="add">+' + (f.add||0) + '</span> <span class="del">−' + (f.del||0) + '</span></span>';
+    return '<li><span class="badge ' + si[0] + '">' + si[1] + '</span>' +
+           '<span class="p">' + esc(f.path) + '</span>' + counts + '</li>';
+  }).join('');
+  body.innerHTML =
+    '<div class="insp-head">' +
+      '<span class="sha">' + esc(c.sha) + '</span>' +
+      '<span class="who"><span class="sw" style="background:' + color + '"></span>' + esc(c.author) + '</span>' +
+      '<span class="when">' + esc(fmtDate(c)) + '</span>' +
+      '<span class="when">· commit ' + (i+1) + ' of ' + V.commits.length + '</span>' +
+    '</div>' +
+    '<p class="subject">' + (c.subject ? esc(c.subject) : '<em style="color:var(--ink-3)">no subject line</em>') + '</p>' +
+    (files ? '<ul class="files">' + files + '</ul>'
+           : '<p class="hint">No file rows recorded for this commit.</p>');
+}
+
+function renderCommitList(){
+  var ul = $('commitList');
+  var i = S.selected >= 0 ? S.selected : Math.round(S.pos);
+  if (!V.commits.length){ ul.innerHTML = '<li class="hint">Nothing on the loom.</li>'; return; }
+  var cap = Math.min(V.commits.length, 400);
+  var html = '';
+  for (var k=0;k<cap;k++){
+    var c = V.commits[k];
+    html += '<li><button type="button" data-i="' + k + '" aria-current="' + (k===i) + '">' +
+      '<span class="sw" style="background:' + (S.colorOf[c.author]||THREADS[0]) + '"></span>' +
+      '<span class="mono" style="flex:none;font-size:12px">' + esc(c.sha) + '</span>' +
+      '<span class="t">' + esc(c.subject || '(no subject)') + '</span>' +
+      '</button></li>';
+  }
+  if (V.commits.length > cap) html += '<li class="hint">…and ' + (V.commits.length - cap) + ' more (list capped at 400; the cloth shows them all).</li>';
+  ul.innerHTML = html;
+}
+
+function markCurrentInList(){
+  var i = S.selected >= 0 ? S.selected : Math.round(S.pos);
+  var btns = $('commitList').querySelectorAll('button[data-i]');
+  for (var k=0;k<btns.length;k++){
+    btns[k].setAttribute('aria-current', String(parseInt(btns[k].getAttribute('data-i'),10) === i));
+  }
+}
+
+function renderChips(){
+  var box = $('authorChips');
+  box.innerHTML = S.authors.map(function(a){
+    var on = !S.offAuthors[a];
+    return '<button type="button" class="chip" role="switch" aria-pressed="' + on + '" data-a="' + esc(a) + '">' +
+      '<span class="sw" style="background:' + S.colorOf[a] + '"></span>' + esc(a) + '</button>';
+  }).join('');
+}
+
+function updateFilterNote(){
+  var total = S.commits.length;
+  var shown = V.commits.length;
+  var bits = [];
+  if (shown !== total) bits.push(shown + ' of ' + total + ' commits shown');
+  if (S.pathFilter.trim()) bits.push('bands matching “' + S.pathFilter.trim() + '”');
+  $('filterNote').textContent = bits.length
+    ? bits.join(' · ')
+    : 'All ' + total + ' commits and ' + V.files.length + ' bands are on the loom.';
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(ch){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch];
+  });
+}
+
+function refreshAll(){
+  rebuildView();
+  measure();
+  updateStats(); updateScrub(); renderInspector(); renderCommitList(); updateFilterNote();
+  draw();
+}
+
+/* ============================================================
+   Loading
+   ============================================================ */
+function showMsg(kind, title, list){
+  var m = $('msg');
+  m.className = 'msg show ' + kind;
+  m.innerHTML = '<strong>' + esc(title) + '</strong>' +
+    (list && list.length ? '<ul>' + list.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '');
+}
+function hideMsg(){ $('msg').className = 'msg'; $('msg').innerHTML = ''; }
+
+function load(text, quiet){
+  var res = parseLog(text);
+  if (!res.commits.length){
+    showMsg('err', 'No commits found in that text.', [
+      'Each commit line should look like:  a1b2c3d|Name|2026-05-04|Subject',
+      'File rows below it look like:  12⇥3⇥src/file.ts   (or  M⇥src/file.ts )',
+      'The plain "commit / Author: / Date:" format works too.'
+    ]);
+    $('ioPanel').open = true;
+    return false;
+  }
+  S.commits = res.commits;
+  var seen = Object.create(null); S.authors = [];
+  S.commits.forEach(function(c){ if (!seen[c.author]){ seen[c.author]=1; S.authors.push(c.author); } });
+  S.colorOf = {};
+  S.authors.forEach(function(a,i){ S.colorOf[a] = THREADS[i % THREADS.length]; });
+  S.offAuthors = Object.create(null);
+  S.selected = -1;
+  S.pos = 0;
+  stopPlay();
+  renderChips();
+  refreshAll();
+  if (!quiet){
+    showMsg('ok', 'Wove ' + S.commits.length + ' commits across ' + V.files.length + ' bands.', res.warnings);
+  } else hideMsg();
+  say(S.commits.length + ' commits loaded onto the loom.');
+  return true;
+}
+
+function say(t){ $('live').textContent = t; }
+
+/* ============================================================
+   Transport
+   ============================================================ */
+var rafId = null, lastT = 0;
+function startPlay(){
+  if (!V.commits.length) return;
+  if (S.pos >= V.commits.length - 1) S.pos = 0;
+  S.playing = true;
+  $('play').textContent = '❚❚ Pause';
+  $('play').setAttribute('aria-pressed','true');
+  lastT = 0;
+  rafId = requestAnimationFrame(tick);
+  say('Weaving.');
+}
+function stopPlay(){
+  S.playing = false;
+  $('play').textContent = '▶︎ Weave';
+  $('play').setAttribute('aria-pressed','false');
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+}
+function tick(t){
+  if (!S.playing) return;
+  if (!lastT) lastT = t;
+  var dt = Math.min(0.1, (t - lastT) / 1000);
+  lastT = t;
+  // commits per second; reduced motion advances in whole, unanimated steps
+  var rate = (reduceMotion ? 2.5 : 5) * S.speed;
+  var next = Math.min(V.commits.length - 1, S.pos + dt * rate);
+  if (reduceMotion && Math.floor(next) === Math.floor(S.pos) && next < V.commits.length - 1){
+    S.pos = next;                      // accumulate silently until a whole commit passes
+    rafId = requestAnimationFrame(tick);
+    return;
+  }
+  var prevCol = Math.floor(S.pos);
+  S.pos = reduceMotion ? Math.floor(next) : next;
+  setPos(S.pos, false);
+  var col = Math.floor(S.pos);
+  if (col !== prevCol){ S.selected = col; renderInspector(); markCurrentInList(); }
+  if (S.pos >= V.commits.length - 1){
+    S.pos = V.commits.length - 1;
+    setPos(S.pos, true);
+    stopPlay();
+    say('The cloth is finished.');
+    return;
+  }
+  rafId = requestAnimationFrame(tick);
+}
+
+function setPos(p, announce){
+  var n = V.commits.length;
+  if (!n){ S.pos = 0; updateScrub(); draw(); return; }
+  S.pos = Math.max(0, Math.min(n - 1, p));
+  updateScrub();
+  draw();
+  if (announce !== false){
+    var i = Math.round(S.pos);
+    if (S.selected !== i){ S.selected = i; renderInspector(); markCurrentInList(); }
+    var c = V.commits[i];
+    if (c) say('Commit ' + (i+1) + ' of ' + n + ', ' + c.author + ': ' + (c.subject || 'no subject'));
+  }
+}
+function select(i, moveShuttle){
+  if (i < 0 || i >= V.commits.length) return;
+  S.selected = i;
+  if (moveShuttle !== false) S.pos = i;
+  updateScrub(); renderInspector(); markCurrentInList(); draw();
+  var c = V.commits[i];
+  say('Selected commit ' + (i+1) + ': ' + c.author + ', ' + (c.subject || 'no subject'));
+}
+
+/* ============================================================
+   Pointer interaction
+   ============================================================ */
+function colFromX(x){
+  var n = V.commits.length; if (!n) return 0;
+  return Math.max(0, Math.min(n - 1, Math.floor((x - L.gutter) / L.colW)));
+}
+
+function bindScrubSurface(el, alwaysScrub){
+  var dragging = false, sx = 0, sy = 0, moved = false, id = null;
+  el.addEventListener('pointerdown', function(e){
+    if (!V.commits.length) return;
+    id = e.pointerId; dragging = true; moved = false;
+    sx = e.clientX; sy = e.clientY;
+    if (alwaysScrub){
+      el.setPointerCapture(id);
+      stopPlay();
+      setPos(colFromX(e.clientX - el.getBoundingClientRect().left), true);
+      e.preventDefault();
+    }
+  });
+  el.addEventListener('pointermove', function(e){
+    if (!dragging || e.pointerId !== id) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!alwaysScrub){
+      if (!moved){
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+        moved = true;
+        try { el.setPointerCapture(id); } catch(err){}
+        stopPlay();
+      }
+      e.preventDefault();
+      setPos(colFromX(e.clientX - el.getBoundingClientRect().left), true);
+    } else {
+      moved = true;
+      e.preventDefault();
+      setPos(colFromX(e.clientX - el.getBoundingClientRect().left), true);
+    }
+  });
+  function end(e){
+    if (!dragging || (id !== null && e.pointerId !== id)) return;
+    var wasMoved = moved;
+    dragging = false; id = null; moved = false;
+    if (!alwaysScrub && !wasMoved && V.commits.length){
+      var x = e.clientX - el.getBoundingClientRect().left;
+      if (x >= L.gutter - 6){ stopPlay(); select(colFromX(x), true); }
+    }
+  }
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+bindScrubSurface(ruler, true);
+bindScrubSurface(weave, false);
+
+weave.addEventListener('keydown', function(e){
+  if (!V.commits.length) return;
+  var i = Math.round(S.pos);
+  if (e.key === 'ArrowRight'){ stopPlay(); setPos(i+1, true); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft'){ stopPlay(); setPos(i-1, true); e.preventDefault(); }
+  else if (e.key === 'Home'){ stopPlay(); setPos(0, true); e.preventDefault(); }
+  else if (e.key === 'End'){ stopPlay(); setPos(V.commits.length-1, true); e.preventDefault(); }
+});
+
+document.addEventListener('keydown', function(e){
+  var tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === ' ' || e.code === 'Space'){
+    e.preventDefault();
+    S.playing ? stopPlay() : startPlay();
+  } else if (e.key === 'ArrowRight' && e.target === document.body){ stopPlay(); setPos(Math.round(S.pos)+1, true); }
+  else if (e.key === 'ArrowLeft' && e.target === document.body){ stopPlay(); setPos(Math.round(S.pos)-1, true); }
+});
+
+/* ============================================================
+   Controls
+   ============================================================ */
+$('play').addEventListener('click', function(){ S.playing ? stopPlay() : startPlay(); });
+$('stepBack').addEventListener('click', function(){ stopPlay(); setPos(Math.round(S.pos)-1, true); });
+$('stepFwd').addEventListener('click', function(){ stopPlay(); setPos(Math.round(S.pos)+1, true); });
+$('rewind').addEventListener('click', function(){ stopPlay(); setPos(0, true); });
+$('speed').addEventListener('change', function(){ S.speed = parseFloat(this.value) || 1; });
+$('scrub').addEventListener('input', function(){ stopPlay(); setPos(parseInt(this.value,10) || 0, true); });
+
+$('authorChips').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('.chip') : null;
+  if (!b) return;
+  var a = b.getAttribute('data-a');
+  if (S.offAuthors[a]) delete S.offAuthors[a]; else S.offAuthors[a] = 1;
+  b.setAttribute('aria-pressed', String(!S.offAuthors[a]));
+  stopPlay(); refreshAll();
+  say((S.offAuthors[a] ? 'Hid ' : 'Showed ') + a + '. ' + V.commits.length + ' commits on the loom.');
+});
+
+var pfTimer = null;
+$('pathFilter').addEventListener('input', function(){
+  var v = this.value;
+  clearTimeout(pfTimer);
+  pfTimer = setTimeout(function(){ S.pathFilter = v; refreshAll(); }, 140);
+});
+$('sortMode').addEventListener('change', function(){ S.sortMode = this.value; refreshAll(); });
+
+$('commitList').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('button[data-i]') : null;
+  if (!b) return;
+  stopPlay();
+  select(parseInt(b.getAttribute('data-i'),10), true);
+});
+
+$('loadSample').addEventListener('click', function(){
+  $('logInput').value = buildSampleLog();
+  load($('logInput').value);
+});
+$('clearInput').addEventListener('click', function(){
+  $('logInput').value = '';
+  S.commits = []; S.authors = []; S.offAuthors = Object.create(null);
+  stopPlay(); renderChips(); refreshAll(); hideMsg();
+  say('Loom cleared.');
+});
+$('weaveBtn').addEventListener('click', function(){
+  var v = $('logInput').value;
+  if (!v.trim()){ showMsg('err','Nothing pasted yet.',['Paste git log output, or press “Reload sample cloth”.']); return; }
+  load(v);
+});
+$('copyCmd').addEventListener('click', function(){
+  var txt = $('cmdText').textContent, btn = this;
+  function done(ok){
+    btn.textContent = ok ? '✓ Copied' : '⧉ Select it manually';
+    setTimeout(function(){ btn.textContent = '⧉ Copy command'; }, 1800);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ done(true); }, function(){ done(false); });
+  } else {
+    try {
+      var r = document.createRange(); r.selectNodeContents($('cmdText'));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      done(document.execCommand('copy'));
+    } catch(err){ done(false); }
+  }
+});
+
+/* ============================================================
+   Export
+   ============================================================ */
+function download(blob, name){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+
+function exportSVG(){
+  if (!V.commits.length || !V.files.length){ say('Nothing to export yet.'); return; }
+  var g = 200, rowH = 24, n = V.commits.length;
+  var colW = Math.max(3, Math.min(18, 900 / n));
+  var w = Math.round(g + n*colW + 24), headH = 66;
+  var h = Math.round(headH + V.files.length*rowH + 46);
+  var headPx = g + (Math.round(S.pos) + 1) * colW;
+  var mx = Math.sqrt(V.maxChurn);
+  var out = [];
+  out.push('<?xml version="1.0" encoding="UTF-8"?>');
+  out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Commit Loom weave export">');
+  out.push('<rect width="' + w + '" height="' + h + '" fill="' + CLOTH + '"/>');
+  out.push('<text x="20" y="30" fill="#f0e6d0" font-family="monospace" font-size="17" font-weight="700">Commit Loom</text>');
+  out.push('<text x="20" y="50" fill="#9a927e" font-family="monospace" font-size="11">' +
+    esc(n + ' commits · ' + V.files.length + ' bands · shuttle at ' + (Math.round(S.pos)+1) + '/' + n +
+    (V.commits[Math.round(S.pos)] && V.commits[Math.round(S.pos)].date ? ' · ' + V.commits[Math.round(S.pos)].date : '')) + '</text>');
+
+  for (var r=0;r<V.files.length;r++){
+    var y = headH + r*rowH, cy = y + rowH/2;
+    if (r % 2) out.push('<rect x="0" y="' + y + '" width="' + w + '" height="' + rowH + '" fill="' + CLOTH_2 + '"/>');
+    out.push('<rect x="' + g + '" y="' + (cy-7) + '" width="' + (w-g-14) + '" height="14" fill="#d6c6a6" opacity="0.035"/>');
+    var wovenW = Math.max(0, Math.min(headPx, w-14) - g);
+    if (wovenW > 0) out.push('<rect x="' + g + '" y="' + (cy-7) + '" width="' + wovenW.toFixed(1) + '" height="14" fill="#d6c6a6" opacity="0.10"/>');
+    out.push('<text x="' + (g-10) + '" y="' + (cy+4) + '" text-anchor="end" fill="#dcd2bc" font-family="monospace" font-size="11">' +
+      esc(V.files[r].path.length > 30 ? '…' + V.files[r].path.slice(-29) : V.files[r].path) + '</text>');
+  }
+  out.push('<line x1="' + (g-4) + '" y1="' + headH + '" x2="' + (g-4) + '" y2="' + (headH + V.files.length*rowH) + '" stroke="#e9dec4" stroke-opacity="0.25"/>');
+
+  var kw = Math.max(2, colW*0.72);
+  for (var t=0;t<V.touches.length;t++){
+    var k = V.touches[t];
+    var frac = Math.min(1, Math.sqrt(k.churn)/mx);
+    var kh = Math.max(4, rowH * (0.30 + 0.58*frac));
+    var kx = g + k.col*colW + (colW-kw)/2;
+    var ky = headH + k.row*rowH + (rowH-kh)/2;
+    out.push('<rect x="' + kx.toFixed(1) + '" y="' + ky.toFixed(1) + '" width="' + kw.toFixed(1) + '" height="' + kh.toFixed(1) +
+      '" rx="2" fill="' + k.color + '" opacity="' + (k.col <= S.pos ? '1' : '0.16') + '"/>');
+  }
+  out.push('<rect x="' + (Math.min(w-2, Math.max(g, headPx))-1).toFixed(1) + '" y="' + headH + '" width="2" height="' + (V.files.length*rowH) + '" fill="' + HEAD + '"/>');
+
+  var lx = 20, ly = h - 16;
+  for (var ai=0; ai<S.authors.length; ai++){
+    var a = S.authors[ai];
+    if (S.offAuthors[a]) continue;
+    out.push('<rect x="' + lx + '" y="' + (ly-9) + '" width="10" height="10" rx="2" fill="' + S.colorOf[a] + '"/>');
+    out.push('<text x="' + (lx+15) + '" y="' + ly + '" fill="#9a927e" font-family="monospace" font-size="10.5">' + esc(a) + '</text>');
+    lx += 26 + a.length * 6.4;
+  }
+  out.push('</svg>');
+  download(new Blob([out.join('\n')], { type:'image/svg+xml' }), 'commit-loom-weave.svg');
+  say('SVG exported.');
+}
+
+function exportPNG(){
+  if (!V.commits.length || !V.files.length){ say('Nothing to export yet.'); return; }
+  var scale = 2, headH = 58;
+  var cv = document.createElement('canvas');
+  cv.width = Math.round(L.w * scale);
+  cv.height = Math.round((headH + L.h) * scale);
+  var ctx = cv.getContext('2d');
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.fillStyle = '#101620'; ctx.fillRect(0,0,L.w,headH);
+  ctx.fillStyle = '#f0e6d0';
+  ctx.font = '700 16px ui-monospace, Menlo, monospace';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Commit Loom', 14, 26);
+  ctx.fillStyle = '#9a927e';
+  ctx.font = '11px ui-monospace, Menlo, monospace';
+  var cc = V.commits[Math.round(S.pos)];
+  ctx.fillText(V.commits.length + ' commits · ' + V.files.length + ' bands · shuttle ' +
+    (Math.round(S.pos)+1) + '/' + V.commits.length + (cc && cc.date ? ' · ' + cc.date : ''), 14, 45);
+  ctx.translate(0, headH);
+  renderWeave(ctx, { w:L.w, h:L.h, gutter:L.gutter, rowH:L.rowH, colW:L.colW, pad:L.pad, pos:S.pos, selected:-1 });
+  if (cv.toBlob){
+    cv.toBlob(function(b){ if (b) download(b, 'commit-loom-weave.png'); say('PNG exported.'); }, 'image/png');
+  } else {
+    var a = document.createElement('a');
+    a.href = cv.toDataURL('image/png'); a.download = 'commit-loom-weave.png'; a.click();
+    say('PNG exported.');
+  }
+}
+$('expSvg').addEventListener('click', exportSVG);
+$('expPng').addEventListener('click', exportPNG);
+
+/* ============================================================
+   Resize
+   ============================================================ */
+var rTimer = null;
+window.addEventListener('resize', function(){
+  clearTimeout(rTimer);
+  rTimer = setTimeout(function(){ measure(); draw(); }, 90);
+});
+
+/* ============================================================
+   Boot
+   ============================================================ */
+$('logInput').value = buildSampleLog();
+load($('logInput').value, true);
+select(Math.min(11, S.commits.length - 1), true);
+setPos(Math.min(11, S.commits.length - 1), false);
+renderInspector();
+
+})();
+</script>
+</body>
+</html>
