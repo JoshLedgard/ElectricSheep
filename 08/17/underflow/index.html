@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Underflow — The Page Beneath the Page</title>
+<meta name="description" content="A linear, scrub-driven architectural cutaway of one fictional web page, opening like a stage set to show the content it holds and never shows.">
+<style>
+  :root{
+    --void:#05060b;
+    --void2:#0e1426;
+    --bone:#efe9dc;
+    --bone-dim:#c7c0b1;
+    --ink:#15140f;
+    --vermilion:#ff5a3c;
+    --sky:#7fc4ff;
+    --amber:#f5b73f;
+    --ui:#cbd6ea;
+    --ui-dim:#7f8 da8;
+    --ui-dim:#8090ab;
+    --line:rgba(160,185,225,0.16);
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,system-ui,sans-serif;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--void);
+    color:var(--ui);
+    font-family:var(--sans);
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  #app{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;
+    max-width:760px;margin:0 auto;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ---------- header rail ---------- */
+  .rail{
+    flex:0 0 auto;
+    padding:10px 14px 8px;
+    display:flex;align-items:center;gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .rail-meta{flex:1 1 auto;min-width:0}
+  .rail-top{
+    display:flex;align-items:baseline;gap:8px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ui-dim);
+  }
+  .rail-top b{color:var(--bone);font-weight:600;letter-spacing:.1em}
+  .rail-name{
+    font-size:13px;letter-spacing:.02em;color:var(--bone);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-top:2px;
+  }
+  .bar{
+    position:relative;height:3px;border-radius:2px;
+    background:rgba(160,185,225,0.14);margin-top:7px;overflow:hidden;
+  }
+  .bar-fill{
+    position:absolute;inset:0 auto 0 0;width:0%;
+    background:linear-gradient(90deg,var(--sky),var(--amber));
+    border-radius:2px;
+  }
+  .bar-ticks{position:absolute;inset:0;display:flex;pointer-events:none}
+  .bar-ticks i{flex:1 1 0;border-right:1px solid rgba(5,6,11,.85)}
+  .bar-ticks i:last-child{border-right:0}
+
+  .iconbtn{
+    flex:0 0 auto;width:44px;height:44px;border-radius:12px;
+    background:rgba(160,185,225,0.07);border:1px solid var(--line);
+    color:var(--ui);font-size:17px;line-height:1;
+    display:grid;place-items:center;cursor:pointer;
+    transition:background .18s ease,border-color .18s ease,color .18s ease;
+  }
+  .iconbtn:active{background:rgba(160,185,225,0.16)}
+  .iconbtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+  /* ---------- stage ---------- */
+  #stage{
+    position:relative;flex:1 1 auto;min-height:0;
+    touch-action:none;cursor:ns-resize;
+    background:
+      radial-gradient(120% 70% at 50% 8%, rgba(127,196,255,.10), transparent 62%),
+      radial-gradient(90% 55% at 50% 108%, rgba(245,183,63,.09), transparent 66%),
+      linear-gradient(180deg,#080b16 0%,#05060b 58%,#04050a 100%);
+  }
+  #scene{display:block;width:100%;height:100%}
+  #scene text{font-family:var(--sans)}
+  .t-serif{font-family:var(--serif)}
+  .t-mono{font-family:var(--mono)}
+
+  #spots{position:absolute;inset:0;pointer-events:none}
+  .spot{
+    position:absolute;left:0;top:0;
+    width:48px;height:48px;border-radius:50%;
+    transform:translate(-50%,-50%) scale(.6);
+    background:rgba(245,183,63,.14);
+    border:1px solid rgba(245,183,63,.55);
+    color:var(--amber);font-family:var(--mono);font-size:17px;line-height:1;
+    display:grid;place-items:center;cursor:pointer;
+    pointer-events:none;opacity:0;
+    transition:opacity .3s ease,transform .3s cubic-bezier(.2,1.3,.4,1);
+  }
+  .spot.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+  .spot::before{
+    content:'';position:absolute;inset:-6px;border-radius:50%;
+    border:1px solid rgba(245,183,63,.4);
+    animation:ping 2.6s ease-out infinite;
+  }
+  .spot:active{background:rgba(245,183,63,.3)}
+  .spot:focus-visible{outline:2px solid var(--amber);outline-offset:4px}
+  @keyframes ping{
+    0%{transform:scale(.82);opacity:.9}
+    70%{transform:scale(1.35);opacity:0}
+    100%{opacity:0}
+  }
+
+  #hint{
+    position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ui-dim);background:rgba(5,6,11,.6);
+    border:1px solid var(--line);border-radius:999px;padding:7px 13px;
+    pointer-events:none;transition:opacity .5s ease;white-space:nowrap;
+  }
+  #hint.gone{opacity:0}
+
+  /* ---------- caption ---------- */
+  .caption{
+    flex:0 0 auto;
+    padding:13px 16px 11px;
+    border-top:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(14,20,38,.55),rgba(5,6,11,.9));
+    min-height:112px;
+  }
+  .cap-inner{transition:opacity .28s ease,transform .28s ease}
+  .cap-inner.swap{opacity:0;transform:translateY(5px)}
+  .cap-title{
+    font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:5px;
+  }
+  .cap-body{
+    font-size:14.5px;line-height:1.5;color:var(--bone);
+    font-family:var(--serif);letter-spacing:.005em;
+  }
+  .cap-found{
+    margin-top:8px;padding-left:10px;border-left:2px solid var(--sky);
+    font-family:var(--mono);font-size:11.5px;line-height:1.45;color:var(--sky);
+    display:none;
+  }
+  .cap-found.on{display:block}
+  .cap-end .cap-title{color:var(--bone)}
+  .cap-end .cap-body{font-size:16px}
+
+  /* ---------- controls ---------- */
+  .controls{
+    flex:0 0 auto;
+    padding:10px 14px calc(12px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;gap:12px;
+    border-top:1px solid var(--line);
+  }
+  #scrub{
+    position:relative;flex:1 1 auto;height:56px;
+    border-radius:16px;border:1px solid var(--line);
+    background:rgba(160,185,225,.05);
+    touch-action:none;cursor:pointer;overflow:hidden;
+  }
+  #scrub:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .scrub-track{
+    position:absolute;left:14px;right:14px;top:50%;height:2px;margin-top:-1px;
+    background:rgba(160,185,225,.2);border-radius:2px;
+  }
+  .scrub-prog{
+    position:absolute;left:14px;top:50%;height:2px;margin-top:-1px;width:0;
+    background:linear-gradient(90deg,var(--sky),var(--amber));border-radius:2px;
+  }
+  .scrub-label{
+    position:absolute;left:16px;bottom:6px;
+    font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ui-dim);pointer-events:none;
+  }
+  .scrub-knob{
+    position:absolute;top:50%;left:14px;width:40px;height:40px;margin:-20px 0 0 -20px;
+    border-radius:50%;background:linear-gradient(180deg,#1c2740,#0b1020);
+    border:1px solid rgba(245,183,63,.6);
+    box-shadow:0 0 0 5px rgba(5,6,11,.85),0 2px 14px rgba(0,0,0,.6);
+    display:grid;place-items:center;
+  }
+  .scrub-knob::after{
+    content:'';width:12px;height:12px;border-radius:50%;
+    background:var(--amber);box-shadow:0 0 10px rgba(245,183,63,.7);
+  }
+
+  #peel{
+    flex:0 0 auto;width:64px;height:64px;border-radius:20px;
+    background:rgba(127,196,255,.08);border:1px solid rgba(127,196,255,.34);
+    color:var(--sky);cursor:grab;touch-action:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    transition:background .18s ease,transform .12s ease;
+  }
+  #peel:active{cursor:grabbing;background:rgba(127,196,255,.2)}
+  #peel.hot{background:rgba(127,196,255,.22)}
+  #peel:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  #peel svg{display:block}
+  #peel span{
+    font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--sky);opacity:.85;
+  }
+  #replayBig{
+    flex:0 0 auto;height:64px;min-width:64px;padding:0 20px;border-radius:20px;
+    background:rgba(245,183,63,.14);border:1px solid rgba(245,183,63,.55);
+    color:var(--amber);font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;cursor:pointer;display:none;place-items:center;
+  }
+  #replayBig.on{display:grid}
+  #replayBig:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+  /* ---------- intro ---------- */
+  #intro{
+    position:fixed;inset:0;z-index:20;
+    background:radial-gradient(120% 80% at 50% 20%,#0f1730,#05060b 70%);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:32px 26px calc(32px + env(safe-area-inset-bottom));
+    transition:opacity .5s ease;
+  }
+  #intro.gone{opacity:0;pointer-events:none}
+  .i-kicker{
+    font-family:var(--mono);font-size:10px;letter-spacing:.3em;text-transform:uppercase;
+    color:var(--sky);margin-bottom:16px;
+  }
+  .i-title{
+    font-family:var(--serif);font-size:clamp(38px,13vw,60px);line-height:.96;
+    color:var(--bone);letter-spacing:-.02em;font-weight:400;
+  }
+  .i-sub{
+    font-family:var(--serif);font-size:clamp(17px,5vw,22px);line-height:1.35;
+    color:var(--amber);margin-top:10px;font-style:italic;
+  }
+  .i-rule{height:1px;background:var(--line);margin:22px 0}
+  .i-body{font-size:14.5px;line-height:1.6;color:var(--ui);max-width:44ch}
+  .i-body + .i-body{margin-top:10px}
+  .i-body em{color:var(--bone);font-style:normal}
+  .i-go{
+    margin-top:26px;height:58px;width:100%;max-width:340px;border-radius:16px;
+    background:var(--bone);color:var(--ink);border:0;cursor:pointer;
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;
+  }
+  .i-go:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .i-foot{
+    margin-top:18px;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ui-dim);line-height:1.7;
+  }
+
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  @media (max-height:640px){
+    .caption{min-height:96px;padding:10px 16px 9px}
+    .cap-body{font-size:13.5px}
+    #peel,#replayBig{height:56px;width:56px;min-width:56px}
+    #scrub{height:52px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="rail">
+    <div class="rail-meta">
+      <div class="rail-top"><b id="chNum">01</b><span>of 06</span><span id="pct">0%</span></div>
+      <div class="rail-name" id="chName">The Surface</div>
+      <div class="bar"><div class="bar-fill" id="barFill"></div><div class="bar-ticks"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    </div>
+    <button class="iconbtn" id="replaySmall" type="button" aria-label="Replay from the beginning">↺</button>
+  </div>
+
+  <div id="stage">
+    <svg id="scene" viewBox="0 0 340 420" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="gPaper" x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" stop-color="#f6f1e6"/>
+          <stop offset="1" stop-color="#ddd5c3"/>
+        </linearGradient>
+        <linearGradient id="gBar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e6dfcd"/>
+          <stop offset="1" stop-color="#d3cab6"/>
+        </linearGradient>
+        <linearGradient id="gPlate" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#9fd4ff" stop-opacity="0.34"/>
+          <stop offset="0.5" stop-color="#dff0ff" stop-opacity="0.16"/>
+          <stop offset="1" stop-color="#6fb4ee" stop-opacity="0.3"/>
+        </linearGradient>
+        <linearGradient id="gSlab" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stop-color="#101a30"/>
+          <stop offset="1" stop-color="#070a14"/>
+        </linearGradient>
+        <clipPath id="flowClip"><rect id="flowRect" x="40" y="158" width="228" height="53"/></clipPath>
+        <clipPath id="tailClip"><rect x="40" y="211" width="228" height="9"/></clipPath>
+      </defs>
+
+      <g id="cam">
+
+        <!-- ============ UNDERFLOW SLAB ============ -->
+        <g id="L_under" class="lay" opacity="0">
+          <rect x="26" y="146" width="248" height="192" rx="10" fill="url(#gSlab)" stroke="#7fc4ff" stroke-opacity="0.32"/>
+          <rect x="26" y="146" width="248" height="192" rx="10" fill="none" stroke="#7fc4ff" stroke-opacity="0.1" stroke-width="3"/>
+          <text class="t-mono" x="42" y="174" font-size="10.5" letter-spacing="3.2" fill="#7fc4ff">UNDERFLOW</text>
+          <line x1="42" y1="182" x2="258" y2="182" stroke="#7fc4ff" stroke-opacity="0.28"/>
+          <g id="u_lines" fill="#7fc4ff" opacity="0.5">
+            <text class="t-mono" x="42" y="204" font-size="8.6">&#8230;six, except on the first Tuesday.</text>
+            <text class="t-mono" x="42" y="221" font-size="8.6">Bring a coat &#8212; the east gallery keeps</text>
+            <text class="t-mono" x="42" y="238" font-size="8.6">the cold of the river.</text>
+            <text class="t-mono" x="42" y="261" font-size="8.6" fill="#f5b73f" opacity="0.85">[ Reserve a seat ]  reachable: no</text>
+          </g>
+          <line x1="42" y1="292" x2="258" y2="292" stroke="#7fc4ff" stroke-opacity="0.18"/>
+          <text class="t-mono" x="42" y="310" font-size="8" letter-spacing="1.6" fill="#7fc4ff" opacity="0.55">laid out &#183; measured &#183; painted &#183; unseen</text>
+          <line class="lbl-tick" x1="276" y1="141" x2="292" y2="141" stroke="#7fc4ff" stroke-opacity="0.4"/>
+          <text class="t-mono" x="300" y="144" font-size="9" text-anchor="end" fill="#7fc4ff" opacity="0.8">underflow</text>
+        </g>
+
+        <!-- ============ CLIP / TRAPPED CONTENT ============ -->
+        <g id="L_clip" class="lay" opacity="0">
+          <rect id="boxGhost" x="40" y="166" width="228" height="49" rx="3" fill="none" stroke="#ff5a3c" stroke-opacity="0.45" stroke-dasharray="5 4"/>
+          <g id="tailGroup" clip-path="url(#tailClip)">
+            <text class="t-serif" x="44" y="214" font-size="10.5" fill="#15140f" opacity="0.001">quiet work between the hours of nine and</text>
+            <text class="t-serif" id="tailText" x="44" y="214" font-size="10.5" fill="#efe9dc">quiet work between the hours of nine and</text>
+          </g>
+          <g id="trapped" fill="#efe9dc" opacity="0.62">
+            <text class="t-serif" x="44" y="231" font-size="10.5">six, except on the first Tuesday.</text>
+            <text class="t-serif" x="44" y="248" font-size="10.5">Bring a coat &#8212; the east gallery keeps</text>
+            <text class="t-serif" x="44" y="265" font-size="10.5">the cold of the river.</text>
+          </g>
+          <line id="clipEdge" x1="40" y1="211" x2="268" y2="211" stroke="#ff5a3c" stroke-width="1.2"/>
+          <path id="clipTeeth" d="M40 211 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4 l6 4 l6 -4" fill="none" stroke="#ff5a3c" stroke-opacity="0.5" stroke-width="0.8"/>
+          <line class="lbl-tick" x1="276" y1="208" x2="292" y2="208" stroke="#ff5a3c" stroke-opacity="0.5"/>
+          <text class="t-mono" x="300" y="211" font-size="9" text-anchor="end" fill="#ff5a3c">overflow: hidden</text>
+        </g>
+
+        <!-- ============ CONTENT PLANE ============ -->
+        <g id="L_content" class="lay">
+          <rect x="24" y="30" width="252" height="310" rx="11" fill="url(#gPaper)"/>
+          <g fill="#15140f">
+            <text class="t-mono" x="44" y="94" font-size="8" letter-spacing="2.6" opacity="0.5">NOTICES &#183; NO. 14</text>
+            <text class="t-serif" x="44" y="122" font-size="23" letter-spacing="-0.4">Larkspur</text>
+            <text class="t-serif" x="44" y="146" font-size="23" letter-spacing="-0.4">Reading Room</text>
+          </g>
+          <line x1="44" y1="157" x2="266" y2="157" stroke="#15140f" stroke-opacity="0.22"/>
+          <g clip-path="url(#flowClip)" fill="#15140f">
+            <text class="t-serif" x="44" y="180" font-size="10.5">The east gallery reopens on the ninth.</text>
+            <text class="t-serif" x="44" y="197" font-size="10.5">Members may reserve the long table for</text>
+            <text class="t-serif" x="44" y="214" font-size="10.5">quiet work between the hours of nine and</text>
+            <text class="t-serif" x="44" y="231" font-size="10.5">six, except on the first Tuesday.</text>
+            <text class="t-serif" x="44" y="248" font-size="10.5">Bring a coat &#8212; the east gallery keeps</text>
+            <text class="t-serif" x="44" y="265" font-size="10.5">the cold of the river.</text>
+          </g>
+          <g id="cta">
+            <rect id="ctaGlow" x="40" y="224" width="130" height="34" rx="8" fill="none" stroke="#f5b73f" stroke-width="2.4" opacity="0"/>
+            <rect x="44" y="228" width="122" height="26" rx="6" fill="#15140f"/>
+            <text class="t-mono" x="105" y="244.5" font-size="8.6" letter-spacing="1.5" text-anchor="middle" fill="#efe9dc">RESERVE A SEAT</text>
+          </g>
+          <line id="sweep" x1="30" y1="160" x2="270" y2="160" stroke="#f5b73f" stroke-width="1.5" opacity="0"/>
+          <line class="lbl-tick" x1="276" y1="118" x2="292" y2="118" stroke="#efe9dc" stroke-opacity="0.35"/>
+          <text class="t-mono" x="300" y="121" font-size="9" text-anchor="end" fill="#efe9dc" opacity="0.65">content flow</text>
+        </g>
+
+        <!-- ============ VIEWPORT CHROME ============ -->
+        <g id="L_chrome" class="lay">
+          <path d="M24 41a11 11 0 0 1 11-11h230a11 11 0 0 1 11 11v15H24z" fill="url(#gBar)"/>
+          <g fill="#15140f" opacity="0.35">
+            <circle cx="38" cy="46" r="2.6"/><circle cx="47" cy="46" r="2.6"/><circle cx="56" cy="46" r="2.6"/>
+          </g>
+          <text x="152" y="49" font-size="7.6" letter-spacing="0.6" text-anchor="middle" fill="#15140f" opacity="0.6">notices &#8212; larkspur reading room</text>
+          <line x1="24" y1="56" x2="276" y2="56" stroke="#15140f" stroke-opacity="0.18"/>
+          <rect x="24" y="30" width="252" height="310" rx="11" fill="none" stroke="#efe9dc" stroke-opacity="0.45"/>
+          <line class="lbl-tick" x1="276" y1="26" x2="292" y2="26" stroke="#efe9dc" stroke-opacity="0.4"/>
+          <text class="t-mono" x="300" y="29" font-size="9" text-anchor="end" fill="#efe9dc" opacity="0.8">viewport</text>
+        </g>
+
+        <!-- ============ DECORATIVE PLATE ============ -->
+        <g id="L_plate" class="lay" opacity="0">
+          <rect id="plateRect" x="30" y="212" width="240" height="94" rx="9" fill="url(#gPlate)" stroke="#bfe2ff" stroke-opacity="0.6"/>
+          <path d="M30 292 L118 212" stroke="#ffffff" stroke-opacity="0.28" stroke-width="6"/>
+          <path d="M150 306 L262 212" stroke="#ffffff" stroke-opacity="0.14" stroke-width="10"/>
+          <line class="lbl-tick" x1="270" y1="208" x2="292" y2="208" stroke="#bfe2ff" stroke-opacity="0.55"/>
+          <text class="t-mono" x="300" y="211" font-size="9" text-anchor="end" fill="#bfe2ff">z-index 40</text>
+        </g>
+
+      </g>
+    </svg>
+
+    <div id="spots">
+      <button class="spot" id="spot1" type="button" aria-label="Open the clipped edge and read the cut sentence">+</button>
+      <button class="spot" id="spot2" type="button" aria-label="See through the decorative plate to the control beneath">+</button>
+      <button class="spot" id="spot3" type="button" aria-label="Light the lines held in the underflow">+</button>
+    </div>
+
+    <div id="hint">Drag up &#8595; or use the scrubber</div>
+  </div>
+
+  <div class="caption" id="caption">
+    <div class="cap-inner" id="capInner">
+      <div class="cap-title" id="capTitle">01 &#183; The Surface</div>
+      <div class="cap-body" id="capBody" aria-live="polite">A finished page. It renders, it passes, nothing looks wrong. Read the third line of the paragraph again.</div>
+      <div class="cap-found" id="capFound"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div id="scrub" role="slider" tabindex="0" aria-label="Descend through the page" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Chapter 1 of 6, The Surface">
+      <div class="scrub-track"></div>
+      <div class="scrub-prog" id="scrubProg"></div>
+      <div class="scrub-knob" id="scrubKnob"></div>
+      <div class="scrub-label">descend</div>
+    </div>
+    <button id="peel" type="button" aria-label="Peel the layers apart. Hold and drag up, or use the arrow keys.">
+      <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true">
+        <path d="M3 4 L13 1 L23 4 L13 7 Z" fill="none" stroke="#7fc4ff" stroke-width="1.3"/>
+        <path d="M3 11 L13 8 L23 11 L13 14 Z" fill="none" stroke="#7fc4ff" stroke-width="1.3" opacity="0.7"/>
+        <path d="M3 18 L13 15 L23 18 L13 21 Z" fill="none" stroke="#7fc4ff" stroke-width="1.3" opacity="0.4"/>
+      </svg>
+      <span>Peel</span>
+    </button>
+    <button id="replayBig" type="button" aria-label="Replay from the beginning">Replay</button>
+  </div>
+
+</div>
+
+<div id="intro">
+  <div class="i-kicker">Daily Surprise &#183; 2026-08-17</div>
+  <h1 class="i-title">Underflow</h1>
+  <div class="i-sub">The page beneath the page</div>
+  <div class="i-rule"></div>
+  <p class="i-body">One fictional web page, opened like a stage set. You will move straight through it &#8212; surface, tilt, clip, stack, underflow, repair &#8212; and see the words it holds but never shows.</p>
+  <p class="i-body"><em>Drag up on the page</em> to descend, or use the scrubber. <em>Hold Peel</em> to pull the layers apart. Tap the glowing seams.</p>
+  <button class="i-go" id="begin" type="button">Open the page</button>
+  <div class="i-foot">One way through &#183; about 3 minutes<br>No network, no accounts, no data leaves this tab</div>
+</div>
+
+<p class="sr" aria-live="polite" id="srStatus"></p>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ------------------------------------------------------------------ *
+   *  Underflow — a single linear architectural cutaway.
+   *  Everything is a pure function of one number: p (0 -> 1).
+   * ------------------------------------------------------------------ */
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  var reduceMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var REDUCE = !!(reduceMQ && reduceMQ.matches);
+  if (reduceMQ && reduceMQ.addEventListener) {
+    reduceMQ.addEventListener('change', function(e){ REDUCE = e.matches; });
+  }
+
+  /* ---------------- geometry ---------------- */
+  var PAGE = { cx:150, cy:190 };
+  var VB   = { w:340, h:420 };
+  var PAD  = 16;
+  var UNIT = 21;          // page units per depth step
+  var MAXA = 1.06;        // radians of tilt at full turn
+
+  function layerMatrix(dUnits, tilt, spread){
+    var th = tilt * MAXA;
+    var s = Math.sin(th), c = Math.cos(th);
+    var d = dUnits * UNIT * spread;
+    var cx = PAGE.cx, cy = PAGE.cy;
+    var a  = c;
+    var b  = s * 0.34;
+    var dd = 1 - 0.10 * s;
+    var e  = cx - cx * c + d * s * 0.95;
+    var f  = cy - cy * dd - cx * b - d * s * 0.55;
+    return [a, b, 0, dd, e, f];
+  }
+  function mStr(m){
+    return 'matrix(' + m[0].toFixed(4) + ',' + m[1].toFixed(4) + ',0,' +
+           m[3].toFixed(4) + ',' + m[4].toFixed(3) + ',' + m[5].toFixed(3) + ')';
+  }
+
+  /* Fit the camera around the deepest and frontmost visible planes. */
+  var FIT_X = [4, 304], FIT_Y = [16, 352];
+  function fitCam(dMin, dMax, tilt, spread){
+    var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    var ds = [dMin, dMax], i, j, k, m, x, y, X, Y;
+    for (i = 0; i < 2; i++){
+      m = layerMatrix(ds[i], tilt, spread);
+      for (j = 0; j < 2; j++){
+        for (k = 0; k < 2; k++){
+          x = FIT_X[j]; y = FIT_Y[k];
+          X = m[0]*x + m[4];
+          Y = m[1]*x + m[3]*y + m[5];
+          if (X < minX) minX = X; if (X > maxX) maxX = X;
+          if (Y < minY) minY = Y; if (Y > maxY) maxY = Y;
+        }
+      }
+    }
+    var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+    var sc = Math.min((VB.w - PAD*2) / w, (VB.h - PAD*2) / h, 1.06);
+    var tx = VB.w/2 - sc * (minX + maxX) / 2;
+    var ty = VB.h/2 - sc * (minY + maxY) / 2;
+    return 'translate(' + tx.toFixed(2) + ',' + ty.toFixed(2) + ') scale(' + sc.toFixed(4) + ')';
+  }
+
+  /* ---------------- easing ---------------- */
+  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+  function ease(v){ v = clamp01(v); return v*v*(3 - 2*v); }
+  function win(p, a, b){ return ease((p - a) / (b - a)); }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+
+  /* ---------------- narration ---------------- */
+  var CHAPTERS = [
+    { a:0.00, n:'01', t:'The Surface',
+      b:'A finished page. It renders, it passes, nothing looks wrong. Read the third line of the paragraph again.' },
+    { a:0.15, n:'02', t:'The Tilt',
+      b:'Turn it. A page was never one flat thing — it is sheets of glass stacked a hair apart, and you have only ever met the top one.' },
+    { a:0.31, n:'03', t:'The Clip',
+      b:'A box was told to hide whatever would not fit, and it obeyed exactly. The rest of the sentence is still here: laid out, measured, and cut at the edge.' },
+    { a:0.49, n:'04', t:'The Stack',
+      b:'A decorative plate floats one layer too high. Nothing beneath it is broken. The door is only covered — and covered is hard to tell from gone.' },
+    { a:0.66, n:'05', t:'The Underflow',
+      b:'The room below the room. Everything the page still holds and never says. None of it is missing. All of it is out of reach.' },
+    { a:0.85, n:'06', t:'The Repair',
+      b:'Raise the ceiling. Send the plate behind. Nothing new was written — the page simply stopped hiding what it already knew.' }
+  ];
+  var ENDING = {
+    t:'Underflow',
+    b:'Nothing was added. The page already knew every word of it.'
+  };
+
+  var SPOT_TEXT = [
+    '“…six, except on the first Tuesday.” — severed four pixels under the lip of the box.',
+    '“Reserve a seat.” — the control is awake under the plate. Every tap lands on the glass instead.',
+    '“Bring a coat — the east gallery keeps the cold of the river.” — painted, composited, never once seen.'
+  ];
+
+  /* Anchors: [layer element id, page-space x, page-space y, window start, window end] */
+  var SPOTS = [
+    { id:'spot1', lay:'L_clip',   x:150, y:212, a:0.335, b:0.660 },
+    { id:'spot2', lay:'L_plate',  x:150, y:259, a:0.520, b:0.845 },
+    { id:'spot3', lay:'L_under',  x:150, y:250, a:0.685, b:0.905 }
+  ];
+
+  /* ---------------- element cache ---------------- */
+  var el = {
+    scene:$('scene'), cam:$('cam'), stage:$('stage'),
+    under:$('L_under'), clip:$('L_clip'), content:$('L_content'),
+    chrome:$('L_chrome'), plate:$('L_plate'),
+    flowRect:$('flowRect'), tailGroup:$('tailGroup'), tailText:$('tailText'),
+    trapped:$('trapped'), boxGhost:$('boxGhost'),
+    clipEdge:$('clipEdge'), clipTeeth:$('clipTeeth'),
+    cta:$('cta'), ctaGlow:$('ctaGlow'), plateRect:$('plateRect'),
+    uLines:$('u_lines'), sweep:$('sweep'),
+    barFill:$('barFill'), chNum:$('chNum'), chName:$('chName'), pct:$('pct'),
+    capInner:$('capInner'), capTitle:$('capTitle'), capBody:$('capBody'), capFound:$('capFound'),
+    scrub:$('scrub'), scrubProg:$('scrubProg'), scrubKnob:$('scrubKnob'),
+    peel:$('peel'), replayBig:$('replayBig'), replaySmall:$('replaySmall'),
+    intro:$('intro'), begin:$('begin'), hint:$('hint'), srStatus:$('srStatus')
+  };
+  var spotEls = { spot1:$('spot1'), spot2:$('spot2'), spot3:$('spot3') };
+
+  /* ---------------- state ---------------- */
+  var pTarget = 0, pShown = 0;
+  var peelPtr = 0, peelKey = 0, peelShown = 0;
+  var found = [false, false, false];
+  var lastChapter = -1, lastEnd = false, lastPct = -1;
+  var started = false, stageRect = null;
+
+  function measure(){ stageRect = el.stage.getBoundingClientRect(); }
+  window.addEventListener('resize', measure);
+  window.addEventListener('orientationchange', function(){ setTimeout(measure, 220); });
+
+  function setP(v){ pTarget = clamp01(v); }
+
+  /* ---------------- the frame ---------------- */
+  function render(now){
+    var k = REDUCE ? 1 : 0.18;
+    pShown    += (pTarget - pShown) * k;
+    peelShown += (Math.max(peelPtr, peelKey) - peelShown) * (REDUCE ? 1 : 0.22);
+    if (Math.abs(pTarget - pShown) < 0.0004) pShown = pTarget;
+    if (Math.abs(Math.max(peelPtr, peelKey) - peelShown) < 0.002) peelShown = Math.max(peelPtr, peelKey);
+
+    var p = pShown, peel = peelShown;
+
+    /* --- narrative drivers --- */
+    var repair   = win(p, 0.85, 1.00);
+    var tiltBase = win(p, 0.06, 0.29) * (1 - win(p, 0.87, 1.00));
+    var sprBase  = win(p, 0.08, 0.32) * (1 - win(p, 0.845, 1.00));
+    var clipVis  = win(p, 0.285, 0.40);
+    var plateIn  = win(p, 0.49, 0.60);
+    var plateOut = win(p, 0.855, 0.99);
+    var underIn  = win(p, 0.655, 0.79);
+    var underOut = win(p, 0.885, 0.995);
+    var sweepT   = win(p, 0.905, 0.985);
+
+    /* Peel has authority even before the story tilts the page open. */
+    var tilt   = Math.max(tiltBase, peel * 0.92);
+    var spread = Math.max(sprBase,  peel * 0.90);
+
+    /* Idle breathing keeps the stack feeling suspended, not printed. */
+    var wob = REDUCE ? 0 : Math.sin(now * 0.00055) * 0.055 * spread;
+
+    var dPlate   = lerp(-2.35, 2.7, plateOut);
+    var dChrome  = -1.0 - wob * 0.5;
+    var dContent = 0;
+    var dClip    = 1.65 + wob;
+    var dUnder   = 3.05 + wob * 1.6;
+
+    var plateVis = plateIn * (1 - plateOut * 0.72);
+    var underVis = underIn * (1 - underOut);
+
+    var dMinFit = -1.0 - plateVis * 1.35;
+    var dMaxFit = clipVis * 1.65 + underVis * 1.45;
+
+    el.cam.setAttribute('transform', fitCam(dMinFit, dMaxFit, tilt, spread));
+    el.plate.setAttribute('transform',   mStr(layerMatrix(dPlate,   tilt, spread)));
+    el.chrome.setAttribute('transform',  mStr(layerMatrix(dChrome,  tilt, spread)));
+    el.content.setAttribute('transform', mStr(layerMatrix(dContent, tilt, spread)));
+    el.clip.setAttribute('transform',    mStr(layerMatrix(dClip,    tilt, spread)));
+    el.under.setAttribute('transform',   mStr(layerMatrix(dUnder,   tilt, spread)));
+
+    /* --- layer opacity --- */
+    var trappedVis = Math.max(Math.min(1, spread * 2.2) * clipVis, repair);
+    el.clip.setAttribute('opacity', trappedVis.toFixed(3));
+    el.plate.setAttribute('opacity', plateVis.toFixed(3));
+    el.under.setAttribute('opacity', underVis.toFixed(3));
+
+    /* --- the clipped box opens --- */
+    var openT = ease(repair / 0.40);
+    el.flowRect.setAttribute('height', lerp(53, 118, openT).toFixed(2));
+    el.boxGhost.setAttribute('height', lerp(49, 114, openT).toFixed(2));
+    var edgeY = lerp(211, 276, openT);
+    el.clipEdge.setAttribute('y1', edgeY.toFixed(2));
+    el.clipEdge.setAttribute('y2', edgeY.toFixed(2));
+    el.clipEdge.setAttribute('opacity', (clipVis * (1 - repair * 0.9)).toFixed(3));
+    el.clipTeeth.setAttribute('transform', 'translate(0,' + (edgeY - 211).toFixed(2) + ')');
+    el.clipTeeth.setAttribute('opacity', (clipVis * (1 - repair)).toFixed(3));
+    el.tailGroup.setAttribute('opacity', clamp01(1 - repair / 0.45).toFixed(3));
+
+    /* --- trapped lines brighten as they are found, then fully at repair --- */
+    var lift = Math.max(found[0] ? 1 : 0, found[2] ? 1 : 0, repair);
+    el.trapped.setAttribute('opacity', lerp(0.6, 1, lift).toFixed(3));
+    el.trapped.setAttribute('fill', repair > 0.5 ? '#15140f' : (lift > 0.5 ? '#ffffff' : '#efe9dc'));
+    el.tailText.setAttribute('fill', repair > 0.5 ? '#15140f' : (found[0] ? '#ffffff' : '#efe9dc'));
+    el.uLines.setAttribute('opacity', (found[2] ? 1 : 0.5).toFixed(2));
+
+    /* --- the plate goes translucent once you look under it --- */
+    el.plateRect.setAttribute('opacity', (found[1] ? 0.34 : 1).toFixed(2));
+    el.ctaGlow.setAttribute('opacity', (found[1] ? 1 - repair * 0.6 : 0).toFixed(3));
+
+    /* --- the call to action drops into the repaired flow --- */
+    var ctaT = ease(repair / 0.55);
+    el.cta.setAttribute('transform', 'translate(0,' + lerp(0, 64, ctaT).toFixed(2) + ')');
+
+    /* --- a warm pass down the recomposed page --- */
+    if (sweepT > 0 && sweepT < 1){
+      el.sweep.setAttribute('opacity', (Math.sin(sweepT * Math.PI) * 0.85).toFixed(3));
+      el.sweep.setAttribute('transform', 'translate(0,' + lerp(0, 176, sweepT).toFixed(1) + ')');
+    } else {
+      el.sweep.setAttribute('opacity', '0');
+    }
+
+    /* --- chrome & progress --- */
+    var pctNow = Math.round(p * 100);
+    if (pctNow !== lastPct){
+      lastPct = pctNow;
+      el.pct.textContent = pctNow + '%';
+      el.barFill.style.width = pctNow + '%';
+      el.scrubProg.style.width = (pctNow / 100 * scrubSpan()) + 'px';
+      el.scrubKnob.style.left = (14 + pctNow / 100 * scrubSpan()) + 'px';
+      el.scrub.setAttribute('aria-valuenow', String(pctNow));
+    }
+
+    updateCaption(p);
+    updateSpots(p);
+    requestAnimationFrame(render);
+  }
+
+  function scrubSpan(){
+    return Math.max(1, el.scrub.clientWidth - 28);
+  }
+
+  /* ---------------- caption / chapter ---------------- */
+  function chapterAt(p){
+    var i = 0;
+    for (var j = 0; j < CHAPTERS.length; j++) if (p >= CHAPTERS[j].a) i = j;
+    return i;
+  }
+
+  function updateCaption(p){
+    var isEnd = p > 0.988;
+    var ci = chapterAt(p);
+    if (ci === lastChapter && isEnd === lastEnd) return;
+    lastChapter = ci; lastEnd = isEnd;
+
+    var c = CHAPTERS[ci];
+    el.chNum.textContent = c.n;
+    el.chName.textContent = c.t;
+    el.scrub.setAttribute('aria-valuetext', 'Chapter ' + (ci + 1) + ' of 6, ' + c.t);
+
+    var title = isEnd ? ENDING.t : (c.n + ' · ' + c.t);
+    var body  = isEnd ? ENDING.b : c.b;
+    el.caption = el.caption;
+    swap(function(){
+      el.capTitle.textContent = title;
+      el.capBody.textContent = body;
+      el.capInner.parentNode.classList.toggle('cap-end', isEnd);
+    });
+    el.replayBig.classList.toggle('on', isEnd);
+    el.peel.style.display = isEnd ? 'none' : '';
+    el.srStatus.textContent = title + '. ' + body;
+  }
+
+  var swapTimer = null;
+  function swap(fn){
+    if (REDUCE){ fn(); return; }
+    el.capInner.classList.add('swap');
+    clearTimeout(swapTimer);
+    swapTimer = setTimeout(function(){
+      fn();
+      el.capInner.classList.remove('swap');
+    }, 190);
+  }
+
+  function showFound(i){
+    el.capFound.textContent = SPOT_TEXT[i];
+    el.capFound.classList.add('on');
+  }
+
+  /* ---------------- hotspots ---------------- */
+  var svgPt = null;
+  function updateSpots(p){
+    if (!stageRect) measure();
+    if (!svgPt && el.scene.createSVGPoint) svgPt = el.scene.createSVGPoint();
+    for (var i = 0; i < SPOTS.length; i++){
+      var s = SPOTS[i], b = spotEls[s.id];
+      var live = !found[i] && p > s.a && p < s.b && started;
+      if (!live){ if (b.classList.contains('on')) b.classList.remove('on'); continue; }
+      var lay = el.scene.querySelector('#' + s.lay);
+      var ctm = lay.getScreenCTM && lay.getScreenCTM();
+      if (!ctm || !svgPt) continue;
+      svgPt.x = s.x; svgPt.y = s.y;
+      var q = svgPt.matrixTransform(ctm);
+      b.style.left = (q.x - stageRect.left) + 'px';
+      b.style.top  = (q.y - stageRect.top) + 'px';
+      if (!b.classList.contains('on')) b.classList.add('on');
+    }
+  }
+
+  function reveal(i){
+    if (found[i]) return;
+    found[i] = true;
+    spotEls[SPOTS[i].id].classList.remove('on');
+    showFound(i);
+    el.srStatus.textContent = 'Revealed. ' + SPOT_TEXT[i];
+  }
+  ['spot1','spot2','spot3'].forEach(function(id, i){
+    spotEls[id].addEventListener('click', function(e){ e.stopPropagation(); reveal(i); });
+    spotEls[id].addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+  });
+
+  /* At the repair everything surfaces on its own, tapped or not. */
+  (function watchRepair(){
+    setInterval(function(){
+      if (pShown > 0.90){
+        for (var i = 0; i < 3; i++){
+          if (!found[i]){ found[i] = true; spotEls[SPOTS[i].id].classList.remove('on'); }
+        }
+      }
+    }, 250);
+  })();
+
+  /* ---------------- stage drag / wheel ---------------- */
+  var drag = null;
+  el.stage.addEventListener('pointerdown', function(e){
+    if (e.target.closest && e.target.closest('.spot')) return;
+    drag = { y:e.clientY, p:pTarget, id:e.pointerId, moved:0 };
+    try { el.stage.setPointerCapture(e.pointerId); } catch(err){}
+    dismissHint();
+  });
+  el.stage.addEventListener('pointermove', function(e){
+    if (!drag || e.pointerId !== drag.id) return;
+    var dy = e.clientY - drag.y;
+    drag.moved = Math.max(drag.moved, Math.abs(dy));
+    var span = Math.max(240, el.stage.clientHeight * 1.25);
+    setP(drag.p - dy / span);
+    e.preventDefault();
+  });
+  function endDrag(e){
+    if (drag && e.pointerId === drag.id){
+      try { el.stage.releasePointerCapture(e.pointerId); } catch(err){}
+      drag = null;
+    }
+  }
+  el.stage.addEventListener('pointerup', endDrag);
+  el.stage.addEventListener('pointercancel', endDrag);
+  el.stage.addEventListener('wheel', function(e){
+    setP(pTarget + e.deltaY / 1100);
+    dismissHint();
+    e.preventDefault();
+  }, { passive:false });
+
+  /* ---------------- scrub ---------------- */
+  function scrubFromX(clientX){
+    var r = el.scrub.getBoundingClientRect();
+    setP((clientX - r.left - 14) / Math.max(1, r.width - 28));
+  }
+  var scrubbing = false;
+  el.scrub.addEventListener('pointerdown', function(e){
+    scrubbing = true;
+    try { el.scrub.setPointerCapture(e.pointerId); } catch(err){}
+    scrubFromX(e.clientX); dismissHint(); e.preventDefault();
+  });
+  el.scrub.addEventListener('pointermove', function(e){
+    if (scrubbing){ scrubFromX(e.clientX); e.preventDefault(); }
+  });
+  el.scrub.addEventListener('pointerup', function(){ scrubbing = false; });
+  el.scrub.addEventListener('pointercancel', function(){ scrubbing = false; });
+  el.scrub.addEventListener('keydown', function(e){
+    var step = 0.02, k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowUp'){ setP(pTarget + step); }
+    else if (k === 'ArrowLeft' || k === 'ArrowDown'){ setP(pTarget - step); }
+    else if (k === 'PageUp'){ setP(pTarget + 0.12); }
+    else if (k === 'PageDown'){ setP(pTarget - 0.12); }
+    else if (k === 'Home'){ setP(0); }
+    else if (k === 'End'){ setP(1); }
+    else return;
+    dismissHint(); e.preventDefault();
+  });
+
+  /* Global keys, so the keyboard works without hunting for focus. */
+  document.addEventListener('keydown', function(e){
+    if (!started) return;
+    var tag = document.activeElement && document.activeElement.id;
+    if (tag === 'scrub' || tag === 'peel') return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight'){ setP(pTarget + 0.02); e.preventDefault(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft'){ setP(pTarget - 0.02); e.preventDefault(); }
+  });
+
+  /* ---------------- peel ---------------- */
+  var peelDrag = null;
+  el.peel.addEventListener('pointerdown', function(e){
+    peelDrag = { y:e.clientY, id:e.pointerId };
+    peelPtr = 0.46;
+    el.peel.classList.add('hot');
+    try { el.peel.setPointerCapture(e.pointerId); } catch(err){}
+    dismissHint(); e.preventDefault();
+  });
+  el.peel.addEventListener('pointermove', function(e){
+    if (!peelDrag || e.pointerId !== peelDrag.id) return;
+    peelPtr = clamp01(0.46 + (peelDrag.y - e.clientY) / 150);
+    e.preventDefault();
+  });
+  function peelEnd(e){
+    if (peelDrag && (!e || e.pointerId === peelDrag.id)){
+      try { el.peel.releasePointerCapture(peelDrag.id); } catch(err){}
+      peelDrag = null; peelPtr = 0;
+      el.peel.classList.remove('hot');
+    }
+  }
+  el.peel.addEventListener('pointerup', peelEnd);
+  el.peel.addEventListener('pointercancel', peelEnd);
+  el.peel.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowUp'){ peelKey = clamp01(peelKey + 0.25); }
+    else if (e.key === 'ArrowDown'){ peelKey = clamp01(peelKey - 0.25); }
+    else if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){ peelKey = peelKey > 0.1 ? 0 : 0.7; }
+    else return;
+    el.peel.classList.toggle('hot', peelKey > 0.05);
+    e.preventDefault();
+  });
+  el.peel.addEventListener('blur', function(){ peelKey = 0; el.peel.classList.remove('hot'); });
+  el.peel.addEventListener('click', function(e){ e.preventDefault(); });
+
+  /* ---------------- replay ---------------- */
+  function replay(){
+    setP(0);
+    found = [false, false, false];
+    el.capFound.classList.remove('on');
+    el.capFound.textContent = '';
+    lastChapter = -1; lastEnd = null;
+    el.srStatus.textContent = 'Replaying from the surface.';
+    el.scrub.focus();
+  }
+  el.replayBig.addEventListener('click', replay);
+  el.replaySmall.addEventListener('click', replay);
+
+  /* ---------------- hint ---------------- */
+  var hintTimer = setTimeout(dismissHint, 9000);
+  function dismissHint(){
+    clearTimeout(hintTimer);
+    if (el.hint && !el.hint.classList.contains('gone')) el.hint.classList.add('gone');
+  }
+
+  /* ---------------- start ---------------- */
+  function begin(){
+    if (started) return;
+    started = true;
+    el.intro.classList.add('gone');
+    setTimeout(function(){ el.intro.style.display = 'none'; measure(); }, 520);
+    measure();
+    el.scrub.focus({ preventScroll:true });
+  }
+  el.begin.addEventListener('click', begin);
+
+  measure();
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
