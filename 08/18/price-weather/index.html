@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Price Weather — A Tactile Pricing Wind Tunnel</title>
+<meta name="description" content="Draw a willingness-to-pay curve, move three price rails, and watch a fictional buyer swarm re-sort across free, basic and pro plans.">
+<style>
+  :root{
+    --chamber:#080e12;
+    --panel:#101a21;
+    --panel-2:#16232c;
+    --edge:#25373f;
+    --chalk:#e9f2f3;
+    --dim:#93a8b1;
+    --dimmer:#6c828c;
+    --free:#7fb0d8;
+    --basic:#f2b23f;
+    --pro:#f4607f;
+    --passed:#5b7079;
+    --display:"Futura","Century Gothic","Avenir Next","Segoe UI",system-ui,sans-serif;
+    --body:"Avenir Next","Segoe UI Variable Text",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,"Cascadia Mono",Consolas,monospace;
+    --r:14px;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #14232c 0%, transparent 60%),
+      linear-gradient(180deg,#080e12 0%, #060a0d 100%);
+    background-attachment:fixed;
+    color:var(--chalk);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.5;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 16px 56px;}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* ---------- masthead ---------- */
+  .eyebrow{
+    font-family:var(--display);
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--dimmer);margin:0 0 10px;
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  }
+  .eyebrow .bead{width:7px;height:7px;border-radius:50%;background:var(--basic);box-shadow:0 0 10px rgba(242,178,63,.75);flex:none}
+  h1{
+    font-family:var(--display);
+    font-weight:500;
+    font-size:clamp(38px,13vw,68px);
+    line-height:.92;
+    letter-spacing:-.02em;
+    margin:0 0 12px;
+    text-transform:uppercase;
+  }
+  h1 .w{display:block;color:var(--dim);letter-spacing:.02em}
+  .lede{margin:0 0 6px;color:var(--dim);max-width:56ch;font-size:15.5px}
+  .lede b{color:var(--chalk);font-weight:600}
+
+  /* ---------- layout ---------- */
+  .cols{display:grid;gap:18px;margin-top:22px}
+  @media (min-width:960px){
+    .cols{grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);align-items:start;gap:22px}
+    .stack{position:sticky;top:18px}
+  }
+  .stack{display:grid;gap:14px;min-width:0}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel) 0%,#0d151b 100%);
+    border:1px solid var(--edge);
+    border-radius:var(--r);
+    padding:14px;
+    min-width:0;
+  }
+  .card h2{
+    font-family:var(--display);
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dimmer);margin:0 0 12px;font-weight:600;
+  }
+
+  /* ---------- chamber ---------- */
+  .chamber{padding:12px 12px 14px}
+  .toolrow{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap}
+  .seg{display:inline-flex;background:#0a1217;border:1px solid var(--edge);border-radius:11px;padding:3px;gap:3px}
+  .seg button{
+    font-family:var(--display);font-size:12px;letter-spacing:.11em;text-transform:uppercase;
+    min-height:38px;padding:0 13px;border:0;border-radius:8px;background:transparent;color:var(--dim);
+    cursor:pointer;white-space:nowrap;
+  }
+  .seg button[aria-pressed="true"]{background:var(--chalk);color:#0a1217;font-weight:600}
+  .seg button:focus-visible{outline:2px solid var(--basic);outline-offset:2px}
+  .toolhint{font-size:12px;color:var(--dimmer);font-family:var(--mono);letter-spacing:.01em}
+
+  .shell{position:relative;border-radius:11px;overflow:hidden;background:#060b0e;border:1px solid #1b2b33}
+  canvas{display:block;width:100%;height:clamp(330px,84vw,430px);touch-action:none;cursor:crosshair}
+  @media (min-width:960px){canvas{height:520px}}
+
+  .coach{
+    position:absolute;left:10px;right:10px;bottom:10px;
+    background:rgba(9,16,20,.93);
+    border:1px solid var(--edge);border-radius:10px;padding:11px 12px;
+    display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+    backdrop-filter:blur(6px);
+  }
+  .coach p{margin:0;font-size:13px;color:var(--dim);max-width:40ch}
+  .coach b{color:var(--chalk)}
+  .coach button{
+    flex:none;min-height:38px;min-width:74px;border-radius:8px;border:1px solid var(--edge);
+    background:#1b2a33;color:var(--chalk);font-family:var(--display);font-size:12px;
+    letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+  }
+  .coach[hidden]{display:none}
+
+  .axiscap{margin:9px 2px 0;font-size:11.5px;color:var(--dimmer);line-height:1.4}
+  .legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px;margin:11px 0 0}
+  @media (min-width:520px){.legend{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .legend div{display:flex;align-items:baseline;gap:7px;font-size:12.5px;color:var(--dim);min-width:0}
+  .legend .dot{width:9px;height:9px;border-radius:50%;flex:none;transform:translateY(-1px)}
+  .legend .n{margin-left:auto;font-family:var(--mono);color:var(--chalk);font-size:13px;font-variant-numeric:tabular-nums}
+
+  /* ---------- rails ---------- */
+  .rail{
+    display:flex;align-items:center;gap:10px;
+    padding:7px 8px;border-radius:11px;background:#0b1318;border:1px solid #1c2a32;
+    margin-bottom:8px;
+  }
+  .rail:last-child{margin-bottom:0}
+  .rail .meta{min-width:0;flex:1}
+  .rail .name{font-family:var(--display);font-size:12px;letter-spacing:.13em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+  .rail .sub{font-size:11.5px;color:var(--dimmer);line-height:1.3;margin-top:2px}
+  .rail .swatch{width:10px;height:10px;border-radius:2px;flex:none}
+  .stepper{display:flex;align-items:center;gap:4px;flex:none}
+  .stepper button{
+    width:44px;height:44px;border-radius:10px;border:1px solid var(--edge);background:#16232c;
+    color:var(--chalk);font-size:20px;line-height:1;cursor:pointer;font-family:var(--body);
+  }
+  .stepper button:active{background:#22333e}
+  .stepper button:focus-visible,.value:focus-visible{outline:2px solid var(--basic);outline-offset:2px}
+  .value{
+    min-width:66px;height:44px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums;
+    background:#060b0e;border:1px solid var(--edge);border-radius:10px;cursor:ns-resize;
+    font-weight:600;
+  }
+
+  /* ---------- readouts ---------- */
+  .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .stat{background:#0b1318;border:1px solid #1c2a32;border-radius:11px;padding:10px 11px;min-width:0}
+  .stat .k{font-family:var(--display);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dimmer);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .v{font-family:var(--mono);font-size:clamp(19px,5.4vw,25px);font-variant-numeric:tabular-nums;margin-top:3px;letter-spacing:-.02em}
+  .stat .u{font-size:11px;color:var(--dimmer);margin-top:2px}
+  .mixwrap{margin-top:11px}
+  .mixlabel{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dimmer);margin-bottom:6px;font-family:var(--mono)}
+  .mix{height:12px;border-radius:6px;overflow:hidden;display:flex;background:#0b1318;border:1px solid #1c2a32}
+  .mix span{display:block;transition:width .28s ease}
+
+  /* ---------- chips / actions ---------- */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    min-height:44px;padding:0 13px;border-radius:11px;border:1px solid var(--edge);
+    background:#0b1318;color:var(--dim);cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--body);font-size:13.5px;
+  }
+  .chip .box{width:14px;height:14px;border-radius:4px;border:1.5px solid currentColor;flex:none;position:relative}
+  .chip[aria-pressed="true"]{color:var(--chalk);background:#17242c;border-color:#3a505b}
+  .chip[aria-pressed="true"] .box::after{
+    content:"";position:absolute;inset:2px;border-radius:2px;background:currentColor;
+  }
+  .chip .cnt{font-family:var(--mono);font-size:12px;color:var(--dimmer)}
+  .chip:focus-visible{outline:2px solid var(--basic);outline-offset:2px}
+
+  .btn{
+    min-height:44px;padding:0 14px;border-radius:11px;border:1px solid var(--edge);
+    background:#16232c;color:var(--chalk);cursor:pointer;
+    font-family:var(--display);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  }
+  .btn:hover{background:#1e2f39}
+  .btn:focus-visible{outline:2px solid var(--basic);outline-offset:2px}
+  .btn.ghost{background:transparent;color:var(--dim)}
+  .btn.wide{flex:1 1 auto}
+  .presets{display:grid;gap:8px}
+  .preset{
+    text-align:left;min-height:52px;padding:9px 12px;border-radius:11px;border:1px solid var(--edge);
+    background:#0b1318;color:var(--chalk);cursor:pointer;font-family:var(--body);display:block;width:100%;
+  }
+  .preset[aria-pressed="true"]{border-color:var(--basic);background:#191f1c}
+  .preset:focus-visible{outline:2px solid var(--basic);outline-offset:2px}
+  .preset .pn{font-family:var(--display);font-size:13px;letter-spacing:.09em;text-transform:uppercase}
+  .preset .pd{font-size:12px;color:var(--dimmer);margin-top:2px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+
+  .note{font-size:12.5px;color:var(--dimmer);line-height:1.55;margin:14px 0 0}
+  footer{margin-top:26px;border-top:1px solid #17242c;padding-top:14px;color:var(--dimmer);font-size:12px}
+  footer b{color:var(--dim);font-weight:600}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow"><span class="bead"></span>Pricing wind tunnel · fictional sample data</p>
+    <h1>Price<span class="w">Weather</span></h1>
+    <p class="lede">Draw how much of the market would pay each price. Then move the three rails and watch <b>240 invented buyers</b> re-sort themselves across free, basic and pro. Every number below is made up on the spot.</p>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= CHAMBER ================= -->
+    <div class="stack">
+      <section class="card chamber">
+        <div class="toolrow">
+          <div class="seg" role="group" aria-label="Pointer tool">
+            <button type="button" id="modeRails" aria-pressed="true">Move rails</button>
+            <button type="button" id="modeCurve" aria-pressed="false">Draw demand</button>
+          </div>
+          <span class="toolhint" id="toolhint">drag a rail →</span>
+        </div>
+
+        <div class="shell">
+          <canvas id="chamber" aria-label="Pricing wind tunnel. The demand curve sits on top; below it, four lanes hold the buyer swarm. Counts are listed under the chamber and the rails are adjustable with the keyboard controls."></canvas>
+          <div class="coach" id="coach">
+            <p><b>Drag one of the three rails</b> sideways. The swarm below re-sorts as prices cross each buyer's willingness to pay.</p>
+            <button type="button" id="coachOk">Got it</button>
+          </div>
+        </div>
+
+        <p class="axiscap">Price per month runs left to right. Each dot is one fictional buyer, parked at the most they would pay.</p>
+
+        <div class="legend" id="legend">
+          <div><span class="dot" style="background:var(--pro)"></span>Pro<span class="n" id="cPro">0</span></div>
+          <div><span class="dot" style="background:var(--basic)"></span>Basic<span class="n" id="cBasic">0</span></div>
+          <div><span class="dot" style="background:var(--free)"></span>Free<span class="n" id="cFree">0</span></div>
+          <div><span class="dot" style="background:var(--passed)"></span>Passed<span class="n" id="cPassed">0</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Rails — the three prices you control</h2>
+        <div id="rails"></div>
+        <p class="note">Each rail is a vertical line in the chamber. Grab it with a finger or pointer, or use these buttons — the value is also a focusable control: press it, then use ←/→ or ↑/↓. Rails always stay $4 apart.</p>
+      </section>
+    </div>
+
+    <!-- ================= PANEL ================= -->
+    <div class="stack">
+      <section class="card">
+        <h2>Conditions</h2>
+        <div class="stats">
+          <div class="stat"><div class="k">Signups</div><div class="v" id="mSign">—</div><div class="u">free + paid accounts</div></div>
+          <div class="stat"><div class="k">Paid conversion</div><div class="v" id="mConv">—</div><div class="u">of signups</div></div>
+          <div class="stat"><div class="k">MRR</div><div class="v" id="mMrr">—</div><div class="u">fictional monthly</div></div>
+          <div class="stat"><div class="k">ARPU</div><div class="v" id="mArpu">—</div><div class="u">per signup</div></div>
+        </div>
+        <div class="mixwrap">
+          <div class="mixlabel"><span>revenue mix</span><span id="mixTxt">—</span></div>
+          <div class="mix"><span id="mixBasic" style="background:var(--basic);width:50%"></span><span id="mixPro" style="background:var(--pro);width:50%"></span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Who is in the tunnel</h2>
+        <div class="chips" id="segs"></div>
+        <p class="note">Three invented buyer segments with different budgets. Turn one off and its dots leave the chamber.</p>
+      </section>
+
+      <section class="card">
+        <h2>Sample weather patterns</h2>
+        <div class="presets" id="presets"></div>
+        <div class="row" style="margin-top:10px">
+          <button type="button" class="btn ghost wide" id="reset">Reset chamber</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Take the experiment with you</h2>
+        <div class="row">
+          <button type="button" class="btn wide" id="csv">Export CSV</button>
+          <button type="button" class="btn wide" id="svg">Export SVG</button>
+        </div>
+        <p class="note">CSV holds the prices, segment mix, per-tier results and all 61 curve samples. SVG is a vector snapshot of the chamber exactly as it looks now. Both are generated in your browser — nothing is uploaded.</p>
+      </section>
+    </div>
+  </div>
+
+  <p class="note" style="max-width:70ch">The model is deterministic: the same curve, rails and segments always produce the same swarm, so you can move one rail back and forth and trust that only that rail changed the outcome. Buyers pick whichever plan leaves them the most value for the money, which is why raising the free tier's ceiling quietly eats the basic tier.</p>
+
+  <footer>
+    <b>Price Weather</b> — a self-contained pricing wind tunnel. All buyers, segments and dollar figures are invented sample values for a thought experiment; none of it is measured, remembered, or sent anywhere. No network requests, no storage, no analytics.
+  </footer>
+
+  <div class="sr-only" id="live" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ------------------------------------------------------------------
+     Fictional model constants. Every number in this file is invented.
+  ------------------------------------------------------------------ */
+  var PRICE_MAX = 150;          // right edge of the price axis, dollars
+  var NS = 61;                  // curve samples
+  var STEP = PRICE_MAX / (NS - 1);
+  var ACCOUNTS_PER_DOT = 25;    // one dot stands for 25 fictional accounts
+  var PRO_VALUE = 1.7;          // pro plan is worth 1.7x the baseline product
+  var ADOPT_FLOOR = 4;          // below this willingness to pay, nobody signs up
+  var MIN_GAP = 4;              // rails never cross, always $4 apart
+
+  var SEGMENTS = [
+    { id:'solo',  name:'Solo tinkerers', n:100, mult:0.60, note:'thin budget, high curiosity' },
+    { id:'teams', name:'Small teams',    n: 90, mult:1.00, note:'the baseline buyer' },
+    { id:'shops', name:'Studios',        n: 50, mult:1.70, note:'buys the top plan on reflex' }
+  ];
+
+  var PRESETS = [
+    { id:'drizzle', name:'Soft drizzle', note:'Broad shallow demand, nobody rich',
+      f:function(p){ return Math.exp(-p/26); }, free:12, basic:24, pro:79, segs:[1,1,1] },
+    { id:'front', name:'Cold front', note:'Demand falls off a cliff at $20',
+      f:function(p){ return 1/(1+Math.pow(p/18,3.4)); }, free:6, basic:19, pro:54, segs:[1,1,1] },
+    { id:'updraft', name:'Updraft', note:'Most bounce early, a few pay anything',
+      f:function(p){ return 0.58*Math.exp(-p/8)+0.42*Math.exp(-p/72); }, free:14, basic:39, pro:118, segs:[0,1,1] }
+  ];
+
+  var RAILS = [
+    { id:'free',  label:'Free ceiling', sub:'value handed out at $0', color:'--free',  varName:'free' },
+    { id:'basic', label:'Basic',        sub:'the workhorse plan',      color:'--basic', varName:'basic' },
+    { id:'pro',   label:'Pro',          sub:'1.7× the value',          color:'--pro',   varName:'pro' }
+  ];
+
+  /* ------------------------------------------------------------------
+     Deterministic pseudo-noise (no Math.random anywhere).
+  ------------------------------------------------------------------ */
+  function hash(n){ var x = Math.sin(n*127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+  /* ------------------------------------------------------------------
+     State
+  ------------------------------------------------------------------ */
+  var state = {
+    curve: new Array(NS),
+    price: { free:12, basic:24, pro:79 },
+    segs:  { solo:true, teams:true, shops:true },
+    preset:'drizzle',
+    mode:'rails'
+  };
+
+  var buyers = [];   // {seg, q, jy, phase, wtp, tier, x, y, vy, alpha}
+  var counts = { passed:0, free:0, basic:0, pro:0 };
+  var metrics = { signups:0, conv:0, mrr:0, arpu:0, mixBasic:0.5 };
+
+  var reduceMotion = false;
+  try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+
+  function applyPreset(p){
+    for (var i=0;i<NS;i++){
+      var v = p.f(i*STEP);
+      state.curve[i] = Math.max(0, Math.min(1, v));
+    }
+    state.curve[0] = 1;
+    state.price.free = p.free; state.price.basic = p.basic; state.price.pro = p.pro;
+    state.segs.solo = !!p.segs[0]; state.segs.teams = !!p.segs[1]; state.segs.shops = !!p.segs[2];
+    state.preset = p.id;
+  }
+
+  function buildBuyers(){
+    buyers = [];
+    var k = 0;
+    for (var s=0;s<SEGMENTS.length;s++){
+      var seg = SEGMENTS[s];
+      for (var i=0;i<seg.n;i++){
+        buyers.push({
+          seg: s,
+          q: (i + 0.5) / seg.n,
+          jy: hash(k*3.1+7)*2 - 1,
+          jitter: (hash(k*5.7+13) - 0.5) * 0.10,
+          phase: hash(k*2.3+29) * Math.PI * 2,
+          wtp: 0, tier: 1, x: 0, y: 0, alpha: 0, born:false
+        });
+        k++;
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     Curve helpers
+  ------------------------------------------------------------------ */
+  function shareAt(price){
+    if (price <= 0) return state.curve[0];
+    if (price >= PRICE_MAX) return state.curve[NS-1];
+    var f = price / STEP, i = Math.floor(f), t = f - i;
+    return state.curve[i] * (1-t) + state.curve[i+1] * t;
+  }
+
+  // Inverse: the price at which exactly q of the market is still willing to pay.
+  function priceAtShare(q){
+    for (var i=0;i<NS-1;i++){
+      var a = state.curve[i], b = state.curve[i+1];
+      if (a >= q && b < q){
+        var t = (a === b) ? 0 : (a - q) / (a - b);
+        return (i + t) * STEP;
+      }
+    }
+    return PRICE_MAX;
+  }
+
+  function recomputeWtp(){
+    for (var i=0;i<buyers.length;i++){
+      var b = buyers[i];
+      var base = priceAtShare(b.q) * SEGMENTS[b.seg].mult;
+      base = base * (1 + b.jitter);
+      b.wtp = Math.max(0, Math.min(PRICE_MAX, base));
+    }
+  }
+
+  // Buyers pick the plan that leaves them the most value for the money.
+  function assign(){
+    counts = { passed:0, free:0, basic:0, pro:0 };
+    var pf = state.price.free, pb = state.price.basic, pp = state.price.pro;
+    var payingDots = 0, basicDots = 0, proDots = 0, signupDots = 0;
+    for (var i=0;i<buyers.length;i++){
+      var b = buyers[i];
+      if (!state.segs[SEGMENTS[b.seg].id]) { b.tier = -1; continue; }
+      var w = b.wtp;
+      if (w < ADOPT_FLOOR){ b.tier = 0; counts.passed++; continue; }
+      var sFree  = Math.min(w, pf);
+      var sBasic = w - pb;
+      var sPro   = w * PRO_VALUE - pp;
+      var t = 1, best = sFree;
+      if (sBasic > best + 1e-9){ t = 2; best = sBasic; }
+      if (sPro   > best + 1e-9){ t = 3; best = sPro; }
+      b.tier = t;
+      if (t === 1) counts.free++;
+      else if (t === 2){ counts.basic++; basicDots++; payingDots++; }
+      else { counts.pro++; proDots++; payingDots++; }
+      signupDots++;
+    }
+    var signups = signupDots * ACCOUNTS_PER_DOT;
+    var mrrBasic = basicDots * pb * ACCOUNTS_PER_DOT;
+    var mrrPro   = proDots * pp * ACCOUNTS_PER_DOT;
+    metrics.signups = signups;
+    metrics.conv = signupDots ? (payingDots / signupDots) : 0;
+    metrics.mrr = mrrBasic + mrrPro;
+    metrics.arpu = signups ? metrics.mrr / signups : 0;
+    metrics.mixBasic = (mrrBasic + mrrPro) ? mrrBasic / (mrrBasic + mrrPro) : 0.5;
+    metrics.mrrBasic = mrrBasic; metrics.mrrPro = mrrPro;
+    metrics.basicDots = basicDots; metrics.proDots = proDots;
+    metrics.freeDots = counts.free; metrics.passedDots = counts.passed;
+  }
+
+  /* ------------------------------------------------------------------
+     Layout — shared by the canvas renderer and the SVG export
+  ------------------------------------------------------------------ */
+  function layout(W,H){
+    var padL = 12, padR = 12, padT = 8, padB = 22;
+    var innerW = W - padL - padR;
+    var plotH = Math.round((H - padT - padB) * 0.44);
+    var plotTop = padT;
+    var laneTop = plotTop + plotH + 14;
+    var laneH = (H - padB - laneTop) / 4;
+    return {
+      W:W, H:H, padL:padL, padR:padR, padB:padB,
+      plotTop:plotTop, plotH:plotH, laneTop:laneTop, laneH:laneH,
+      x:function(p){ return padL + (p / PRICE_MAX) * innerW; },
+      px:function(x){ return Math.max(0, Math.min(PRICE_MAX, (x - padL) / innerW * PRICE_MAX)); },
+      y:function(s){ return plotTop + (1 - s) * plotH; },
+      sy:function(y){ return Math.max(0, Math.min(1, 1 - (y - plotTop) / plotH)); },
+      lane:function(t){ return laneTop + (3 - t + 0.5) * laneH; } // t: 0 passed .. 3 pro
+    };
+  }
+
+  var LANE_META = [
+    { t:0, name:'PASSED',  css:'--passed', label:'never signed up' },
+    { t:1, name:'FREE',    css:'--free',   label:'happy at $0' },
+    { t:2, name:'BASIC',   css:'--basic',  label:'' },
+    { t:3, name:'PRO',     css:'--pro',    label:'' }
+  ];
+
+  function cssv(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
+  }
+  var COLOR = {};
+  function readColors(){
+    COLOR.passed = cssv('--passed'); COLOR.free = cssv('--free');
+    COLOR.basic = cssv('--basic');   COLOR.pro = cssv('--pro');
+    COLOR.chalk = cssv('--chalk');   COLOR.dim = cssv('--dim'); COLOR.dimmer = cssv('--dimmer');
+  }
+  function tierColor(t){ return [COLOR.passed, COLOR.free, COLOR.basic, COLOR.pro][t]; }
+
+  /* ------------------------------------------------------------------
+     Canvas
+  ------------------------------------------------------------------ */
+  var cv = document.getElementById('chamber');
+  var ctx = cv.getContext('2d');
+  var L = null, CW = 0, CH = 0, dpr = 1;
+
+  function resize(){
+    var r = cv.getBoundingClientRect();
+    dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    CW = Math.max(240, Math.round(r.width));
+    CH = Math.max(240, Math.round(r.height));
+    cv.width = Math.round(CW * dpr);
+    cv.height = Math.round(CH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    L = layout(CW, CH);
+    for (var i=0;i<buyers.length;i++){ buyers[i].born = false; }
+  }
+
+  function fmtMoney(v){
+    return '$' + Math.round(v).toLocaleString('en-US');
+  }
+
+  var t0 = 0;
+  function draw(now){
+    if (!t0) t0 = now;
+    var t = now - t0;
+    ctx.clearRect(0,0,CW,CH);
+
+    /* chamber floor + walls */
+    var g = ctx.createLinearGradient(0,0,0,CH);
+    g.addColorStop(0,'#0a141a'); g.addColorStop(0.44,'#070f14'); g.addColorStop(1,'#050b0e');
+    ctx.fillStyle = g; ctx.fillRect(0,0,CW,CH);
+
+    /* ambient airflow streaks */
+    if (!reduceMotion){
+      ctx.save();
+      for (var s=0;s<16;s++){
+        var sy = (s+0.5) / 16 * CH;
+        var speed = 0.020 + hash(s*1.7)*0.028;
+        var off = (t * speed + hash(s*3.3)*CW) % (CW + 220) - 110;
+        var len = 60 + hash(s*5.1)*130;
+        var grd = ctx.createLinearGradient(off,0,off+len,0);
+        grd.addColorStop(0,'rgba(150,200,220,0)');
+        grd.addColorStop(0.5,'rgba(150,200,220,0.055)');
+        grd.addColorStop(1,'rgba(150,200,220,0)');
+        ctx.strokeStyle = grd; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(off,sy); ctx.lineTo(off+len,sy); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    drawLanes();
+    drawGrid();
+    drawRails(t);
+    drawCurve();
+    drawDots(t);
+    drawAxis();
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawLanes(){
+    for (var i=0;i<4;i++){
+      var m = LANE_META[i];
+      var yTop = L.laneTop + (3 - m.t) * L.laneH;
+      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.017)' : 'rgba(255,255,255,0.035)';
+      ctx.fillRect(L.padL, yTop, CW - L.padL - L.padR, L.laneH - 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(L.padL, Math.round(yTop)+0.5); ctx.lineTo(CW-L.padR, Math.round(yTop)+0.5); ctx.stroke();
+      ctx.font = '600 9.5px ' + '"Futura","Century Gothic",system-ui,sans-serif';
+      ctx.fillStyle = tierColor(m.t) + '';
+      ctx.globalAlpha = 0.55;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(m.name, L.padL + 5, yTop + 4);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawGrid(){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.055)'; ctx.lineWidth = 1;
+    ctx.setLineDash([2,4]);
+    for (var k=0;k<=4;k++){
+      var yy = Math.round(L.y(k/4)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(L.padL,yy); ctx.lineTo(CW-L.padR,yy); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.font = '9px ' + 'ui-monospace,Menlo,monospace';
+    ctx.fillStyle = COLOR.dimmer; ctx.globalAlpha = .85;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('100% would buy', CW - L.padR - 2, L.y(1) + 11);
+    ctx.fillText('0%', CW - L.padR - 2, L.y(0) - 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function curvePath(c, lay){
+    c.beginPath();
+    c.moveTo(lay.x(0), lay.y(state.curve[0]));
+    for (var i=1;i<NS;i++) c.lineTo(lay.x(i*STEP), lay.y(state.curve[i]));
+  }
+
+  function drawCurve(){
+    ctx.save();
+    // area under demand
+    curvePath(ctx, L);
+    ctx.lineTo(L.x(PRICE_MAX), L.y(0));
+    ctx.lineTo(L.x(0), L.y(0));
+    ctx.closePath();
+    var ag = ctx.createLinearGradient(0, L.plotTop, 0, L.plotTop + L.plotH);
+    ag.addColorStop(0,'rgba(233,242,243,0.13)');
+    ag.addColorStop(1,'rgba(233,242,243,0.02)');
+    ctx.fillStyle = ag; ctx.fill();
+
+    // chalk line
+    curvePath(ctx, L);
+    ctx.strokeStyle = 'rgba(233,242,243,0.30)'; ctx.lineWidth = 6; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.stroke();
+    curvePath(ctx, L);
+    ctx.strokeStyle = COLOR.chalk; ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRails(t){
+    for (var i=0;i<RAILS.length;i++){
+      var r = RAILS[i];
+      var p = state.price[r.varName];
+      var x = L.x(p);
+      var col = i === 0 ? COLOR.free : (i === 1 ? COLOR.basic : COLOR.pro);
+      var top = L.plotTop, bot = L.H - L.padB;
+
+      ctx.save();
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.16; ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.lineWidth = 2;
+      ctx.setLineDash(i === 0 ? [5,4] : []);
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // marker where the rail meets the demand curve
+      var cy = L.y(shareAt(p));
+      ctx.beginPath(); ctx.arc(x, cy, 4.2, 0, Math.PI*2);
+      ctx.fillStyle = '#060b0e'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke();
+
+      // handle flag
+      var label = '$' + Math.round(p);
+      ctx.font = '600 12px ui-monospace,Menlo,monospace';
+      var wLab = Math.max(40, ctx.measureText(label).width + 18);
+      var hx = Math.max(L.padL + wLab/2, Math.min(CW - L.padR - wLab/2, x));
+      var hy = top - 1;
+      roundRect(ctx, hx - wLab/2, hy, wLab, 22, 6);
+      ctx.fillStyle = col; ctx.fill();
+      if (dragging && dragging.rail === i){
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+      }
+      ctx.fillStyle = '#06100f';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, hx, hy + 12);
+
+      // grip dots on the handle
+      ctx.fillStyle = 'rgba(6,16,15,.45)';
+      for (var d=-1; d<=1; d++){
+        ctx.beginPath(); ctx.arc(hx - wLab/2 + 7, hy + 11 + d*4, 1.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(hx + wLab/2 - 7, hy + 11 + d*4, 1.1, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
+  }
+
+  function drawDots(t){
+    var ease = reduceMotion ? 1 : 0.14;
+    var rad = CW < 420 ? 2.7 : 3.2;
+    for (var i=0;i<buyers.length;i++){
+      var b = buyers[i];
+      var on = b.tier >= 0;
+      var targetAlpha = on ? 1 : 0;
+      b.alpha += (targetAlpha - b.alpha) * (reduceMotion ? 1 : 0.12);
+      if (b.alpha < 0.02) { if(!on) continue; }
+
+      var tx = L.x(b.wtp);
+      var ty = L.lane(Math.max(0,b.tier)) + b.jy * (L.laneH * 0.31);
+      if (!b.born){ b.x = tx; b.y = ty; b.born = true; }
+      var wob = reduceMotion ? 0 : Math.sin(t*0.0011 + b.phase) * 1.1;
+      b.x += (tx - b.x) * (reduceMotion ? 1 : 0.22);
+      b.y += (ty - b.y) * ease;
+
+      ctx.globalAlpha = Math.max(0, Math.min(1, b.alpha)) * 0.92;
+      ctx.fillStyle = tierColor(Math.max(0,b.tier));
+      ctx.beginPath();
+      ctx.arc(b.x + wob, b.y, rad, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawAxis(){
+    ctx.save();
+    ctx.font = '9.5px ui-monospace,Menlo,monospace';
+    ctx.fillStyle = COLOR.dimmer;
+    ctx.textBaseline = 'top';
+    var ticks = CW < 430 ? [0,50,100,150] : [0,25,50,75,100,125,150];
+    for (var i=0;i<ticks.length;i++){
+      var p = ticks[i], x = L.x(p);
+      ctx.textAlign = i === 0 ? 'left' : (i === ticks.length-1 ? 'right' : 'center');
+      ctx.fillText('$'+p, x, L.H - L.padB + 5);
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      ctx.beginPath(); ctx.moveTo(Math.round(x)+0.5, L.H-L.padB); ctx.lineTo(Math.round(x)+0.5, L.H-L.padB+3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ------------------------------------------------------------------
+     Pointer interaction
+  ------------------------------------------------------------------ */
+  var dragging = null;   // {rail:i} or {curve:true, lastP, lastS}
+
+  function localPoint(ev){
+    var r = cv.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  }
+
+  function nearestRail(x, y){
+    var best = -1, bestD = 1e9;
+    for (var i=0;i<RAILS.length;i++){
+      var rx = L.x(state.price[RAILS[i].varName]);
+      var d = Math.abs(rx - x);
+      if (d < bestD){ bestD = d; best = i; }
+    }
+    return { i:best, d:bestD };
+  }
+
+  cv.addEventListener('pointerdown', function(ev){
+    ev.preventDefault();
+    var p = localPoint(ev);
+    var nr = nearestRail(p.x, p.y);
+    var inHandleStrip = p.y < L.plotTop + 26;
+    var grab = (state.mode === 'rails') || inHandleStrip || nr.d < 16;
+    if (grab && nr.i >= 0){
+      // hold the rail where it is and move it with the finger, so nothing teleports
+      dragging = { rail: nr.i, offset: state.price[RAILS[nr.i].varName] - L.px(p.x) };
+    } else {
+      dragging = { curve:true, lastP: L.px(p.x), lastS: L.sy(p.y) };
+      paint(L.px(p.x), L.sy(p.y), L.px(p.x), L.sy(p.y));
+    }
+    dismissCoach();
+    cv.setPointerCapture(ev.pointerId);
+  });
+
+  cv.addEventListener('pointermove', function(ev){
+    if (!dragging) {
+      var p0 = localPoint(ev);
+      var nr0 = nearestRail(p0.x, p0.y);
+      cv.style.cursor = (state.mode === 'rails' || nr0.d < 16) ? 'ew-resize' : 'crosshair';
+      return;
+    }
+    ev.preventDefault();
+    var p = localPoint(ev);
+    if (dragging.rail !== undefined){
+      setRail(dragging.rail, L.px(p.x) + dragging.offset);
+    } else {
+      var np = L.px(p.x), nsv = L.sy(p.y);
+      paint(dragging.lastP, dragging.lastS, np, nsv);
+      dragging.lastP = np; dragging.lastS = nsv;
+    }
+  });
+
+  function endDrag(ev){
+    if (!dragging) return;
+    dragging = null;
+    announce();
+  }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('lostpointercapture', endDrag);
+
+  /* Painting the demand curve. Demand can never rise as price rises, so a
+     stroke pushes its neighbours into line instead of leaving a spike. */
+  function paint(p0, s0, p1, s1){
+    var steps = Math.max(1, Math.ceil(Math.abs(p1-p0) / (STEP*0.5)));
+    for (var k=0;k<=steps;k++){
+      var f = steps ? k/steps : 0;
+      stamp(p0 + (p1-p0)*f, s0 + (s1-s0)*f);
+    }
+    state.preset = null;
+    refresh();
+    syncPresetButtons();
+  }
+
+  function stamp(price, share){
+    var R = 9.5; // brush radius in dollars
+    var c = Math.round(price / STEP);
+    for (var i=0;i<NS;i++){
+      var d = Math.abs(i*STEP - price);
+      if (d > R) continue;
+      var w = Math.pow(1 - d/R, 1.4);
+      state.curve[i] = state.curve[i]*(1-w) + share*w;
+    }
+    state.curve[0] = 1;
+    for (var j=Math.max(1,c+1); j<NS; j++) state.curve[j] = Math.min(state.curve[j], state.curve[j-1]);
+    for (var m=Math.min(NS-2,c-1); m>=0; m--) state.curve[m] = Math.max(state.curve[m], state.curve[m+1]);
+    state.curve[0] = 1;
+  }
+
+  function setRail(i, price){
+    var pr = state.price;
+    price = Math.max(0, Math.min(PRICE_MAX, price));
+    if (i === 0) pr.free = Math.min(price, pr.basic - MIN_GAP);
+    if (i === 1) pr.basic = Math.max(pr.free + MIN_GAP, Math.min(price, pr.pro - MIN_GAP));
+    if (i === 2) pr.pro = Math.max(pr.basic + MIN_GAP, price);
+    pr.free = Math.max(0, pr.free);
+    refresh();
+  }
+
+  function nudgeRail(i, delta){
+    var key = RAILS[i].varName;
+    setRail(i, Math.round(state.price[key]) + delta);
+    announce();
+  }
+
+  /* ------------------------------------------------------------------
+     DOM: rails, segments, presets, readouts
+  ------------------------------------------------------------------ */
+  var railsEl = document.getElementById('rails');
+  var valueEls = [];
+
+  RAILS.forEach(function(r, i){
+    var row = document.createElement('div');
+    row.className = 'rail';
+    row.innerHTML =
+      '<div class="meta">' +
+        '<div class="name"><span class="swatch" style="background:var(' + r.color + ')"></span>' + r.label + '</div>' +
+        '<div class="sub">' + r.sub + '</div>' +
+      '</div>' +
+      '<div class="stepper">' +
+        '<button type="button" aria-label="Lower ' + r.label + ' price by one dollar">−</button>' +
+        '<div class="value" role="slider" tabindex="0" aria-label="' + r.label + ' price in dollars" ' +
+          'aria-valuemin="0" aria-valuemax="' + PRICE_MAX + '" aria-valuenow="0">$0</div>' +
+        '<button type="button" aria-label="Raise ' + r.label + ' price by one dollar">+</button>' +
+      '</div>';
+    var btns = row.querySelectorAll('.stepper button');
+    var val = row.querySelector('.value');
+    btns[0].addEventListener('click', function(){ nudgeRail(i,-1); });
+    btns[1].addEventListener('click', function(){ nudgeRail(i, 1); });
+    val.addEventListener('keydown', function(ev){
+      var k = ev.key, big = ev.shiftKey ? 10 : 1;
+      if (k === 'ArrowLeft' || k === 'ArrowDown'){ nudgeRail(i,-big); ev.preventDefault(); }
+      else if (k === 'ArrowRight' || k === 'ArrowUp'){ nudgeRail(i, big); ev.preventDefault(); }
+      else if (k === 'Home'){ setRail(i, 0); announce(); ev.preventDefault(); }
+      else if (k === 'End'){ setRail(i, PRICE_MAX); announce(); ev.preventDefault(); }
+      else if (k === 'PageUp'){ nudgeRail(i, 10); ev.preventDefault(); }
+      else if (k === 'PageDown'){ nudgeRail(i,-10); ev.preventDefault(); }
+    });
+    valueEls.push(val);
+    railsEl.appendChild(row);
+  });
+
+  var segsEl = document.getElementById('segs');
+  var segBtns = [];
+  SEGMENTS.forEach(function(s){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.setAttribute('aria-pressed', 'true');
+    b.innerHTML = '<span class="box"></span><span>' + s.name + '</span><span class="cnt">' + (s.n*ACCOUNTS_PER_DOT).toLocaleString('en-US') + '</span>';
+    b.title = s.note;
+    b.addEventListener('click', function(){
+      state.segs[s.id] = !state.segs[s.id];
+      refresh(); announce();
+    });
+    segBtns.push(b);
+    segsEl.appendChild(b);
+  });
+
+  var presetsEl = document.getElementById('presets');
+  var presetBtns = [];
+  PRESETS.forEach(function(p){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'preset';
+    b.setAttribute('aria-pressed','false');
+    b.innerHTML = '<span class="pn">' + p.name + '</span><span class="pd">' + p.note + '</span>';
+    b.addEventListener('click', function(){ applyPreset(p); refresh(); syncAll(); announce(); dismissCoach(); });
+    presetBtns.push(b);
+    presetsEl.appendChild(b);
+  });
+
+  function syncPresetButtons(){
+    presetBtns.forEach(function(b,i){
+      b.setAttribute('aria-pressed', PRESETS[i].id === state.preset ? 'true' : 'false');
+    });
+  }
+
+  function syncAll(){
+    for (var i=0;i<RAILS.length;i++){
+      var v = Math.round(state.price[RAILS[i].varName]);
+      valueEls[i].textContent = '$' + v;
+      valueEls[i].setAttribute('aria-valuenow', v);
+      valueEls[i].setAttribute('aria-valuetext', '$' + v + ' per month');
+    }
+    segBtns.forEach(function(b,i){
+      b.setAttribute('aria-pressed', state.segs[SEGMENTS[i].id] ? 'true' : 'false');
+    });
+    syncPresetButtons();
+  }
+
+  var els = {
+    sign: document.getElementById('mSign'), conv: document.getElementById('mConv'),
+    mrr: document.getElementById('mMrr'), arpu: document.getElementById('mArpu'),
+    mixB: document.getElementById('mixBasic'), mixP: document.getElementById('mixPro'),
+    mixT: document.getElementById('mixTxt'),
+    cPro: document.getElementById('cPro'), cBasic: document.getElementById('cBasic'),
+    cFree: document.getElementById('cFree'), cPassed: document.getElementById('cPassed'),
+    live: document.getElementById('live'), hint: document.getElementById('toolhint')
+  };
+
+  function refresh(){
+    recomputeWtp();
+    assign();
+    els.sign.textContent = metrics.signups.toLocaleString('en-US');
+    els.conv.textContent = (metrics.conv*100).toFixed(1) + '%';
+    els.mrr.textContent = fmtMoney(metrics.mrr);
+    els.arpu.textContent = '$' + metrics.arpu.toFixed(2);
+    var mb = Math.round(metrics.mixBasic*100);
+    els.mixB.style.width = mb + '%';
+    els.mixP.style.width = (100-mb) + '%';
+    els.mixT.textContent = 'basic ' + mb + '% · pro ' + (100-mb) + '%';
+    els.cPro.textContent = (counts.pro*ACCOUNTS_PER_DOT).toLocaleString('en-US');
+    els.cBasic.textContent = (counts.basic*ACCOUNTS_PER_DOT).toLocaleString('en-US');
+    els.cFree.textContent = (counts.free*ACCOUNTS_PER_DOT).toLocaleString('en-US');
+    els.cPassed.textContent = (counts.passed*ACCOUNTS_PER_DOT).toLocaleString('en-US');
+    for (var i=0;i<RAILS.length;i++){
+      var v = Math.round(state.price[RAILS[i].varName]);
+      valueEls[i].textContent = '$' + v;
+      valueEls[i].setAttribute('aria-valuenow', v);
+      valueEls[i].setAttribute('aria-valuetext', '$' + v + ' per month');
+    }
+  }
+
+  var announceTimer = null;
+  function announce(){
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(function(){
+      els.live.textContent =
+        'Free ceiling $' + Math.round(state.price.free) +
+        ', basic $' + Math.round(state.price.basic) +
+        ', pro $' + Math.round(state.price.pro) + '. ' +
+        (counts.pro*ACCOUNTS_PER_DOT) + ' pro, ' + (counts.basic*ACCOUNTS_PER_DOT) + ' basic, ' +
+        (counts.free*ACCOUNTS_PER_DOT) + ' free, ' + (counts.passed*ACCOUNTS_PER_DOT) + ' passed. ' +
+        'Paid conversion ' + (metrics.conv*100).toFixed(1) + ' percent, MRR ' + fmtMoney(metrics.mrr) + '.';
+    }, 260);
+  }
+
+  /* mode toggle */
+  var mr = document.getElementById('modeRails'), mc = document.getElementById('modeCurve');
+  function setMode(m){
+    state.mode = m;
+    mr.setAttribute('aria-pressed', m === 'rails' ? 'true':'false');
+    mc.setAttribute('aria-pressed', m === 'curve' ? 'true':'false');
+    els.hint.textContent = m === 'rails' ? 'drag a rail →' : 'draw on the curve ↗';
+    cv.style.cursor = m === 'rails' ? 'ew-resize' : 'crosshair';
+  }
+  mr.addEventListener('click', function(){ setMode('rails'); });
+  mc.addEventListener('click', function(){ setMode('curve'); dismissCoach(); });
+
+  /* coach */
+  var coach = document.getElementById('coach');
+  var coachDismissed = false;
+  function dismissCoach(){
+    if (coachDismissed) return;
+    coachDismissed = true;
+    coach.hidden = true;
+  }
+  document.getElementById('coachOk').addEventListener('click', dismissCoach);
+
+  /* reset */
+  document.getElementById('reset').addEventListener('click', function(){
+    applyPreset(PRESETS[0]);
+    setMode('rails');
+    refresh(); syncAll(); announce();
+  });
+
+  /* ------------------------------------------------------------------
+     Exports — real files, built in the browser
+  ------------------------------------------------------------------ */
+  function download(name, mime, text){
+    var blob = new Blob([text], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+
+  function q(v){
+    v = String(v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+  }
+
+  document.getElementById('csv').addEventListener('click', function(){
+    var rows = [['section','label','value']];
+    function add(s,l,v){ rows.push([s,l,v]); }
+    add('experiment','tool','Price Weather - fictional pricing wind tunnel');
+    add('experiment','data_note','All values are invented sample data, not measurements');
+    add('experiment','weather_pattern', state.preset ? presetName(state.preset) : 'hand-drawn curve');
+    add('experiment','accounts_per_dot', ACCOUNTS_PER_DOT);
+    add('experiment','pro_value_multiple', PRO_VALUE);
+    add('experiment','adoption_floor_usd', ADOPT_FLOOR);
+    add('price','free_ceiling_usd', Math.round(state.price.free));
+    add('price','basic_usd', Math.round(state.price.basic));
+    add('price','pro_usd', Math.round(state.price.pro));
+    SEGMENTS.forEach(function(s){
+      add('segment', s.id + '_in_tunnel', state.segs[s.id] ? 'yes' : 'no');
+      add('segment', s.id + '_accounts', s.n * ACCOUNTS_PER_DOT);
+      add('segment', s.id + '_budget_multiple', s.mult);
+    });
+    add('result','signup_accounts', metrics.signups);
+    add('result','paid_conversion_pct', (metrics.conv*100).toFixed(2));
+    add('result','mrr_usd', Math.round(metrics.mrr));
+    add('result','arpu_usd', metrics.arpu.toFixed(2));
+    add('tier','passed_accounts', counts.passed*ACCOUNTS_PER_DOT);
+    add('tier','free_accounts', counts.free*ACCOUNTS_PER_DOT);
+    add('tier','basic_accounts', counts.basic*ACCOUNTS_PER_DOT);
+    add('tier','pro_accounts', counts.pro*ACCOUNTS_PER_DOT);
+    add('tier','basic_mrr_usd', Math.round(metrics.mrrBasic));
+    add('tier','pro_mrr_usd', Math.round(metrics.mrrPro));
+    for (var i=0;i<NS;i++){
+      add('demand_curve', 'price_usd_' + (i*STEP).toFixed(1), state.curve[i].toFixed(4));
+    }
+    var csv = rows.map(function(r){ return r.map(q).join(','); }).join('\r\n') + '\r\n';
+    download('price-weather-experiment.csv','text/csv;charset=utf-8', csv);
+  });
+
+  function presetName(id){
+    for (var i=0;i<PRESETS.length;i++) if (PRESETS[i].id === id) return PRESETS[i].name;
+    return 'hand-drawn curve';
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.getElementById('svg').addEventListener('click', function(){
+    var W = 960, H = 640;
+    var lay = layout(W, H - 74);
+    var offY = 74;
+    var o = [];
+    o.push('<?xml version="1.0" encoding="UTF-8"?>');
+    o.push('<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" font-family="Futura, Century Gothic, Avenir Next, sans-serif">');
+    o.push('<rect width="'+W+'" height="'+H+'" fill="#080e12"/>');
+    o.push('<text x="24" y="34" fill="#e9f2f3" font-size="22" letter-spacing="2">PRICE WEATHER</text>');
+    o.push('<text x="24" y="54" fill="#6c828c" font-size="11" letter-spacing="2">FICTIONAL PRICING EXPERIMENT — FREE CEILING $'+Math.round(state.price.free)+'  ·  BASIC $'+Math.round(state.price.basic)+'  ·  PRO $'+Math.round(state.price.pro)+'</text>');
+    o.push('<text x="'+(W-24)+'" y="34" text-anchor="end" fill="#e9f2f3" font-size="15" font-family="monospace">MRR '+esc(fmtMoney(metrics.mrr))+' · PAID '+(metrics.conv*100).toFixed(1)+'%</text>');
+    o.push('<text x="'+(W-24)+'" y="54" text-anchor="end" fill="#6c828c" font-size="11" font-family="monospace">'+esc(metrics.signups.toLocaleString('en-US'))+' signups · '+esc(state.preset ? presetName(state.preset) : 'hand-drawn curve')+'</text>');
+    o.push('<g transform="translate(0,'+offY+')">');
+
+    // lanes
+    for (var i=0;i<4;i++){
+      var m = LANE_META[i];
+      var yTop = lay.laneTop + (3 - m.t) * lay.laneH;
+      o.push('<rect x="'+lay.padL+'" y="'+yTop.toFixed(1)+'" width="'+(W-lay.padL-lay.padR)+'" height="'+(lay.laneH-2).toFixed(1)+'" fill="#ffffff" opacity="'+(i%2?0.017:0.035)+'"/>');
+      o.push('<text x="'+(lay.padL+8)+'" y="'+(yTop+16).toFixed(1)+'" fill="'+tierColor(m.t)+'" opacity="0.55" font-size="11" letter-spacing="1.5">'+m.name+'</text>');
+    }
+    // grid
+    for (var k=0;k<=4;k++){
+      var gy = lay.y(k/4).toFixed(1);
+      o.push('<line x1="'+lay.padL+'" y1="'+gy+'" x2="'+(W-lay.padR)+'" y2="'+gy+'" stroke="#ffffff" stroke-opacity="0.07" stroke-dasharray="2 4"/>');
+    }
+    // curve
+    var d = 'M ' + lay.x(0).toFixed(1) + ' ' + lay.y(state.curve[0]).toFixed(1);
+    for (var c=1;c<NS;c++) d += ' L ' + lay.x(c*STEP).toFixed(1) + ' ' + lay.y(state.curve[c]).toFixed(1);
+    o.push('<path d="'+d+' L '+lay.x(PRICE_MAX).toFixed(1)+' '+lay.y(0).toFixed(1)+' L '+lay.x(0).toFixed(1)+' '+lay.y(0).toFixed(1)+' Z" fill="#e9f2f3" opacity="0.09"/>');
+    o.push('<path d="'+d+'" fill="none" stroke="#e9f2f3" stroke-width="2.2" stroke-linejoin="round"/>');
+    // rails
+    for (var r=0;r<RAILS.length;r++){
+      var pv = state.price[RAILS[r].varName], rx = lay.x(pv).toFixed(1);
+      var col = r===0?COLOR.free:(r===1?COLOR.basic:COLOR.pro);
+      o.push('<line x1="'+rx+'" y1="'+lay.plotTop+'" x2="'+rx+'" y2="'+(H-offY-lay.padB).toFixed(1)+'" stroke="'+col+'" stroke-width="9" opacity="0.16"/>');
+      o.push('<line x1="'+rx+'" y1="'+lay.plotTop+'" x2="'+rx+'" y2="'+(H-offY-lay.padB).toFixed(1)+'" stroke="'+col+'" stroke-width="2"'+(r===0?' stroke-dasharray="5 4"':'')+'/>');
+      o.push('<rect x="'+(lay.x(pv)-24).toFixed(1)+'" y="'+(lay.plotTop-1)+'" width="48" height="22" rx="6" fill="'+col+'"/>');
+      o.push('<text x="'+rx+'" y="'+(lay.plotTop+14)+'" text-anchor="middle" fill="#06100f" font-size="12" font-family="monospace" font-weight="600">$'+Math.round(pv)+'</text>');
+    }
+    // dots
+    for (var b=0;b<buyers.length;b++){
+      var bu = buyers[b];
+      if (bu.tier < 0) continue;
+      var dx = lay.x(bu.wtp).toFixed(1);
+      var dy = (lay.lane(bu.tier) + bu.jy * lay.laneH * 0.31).toFixed(1);
+      o.push('<circle cx="'+dx+'" cy="'+dy+'" r="3.4" fill="'+tierColor(bu.tier)+'" opacity="0.92"/>');
+    }
+    // axis
+    [0,25,50,75,100,125,150].forEach(function(p){
+      o.push('<text x="'+lay.x(p).toFixed(1)+'" y="'+(H-offY-lay.padB+14)+'" text-anchor="middle" fill="#6c828c" font-size="10" font-family="monospace">$'+p+'</text>');
+    });
+    o.push('</g>');
+    o.push('<text x="24" y="'+(H-10)+'" fill="#3f5259" font-size="10">Invented sample data — every buyer, segment and dollar figure here is fictional.</text>');
+    o.push('</svg>');
+    download('price-weather-chamber.svg','image/svg+xml;charset=utf-8', o.join('\n'));
+  });
+
+  /* ------------------------------------------------------------------
+     Boot
+  ------------------------------------------------------------------ */
+  readColors();
+  applyPreset(PRESETS[0]);
+  buildBuyers();
+  resize();
+  refresh();
+  syncAll();
+  setMode('rails');
+  announce();
+
+  if (window.ResizeObserver){
+    var ro = new ResizeObserver(function(){ resize(); });
+    ro.observe(cv);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function(){ setTimeout(resize, 120); });
+
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
