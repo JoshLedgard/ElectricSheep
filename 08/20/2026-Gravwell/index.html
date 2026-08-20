@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Gravwell — A Pocket Sand Table for Restless Minutes</title>
+<meta name="description" content="A pocket sand table: tilt or steer gravity, drop stones, let strata fold, fossilize the result and export a PNG. Entirely local, no network.">
+<style>
+  :root{
+    --shell:#15181c;
+    --shell-hi:#2b3138;
+    --shell-lo:#0a0c0e;
+    --ink:#e8e3d8;
+    --dim:#8a8f96;
+    --amber:#e9a13b;
+    --cyan:#7fd1c4;
+    --rule:#262c33;
+    --radius:22px;
+    --tap:46px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1c2126 0%, #0c0e11 55%, #06070900 100%),
+      #06070a;
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    overflow-x:hidden;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+  /* ---------- device shell ---------- */
+  .device{
+    width:100%;
+    max-width:440px;
+    height:calc(100dvh - 20px);
+    max-height:860px;
+    min-height:520px;
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+    padding:11px 11px 12px;
+    border-radius:var(--radius);
+    background:
+      linear-gradient(168deg,#232930 0%, #14181c 38%, #0f1215 74%, #1a2026 100%);
+    box-shadow:
+      0 0 0 1px #333b44,
+      0 1px 0 0 rgba(255,255,255,.09) inset,
+      0 -1px 0 0 rgba(0,0,0,.6) inset,
+      0 26px 60px -22px #000,
+      0 2px 10px rgba(0,0,0,.6);
+    position:relative;
+  }
+  .device::after{
+    content:"";position:absolute;inset:5px;border-radius:16px;pointer-events:none;
+    box-shadow:0 0 0 1px rgba(255,255,255,.035);
+  }
+
+  /* ---------- top rail ---------- */
+  .rail{display:flex;align-items:center;gap:8px;padding:1px 3px 0;min-height:24px}
+  .word{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px;letter-spacing:.30em;font-weight:600;
+    color:#cfd6de;text-transform:uppercase;
+  }
+  .word b{color:var(--amber);font-weight:600}
+  .rail .spacer{flex:1}
+  .lamp{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 8px 1px rgba(233,161,59,.55), 0 0 0 1px rgba(0,0,0,.5);
+    flex:none;
+  }
+  .lamp.fossil{background:var(--cyan);box-shadow:0 0 8px 1px rgba(127,209,196,.5),0 0 0 1px rgba(0,0,0,.5)}
+  .lamp.pulse{animation:lampPulse 2.6s ease-in-out infinite}
+  @keyframes lampPulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .readout{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10px;letter-spacing:.11em;color:#7d848c;text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .readout span{color:#b9c2cb}
+
+  /* ---------- well ---------- */
+  .wellwrap{
+    position:relative;flex:1 1 auto;min-height:200px;
+    border-radius:14px;overflow:hidden;
+    background:#05070a;
+    box-shadow:
+      0 0 0 1px #000,
+      0 0 0 2px #2a3138,
+      0 10px 24px -14px #000 inset;
+  }
+  #well{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .toast{
+    position:absolute;left:50%;bottom:9px;transform:translateX(-50%);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    color:#d7dde4;background:rgba(8,11,14,.82);
+    border:1px solid #2c333b;border-radius:999px;
+    padding:6px 12px;pointer-events:none;
+    opacity:0;transition:opacity .35s ease;max-width:92%;text-align:center;
+  }
+  .toast.on{opacity:1}
+
+  /* ---------- lower deck ---------- */
+  .deck{display:flex;gap:10px;align-items:stretch;flex:none;min-height:100px}
+  .dialpad{
+    flex:none;width:104px;
+    border-radius:14px;
+    background:linear-gradient(160deg,#1b2027,#0e1216);
+    box-shadow:0 0 0 1px #2c333b, 0 2px 8px rgba(0,0,0,.5) inset;
+    display:flex;align-items:center;justify-content:center;
+    touch-action:none;
+    position:relative;
+  }
+  #dial{display:block;width:96px;height:96px;touch-action:none;border-radius:12px}
+  .dialpad:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .pads{flex:1 1 auto;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:7px}
+  button.pad{
+    -webkit-appearance:none;appearance:none;
+    min-height:var(--tap);min-width:44px;
+    border-radius:11px;border:none;
+    background:linear-gradient(180deg,#242b32,#151a1f);
+    box-shadow:0 0 0 1px #333b44, 0 1px 0 rgba(255,255,255,.07) inset, 0 -2px 4px rgba(0,0,0,.5) inset;
+    color:#cdd5dd;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:9.5px;letter-spacing:.10em;text-transform:uppercase;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    padding:4px 2px;cursor:pointer;line-height:1.15;
+    transition:transform .06s ease, box-shadow .12s ease, color .12s ease;
+  }
+  button.pad .g{font-size:16px;line-height:1;color:#e6ecf2}
+  button.pad:active{transform:translateY(1px);box-shadow:0 0 0 1px #333b44, 0 2px 6px rgba(0,0,0,.6) inset}
+  button.pad:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  button.pad[aria-pressed="true"]{
+    color:#0d1114;background:linear-gradient(180deg,#f0ae4b,#d68d2c);
+    box-shadow:0 0 0 1px #f5c778, 0 0 14px -2px rgba(233,161,59,.6);
+  }
+  button.pad[aria-pressed="true"] .g{color:#0d1114}
+  button.pad.key{color:#0f1418;background:linear-gradient(180deg,#8fdcd0,#5fbdae);box-shadow:0 0 0 1px #a9e8de,0 0 14px -3px rgba(127,209,196,.55)}
+  button.pad.key .g{color:#0f1418}
+  button.pad[disabled]{opacity:.42;cursor:default}
+
+  .hint{
+    max-width:440px;width:100%;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10px;line-height:1.6;letter-spacing:.05em;color:#666d75;
+    text-align:center;padding:9px 6px 2px;
+  }
+  .hint b{color:#8d959d;font-weight:600}
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  @media (max-height:640px){
+    .device{gap:7px;padding:9px}
+    .hint{display:none}
+    #dial{width:84px;height:84px}
+    .dialpad{width:92px}
+  }
+</style>
+</head>
+<body>
+
+<div class="device" id="device">
+
+  <div class="rail">
+    <span class="word">GRAV<b>WELL</b></span>
+    <span class="spacer"></span>
+    <span class="readout" id="readout">TILT <span id="rAng">0°</span> · <span id="rState">SETTLING</span></span>
+    <span class="lamp" id="lamp" aria-hidden="true"></span>
+  </div>
+
+  <div class="wellwrap">
+    <canvas id="well" aria-label="Sand well. A dark chamber of layered mineral sand that flows toward whichever way gravity is pointed."></canvas>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="deck">
+    <div class="dialpad" id="dialpad" tabindex="0" role="slider"
+         aria-label="Gravity dial. Drag to choose which way is down. Arrow keys steer, Home levels."
+         aria-valuemin="-180" aria-valuemax="180" aria-valuenow="0" aria-valuetext="Down, full weight">
+      <canvas id="dial" aria-hidden="true"></canvas>
+    </div>
+    <div class="pads">
+      <button class="pad" id="bTilt" aria-pressed="false"><span class="g" aria-hidden="true">◨</span>Tilt</button>
+      <button class="pad" id="bSound" aria-pressed="false"><span class="g" aria-hidden="true">◍</span>Sound</button>
+      <button class="pad" id="bUndo"><span class="g" aria-hidden="true">↺</span>Undo</button>
+      <button class="pad key" id="bFossil"><span class="g" aria-hidden="true">❄</span>Fossilize</button>
+      <button class="pad" id="bSave"><span class="g" aria-hidden="true">⤓</span>Save</button>
+      <button class="pad" id="bReset"><span class="g" aria-hidden="true">◌</span>Reset</button>
+    </div>
+  </div>
+</div>
+
+<p class="hint">
+  <b>Tap</b> the well to set a stone · <b>press &amp; hold</b> to drain sand ·
+  <b>drag the dial</b> (or enable Tilt) to move where <i>down</i> is.
+</p>
+
+<p class="sr" id="srhelp">
+  Gravwell is a simulated pocket sand table. Thousands of grains in six mineral strata fall toward
+  whichever direction gravity points. Use the gravity dial to steer, tap the well to place a stone
+  obstacle, press and hold to drain sand away, then fossilize the composition and save it as a PNG.
+</p>
+
+<script>
+"use strict";
+(function(){
+
+/* ================= constants ================= */
+const EMPTY=0, SAND=1, STONE=2, WALL=3;
+const DATE_STR = "2026-08-20";
+const SEED = 20260820;
+const MAX_STONES = 14;
+const CELL_TARGET = 2.25;      // css px per grain
+const MAX_COLS = 184, MAX_ROWS = 300;
+
+const RM = (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) || false;
+
+/* six mineral strata, four micro-shades each -> 24 grain colours */
+const STRATA = ["#e7dabf","#d5b177","#c08542","#9c4a30","#33565e","#6f6a63"];
+const SHADE  = [1.00, 0.915, 1.065, 0.855];
+
+/* ================= tiny utils ================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function lerp(a,b,t){return a+(b-a)*t;}
+function hex2rgb(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function shadeRGB(rgb,f){return [clamp(Math.round(rgb[0]*f),0,255),clamp(Math.round(rgb[1]*f),0,255),clamp(Math.round(rgb[2]*f),0,255)];}
+const LITTLE_ENDIAN = (function(){const b=new ArrayBuffer(4);new Uint32Array(b)[0]=0x11223344;return new Uint8Array(b)[0]===0x44;})();
+function packRGB(r){
+  return LITTLE_ENDIAN ? ((255<<24)|(r[2]<<16)|(r[1]<<8)|r[0])>>>0
+                       : ((r[0]<<24)|(r[1]<<16)|(r[2]<<8)|255)>>>0;
+}
+function css(r){return "rgb("+r[0]+","+r[1]+","+r[2]+")";}
+
+/* grain colour tables: tint byte = strata*4 + shade */
+const GRAIN_RGB = [], GRAIN_U32 = new Uint32Array(24);
+for(let s=0;s<6;s++){
+  const base = hex2rgb(STRATA[s]);
+  for(let k=0;k<4;k++){
+    const c = shadeRGB(base, SHADE[k]);
+    GRAIN_RGB.push(c);
+    GRAIN_U32[s*4+k] = packRGB(c);
+  }
+}
+const STONE_RGB = [58,64,72];
+const STONE_U32 = packRGB(STONE_RGB);
+
+/* 8 compass directions, index k = k*45deg in atan2 space */
+const DX=[1,1,0,-1,-1,-1,0,1], DY=[0,1,1,1,0,-1,-1,-1];
+
+/* ================= dom ================= */
+const wellCv  = document.getElementById("well");
+const wctx    = wellCv.getContext("2d");
+const dialCv  = document.getElementById("dial");
+const dctx    = dialCv.getContext("2d");
+const dialPad = document.getElementById("dialpad");
+const lamp    = document.getElementById("lamp");
+const rAng    = document.getElementById("rAng");
+const rState  = document.getElementById("rState");
+const toastEl = document.getElementById("toast");
+
+/* ================= state ================= */
+const G = {
+  cols:0, rows:0,
+  type:null, tint:null,
+  bgRow:null,           // per-row well background colour (uint32)
+  stones:[],            // {x,y,r} in cell coords
+  cssW:0, cssH:0, dpr:1,
+  off:null, offctx:null, img:null, buf:null,
+  grav:{a:0, m:1},      // a: radians, 0 = down; m: 0..1 weight
+  targetA:0, targetM:1,
+  frozen:false,
+  fossilCv:null,
+  activity:0,
+  grainCount:0,
+  lastInput:0,
+  tiltOn:false, tiltBase:null,
+  soundOn:false,
+  pressing:null,        // active pointer gesture on the well
+  ready:false,
+  gradients:null
+};
+let rnd = mulberry32(SEED);
+
+/* ================= well geometry ================= */
+function insideWell(x,y,cols,rows){
+  // rounded-rect chamber with a 1-cell wall margin
+  const m = 1;
+  if(x<m||y<m||x>=cols-m||y>=rows-m) return false;
+  const r = Math.min(cols,rows)*0.14;
+  const x0=m, y0=m, x1=cols-m-1, y1=rows-m-1;
+  let dx=0, dy=0;
+  if(x<x0+r) dx = x0+r-x; else if(x>x1-r) dx = x-(x1-r);
+  if(y<y0+r) dy = y0+r-y; else if(y>y1-r) dy = y-(y1-r);
+  if(dx===0||dy===0) return true;
+  return dx*dx+dy*dy <= r*r;
+}
+
+/* ================= composition ================= */
+function buildGrid(cols,rows){
+  const n = cols*rows;
+  const type = new Uint8Array(n), tint = new Uint8Array(n);
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      type[y*cols+x] = insideWell(x,y,cols,rows) ? EMPTY : WALL;
+    }
+  }
+  G.cols=cols; G.rows=rows; G.type=type; G.tint=tint; G.stones=[];
+
+  // background: a lit-from-above chamber
+  const bg = new Uint32Array(rows);
+  for(let y=0;y<rows;y++){
+    const t = y/(rows-1);
+    const v = 1 - t*0.55;
+    bg[y] = packRGB([Math.round(13*v+3), Math.round(16*v+4), Math.round(20*v+5)]);
+  }
+  G.bgRow = bg;
+  seedComposition();
+}
+
+function seedComposition(){
+  rnd = mulberry32(SEED);
+  const {cols,rows,type,tint} = G;
+  for(let i=0;i<type.length;i++){ if(type[i]!==WALL) type[i]=EMPTY; }
+  G.stones.length = 0;
+
+  // three authored stones the strata will drape around
+  const anchors = [
+    {fx:0.30, fy:0.615, fr:0.052},
+    {fx:0.685,fy:0.700, fr:0.070},
+    {fx:0.505,fy:0.860, fr:0.041}
+  ];
+
+  // surface line: a slow dune with two harmonics + starter mounds
+  const baseTop = rows*0.44;
+  const amp = RM ? rows*0.012 : rows*0.030;
+  const ph1 = rnd()*6.283, ph2 = rnd()*6.283;
+  const bandEdge = [0.00,0.11,0.27,0.44,0.63,0.80,1.001];
+
+  for(let x=0;x<cols;x++){
+    const u = x/(cols-1);
+    let top = baseTop
+      + Math.sin(u*4.1+ph1)*amp
+      + Math.sin(u*9.7+ph2)*amp*0.45;
+    if(!RM){
+      // two loose mounds so the well visibly settles the moment it opens
+      top -= Math.exp(-Math.pow((u-0.24)/0.085,2))*rows*0.105;
+      top -= Math.exp(-Math.pow((u-0.71)/0.070,2))*rows*0.082;
+    }
+    const y0 = Math.max(1, Math.round(top));
+    const depth = rows-1-y0;
+    for(let y=y0;y<rows;y++){
+      const i=y*cols+x;
+      if(type[i]!==EMPTY) continue;
+      const f = depth>0 ? (y-y0)/depth : 0;
+      // strata boundaries wobble per column so layers read as geology
+      const wob = Math.sin(u*5.3+ph2)*0.035 + Math.sin(u*13.1+ph1)*0.018;
+      let band=5;
+      for(let b=0;b<6;b++){ if(f < bandEdge[b+1]+wob){ band=b; break; } }
+      const sh = (rnd()*4)|0;
+      type[i]=SAND; tint[i]=band*4+sh;
+    }
+  }
+
+  for(const a of anchors){
+    addStone(Math.round(a.fx*cols), Math.round(a.fy*rows), Math.max(3, Math.round(a.fr*Math.min(cols,rows))), true);
+  }
+  recount();
+}
+
+function recount(){
+  let n=0; const t=G.type;
+  for(let i=0;i<t.length;i++) if(t[i]===SAND) n++;
+  G.grainCount = n;
+}
+
+/* place a stone; grains inside it are displaced outward, not deleted */
+function addStone(cx,cy,r,silent){
+  const {cols,rows,type,tint} = G;
+  if(G.stones.length>=MAX_STONES && !silent) return false;
+  const disp=[];
+  let placed=0;
+  for(let y=cy-r;y<=cy+r;y++){
+    if(y<0||y>=rows) continue;
+    for(let x=cx-r;x<=cx+r;x++){
+      if(x<0||x>=cols) continue;
+      const dx=x-cx, dy=y-cy;
+      if(dx*dx+dy*dy > r*r) continue;
+      const i=y*cols+x;
+      if(type[i]===WALL) continue;
+      if(type[i]===SAND) disp.push(tint[i]);
+      type[i]=STONE; placed++;
+    }
+  }
+  if(!placed) return false;
+  // scatter displaced grains into the nearest free cells
+  let d=0;
+  outer:
+  for(let ring=r+1; ring<r+46 && d<disp.length; ring++){
+    for(let a=0;a<ring*7;a++){
+      const th = (a/(ring*7))*6.283185;
+      const x = Math.round(cx+Math.cos(th)*ring), y = Math.round(cy+Math.sin(th)*ring);
+      if(x<0||y<0||x>=cols||y>=rows) continue;
+      const i=y*cols+x;
+      if(type[i]===EMPTY){ type[i]=SAND; tint[i]=disp[d++]; if(d>=disp.length) break outer; }
+    }
+  }
+  G.stones.push({x:cx,y:cy,r:r});
+  return true;
+}
+
+function removeStoneAt(idx){
+  const s=G.stones[idx]; if(!s) return;
+  const {cols,rows,type} = G;
+  for(let y=s.y-s.r;y<=s.y+s.r;y++){
+    if(y<0||y>=rows) continue;
+    for(let x=s.x-s.r;x<=s.x+s.r;x++){
+      if(x<0||x>=cols) continue;
+      const dx=x-s.x, dy=y-s.y;
+      if(dx*dx+dy*dy > s.r*s.r) continue;
+      const i=y*cols+x;
+      if(type[i]===STONE) type[i]=EMPTY;
+    }
+  }
+  G.stones.splice(idx,1);
+}
+
+/* ================= physics ================= */
+function step(){
+  const m = G.grav.m;
+  if(m < 0.02) return 0;
+  const a = G.grav.a;
+  const gx = Math.sin(a), gy = Math.cos(a);
+  const {cols,rows,type,tint} = G;
+
+  // stochastic interpolation between the two nearest compass directions
+  let f = Math.atan2(gy,gx)/(Math.PI/4);
+  f = (f%8+8)%8;
+  const k0 = Math.floor(f), frac = f-k0;
+  const p = ((Math.random()<frac ? k0+1 : k0)) & 7;
+  const dx = DX[p], dy = DY[p];
+  const oP = dx + dy*cols;
+  const oA = DX[(p+1)&7] + DY[(p+1)&7]*cols;
+  const oB = DX[(p+7)&7] + DY[(p+7)&7]*cols;
+
+  const moveP = 0.30 + 0.70*m;
+  const slip  = 0.62;
+
+  const yA = dy>0 ? rows-2 : 1, yB = dy>0 ? 0 : rows-1, yS = dy>0 ? -1 : 1;
+  const xA = dx>0 ? cols-2 : 1, xB = dx>0 ? 0 : cols-1, xS = dx>0 ? -1 : 1;
+  let moves=0;
+
+  for(let y=yA; y!==yB; y+=yS){
+    const row = y*cols;
+    for(let x=xA; x!==xB; x+=xS){
+      const i = row+x;
+      if(type[i]!==SAND) continue;
+      if(Math.random()>moveP) continue;
+      const t1 = i+oP;
+      if(type[t1]===EMPTY){
+        type[t1]=SAND; tint[t1]=tint[i]; type[i]=EMPTY; moves++;
+        continue;
+      }
+      const flip = Math.random()<0.5;
+      const s1 = flip?oA:oB, s2 = flip?oB:oA;
+      const c1 = i+s1;
+      if(type[c1]===EMPTY && Math.random()<slip){
+        type[c1]=SAND; tint[c1]=tint[i]; type[i]=EMPTY; moves++;
+        continue;
+      }
+      const c2 = i+s2;
+      if(type[c2]===EMPTY && Math.random()<slip){
+        type[c2]=SAND; tint[c2]=tint[i]; type[i]=EMPTY; moves++;
+      }
+    }
+  }
+  return moves;
+}
+
+/* ================= rendering ================= */
+function paintBuffer(){
+  const {cols,rows,type,tint,buf,bgRow} = G;
+  const shellU32 = packRGB([9,11,13]);
+  let i=0;
+  for(let y=0;y<rows;y++){
+    const bg = bgRow[y];
+    for(let x=0;x<cols;x++,i++){
+      const t = type[i];
+      buf[i] = t===SAND ? GRAIN_U32[tint[i]]
+             : t===STONE ? STONE_U32
+             : t===WALL ? shellU32
+             : bg;
+    }
+  }
+  G.offctx.putImageData(G.img,0,0);
+}
+
+/* one-time etched relief pass used for the fossil state and the export */
+function buildFossil(){
+  const {cols,rows,type,tint} = G;
+  const cv = document.createElement("canvas");
+  cv.width=cols; cv.height=rows;
+  const cx = cv.getContext("2d");
+  const img = cx.createImageData(cols,rows);
+  const b = new Uint32Array(img.data.buffer);
+  const shellU32 = packRGB([9,11,13]);
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const i=y*cols+x, t=type[i];
+      if(t===SAND){
+        const c = GRAIN_RGB[tint[i]];
+        const up = y>0?i-cols:i, lf = x>0?i-1:i;
+        const dn = y<rows-1?i+cols:i, rt = x<cols-1?i+1:i;
+        let f = 1;
+        if(type[up]!==SAND || tint[up]!==tint[i]) f *= 0.80;
+        if(type[lf]!==SAND || tint[lf]!==tint[i]) f *= 0.90;
+        if(type[dn]!==SAND) f *= 1.14;
+        if(type[rt]!==SAND) f *= 1.07;
+        b[i] = packRGB(shadeRGB(c,f));
+      } else if(t===STONE){ b[i]=STONE_U32; }
+      else if(t===WALL){ b[i]=shellU32; }
+      else {
+        const v = 1 - (y/(rows-1))*0.55;
+        b[i] = packRGB([Math.round(11*v+2), Math.round(14*v+3), Math.round(18*v+4)]);
+      }
+    }
+  }
+  cx.putImageData(img,0,0);
+  G.fossilCv = cv;
+}
+
+function buildGradients(){
+  const w=G.cssW, h=G.cssH;
+  const sheen = wctx.createLinearGradient(0,0,w*0.75,h);
+  sheen.addColorStop(0,"rgba(255,255,255,.085)");
+  sheen.addColorStop(.28,"rgba(255,255,255,.018)");
+  sheen.addColorStop(.55,"rgba(255,255,255,0)");
+  const vig = wctx.createRadialGradient(w*0.5,h*0.44,Math.min(w,h)*0.20,w*0.5,h*0.5,Math.max(w,h)*0.78);
+  vig.addColorStop(0,"rgba(0,0,0,0)");
+  vig.addColorStop(1,"rgba(0,0,0,.55)");
+  G.gradients={sheen,vig};
+}
+
+function drawStones(ctx,scale,ox,oy){
+  for(const s of G.stones){
+    const cx=(s.x+0.5)*scale+ox, cy=(s.y+0.5)*scale+oy, r=s.r*scale;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy+r*0.16,r*1.02,0,6.2832);
+    ctx.fillStyle="rgba(0,0,0,.42)"; ctx.fill();
+    const g=ctx.createRadialGradient(cx-r*0.38,cy-r*0.44,r*0.06,cx,cy,r*1.05);
+    g.addColorStop(0,"#6d757f"); g.addColorStop(.42,"#454c55"); g.addColorStop(1,"#22262c");
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,6.2832);
+    ctx.fillStyle=g; ctx.fill();
+    ctx.lineWidth=Math.max(0.6,r*0.06); ctx.strokeStyle="rgba(180,190,200,.16)"; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx-r*0.34,cy-r*0.40,r*0.20,0,6.2832);
+    ctx.fillStyle="rgba(226,234,242,.30)"; ctx.fill();
+    ctx.restore();
+  }
+}
+
+function render(){
+  const w=G.cssW,h=G.cssH;
+  wctx.setTransform(G.dpr,0,0,G.dpr,0,0);
+  wctx.imageSmoothingEnabled=false;
+  const src = (G.frozen && G.fossilCv) ? G.fossilCv : G.off;
+  wctx.drawImage(src,0,0,w,h);
+  wctx.imageSmoothingEnabled=true;
+
+  drawStones(wctx, w/G.cols, 0, 0);
+
+  // erase halo
+  if(G.pressing && G.pressing.mode==="erase"){
+    const s=w/G.cols, cx=G.pressing.gx*s, cy=G.pressing.gy*s, r=G.pressing.r*s;
+    wctx.save();
+    wctx.beginPath(); wctx.arc(cx,cy,r,0,6.2832);
+    wctx.strokeStyle="rgba(233,161,59,.75)"; wctx.lineWidth=1.6; wctx.stroke();
+    wctx.beginPath(); wctx.arc(cx,cy,r*0.62,0,6.2832);
+    wctx.strokeStyle="rgba(233,161,59,.28)"; wctx.lineWidth=1; wctx.stroke();
+    wctx.restore();
+  }
+
+  const gr=G.gradients;
+  if(gr){
+    wctx.fillStyle=gr.vig; wctx.fillRect(0,0,w,h);
+    wctx.globalCompositeOperation="screen";
+    wctx.fillStyle=gr.sheen; wctx.fillRect(0,0,w,h);
+    wctx.globalCompositeOperation="source-over";
+  }
+
+  if(G.frozen){
+    wctx.save();
+    wctx.font="600 9px ui-monospace,Menlo,monospace";
+    wctx.fillStyle="rgba(127,209,196,.62)";
+    wctx.textAlign="right"; wctx.textBaseline="bottom";
+    wctx.fillText("FOSSIL · "+DATE_STR, w-9, h-8);
+    wctx.restore();
+  }
+}
+
+/* ================= dial ================= */
+function drawDial(){
+  const size = dialCv.clientWidth || 96;
+  const dpr = G.dpr;
+  if(dialCv.width !== Math.round(size*dpr)){
+    dialCv.width = Math.round(size*dpr); dialCv.height = Math.round(size*dpr);
+  }
+  dctx.setTransform(dpr,0,0,dpr,0,0);
+  dctx.clearRect(0,0,size,size);
+  const c=size/2, R=size*0.345;
+
+  dctx.beginPath(); dctx.arc(c,c,R+size*0.10,0,6.2832);
+  const bgg=dctx.createRadialGradient(c,c-R*0.4,R*0.1,c,c,R+size*0.10);
+  bgg.addColorStop(0,"#161b21"); bgg.addColorStop(1,"#0b0e12");
+  dctx.fillStyle=bgg; dctx.fill();
+  dctx.strokeStyle="rgba(255,255,255,.06)"; dctx.lineWidth=1; dctx.stroke();
+
+  // tick marks every 30 degrees
+  for(let k=0;k<12;k++){
+    const th=k*Math.PI/6;
+    const major = k%3===0;
+    dctx.beginPath();
+    dctx.moveTo(c+Math.sin(th)*(R+size*0.055), c+Math.cos(th)*(R+size*0.055));
+    dctx.lineTo(c+Math.sin(th)*(R+size*(major?0.092:0.078)), c+Math.cos(th)*(R+size*(major?0.092:0.078)));
+    dctx.strokeStyle= major ? "rgba(200,210,220,.34)" : "rgba(200,210,220,.15)";
+    dctx.lineWidth= major?1.4:1; dctx.stroke();
+  }
+
+  // guide ring
+  dctx.beginPath(); dctx.arc(c,c,R,0,6.2832);
+  dctx.strokeStyle="rgba(233,161,59,.16)"; dctx.lineWidth=1; dctx.setLineDash([2,3]); dctx.stroke(); dctx.setLineDash([]);
+
+  const a=G.grav.a, m=G.grav.m;
+  const px=c+Math.sin(a)*R*m, py=c+Math.cos(a)*R*m;
+
+  // plumb line
+  dctx.beginPath(); dctx.moveTo(c,c); dctx.lineTo(px,py);
+  dctx.strokeStyle="rgba(233,161,59,.42)"; dctx.lineWidth=1.4; dctx.stroke();
+  dctx.beginPath(); dctx.arc(c,c,2.1,0,6.2832); dctx.fillStyle="rgba(200,210,220,.42)"; dctx.fill();
+
+  // bob
+  const accent = G.frozen ? "#7fd1c4" : "#e9a13b";
+  const pr=size*0.105;
+  dctx.beginPath(); dctx.arc(px,py+1.5,pr,0,6.2832); dctx.fillStyle="rgba(0,0,0,.5)"; dctx.fill();
+  const pg=dctx.createRadialGradient(px-pr*0.35,py-pr*0.4,pr*0.1,px,py,pr);
+  pg.addColorStop(0,"#fff2d8"); pg.addColorStop(.45,accent); pg.addColorStop(1, G.frozen?"#3d7f76":"#9c6516");
+  dctx.beginPath(); dctx.arc(px,py,pr,0,6.2832); dctx.fillStyle=pg; dctx.fill();
+  dctx.strokeStyle="rgba(0,0,0,.45)"; dctx.lineWidth=1; dctx.stroke();
+
+  dctx.font="600 7px ui-monospace,Menlo,monospace";
+  dctx.fillStyle="rgba(140,150,160,.55)";
+  dctx.textAlign="center"; dctx.textBaseline="middle";
+  dctx.fillText("DOWN", c, c+R+size*0.145);
+}
+
+/* ================= sound ================= */
+const S = { ctx:null, noise:null, filt:null, gain:null, on:false };
+function initAudio(){
+  if(S.ctx) return true;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return false;
+  try{
+    S.ctx = new AC();
+    const len = Math.floor(S.ctx.sampleRate*2);
+    const buf = S.ctx.createBuffer(1,len,S.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last=0;
+    for(let i=0;i<len;i++){ const w=Math.random()*2-1; last=(last*0.72+w*0.28); d[i]=last*1.6; }
+    const src = S.ctx.createBufferSource(); src.buffer=buf; src.loop=true;
+    const filt = S.ctx.createBiquadFilter(); filt.type="lowpass"; filt.frequency.value=500; filt.Q.value=0.6;
+    const gain = S.ctx.createGain(); gain.gain.value=0;
+    src.connect(filt); filt.connect(gain); gain.connect(S.ctx.destination);
+    src.start();
+    S.noise=src; S.filt=filt; S.gain=gain;
+    return true;
+  }catch(e){ S.ctx=null; return false; }
+}
+function blip(freq,dur,vol,type){
+  if(!S.on||!S.ctx) return;
+  const t=S.ctx.currentTime;
+  const o=S.ctx.createOscillator(), g=S.ctx.createGain();
+  o.type=type||"triangle"; o.frequency.setValueAtTime(freq,t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(40,freq*0.55), t+dur);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(S.ctx.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+function updateHiss(act){
+  if(!S.on||!S.ctx) return;
+  const t=S.ctx.currentTime;
+  const n = clamp(act, 0, 1);
+  S.gain.gain.setTargetAtTime(n*0.075, t, 0.14);
+  S.filt.frequency.setTargetAtTime(320+n*2400, t, 0.18);
+}
+
+/* ================= toast ================= */
+let toastTimer=0;
+function toast(msg,ms){
+  toastEl.textContent=msg; toastEl.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove("on"), ms||1900);
+}
+
+/* ================= layout ================= */
+function resize(){
+  const wrap = wellCv.parentElement;
+  const w = Math.max(80, wrap.clientWidth), h = Math.max(120, wrap.clientHeight);
+  const dpr = Math.min(window.devicePixelRatio||1, 2.5);
+  if(Math.abs(w-G.cssW)<0.6 && Math.abs(h-G.cssH)<0.6 && dpr===G.dpr && G.ready) return;
+  G.cssW=w; G.cssH=h; G.dpr=dpr;
+  wellCv.width=Math.round(w*dpr); wellCv.height=Math.round(h*dpr);
+
+  let cols = clamp(Math.round(w/CELL_TARGET), 40, MAX_COLS);
+  let rows = clamp(Math.round(h/CELL_TARGET), 40, MAX_ROWS);
+
+  const old = G.ready ? {cols:G.cols,rows:G.rows,type:G.type,tint:G.tint,stones:G.stones} : null;
+  buildGrid(cols,rows);
+
+  if(old){
+    // resample the existing composition rather than throwing it away
+    const {type,tint} = G;
+    for(let y=0;y<rows;y++){
+      const sy = Math.min(old.rows-1, Math.floor(y*old.rows/rows));
+      for(let x=0;x<cols;x++){
+        const i=y*cols+x;
+        if(type[i]===WALL) continue;
+        const sx = Math.min(old.cols-1, Math.floor(x*old.cols/cols));
+        const si = sy*old.cols+sx;
+        const st = old.type[si];
+        type[i] = (st===WALL) ? EMPTY : st;
+        tint[i] = old.tint[si];
+      }
+    }
+    G.stones = old.stones.map(s=>({
+      x:Math.round(s.x*cols/old.cols),
+      y:Math.round(s.y*rows/old.rows),
+      r:Math.max(2,Math.round(s.r*cols/old.cols))
+    }));
+    recount();
+  }
+
+  G.off = document.createElement("canvas");
+  G.off.width=cols; G.off.height=rows;
+  G.offctx = G.off.getContext("2d");
+  G.img = G.offctx.createImageData(cols,rows);
+  G.buf = new Uint32Array(G.img.data.buffer);
+  buildGradients();
+  if(G.frozen) buildFossil();
+  G.ready=true;
+  drawDial();
+}
+
+/* ================= gravity input ================= */
+function setGravity(a,m,fromUser){
+  G.targetA = a;
+  G.targetM = clamp(m,0,1);
+  if(fromUser){ G.lastInput = performance.now(); }
+  const deg = Math.round(((a*180/Math.PI)%360+540)%360-180);
+  dialPad.setAttribute("aria-valuenow", String(deg));
+  dialPad.setAttribute("aria-valuetext",
+    (G.targetM<0.08 ? "Weightless, sand held" :
+     Math.abs(deg)<8 ? "Down" : (deg>0? deg+" degrees toward the right" : Math.abs(deg)+" degrees toward the left"))
+    + ", weight "+Math.round(G.targetM*100)+" percent");
+}
+
+function dialFromPoint(clientX,clientY){
+  const r = dialCv.getBoundingClientRect();
+  const c = r.width/2;
+  const dx = clientX-r.left-c, dy = clientY-r.top-c;
+  const R = r.width*0.345;
+  const len = Math.hypot(dx,dy);
+  const a = (len<0.6) ? G.grav.a : Math.atan2(dx,dy);
+  setGravity(a, clamp(len/R,0,1), true);
+  disableTiltFollow();
+}
+
+let dialDrag=false;
+dialPad.addEventListener("pointerdown",e=>{
+  dialDrag=true; dialPad.setPointerCapture(e.pointerId);
+  dialFromPoint(e.clientX,e.clientY); e.preventDefault();
+});
+dialPad.addEventListener("pointermove",e=>{ if(dialDrag) dialFromPoint(e.clientX,e.clientY); });
+dialPad.addEventListener("pointerup",e=>{ dialDrag=false; try{dialPad.releasePointerCapture(e.pointerId);}catch(_){} });
+dialPad.addEventListener("pointercancel",()=>{dialDrag=false;});
+dialPad.addEventListener("keydown",e=>{
+  const k=e.key; let handled=true;
+  if(k==="ArrowLeft") setGravity(G.targetA-0.13, G.targetM, true);
+  else if(k==="ArrowRight") setGravity(G.targetA+0.13, G.targetM, true);
+  else if(k==="ArrowUp") setGravity(G.targetA, G.targetM-0.12, true);
+  else if(k==="ArrowDown") setGravity(G.targetA, G.targetM+0.12, true);
+  else if(k==="Home"||k==="0"){ setGravity(0,1,true); toast("dial levelled"); }
+  else handled=false;
+  if(handled){ e.preventDefault(); disableTiltFollow(); }
+});
+
+/* ---- device orientation ---- */
+function onOrient(e){
+  if(!G.tiltOn) return;
+  const beta = e.beta, gamma = e.gamma;
+  if(beta===null||gamma===null||beta===undefined||gamma===undefined) return;
+  if(!G.tiltBase) G.tiltBase = {beta:beta};
+  const rb = (beta - G.tiltBase.beta)*Math.PI/180;
+  const rg = clamp(gamma,-90,90)*Math.PI/180;
+  const vx = Math.sin(rg);
+  const vy = Math.sin(rb) + 0.86;
+  const len = Math.hypot(vx,vy);
+  if(len<0.02) return;
+  setGravity(Math.atan2(vx,vy), clamp(len,0,1), true);
+}
+function disableTiltFollow(){
+  if(G.tiltOn){
+    G.tiltOn=false; G.tiltBase=null;
+    window.removeEventListener("deviceorientation", onOrient, true);
+    bTilt.setAttribute("aria-pressed","false");
+  }
+}
+function enableTilt(){
+  const D = window.DeviceOrientationEvent;
+  if(!D){ toast("no motion sensor here — use the dial"); return; }
+  const go = ()=>{
+    G.tiltOn=true; G.tiltBase=null;
+    bTilt.setAttribute("aria-pressed","true");
+    window.addEventListener("deviceorientation", onOrient, true);
+    toast("tilt live — hold it level, then lean");
+  };
+  if(typeof D.requestPermission === "function"){
+    D.requestPermission().then(res=>{
+      if(res==="granted") go(); else toast("motion access declined — dial still works");
+    }).catch(()=>toast("motion unavailable — dial still works"));
+  } else go();
+}
+
+/* ================= well input ================= */
+function wellCell(e){
+  const r = wellCv.getBoundingClientRect();
+  const s = G.cols / r.width;
+  return {
+    gx: clamp((e.clientX-r.left)*s, 0, G.cols-1),
+    gy: clamp((e.clientY-r.top)*(G.rows/r.height), 0, G.rows-1)
+  };
+}
+wellCv.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  wellCv.setPointerCapture(e.pointerId);
+  const c = wellCell(e);
+  G.pressing = {id:e.pointerId, gx:c.gx, gy:c.gy, t0:performance.now(), mode:"tap", r:5, moved:0};
+  G.lastInput = performance.now();
+});
+wellCv.addEventListener("pointermove",e=>{
+  if(!G.pressing || e.pointerId!==G.pressing.id) return;
+  const c = wellCell(e);
+  G.pressing.moved += Math.hypot(c.gx-G.pressing.gx, c.gy-G.pressing.gy);
+  G.pressing.gx=c.gx; G.pressing.gy=c.gy;
+});
+function endPress(e){
+  const p = G.pressing;
+  if(!p || (e && e.pointerId!==p.id)) return;
+  G.pressing=null;
+  try{ wellCv.releasePointerCapture(e.pointerId); }catch(_){}
+  if(p.mode==="tap" && p.moved < 6){
+    placeStoneAt(p.gx,p.gy);
+  } else if(p.mode==="erase"){
+    recount();
+  }
+}
+wellCv.addEventListener("pointerup",endPress);
+wellCv.addEventListener("pointercancel",endPress);
+wellCv.addEventListener("contextmenu",e=>e.preventDefault());
+
+function placeStoneAt(gx,gy){
+  const x=Math.round(gx), y=Math.round(gy);
+  if(G.type[y*G.cols+x]===WALL){ return; }
+  // tapping a stone lifts it back out
+  for(let i=G.stones.length-1;i>=0;i--){
+    const s=G.stones[i];
+    if(Math.hypot(s.x-x,s.y-y) <= s.r+1){
+      removeStoneAt(i); toast("stone lifted"); blip(180,0.14,0.05,"sine");
+      thawIfFrozen(); return;
+    }
+  }
+  if(G.stones.length>=MAX_STONES){ toast("well is full of stones — undo to clear one"); return; }
+  const r = Math.max(3, Math.round(Math.min(G.cols,G.rows)*0.052));
+  if(addStone(x,y,r,false)){
+    recount(); thawIfFrozen();
+    blip(96,0.20,0.075,"triangle");
+    toast("stone set · "+G.stones.length+"/"+MAX_STONES);
+  }
+}
+
+function erasePulse(){
+  const p=G.pressing; if(!p) return;
+  p.r = Math.min(p.r+0.42, Math.max(9, Math.min(G.cols,G.rows)*0.11));
+  const {cols,rows,type} = G;
+  const cx=Math.round(p.gx), cy=Math.round(p.gy), r=Math.round(p.r);
+  let n=0;
+  for(let y=cy-r;y<=cy+r;y++){
+    if(y<1||y>=rows-1) continue;
+    for(let x=cx-r;x<=cx+r;x++){
+      if(x<1||x>=cols-1) continue;
+      const dx=x-cx,dy=y-cy, d2=dx*dx+dy*dy;
+      if(d2>r*r) continue;
+      const i=y*cols+x;
+      if(type[i]===SAND && Math.random() < 0.24*(1-Math.sqrt(d2)/(r+1))+0.03){ type[i]=EMPTY; n++; }
+    }
+  }
+  if(n){ G.grainCount-=n; }
+}
+
+/* ================= buttons ================= */
+const bTilt=document.getElementById("bTilt");
+const bSound=document.getElementById("bSound");
+const bUndo=document.getElementById("bUndo");
+const bFossil=document.getElementById("bFossil");
+const bSave=document.getElementById("bSave");
+const bReset=document.getElementById("bReset");
+
+bTilt.addEventListener("click",()=>{
+  if(G.tiltOn){ disableTiltFollow(); toast("tilt off — dial has the wheel"); }
+  else enableTilt();
+});
+
+bSound.addEventListener("click",()=>{
+  if(S.on){ S.on=false; if(S.gain&&S.ctx) S.gain.gain.setTargetAtTime(0,S.ctx.currentTime,0.05);
+    bSound.setAttribute("aria-pressed","false"); toast("muted"); return; }
+  if(!initAudio()){ toast("no audio available"); return; }
+  if(S.ctx.state==="suspended") S.ctx.resume();
+  S.on=true; bSound.setAttribute("aria-pressed","true");
+  blip(420,0.16,0.05,"sine");
+  toast("sound on — that hiss is the sand");
+});
+
+bUndo.addEventListener("click",()=>{
+  if(!G.stones.length){ toast("nothing to lift"); return; }
+  removeStoneAt(G.stones.length-1);
+  thawIfFrozen();
+  blip(150,0.12,0.045,"sine");
+  toast("last stone lifted · "+G.stones.length+"/"+MAX_STONES);
+});
+
+function thawIfFrozen(){
+  if(G.frozen){
+    G.frozen=false; G.fossilCv=null;
+    bFossil.classList.add("key");
+    bFossil.querySelector(".g").textContent="❄";
+    bFossil.childNodes[bFossil.childNodes.length-1].nodeValue="Fossilize";
+    lamp.classList.remove("fossil");
+  }
+}
+
+bFossil.addEventListener("click",()=>{
+  if(G.frozen){
+    thawIfFrozen();
+    toast("released — the sand remembers nothing");
+    blip(300,0.18,0.04,"sine");
+  } else {
+    buildFossil();
+    G.frozen=true;
+    bFossil.classList.remove("key");
+    bFossil.querySelector(".g").textContent="◈";
+    bFossil.childNodes[bFossil.childNodes.length-1].nodeValue="Release";
+    lamp.classList.add("fossil");
+    updateHiss(0);
+    blip(660,0.35,0.05,"sine");
+    setTimeout(()=>blip(990,0.45,0.035,"sine"),110);
+    toast("fossilised — save it, or release it");
+  }
+});
+
+bReset.addEventListener("click",()=>{
+  thawIfFrozen();
+  seedComposition();
+  setGravity(0,1,true);
+  G.grav.a=0; G.grav.m=1;
+  blip(210,0.22,0.05,"triangle");
+  toast("well re-poured");
+});
+
+bSave.addEventListener("click",saveImage);
+
+/* ================= export ================= */
+function buildExport(){
+  const cols=G.cols, rows=G.rows;
+  const s = 5;                       // px per grain
+  const pad = Math.round(s*5);
+  const plate = Math.round(s*16);
+  const W = cols*s + pad*2, H = rows*s + pad*2 + plate;
+  const cv = document.createElement("canvas");
+  cv.width=W; cv.height=H;
+  const c = cv.getContext("2d");
+
+  // shell
+  const shell = c.createLinearGradient(0,0,W,H);
+  shell.addColorStop(0,"#232930"); shell.addColorStop(.42,"#14181c");
+  shell.addColorStop(.78,"#0f1215"); shell.addColorStop(1,"#1a2026");
+  c.fillStyle=shell; c.fillRect(0,0,W,H);
+
+  const ox=pad, oy=pad, ww=cols*s, wh=rows*s;
+
+  // chamber
+  c.save();
+  c.beginPath();
+  const rr = Math.round(Math.min(ww,wh)*0.055);
+  c.moveTo(ox+rr,oy); c.arcTo(ox+ww,oy,ox+ww,oy+wh,rr);
+  c.arcTo(ox+ww,oy+wh,ox,oy+wh,rr); c.arcTo(ox,oy+wh,ox,oy,rr);
+  c.arcTo(ox,oy,ox+ww,oy,rr); c.closePath(); c.clip();
+
+  const bg=c.createLinearGradient(0,oy,0,oy+wh);
+  bg.addColorStop(0,"#0f1319"); bg.addColorStop(1,"#05070a");
+  c.fillStyle=bg; c.fillRect(ox,oy,ww,wh);
+
+  // grains, each with a bead of relief
+  const {type,tint} = G;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const i=y*cols+x;
+      if(type[i]!==SAND) continue;
+      const col=GRAIN_RGB[tint[i]];
+      const up = y>0?i-cols:i, lf = x>0?i-1:i, dn=y<rows-1?i+cols:i;
+      let f=1;
+      if(type[up]!==SAND || tint[up]!==tint[i]) f*=0.82;
+      if(type[lf]!==SAND || tint[lf]!==tint[i]) f*=0.92;
+      if(type[dn]!==SAND) f*=1.12;
+      c.fillStyle=css(shadeRGB(col,f));
+      c.fillRect(ox+x*s, oy+y*s, s, s);
+      c.fillStyle="rgba(0,0,0,.13)";
+      c.fillRect(ox+x*s, oy+y*s+s-1, s, 1);
+    }
+  }
+  drawStones(c, s, ox, oy);
+
+  // chamber light
+  const vg=c.createRadialGradient(ox+ww*0.5,oy+wh*0.42,Math.min(ww,wh)*0.18,ox+ww*0.5,oy+wh*0.5,Math.max(ww,wh)*0.76);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,.5)");
+  c.fillStyle=vg; c.fillRect(ox,oy,ww,wh);
+  const sh=c.createLinearGradient(ox,oy,ox+ww*0.7,oy+wh);
+  sh.addColorStop(0,"rgba(255,255,255,.075)"); sh.addColorStop(.32,"rgba(255,255,255,.015)");
+  sh.addColorStop(.6,"rgba(255,255,255,0)");
+  c.globalCompositeOperation="screen"; c.fillStyle=sh; c.fillRect(ox,oy,ww,wh);
+  c.globalCompositeOperation="source-over";
+  c.restore();
+
+  c.strokeStyle="rgba(255,255,255,.10)"; c.lineWidth=2;
+  c.strokeRect(ox-1,oy-1,ww+2,wh+2);
+
+  // engraved plate
+  const py = oy+wh+Math.round(plate*0.30);
+  c.textBaseline="middle";
+  c.font="600 "+Math.round(s*3.1)+"px ui-monospace,Menlo,Consolas,monospace";
+  c.textAlign="left";
+  c.fillStyle="#cfd6de";
+  const title="GRAVWELL";
+  c.save(); c.translate(ox+2,py);
+  let tx=0;
+  for(const ch of title){ c.fillText(ch,tx,0); tx += c.measureText(ch).width + s*1.15; }
+  c.restore();
+  c.font="500 "+Math.round(s*2.1)+"px ui-monospace,Menlo,Consolas,monospace";
+  c.fillStyle="#7d848c";
+  c.fillText("POCKET SAND TABLE", ox+2, py+Math.round(s*3.4));
+  c.textAlign="right";
+  c.fillStyle="#e9a13b";
+  c.fillText(DATE_STR, ox+ww-2, py);
+  c.fillStyle="#6a717a";
+  const deg = Math.round(((G.grav.a*180/Math.PI)%360+540)%360-180);
+  c.fillText("DOWN "+(deg>=0?"+":"")+deg+"°  ·  "+G.stones.length+" STONES  ·  "+(G.grainCount/1000).toFixed(1)+"K GRAINS",
+             ox+ww-2, py+Math.round(s*3.4));
+  return cv;
+}
+
+function saveImage(){
+  let cv;
+  try{ cv = buildExport(); }
+  catch(err){ toast("could not build the image"); return; }
+  const name = "gravwell-"+DATE_STR+".png";
+  const finish = url =>{
+    const a=document.createElement("a");
+    a.href=url; a.download=name; a.rel="noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>{ if(url.slice(0,5)==="blob:") URL.revokeObjectURL(url); }, 4000);
+    toast("saved "+name);
+    blip(520,0.22,0.05,"sine");
+  };
+  if(cv.toBlob){
+    cv.toBlob(b=>{
+      if(b) finish(URL.createObjectURL(b));
+      else finish(cv.toDataURL("image/png"));
+    },"image/png");
+  } else finish(cv.toDataURL("image/png"));
+}
+
+/* ================= loop ================= */
+let lastT = 0, smoothAct = 0, statusT = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!G.ready) return;
+  const dt = Math.min(64, now-(lastT||now));
+  lastT = now;
+
+  // idle breathing: the well never sits perfectly still
+  if(!RM && !G.frozen && !G.tiltOn && !dialDrag && now-G.lastInput > 11000){
+    const t = (now-G.lastInput-11000)/1000;
+    const drift = Math.sin(t*0.242)*0.115;
+    G.targetA = lerp(G.targetA, drift, 0.02);
+  }
+
+  // ease gravity toward target so tilt never snaps
+  let da = G.targetA - G.grav.a;
+  while(da>Math.PI) da-=Math.PI*2; while(da<-Math.PI) da+=Math.PI*2;
+  G.grav.a += da*Math.min(1, dt/1000*7.5);
+  G.grav.m = lerp(G.grav.m, G.targetM, Math.min(1, dt/1000*7.5));
+
+  let moves = 0;
+  if(!G.frozen){
+    if(G.pressing){
+      const held = now - G.pressing.t0;
+      if(G.pressing.mode==="tap" && (held>320 || G.pressing.moved>6)){
+        G.pressing.mode="erase";
+        toast("draining");
+      }
+      if(G.pressing.mode==="erase") erasePulse();
+    }
+    const sub = RM ? 1 : (dt < 26 ? 2 : 1);
+    for(let k=0;k<sub;k++) moves += step();
+    paintBuffer();
+  }
+  render();
+  drawDial();
+
+  const norm = clamp(moves / (G.cols*G.rows*0.016), 0, 1);
+  smoothAct = lerp(smoothAct, norm, 0.15);
+  updateHiss(smoothAct);
+
+  if(now-statusT > 180){
+    statusT=now;
+    const deg = Math.round(((G.grav.a*180/Math.PI)%360+540)%360-180);
+    rAng.textContent = (deg>=0?"+":"")+deg+"°";
+    let st;
+    if(G.frozen) st="FOSSIL";
+    else if(G.grav.m<0.08) st="HELD";
+    else if(smoothAct>0.06) st="FLOWING";
+    else st="SETTLED";
+    rState.textContent = st + " · " + (G.grainCount/1000).toFixed(1)+"K";
+    lamp.classList.toggle("pulse", !RM && !G.frozen && smoothAct>0.06);
+  }
+}
+
+/* ================= boot ================= */
+function boot(){
+  resize();
+  if(window.ResizeObserver){
+    const ro = new ResizeObserver(()=>resize());
+    ro.observe(wellCv.parentElement);
+  }
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", ()=>setTimeout(resize,220));
+  setGravity(0,1,false);
+  G.lastInput = performance.now();
+  requestAnimationFrame(frame);
+  setTimeout(()=>toast(RM ? "drag the dial to move the sand" : "tap to set a stone · hold to drain"), 900);
+}
+boot();
+
+})();
+</script>
+</body>
+</html>
