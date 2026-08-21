@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="phosphor">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Ghostline — A Vanishing Teleprompter</title>
+<style>
+  :root{
+    --bg:#05080a;
+    --panel:rgba(14,22,25,.72);
+    --edge:rgba(126,231,196,.20);
+    --edge-2:rgba(126,231,196,.10);
+    --ink:#d8f3e8;
+    --ink-dim:#7e9c94;
+    --accent:#7ee7c4;
+    --accent-2:#2ad3a0;
+    --warn:#ffb457;
+    --glow:0 0 18px rgba(42,211,160,.30);
+    --pad-h:132px;
+    --r:16px;
+    --font-read:22px;
+  }
+  html[data-theme="amber"]{
+    --bg:#08060a;
+    --panel:rgba(28,19,14,.72);
+    --edge:rgba(255,180,87,.22);
+    --edge-2:rgba(255,180,87,.10);
+    --ink:#ffe6c2;
+    --ink-dim:#a3835f;
+    --accent:#ffb457;
+    --accent-2:#ff9a2e;
+    --glow:0 0 18px rgba(255,154,46,.30);
+  }
+  html[data-theme="paper"]{
+    --bg:#0a0b0e;
+    --panel:rgba(24,26,31,.76);
+    --edge:rgba(210,222,240,.22);
+    --edge-2:rgba(210,222,240,.10);
+    --ink:#f2f6ff;
+    --ink-dim:#93a0b5;
+    --accent:#bcd4ff;
+    --accent-2:#8fb6ff;
+    --glow:0 0 16px rgba(143,182,255,.26);
+  }
+  html[data-contrast="high"]{
+    --bg:#000;
+    --panel:rgba(0,0,0,.9);
+    --ink:#fff;
+    --ink-dim:#c6cfd4;
+    --edge:rgba(255,255,255,.42);
+    --edge-2:rgba(255,255,255,.18);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"SF Pro Text",Inter,"Segoe UI",Roboto,system-ui,sans-serif;
+    -webkit-text-size-adjust:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+  body::before{
+    content:"";
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(120% 70% at 50% -10%, rgba(42,211,160,.13), transparent 62%),
+      radial-gradient(90% 60% at 50% 112%, rgba(42,211,160,.09), transparent 60%);
+  }
+  html[data-contrast="high"] body::before{display:none}
+
+  .app{
+    position:relative;z-index:1;
+    height:100dvh;height:100vh;height:100dvh;
+    display:flex;flex-direction:column;
+    max-width:760px;margin:0 auto;
+    padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 10px);
+    gap:8px;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .brand{display:flex;flex-direction:column;min-width:0;flex:1 1 auto}
+  .brand h1{
+    margin:0;font-size:15px;letter-spacing:.26em;text-transform:uppercase;
+    font-weight:600;color:var(--accent);text-shadow:var(--glow);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .brand p{margin:2px 0 0;font-size:11px;letter-spacing:.1em;color:var(--ink-dim);text-transform:uppercase}
+
+  .btn{
+    -webkit-appearance:none;appearance:none;
+    min-height:44px;min-width:44px;
+    padding:0 14px;
+    border-radius:12px;
+    border:1px solid var(--edge);
+    background:var(--panel);
+    color:var(--ink);
+    font:inherit;font-size:13px;font-weight:600;
+    letter-spacing:.04em;
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    cursor:pointer;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+    transition:border-color .18s ease, background .18s ease, transform .12s ease, color .18s ease;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn[aria-pressed="true"], .btn.primary{
+    border-color:var(--accent);
+    color:var(--accent);
+    box-shadow:inset 0 0 0 1px var(--edge-2), var(--glow);
+  }
+  .btn.primary{background:linear-gradient(180deg, rgba(42,211,160,.16), rgba(42,211,160,.06))}
+  html[data-theme="amber"] .btn.primary{background:linear-gradient(180deg, rgba(255,154,46,.16), rgba(255,154,46,.06))}
+  html[data-theme="paper"] .btn.primary{background:linear-gradient(180deg, rgba(143,182,255,.16), rgba(143,182,255,.06))}
+  .btn:focus-visible, .pad:focus-visible, .word:focus-visible, textarea:focus-visible, input:focus-visible{
+    outline:3px solid var(--accent);outline-offset:2px;
+  }
+  .btn.icon{padding:0;width:52px;font-size:17px}
+  .btn.small{min-height:44px;padding:0 11px;font-size:12px}
+
+  /* ---------- status strip ---------- */
+  .status{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:8px 10px;
+    border:1px solid var(--edge-2);
+    border-radius:12px;
+    background:var(--panel);
+    font-variant-numeric:tabular-nums;
+    font-size:12px;letter-spacing:.06em;color:var(--ink-dim);
+  }
+  .status b{color:var(--ink);font-weight:600}
+  .status .sep{opacity:.35}
+  .meter{
+    position:relative;flex:1 1 100%;height:6px;border-radius:99px;
+    background:rgba(255,255,255,.08);overflow:hidden;order:9;
+  }
+  .meter i{
+    position:absolute;inset:0 auto 0 0;width:0%;
+    background:linear-gradient(90deg,var(--accent-2),var(--accent));
+    box-shadow:var(--glow);
+    transition:width .12s linear;
+  }
+
+  /* ---------- prompter ---------- */
+  .stage-wrap{
+    position:relative;flex:1 1 auto;min-height:0;
+    border:1px solid var(--edge);
+    border-radius:var(--r);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.035), rgba(0,0,0,.22)),
+      var(--panel);
+    overflow:hidden;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.55), 0 10px 40px rgba(0,0,0,.45);
+  }
+  html[data-contrast="high"] .stage-wrap{background:#000}
+  .scanlines{
+    position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:repeating-linear-gradient(180deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+    opacity:.5;
+  }
+  html[data-contrast="high"] .scanlines{display:none}
+  .vignette{
+    position:absolute;inset:0;pointer-events:none;z-index:4;
+    background:linear-gradient(180deg, var(--bg) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 74%, var(--bg) 100%);
+    opacity:.92;
+  }
+  .readline{
+    position:absolute;left:0;right:0;top:38%;height:0;z-index:2;pointer-events:none;
+    border-top:1px solid var(--edge);
+    opacity:.5;
+  }
+  .readline::before,.readline::after{
+    content:"";position:absolute;top:-5px;width:0;height:0;
+    border-top:5px solid transparent;border-bottom:5px solid transparent;
+  }
+  .readline::before{left:0;border-left:8px solid var(--accent)}
+  .readline::after{right:0;border-right:8px solid var(--accent)}
+
+  .viewport{position:absolute;inset:0;overflow:hidden;z-index:1}
+  .track{
+    will-change:transform;
+    padding:0 clamp(14px,4.5vw,30px);
+    font-size:var(--font-read);
+    line-height:1.55;
+    letter-spacing:.005em;
+    font-weight:500;
+  }
+  .track p{margin:0 0 .9em}
+  .track p:last-child{margin-bottom:0}
+  .word{
+    display:inline;
+    border-radius:5px;
+    cursor:pointer;
+    transition:opacity .5s ease, color .3s ease, text-shadow .3s ease;
+  }
+  .word.anchor{
+    color:var(--accent);
+    font-weight:700;
+    text-shadow:var(--glow);
+    box-shadow:inset 0 -2px 0 0 var(--edge);
+  }
+  .row-now{background:rgba(255,255,255,.055);border-radius:4px}
+  html[data-contrast="high"] .row-now{background:rgba(255,255,255,.16)}
+  .word.cursor{outline:2px dashed var(--accent);outline-offset:1px}
+
+  /* fade stages */
+  .track[data-stage="2"] .word.f1:not(.anchor){opacity:.30}
+  .track[data-stage="3"] .word.f1:not(.anchor){opacity:.09}
+  .track[data-stage="3"] .word.f2:not(.anchor){opacity:.42}
+  .track[data-stage="4"] .word.f1:not(.anchor){opacity:.05}
+  .track[data-stage="4"] .word.f2:not(.anchor){opacity:.09}
+
+  .end-flag{
+    display:block;margin-top:1.2em;font-size:12px;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--ink-dim);opacity:.75;
+  }
+
+  /* ---------- stage chips ---------- */
+  .chips{display:flex;gap:6px;flex:0 0 auto}
+  .chips .btn{flex:1 1 0;min-width:0;padding:0 6px;font-size:11px;letter-spacing:.02em;flex-direction:column;gap:1px}
+  .chips .btn span.n{font-size:10px;color:var(--ink-dim);letter-spacing:.14em}
+  .chips .btn[aria-pressed="true"] span.n{color:var(--accent)}
+
+  /* ---------- transport ---------- */
+  .transport{display:flex;gap:6px;flex:0 0 auto;align-items:stretch}
+  .transport .btn{flex:0 0 auto}
+  .transport .spacer{flex:1 1 auto}
+
+  /* ---------- thumb pad ---------- */
+  .pad{
+    position:relative;flex:0 0 auto;
+    height:var(--pad-h);
+    border-radius:20px;
+    border:1px solid var(--edge);
+    background:
+      linear-gradient(180deg, rgba(42,211,160,.10), rgba(0,0,0,.28) 42%, rgba(0,0,0,.34) 58%, rgba(255,180,87,.07)),
+      var(--panel);
+    overflow:hidden;
+    touch-action:none;
+    -webkit-tap-highlight-color:transparent;
+    cursor:grab;
+    user-select:none;-webkit-user-select:none;
+  }
+  .pad.dragging{cursor:grabbing;border-color:var(--accent)}
+  .pad .tick{
+    position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--edge);opacity:.55;
+  }
+  .pad .lbl{
+    position:absolute;left:12px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim);
+  }
+  .pad .lbl.up{top:8px}
+  .pad .lbl.dn{bottom:8px}
+  .pad .hint{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);
+    text-align:right;line-height:1.5;pointer-events:none;
+  }
+  .knob{
+    position:absolute;left:50%;top:50%;
+    width:96px;height:44px;margin:-22px 0 0 -48px;
+    border-radius:22px;
+    border:1px solid var(--accent);
+    background:linear-gradient(180deg, rgba(42,211,160,.28), rgba(42,211,160,.06));
+    box-shadow:var(--glow), inset 0 1px 0 rgba(255,255,255,.22);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;letter-spacing:.06em;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+    pointer-events:none;
+    transition:transform .10s ease-out, box-shadow .18s ease;
+  }
+  .knob.snap{transition:transform .28s cubic-bezier(.22,1.2,.36,1)}
+  .halo{
+    position:absolute;left:50%;top:50%;width:96px;height:44px;margin:-22px 0 0 -48px;
+    border-radius:22px;border:1px solid var(--accent);pointer-events:none;
+    opacity:0;transform:scale(1);
+  }
+  .pad.dragging .halo{animation:pulse 1.4s ease-out infinite}
+  @keyframes pulse{
+    0%{opacity:.45;transform:scale(1)}
+    100%{opacity:0;transform:scale(1.5)}
+  }
+
+  /* ---------- sheet ---------- */
+  .sheet-scrim{
+    position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.62);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    display:none;
+  }
+  .sheet-scrim.open{display:block}
+  .sheet{
+    position:fixed;z-index:21;left:0;right:0;bottom:0;
+    max-height:92dvh;max-height:92vh;max-height:92dvh;
+    overflow:auto;-webkit-overflow-scrolling:touch;
+    background:linear-gradient(180deg, rgba(20,30,33,.98), rgba(6,10,12,.99));
+    border-top:1px solid var(--accent);
+    border-radius:22px 22px 0 0;
+    padding:14px 14px calc(env(safe-area-inset-bottom) + 20px);
+    max-width:760px;margin:0 auto;
+    transform:translateY(100%);
+    transition:transform .32s cubic-bezier(.22,1,.36,1);
+    box-shadow:0 -20px 60px rgba(0,0,0,.6);
+  }
+  html[data-contrast="high"] .sheet{background:#000}
+  .sheet.open{transform:translateY(0)}
+  .sheet h2{margin:2px 0 10px;font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
+  .sheet h3{margin:20px 0 8px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim)}
+  .sheet-head{display:flex;align-items:center;gap:8px;position:sticky;top:-14px;padding:6px 0 8px;background:linear-gradient(180deg,rgba(12,18,20,.99),rgba(12,18,20,.86));z-index:2}
+  .sheet-head h2{flex:1 1 auto;margin:0}
+  textarea{
+    width:100%;min-height:190px;resize:vertical;
+    background:rgba(0,0,0,.45);color:var(--ink);
+    border:1px solid var(--edge);border-radius:12px;
+    padding:12px;font:inherit;font-size:15px;line-height:1.5;
+  }
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .row.tight{gap:6px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;flex:1 1 140px;height:44px;background:transparent;margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:rgba(255,255,255,.14)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:30px;height:30px;border-radius:50%;margin-top:-12px;
+    background:var(--accent);border:2px solid rgba(0,0,0,.5);box-shadow:var(--glow);
+  }
+  input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:rgba(255,255,255,.14)}
+  input[type=range]::-moz-range-thumb{width:28px;height:28px;border:2px solid rgba(0,0,0,.5);border-radius:50%;background:var(--accent)}
+  .note{font-size:12px;line-height:1.6;color:var(--ink-dim);margin:8px 0 0}
+  .note b{color:var(--ink)}
+  kbd{
+    display:inline-block;min-width:22px;text-align:center;
+    padding:2px 6px;border-radius:6px;border:1px solid var(--edge);
+    background:rgba(255,255,255,.06);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
+  }
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px;color:var(--ink-dim);align-items:center}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);
+    transform:translate(-50%,14px);
+    z-index:30;pointer-events:none;
+    padding:10px 16px;border-radius:99px;
+    border:1px solid var(--accent);background:rgba(6,12,12,.95);
+    color:var(--ink);font-size:13px;font-weight:600;letter-spacing:.04em;
+    opacity:0;transition:opacity .28s ease, transform .28s ease;
+    max-width:88vw;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  @media (max-height:660px){
+    :root{--pad-h:104px}
+    .brand p{display:none}
+  }
+  @media (min-width:640px){
+    :root{--pad-h:150px}
+    .brand h1{font-size:17px}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important}
+    .word,.knob,.btn,.meter i,.toast,.sheet{transition-duration:.001s !important}
+    .scanlines{display:none}
+  }
+  html[data-motion="reduced"] .scanlines{display:none}
+  html[data-motion="reduced"] .word{transition-duration:.001s}
+  html[data-motion="reduced"] .halo{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <h1>Ghostline</h1>
+      <p>Vanishing teleprompter · rehearsal deck</p>
+    </div>
+    <button class="btn icon" id="btnHelp" type="button" aria-label="Keyboard help and about">?</button>
+    <button class="btn small" id="btnScript" type="button">Script</button>
+  </header>
+
+  <div class="status" id="status">
+    <span>Pass <b id="passN">1</b></span>
+    <span class="sep">·</span>
+    <span id="stageName">Full text</span>
+    <span class="sep">·</span>
+    <span><b id="wpmOut">0</b> wpm</span>
+    <span class="sep">·</span>
+    <span id="timeOut">≈2:12 left</span>
+    <span class="sep">·</span>
+    <span><b id="anchorCount">0</b> anchors</span>
+    <div class="meter" aria-hidden="true"><i id="meterFill"></i></div>
+  </div>
+
+  <div class="stage-wrap">
+    <div class="viewport" id="viewport">
+      <div class="track" id="track" data-stage="1" tabindex="0" role="group"
+           aria-label="Teleprompter text. Tap a word to mark it as an anchor. Arrow left and right move the word cursor, M marks an anchor."></div>
+    </div>
+    <div class="readline" aria-hidden="true"></div>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+  </div>
+
+  <div class="chips" role="group" aria-label="Rehearsal visibility stage">
+    <button class="btn" type="button" data-stage="1" aria-pressed="true"><span class="n">1</span>Full</button>
+    <button class="btn" type="button" data-stage="2" aria-pressed="false"><span class="n">2</span>Thinning</button>
+    <button class="btn" type="button" data-stage="3" aria-pressed="false"><span class="n">3</span>Ghosted</button>
+    <button class="btn" type="button" data-stage="4" aria-pressed="false"><span class="n">4</span>Anchors</button>
+  </div>
+
+  <div class="transport">
+    <button class="btn icon" id="btnTop" type="button" aria-label="Back to top of script">⤒</button>
+    <button class="btn icon" id="btnRev" type="button" aria-pressed="false" aria-label="Reverse direction">⇅</button>
+    <button class="btn primary" id="btnPlay" type="button" aria-pressed="false" style="flex:1 1 auto">▶ Run</button>
+    <button class="btn small" id="btnCruise" type="button" aria-pressed="false" aria-label="Cruise: keep speed after release">Cruise</button>
+    <button class="btn icon" id="btnReset" type="button" aria-label="Reset passes and position">⟲</button>
+  </div>
+
+  <div class="pad" id="pad" role="slider" tabindex="0"
+       aria-label="Speed thumb control. Push up to read forward, pull down to reverse."
+       aria-valuemin="-400" aria-valuemax="400" aria-valuenow="0" aria-valuetext="stopped">
+    <div class="tick" aria-hidden="true"></div>
+    <span class="lbl up" aria-hidden="true">Forward</span>
+    <span class="lbl dn" aria-hidden="true">Reverse</span>
+    <span class="hint" aria-hidden="true">hold &amp; slide<br>to set pace</span>
+    <div class="halo" aria-hidden="true"></div>
+    <div class="knob" id="knob" aria-hidden="true">0 wpm</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<span class="sr" id="live" aria-live="polite"></span>
+
+<div class="sheet-scrim" id="scrim"></div>
+
+<section class="sheet" id="sheetScript" role="dialog" aria-modal="true" aria-labelledby="scriptTitle" hidden>
+  <div class="sheet-head">
+    <h2 id="scriptTitle">Passage &amp; look</h2>
+    <button class="btn small" type="button" data-close>Done</button>
+  </div>
+
+  <h3>Your passage</h3>
+  <textarea id="scriptBox" spellcheck="true" aria-label="Script text. Wrap a phrase in double square brackets to mark it as an anchor."></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="btn small primary" id="btnLoadText" type="button">Load into prompter</button>
+    <button class="btn small" id="btnDemo" type="button">Restore demo</button>
+    <button class="btn small" id="btnDownload" type="button">Download .txt</button>
+    <button class="btn small" id="btnClearAnchors" type="button">Clear anchors</button>
+  </div>
+  <p class="note">Paste or type any passage. Wrap words in <b>[[double brackets]]</b> to pre-mark anchors, or just tap words in the prompter. Text never leaves this tab — the download writes a local file from memory.</p>
+
+  <h3>Type size</h3>
+  <div class="row">
+    <button class="btn icon" id="fontDown" type="button" aria-label="Smaller type">A−</button>
+    <input type="range" id="fontRange" min="16" max="46" step="1" value="22" aria-label="Reading type size">
+    <button class="btn icon" id="fontUp" type="button" aria-label="Larger type">A+</button>
+  </div>
+
+  <h3>Phosphor</h3>
+  <div class="row" role="group" aria-label="Colour theme">
+    <button class="btn small" type="button" data-theme="phosphor" aria-pressed="true">Green</button>
+    <button class="btn small" type="button" data-theme="amber" aria-pressed="false">Amber</button>
+    <button class="btn small" type="button" data-theme="paper" aria-pressed="false">Ice</button>
+    <button class="btn small" id="btnContrast" type="button" aria-pressed="false">High contrast</button>
+    <button class="btn small" id="btnMotion" type="button" aria-pressed="false">Reduce motion</button>
+  </div>
+  <p class="note">Nothing here is stored. Reload and Ghostline returns to the demo passage.</p>
+</section>
+
+<section class="sheet" id="sheetHelp" role="dialog" aria-modal="true" aria-labelledby="helpTitle" hidden>
+  <div class="sheet-head">
+    <h2 id="helpTitle">How to rehearse</h2>
+    <button class="btn small" type="button" data-close>Done</button>
+  </div>
+  <p class="note">
+    <b>1.</b> Hold the pad at the bottom and slide your thumb up. The further from centre, the faster the script climbs; pull below centre to run it backwards. Release and it stops — unless <b>Cruise</b> is on.<br>
+    <b>2.</b> Tap any word to make it an <b>anchor</b>. Anchors are the phrases you want to survive.<br>
+    <b>3.</b> Each time you reach the end, the pass advances and more non-anchor words fade. By pass 4 only your anchors remain lit — say the rest from memory.
+  </p>
+  <h3>Stages</h3>
+  <p class="note">
+    <b>1 Full</b> — every word visible.<br>
+    <b>2 Thinning</b> — short connective words dim.<br>
+    <b>3 Ghosted</b> — most of the script is a faint outline.<br>
+    <b>4 Anchors</b> — only your marked phrases stay lit.
+  </p>
+  <h3>Keyboard</h3>
+  <div class="keys">
+    <kbd>Space</kbd><span>run / pause</span>
+    <kbd>↑</kbd><span>faster (or less reverse)</span>
+    <kbd>↓</kbd><span>slower / reverse</span>
+    <kbd>←</kbd><span>previous word cursor</span>
+    <kbd>→</kbd><span>next word cursor</span>
+    <kbd>M</kbd><span>mark / unmark anchor at cursor</span>
+    <kbd>R</kbd><span>flip direction</span>
+    <kbd>1</kbd><span>–<kbd>4</kbd> jump to a visibility stage</span>
+    <kbd>0</kbd><span>back to top</span>
+    <kbd>Esc</kbd><span>close a panel</span>
+  </div>
+  <h3>About</h3>
+  <p class="note">Ghostline is one self-contained HTML file. No network, no server, no account, no storage, no analytics, no camera, no microphone, no recording. The demo passage is fictional.</p>
+</section>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------------- data */
+
+  var DEMO = [
+    "Good morning. In the next [[two minutes]] I want to show you one small thing that works, and then get out of your way.",
+    "Every team we spoke to described the same [[quiet failure]]. Not a crash. Not a bad quarter. Just a good idea that never quite finished — the last ten percent nobody scheduled, the demo that stayed a draft, the note that ended with we should probably.",
+    "So we built the [[smallest possible answer]]. One screen. It lists the things you started, and only the things you started. Nothing you might do someday. Nothing anyone else assigned. Just the open loops with your name on them, ordered by how close they are to done.",
+    "Here is the part I actually care about. When you finish something, the tool asks one question: what would you tell the next person? You get [[one sentence]]. Not a report, not a retrospective. One sentence. Those sentences become the only documentation anyone reads, because they are the only documentation anyone writes.",
+    "We have been living inside it for six weeks, and [[three things changed]]. Handoffs got shorter. Old projects either moved or were closed on purpose, out loud. And the weekly meeting stopped being a status recital, because the status was already written by the person holding the work.",
+    "I want to be honest about what it [[does not do]]. It does not plan anything. It will not tell you what to work on. If you are drowning in commitments, this will show you the water — it will not drain it.",
+    "What we are asking for today is narrow. [[Two teams, four weeks]], no migration. Keep every tool you already use exactly where it is. At the end we will show you the sentences people wrote and let you decide whether they were worth the trouble.",
+    "That is the whole pitch. One screen, one question, and a habit of [[finishing out loud]]. Thank you — I would love to hear where you think this breaks."
+  ].join("\n\n");
+
+  var STAGES = ["Full text","Thinning","Ghosted","Anchors only"];
+  var MAX_WPM = 400;
+  var DEFAULT_WPM = 150;
+
+  /* ---------------------------------------------------------------- refs */
+
+  var $ = function(id){ return document.getElementById(id); };
+  var track = $("track"), viewport = $("viewport"), pad = $("pad"), knob = $("knob");
+  var meterFill = $("meterFill"), wpmOut = $("wpmOut"), timeOut = $("timeOut");
+  var passOut = $("passN"), stageOut = $("stageName"), anchorOut = $("anchorCount");
+  var toastEl = $("toast"), liveEl = $("live");
+  var scriptBox = $("scriptBox"), scrim = $("scrim");
+  var htmlEl = document.documentElement;
+
+  /* --------------------------------------------------------------- state */
+
+  var S = {
+    words: [],        // {el, text, key, tier}
+    rows: [],         // {top, items:[el]}
+    anchors: [],      // parallel boolean array
+    stage: 1,
+    pass: 1,
+    pos: 0,
+    maxPos: 0,
+    contentH: 1,
+    wpm: 0,
+    lastWpm: DEFAULT_WPM,
+    running: false,
+    reversed: false,
+    cruise: false,
+    dragging: false,
+    curRow: -1,
+    cursor: 0,
+    fontPx: 22
+  };
+
+  var reducedQuery = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  function motionReduced(){
+    return htmlEl.getAttribute("data-motion") === "reduced" || (reducedQuery && reducedQuery.matches);
+  }
+
+  /* ------------------------------------------------------------ building */
+
+  // Deterministic 0..1 rank for a word: short connective words fade first.
+  function rankFor(word, i){
+    var h = 2166136261 >>> 0;
+    var s = word.toLowerCase() + "#" + i;
+    for (var k = 0; k < s.length; k++){
+      h ^= s.charCodeAt(k);
+      h = (h * 16777619) >>> 0;
+    }
+    var noise = (h % 1000) / 1000;                 // 0..1, stable per word
+    var letters = word.replace(/[^A-Za-z0-9']/g, "").length;
+    var shortness = letters <= 3 ? 0 : (letters <= 5 ? 0.35 : 0.75);
+    return Math.min(0.999, shortness * 0.62 + noise * 0.38);
+  }
+
+  // Parse [[ ]] anchor markers out of raw text, returning clean text + marked ranges.
+  function parseMarked(raw){
+    var out = "", marks = [], i = 0;
+    while (i < raw.length){
+      var open = raw.indexOf("[[", i);
+      if (open === -1){ out += raw.slice(i); break; }
+      var close = raw.indexOf("]]", open + 2);
+      if (close === -1){ out += raw.slice(i); break; }
+      out += raw.slice(i, open);
+      var start = out.length;
+      out += raw.slice(open + 2, close);
+      marks.push([start, out.length]);
+      i = close + 2;
+    }
+    return { text: out, marks: marks };
+  }
+
+  function buildFrom(raw){
+    var parsed = parseMarked(String(raw).replace(/\r\n?/g, "\n"));
+    var text = parsed.text;
+
+    // Walk the cleaned text once, keeping each word's exact character offsets so
+    // the [[ ]] ranges land on the right words no matter how the text is spaced.
+    var re = /\S+/g, m, tokens = [], prevEnd = 0;
+    while ((m = re.exec(text)) !== null){
+      var gapHasBreak = /\n\s*\n/.test(text.slice(prevEnd, m.index));
+      tokens.push({ text: m[0], start: m.index, end: m.index + m[0].length, newPara: tokens.length > 0 && gapHasBreak });
+      prevEnd = m.index + m[0].length;
+    }
+    if (!tokens.length){
+      var placeholder = "(Empty passage — open Script and paste something to rehearse.)";
+      var off = 0;
+      placeholder.split(" ").forEach(function(w){
+        tokens.push({ text: w, start: off, end: off + w.length, newPara: false });
+        off += w.length + 1;
+      });
+    }
+
+    track.innerHTML = "";
+    S.words = [];
+    S.anchors = [];
+
+    var p = document.createElement("p");
+    tokens.forEach(function(tk, j){
+      if (tk.newPara){
+        track.appendChild(p);
+        p = document.createElement("p");
+      } else if (j > 0){
+        p.appendChild(document.createTextNode(" "));
+      }
+      var idx = S.words.length;
+      var span = document.createElement("span");
+      span.className = "word " + (rankFor(tk.text, idx) < 0.42 ? "f1" : "f2");
+      span.textContent = tk.text;
+      span.setAttribute("data-i", String(idx));
+      p.appendChild(span);
+      S.words.push({ el: span, text: tk.text, start: tk.start, end: tk.end });
+      S.anchors.push(false);
+    });
+    track.appendChild(p);
+
+    var flag = document.createElement("span");
+    flag.className = "end-flag";
+    flag.textContent = "— end of passage —";
+    track.appendChild(flag);
+
+    // Apply anchors from [[ ]] ranges.
+    parsed.marks.forEach(function(range){
+      S.words.forEach(function(w, i){
+        if (w.start < range[1] && w.end > range[0]) S.anchors[i] = true;
+      });
+    });
+
+    S.cursor = 0;
+    applyAnchors();
+    layout();
+    setPos(0);
+  }
+
+  function applyAnchors(){
+    var n = 0;
+    for (var i = 0; i < S.words.length; i++){
+      if (S.anchors[i]){ S.words[i].el.classList.add("anchor"); n++; }
+      else S.words[i].el.classList.remove("anchor");
+    }
+    anchorOut.textContent = String(n);
+  }
+
+  /* -------------------------------------------------------------- layout */
+
+  function layout(){
+    var vh = viewport.clientHeight || 1;
+    var padTop = Math.round(vh * 0.36);
+    var padBottom = Math.round(vh * 0.58);
+    track.style.paddingTop = padTop + "px";
+    track.style.paddingBottom = padBottom + "px";
+
+    // Row grouping by offsetTop so we can highlight the live line.
+    var rows = [], byTop = {};
+    for (var i = 0; i < S.words.length; i++){
+      var el = S.words[i].el;
+      var top = Math.round(el.offsetTop);
+      if (!byTop[top]){ byTop[top] = { top: top, items: [], first: i }; rows.push(byTop[top]); }
+      byTop[top].items.push(el);
+    }
+    rows.sort(function(a,b){ return a.top - b.top; });
+    S.rows = rows;
+
+    S.contentH = Math.max(1, track.scrollHeight - padTop - padBottom);
+    S.maxPos = Math.max(0, track.scrollHeight - vh);
+    S.curRow = -1;
+    setPos(Math.min(S.pos, S.maxPos));
+  }
+
+  function pxPerWord(){
+    return S.words.length ? (S.contentH / S.words.length) : 20;
+  }
+
+  function setPos(v){
+    S.pos = Math.max(0, Math.min(S.maxPos, v));
+    track.style.transform = "translate3d(0," + (-S.pos) + "px,0)";
+    meterFill.style.width = (S.maxPos > 0 ? (S.pos / S.maxPos) * 100 : 0).toFixed(1) + "%";
+    highlightRow();
+    updateReadout();
+  }
+
+  function highlightRow(){
+    if (!S.rows.length) return;
+    var lineY = S.pos + (viewport.clientHeight * 0.38);
+    var lo = 0, hi = S.rows.length - 1, found = 0;
+    while (lo <= hi){
+      var mid = (lo + hi) >> 1;
+      if (S.rows[mid].top <= lineY){ found = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    if (found === S.curRow) return;
+    if (S.curRow >= 0 && S.rows[S.curRow]){
+      S.rows[S.curRow].items.forEach(function(el){ el.classList.remove("row-now"); });
+    }
+    S.curRow = found;
+    S.rows[found].items.forEach(function(el){ el.classList.add("row-now"); });
+  }
+
+  /* ------------------------------------------------------------- readout */
+
+  function fmtTime(sec){
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    var m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    if (s === 60){ m++; s = 0; }
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function wordsRemaining(){
+    var ppw = pxPerWord();
+    var done = Math.round(S.pos / ppw);
+    return Math.max(0, S.words.length - done);
+  }
+
+  function updateReadout(){
+    var shown = Math.round(S.wpm);
+    wpmOut.textContent = String(shown);
+    var moving = Math.abs(S.wpm) > 4;
+    var rate = moving ? Math.abs(S.wpm) : S.lastWpm;
+    var rewinding = S.wpm < -4;
+    var remaining = rewinding ? (S.words.length - wordsRemaining()) : wordsRemaining();
+    var secs = rate > 0 ? (remaining / rate) * 60 : 0;
+    timeOut.textContent = "≈" + fmtTime(secs) + (rewinding ? " to top" : " left") +
+      (moving ? "" : " at " + Math.round(rate));
+    pad.setAttribute("aria-valuenow", String(shown));
+    pad.setAttribute("aria-valuetext", shown === 0 ? "stopped" :
+      (shown > 0 ? shown + " words per minute forward" : Math.abs(shown) + " words per minute reverse"));
+    knob.textContent = (shown === 0 ? "hold" : (shown > 0 ? "▲ " : "▼ ") + Math.abs(shown));
+  }
+
+  /* --------------------------------------------------------------- speed */
+
+  function setWpm(v){
+    v = Math.max(-MAX_WPM, Math.min(MAX_WPM, v));
+    S.wpm = v;
+    S.running = Math.abs(v) > 4;
+    if (S.running) S.lastWpm = Math.abs(v);
+    var play = $("btnPlay");
+    play.setAttribute("aria-pressed", S.running ? "true" : "false");
+    play.textContent = S.running ? "❚❚ Pause" : "▶ Run";
+    if (!S.dragging) moveKnob((S.reversed ? -v : v) / MAX_WPM, true);
+    updateReadout();
+  }
+
+  function moveKnob(frac, snap){
+    var h = pad.clientHeight || 120;
+    var travel = (h / 2) - 26;
+    knob.classList.toggle("snap", !!snap && !motionReduced());
+    knob.style.transform = "translateY(" + (-frac * travel).toFixed(1) + "px)";
+    knob.style.boxShadow = Math.abs(frac) > 0.02
+      ? "0 0 " + (10 + Math.abs(frac) * 34).toFixed(0) + "px rgba(42,211,160,." + (2 + Math.round(Math.abs(frac) * 5)) + "), inset 0 1px 0 rgba(255,255,255,.22)"
+      : "";
+  }
+
+  /* ---------------------------------------------------------- pad input */
+
+  var padRect = null;
+
+  function padValue(clientY){
+    var half = padRect.height / 2;
+    var d = (padRect.top + half - clientY) / Math.max(1, half - 14);
+    d = Math.max(-1, Math.min(1, d));
+    var dz = 0.07;
+    var a = Math.abs(d);
+    if (a <= dz) return 0;
+    var norm = (a - dz) / (1 - dz);
+    var curved = Math.pow(norm, 1.55);
+    return (d < 0 ? -1 : 1) * curved;
+  }
+
+  function padApply(clientY){
+    var raw = padValue(clientY);          // where the thumb sits, -1 (bottom) .. 1 (top)
+    moveKnob(raw, false);                 // the knob always tracks the thumb
+    setWpm((S.reversed ? -raw : raw) * MAX_WPM);
+  }
+
+  pad.addEventListener("pointerdown", function(e){
+    padRect = pad.getBoundingClientRect();
+    S.dragging = true;
+    pad.classList.add("dragging");
+    if (pad.setPointerCapture) { try { pad.setPointerCapture(e.pointerId); } catch(_){} }
+    padApply(e.clientY);
+    e.preventDefault();
+  });
+  pad.addEventListener("pointermove", function(e){
+    if (!S.dragging) return;
+    padApply(e.clientY);
+    e.preventDefault();
+  });
+  function padRelease(){
+    if (!S.dragging) return;
+    S.dragging = false;
+    pad.classList.remove("dragging");
+    if (!S.cruise){ setWpm(0); moveKnob(0, true); }
+    else moveKnob((S.reversed ? -S.wpm : S.wpm) / MAX_WPM, true);
+  }
+  pad.addEventListener("pointerup", padRelease);
+  pad.addEventListener("pointercancel", padRelease);
+  pad.addEventListener("lostpointercapture", padRelease);
+  pad.addEventListener("keydown", function(e){
+    if (e.key === "ArrowUp"){ nudge(15); e.preventDefault(); }
+    else if (e.key === "ArrowDown"){ nudge(-15); e.preventDefault(); }
+    else if (e.key === "Home"){ setWpm(0); e.preventDefault(); }
+    else if (e.key === "Enter"){ togglePlay(); e.preventDefault(); }
+  });
+
+  function nudge(delta){
+    setWpm(S.wpm + delta);
+  }
+
+  /* ------------------------------------------------------------ transport */
+
+  function togglePlay(){
+    if (S.running) setWpm(0);
+    else setWpm(S.reversed ? -S.lastWpm : S.lastWpm);
+  }
+
+  function goTop(){
+    setPos(0);
+    announce("Back to the top of the passage");
+  }
+
+  function setStage(n, quiet){
+    S.stage = Math.max(1, Math.min(4, n));
+    track.setAttribute("data-stage", String(S.stage));
+    stageOut.textContent = STAGES[S.stage - 1];
+    var chips = document.querySelectorAll(".chips .btn");
+    for (var i = 0; i < chips.length; i++){
+      chips[i].setAttribute("aria-pressed", (i + 1) === S.stage ? "true" : "false");
+    }
+    if (!quiet) announce("Stage " + S.stage + ": " + STAGES[S.stage - 1]);
+  }
+
+  function reachedEnd(){
+    setWpm(0);
+    if (S.stage < 4){
+      S.pass++;
+      passOut.textContent = String(S.pass);
+      setStage(S.stage + 1, true);
+      toast("Pass " + S.pass + " — " + STAGES[S.stage - 1]);
+      announce("End of passage. Pass " + S.pass + ", stage " + S.stage + ": " + STAGES[S.stage - 1]);
+    } else {
+      toast("Final pass complete — anchors only");
+      announce("End of passage. Final pass complete.");
+    }
+    setPos(0);
+  }
+
+  function resetAll(){
+    S.pass = 1;
+    passOut.textContent = "1";
+    setStage(1, true);
+    setWpm(0);
+    setPos(0);
+    toast("Reset to pass 1");
+    announce("Reset to pass 1, full text.");
+  }
+
+  /* ------------------------------------------------------------- anchors */
+
+  track.addEventListener("click", function(e){
+    var el = e.target;
+    if (!el || !el.classList || !el.classList.contains("word")) return;
+    var i = parseInt(el.getAttribute("data-i"), 10);
+    if (isNaN(i)) return;
+    toggleAnchor(i);
+  });
+
+  function toggleAnchor(i){
+    S.anchors[i] = !S.anchors[i];
+    applyAnchors();
+    S.cursor = i;
+    paintCursor();
+    announce((S.anchors[i] ? "Anchored " : "Cleared ") + S.words[i].text);
+  }
+
+  function paintCursor(){
+    for (var i = 0; i < S.words.length; i++) S.words[i].el.classList.remove("cursor");
+    var w = S.words[S.cursor];
+    if (!w) return;
+    w.el.classList.add("cursor");
+  }
+
+  function moveCursor(step){
+    if (!S.words.length) return;
+    S.cursor = Math.max(0, Math.min(S.words.length - 1, S.cursor + step));
+    paintCursor();
+    // Keep the cursor near the reading line.
+    var target = S.words[S.cursor].el.offsetTop - (viewport.clientHeight * 0.38);
+    if (Math.abs(target - S.pos) > viewport.clientHeight * 0.30) setPos(target);
+    announce(S.words[S.cursor].text + (S.anchors[S.cursor] ? ", anchored" : ""));
+  }
+
+  /* --------------------------------------------------------------- loop */
+
+  var last = 0;
+  function frame(ts){
+    if (!last) last = ts;
+    var dt = Math.min(0.06, (ts - last) / 1000);
+    last = ts;
+    if (S.running && Math.abs(S.wpm) > 4){
+      var pps = (S.wpm / 60) * pxPerWord();
+      var next = S.pos + pps * dt;
+      if (next >= S.maxPos && S.maxPos > 0){
+        setPos(S.maxPos);
+        reachedEnd();
+      } else if (next <= 0){
+        var wasRewinding = S.pos > 0;
+        setPos(0);
+        setWpm(0);
+        if (wasRewinding) toast("Top of passage");
+      } else {
+        setPos(next);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* --------------------------------------------------------------- chrome */
+
+  var toastTimer = null;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 2100);
+  }
+  function announce(msg){ liveEl.textContent = msg; }
+
+  var openSheet = null;
+  function showSheet(el){
+    if (openSheet) hideSheet();
+    openSheet = el;
+    el.hidden = false;
+    scrim.classList.add("open");
+    // allow the browser a frame so the transform transition runs
+    requestAnimationFrame(function(){ el.classList.add("open"); });
+    var focusable = el.querySelector("textarea, button");
+    if (focusable) focusable.focus({ preventScroll: true });
+  }
+  function hideSheet(){
+    if (!openSheet) return;
+    var el = openSheet;
+    openSheet = null;
+    el.classList.remove("open");
+    scrim.classList.remove("open");
+    setTimeout(function(){ if (!el.classList.contains("open")) el.hidden = true; }, 320);
+  }
+  scrim.addEventListener("click", hideSheet);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-close]"), function(b){
+    b.addEventListener("click", hideSheet);
+  });
+
+  $("btnScript").addEventListener("click", function(){
+    scriptBox.value = currentMarkedText();
+    showSheet($("sheetScript"));
+  });
+  $("btnHelp").addEventListener("click", function(){ showSheet($("sheetHelp")); });
+
+  /* ------------------------------------------------------------- exports */
+
+  function currentMarkedText(){
+    // Rebuild the passage from the DOM, wrapping contiguous anchor runs in [[ ]].
+    var parts = [];
+    var paras = track.querySelectorAll("p");
+    for (var p = 0; p < paras.length; p++){
+      var spans = paras[p].querySelectorAll(".word");
+      var line = "", inAnchor = false;
+      for (var i = 0; i < spans.length; i++){
+        var gi = parseInt(spans[i].getAttribute("data-i"), 10);
+        var isA = !!S.anchors[gi];
+        if (isA && !inAnchor){ line += "[["; inAnchor = true; }
+        if (!isA && inAnchor){ line = line.replace(/\s$/, "") + "]] "; inAnchor = false; }
+        line += spans[i].textContent + (i < spans.length - 1 ? " " : "");
+      }
+      if (inAnchor) line = line.replace(/\s$/, "") + "]]";
+      parts.push(line);
+    }
+    return parts.join("\n\n");
+  }
+
+  $("btnDownload").addEventListener("click", function(){
+    var body = "Ghostline — rehearsal passage\n" +
+               "Anchors are marked with [[double brackets]].\n" +
+               "----------------------------------------\n\n" +
+               currentMarkedText() + "\n";
+    var blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "ghostline-passage.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    toast("Saved locally as a .txt");
+  });
+
+  $("btnLoadText").addEventListener("click", function(){
+    var raw = scriptBox.value;
+    if (!raw.trim()){ toast("Nothing to load"); return; }
+    buildFrom(raw);
+    S.pass = 1; passOut.textContent = "1";
+    setStage(1, true);
+    setWpm(0);
+    hideSheet();
+    toast("Passage loaded — " + S.words.length + " words");
+    announce("Passage loaded, " + S.words.length + " words.");
+  });
+
+  $("btnDemo").addEventListener("click", function(){
+    scriptBox.value = DEMO;
+    buildFrom(DEMO);
+    S.pass = 1; passOut.textContent = "1";
+    setStage(1, true);
+    setWpm(0);
+    toast("Demo passage restored");
+  });
+
+  $("btnClearAnchors").addEventListener("click", function(){
+    for (var i = 0; i < S.anchors.length; i++) S.anchors[i] = false;
+    applyAnchors();
+    scriptBox.value = currentMarkedText();
+    toast("Anchors cleared");
+  });
+
+  /* ------------------------------------------------------------ settings */
+
+  function setFont(px){
+    S.fontPx = Math.max(16, Math.min(46, px));
+    htmlEl.style.setProperty("--font-read", S.fontPx + "px");
+    $("fontRange").value = String(S.fontPx);
+    // Re-measure after the browser reflows.
+    requestAnimationFrame(layout);
+  }
+  $("fontRange").addEventListener("input", function(){ setFont(parseInt(this.value, 10)); });
+  $("fontUp").addEventListener("click", function(){ setFont(S.fontPx + 2); });
+  $("fontDown").addEventListener("click", function(){ setFont(S.fontPx - 2); });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-theme]"), function(b){
+    b.addEventListener("click", function(){
+      htmlEl.setAttribute("data-theme", b.getAttribute("data-theme"));
+      Array.prototype.forEach.call(document.querySelectorAll("[data-theme]"), function(o){
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+    });
+  });
+
+  $("btnContrast").addEventListener("click", function(){
+    var on = htmlEl.getAttribute("data-contrast") === "high";
+    htmlEl.setAttribute("data-contrast", on ? "normal" : "high");
+    this.setAttribute("aria-pressed", on ? "false" : "true");
+  });
+
+  $("btnMotion").addEventListener("click", function(){
+    var on = htmlEl.getAttribute("data-motion") === "reduced";
+    htmlEl.setAttribute("data-motion", on ? "full" : "reduced");
+    this.setAttribute("aria-pressed", on ? "false" : "true");
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".chips .btn"), function(b){
+    b.addEventListener("click", function(){ setStage(parseInt(b.getAttribute("data-stage"), 10)); });
+  });
+
+  $("btnPlay").addEventListener("click", togglePlay);
+  $("btnTop").addEventListener("click", goTop);
+  $("btnReset").addEventListener("click", resetAll);
+  $("btnRev").addEventListener("click", function(){
+    S.reversed = !S.reversed;
+    this.setAttribute("aria-pressed", S.reversed ? "true" : "false");
+    if (Math.abs(S.wpm) > 4) setWpm(-S.wpm);
+    toast(S.reversed ? "Pad inverted — push up to rewind" : "Pad normal — push up to advance");
+  });
+  $("btnCruise").addEventListener("click", function(){
+    S.cruise = !S.cruise;
+    this.setAttribute("aria-pressed", S.cruise ? "true" : "false");
+    toast(S.cruise ? "Cruise on — speed holds after release" : "Cruise off — release to stop");
+  });
+
+  /* ------------------------------------------------------------ keyboard */
+
+  document.addEventListener("keydown", function(e){
+    var t = e.target;
+    var typing = t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT");
+    if (e.key === "Escape"){ hideSheet(); return; }
+    if (typing) return;
+    if (openSheet) return;
+    if (t === pad && (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter")) return;
+
+    switch (e.key){
+      case " ": case "Spacebar": togglePlay(); e.preventDefault(); break;
+      case "ArrowUp": nudge(15); e.preventDefault(); break;
+      case "ArrowDown": nudge(-15); e.preventDefault(); break;
+      case "ArrowLeft": moveCursor(-1); e.preventDefault(); break;
+      case "ArrowRight": moveCursor(1); e.preventDefault(); break;
+      case "m": case "M": toggleAnchor(S.cursor); e.preventDefault(); break;
+      case "r": case "R": $("btnRev").click(); e.preventDefault(); break;
+      case "0": goTop(); e.preventDefault(); break;
+      case "1": case "2": case "3": case "4":
+        setStage(parseInt(e.key, 10)); e.preventDefault(); break;
+    }
+  });
+
+  /* --------------------------------------------------------------- init */
+
+  var resizeTimer = null;
+  window.addEventListener("resize", function(){
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layout, 140);
+  });
+  if (window.visualViewport){
+    window.visualViewport.addEventListener("resize", function(){
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(layout, 140);
+    });
+  }
+
+  if (reducedQuery && reducedQuery.matches){
+    htmlEl.setAttribute("data-motion", "reduced");
+    $("btnMotion").setAttribute("aria-pressed", "true");
+  }
+
+  scriptBox.value = DEMO;
+  setFont(window.innerWidth < 420 ? 21 : 24);
+  buildFrom(DEMO);
+  setStage(1, true);
+  setWpm(0);
+  paintCursor();
+  setTimeout(layout, 60);
+  window.addEventListener("load", function(){ setTimeout(layout, 40); });
+})();
+</script>
+</body>
+</html>
