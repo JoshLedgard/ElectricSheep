@@ -1,0 +1,1729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Scroll Seismograph — A Gesture Motion Recorder</title>
+<style>
+  :root{
+    --ink:#070a0d;
+    --panel:#0f151a;
+    --panel-2:#131c22;
+    --plate:#18222a;
+    --line:#22313a;
+    --line-soft:#1a252c;
+    --text:#cddae1;
+    --bright:#eef6f9;
+    --dim:#7d8f9a;
+    --a:#4fe3b0;
+    --a-dim:#1f6b56;
+    --b:#ffb454;
+    --b-dim:#6d4c1d;
+    --hot:#ff6f5e;
+    --pad:14px;
+    --r:12px;
+    font-synthesis-weight:none;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  body{
+    background:
+      radial-gradient(120% 70% at 50% -10%, #14212a 0%, transparent 60%),
+      linear-gradient(180deg,#080c0f 0%, #060809 100%);
+    background-attachment:fixed;
+    color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    -webkit-text-size-adjust:100%;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 40px;
+  }
+
+  .mono{font-family:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;font-variant-numeric:tabular-nums;}
+
+  .wrap{
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 var(--pad);
+  }
+
+  /* ---------- header ---------- */
+  header{
+    padding:24px 0 18px;
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:10px;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--dim);
+    border:1px solid var(--line);
+    background:rgba(20,30,37,.7);
+    border-radius:999px;
+    padding:5px 11px;
+  }
+  .eyebrow i{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--a);
+    box-shadow:0 0 8px var(--a);
+    font-style:normal;
+  }
+  h1{
+    margin:12px 0 6px;
+    font-size:27px;
+    line-height:1.12;
+    letter-spacing:-.02em;
+    color:var(--bright);
+    font-weight:650;
+  }
+  h1 span{color:var(--a);}
+  .sub{
+    margin:0;
+    font-size:14px;
+    color:var(--dim);
+    max-width:62ch;
+  }
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:linear-gradient(180deg,var(--panel-2) 0%, var(--panel) 100%);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    margin-bottom:14px;
+    overflow:hidden;
+    box-shadow:0 1px 0 rgba(255,255,255,.035) inset, 0 12px 30px rgba(0,0,0,.35);
+  }
+  .plate{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:11px 13px;
+    background:linear-gradient(180deg,#1b262e,#141d24);
+    border-bottom:1px solid var(--line);
+  }
+  .plate h2{
+    margin:0;
+    font-size:10.5px;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:#9fb2bd;
+    font-weight:700;
+  }
+  .plate .spacer{flex:1 1 auto;}
+  .plate .code{
+    font-size:10px;letter-spacing:.18em;color:var(--dim);
+    border:1px solid var(--line);border-radius:5px;padding:3px 7px;
+    background:rgba(0,0,0,.28);
+  }
+  .body{padding:13px;}
+
+  /* ---------- specimen track ---------- */
+  .track-shell{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#080d10;
+    overflow:hidden;
+    box-shadow:0 0 0 1px rgba(0,0,0,.5) inset, 0 18px 34px rgba(0,0,0,.4) inset;
+  }
+  .track{
+    position:relative;
+    height:268px;
+    overflow:hidden;
+    touch-action:none;
+    -webkit-user-select:none;user-select:none;
+    cursor:grab;
+    outline:none;
+  }
+  .track:focus-visible{box-shadow:0 0 0 2px var(--a) inset;}
+  .track.dragging{cursor:grabbing;}
+  .track.replaying{cursor:default;}
+  .strip{
+    position:absolute;
+    top:0;left:0;right:0;
+    will-change:transform;
+  }
+  .stratum{
+    position:relative;
+    height:54px;
+    padding:0 46px 0 12px;
+    display:flex;align-items:center;gap:10px;
+    border-bottom:1px solid rgba(255,255,255,.045);
+  }
+  .stratum .idx{
+    font-size:10px;letter-spacing:.14em;color:#57707c;
+    width:34px;flex:0 0 34px;
+  }
+  .stratum .bar{
+    height:9px;border-radius:2px;
+    background:linear-gradient(90deg,#22333d,#16232a);
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset;
+  }
+  .stratum .name{
+    font-size:11px;color:#6b8391;letter-spacing:.06em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .stratum.marker{background:linear-gradient(90deg,rgba(79,227,176,.09),transparent 70%);}
+  .stratum.marker .idx{color:var(--a);}
+  .stratum.marker .bar{background:linear-gradient(90deg,var(--a-dim),#16232a);}
+  .stratum.target{background:linear-gradient(90deg,rgba(255,180,84,.16),rgba(255,180,84,.02) 78%);}
+  .stratum.target .idx{color:var(--b);}
+  .stratum.target .bar{background:linear-gradient(90deg,var(--b),#6d4c1d);}
+  .stratum.target .name{color:#e5c290;}
+
+  /* centre reticle */
+  .reticle{
+    position:absolute;left:0;right:0;top:50%;
+    height:0;
+    border-top:1px dashed rgba(255,255,255,.16);
+    pointer-events:none;
+  }
+  .reticle::before,.reticle::after{
+    content:'';position:absolute;top:-4px;width:8px;height:8px;
+    border:1px solid rgba(255,255,255,.3);
+  }
+  .reticle::before{left:0;border-right:none;border-radius:2px 0 0 2px;}
+  .reticle::after{right:0;border-left:none;border-radius:0 2px 2px 0;}
+
+  .track-fade{
+    position:absolute;left:0;right:0;height:34px;pointer-events:none;
+  }
+  .track-fade.top{top:0;background:linear-gradient(180deg,#080d10,transparent);}
+  .track-fade.bot{bottom:0;background:linear-gradient(0deg,#080d10,transparent);}
+
+  /* rail */
+  .rail{
+    position:absolute;top:8px;bottom:8px;right:7px;width:5px;
+    border-radius:3px;background:rgba(255,255,255,.06);
+    pointer-events:none;
+  }
+  .rail-thumb{
+    position:absolute;left:0;width:5px;border-radius:3px;
+    background:var(--a);opacity:.8;
+  }
+  .rail-target{
+    position:absolute;left:-3px;width:11px;height:2px;border-radius:1px;
+    background:var(--b);
+  }
+
+  /* ghost cursor */
+  .ghost{
+    position:absolute;top:0;left:0;width:34px;height:34px;margin:-17px 0 0 -17px;
+    border-radius:50%;
+    border:1.5px solid rgba(255,180,84,.85);
+    background:radial-gradient(circle at 50% 50%, rgba(255,180,84,.32), rgba(255,180,84,.05) 70%);
+    box-shadow:0 0 16px rgba(255,180,84,.35);
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .18s ease;
+  }
+  .ghost.on{opacity:1;}
+  .ghost::after{
+    content:'';position:absolute;inset:13px;border-radius:50%;background:var(--b);
+  }
+  .ghost-trail{position:absolute;inset:0;pointer-events:none;}
+
+  .rec-lamp{
+    position:absolute;top:9px;left:9px;
+    display:flex;align-items:center;gap:6px;
+    font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dim);
+    background:rgba(6,10,12,.82);
+    border:1px solid var(--line);
+    border-radius:999px;padding:4px 9px 4px 7px;
+    pointer-events:none;
+  }
+  .rec-lamp i{width:7px;height:7px;border-radius:50%;background:#3a4a53;font-style:normal;}
+  .rec-lamp.armed i{background:var(--b);box-shadow:0 0 9px var(--b);}
+  .rec-lamp.rec{color:#ffd9d4;border-color:#5a2b28;}
+  .rec-lamp.rec i{background:var(--hot);box-shadow:0 0 10px var(--hot);animation:blink 1s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---------- readouts ---------- */
+  .live{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px;
+  }
+  .live div{
+    background:rgba(0,0,0,.3);
+    border:1px solid var(--line-soft);
+    border-radius:8px;
+    padding:7px 9px;
+    min-width:0;
+  }
+  .live span{
+    display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:2px;
+  }
+  .live b{
+    display:block;font-weight:600;font-size:15px;color:var(--bright);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* ---------- controls ---------- */
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;}
+  .row.tight{margin-top:8px;}
+
+  button{
+    font:inherit;
+    min-height:44px;
+    padding:0 15px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,#1d2831,#141d24);
+    color:var(--text);
+    font-size:13.5px;
+    font-weight:550;
+    letter-spacing:.01em;
+    cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    -webkit-tap-highlight-color:transparent;
+    transition:border-color .15s ease, background .15s ease, color .15s ease, transform .08s ease;
+  }
+  button:active{transform:translateY(1px);}
+  button:focus-visible{outline:2px solid var(--a);outline-offset:2px;}
+  button[disabled]{opacity:.4;cursor:not-allowed;}
+  button.grow{flex:1 1 auto;}
+  button.primary{
+    background:linear-gradient(180deg,#2a6f5c,#1b4c3f);
+    border-color:#3a8c74;
+    color:#e6fff5;
+  }
+  button.rec{
+    background:linear-gradient(180deg,#7a2f2b,#4d1d1b);
+    border-color:#a8443c;
+    color:#ffe7e4;
+  }
+  button .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
+
+  .seg{
+    display:inline-flex;
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    background:rgba(0,0,0,.3);
+  }
+  .seg button{
+    min-height:44px;
+    border:none;border-radius:0;
+    background:transparent;
+    color:var(--dim);
+    font-size:12.5px;
+    padding:0 13px;
+    letter-spacing:.04em;
+  }
+  .seg button + button{border-left:1px solid var(--line);}
+  .seg button[aria-pressed="true"]{
+    background:linear-gradient(180deg,#28414f,#1b2c36);
+    color:var(--bright);
+  }
+  .seg.a button[aria-pressed="true"]{color:#0b1a15;background:linear-gradient(180deg,#5fe9ba,#33b58c);}
+  .seg.b button[aria-pressed="true"]{color:#1c1207;background:linear-gradient(180deg,#ffc470,#d9902f);}
+
+  .hint{
+    font-size:12.5px;color:var(--dim);margin:10px 0 0;
+  }
+  .hint b{color:#a9bcc6;font-weight:600;}
+
+  /* ---------- scope ---------- */
+  .scope-wrap{
+    position:relative;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#06090b;
+    overflow:hidden;
+  }
+  canvas{display:block;width:100%;height:346px;touch-action:none;}
+  .legend{
+    display:flex;gap:14px;flex-wrap:wrap;
+    padding:9px 11px;
+    border-top:1px solid var(--line);
+    background:rgba(0,0,0,.25);
+    font-size:11px;color:var(--dim);
+    letter-spacing:.05em;
+  }
+  .legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;font-style:normal;}
+
+  /* ---------- transport ---------- */
+  .transport{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:44px;margin:0;background:transparent;cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--a);outline-offset:2px;border-radius:8px;}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:#1d2a32;border:1px solid var(--line);}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:26px;height:26px;border-radius:50%;margin-top:-11px;
+    background:linear-gradient(180deg,#eaf6f2,#a9c3bb);
+    border:1px solid #2b3d46;
+    box-shadow:0 2px 6px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:#1d2a32;border:1px solid var(--line);}
+  input[type=range]::-moz-range-thumb{
+    width:24px;height:24px;border-radius:50%;border:1px solid #2b3d46;
+    background:linear-gradient(180deg,#eaf6f2,#a9c3bb);
+  }
+
+  /* ---------- metrics ---------- */
+  .metrics{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  }
+  .tile{
+    background:rgba(0,0,0,.3);
+    border:1px solid var(--line-soft);
+    border-radius:9px;
+    padding:9px 10px;
+    min-width:0;
+  }
+  .tile .k{
+    font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    display:block;margin-bottom:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .tile .v{
+    font-size:19px;font-weight:600;color:var(--bright);line-height:1.15;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .tile .v u{font-size:11px;font-weight:500;color:var(--dim);text-decoration:none;margin-left:3px;}
+  .tile .cmp{
+    display:block;margin-top:4px;font-size:11px;color:var(--dim);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .tile .cmp em{font-style:normal;color:var(--b);}
+  .tile .cmp .d{margin-left:6px;color:#8fa6b1;}
+
+  .takebar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:10px 13px;
+    border-bottom:1px solid var(--line-soft);
+    background:rgba(0,0,0,.18);
+    font-size:12px;color:var(--dim);
+  }
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;
+    color:var(--dim);
+  }
+  .chip i{width:8px;height:8px;border-radius:2px;font-style:normal;}
+  .chip.a i{background:var(--a);} .chip.a{color:#9ceccf;border-color:#2c5f50;}
+  .chip.b i{background:var(--b);} .chip.b{color:#f3cd97;border-color:#5e461f;}
+
+  footer{
+    margin-top:22px;
+    font-size:12px;color:var(--dim);
+    border-top:1px solid var(--line-soft);
+    padding-top:14px;
+    line-height:1.6;
+  }
+  footer b{color:#9fb2bd;font-weight:600;}
+
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+
+  @media (min-width:780px){
+    :root{--pad:22px;}
+    h1{font-size:34px;}
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.18fr);gap:14px;align-items:start;}
+    .metrics{grid-template-columns:repeat(4,minmax(0,1fr));}
+    .track{height:320px;}
+    canvas{height:392px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><i></i> Local Instrument · No Network</div>
+    <h1>Scroll <span>Seismograph</span></h1>
+    <p class="sub">A bench instrument that records how your hand actually moves. Scroll the specimen track with touch, drag, wheel, or arrow keys — the machine writes your velocity, acceleration and frame cadence as a temporal seismogram, replays it against a ghost cursor, and exports the trace as a real SVG.</p>
+  </header>
+
+  <p class="sr" role="status" aria-live="polite" id="live-status">Ready. Demo traces loaded in Take A and Take B.</p>
+
+  <div class="cols">
+
+    <!-- ================= SPECIMEN TRACK ================= -->
+    <section class="panel" aria-labelledby="pl-track">
+      <div class="plate">
+        <h2 id="pl-track">Specimen Track</h2>
+        <div class="spacer"></div>
+        <div class="code mono" id="track-code">SPEC-0000</div>
+      </div>
+      <div class="body">
+
+        <div class="track-shell">
+          <div class="track" id="track" tabindex="0" role="application"
+               aria-label="Specimen track. Drag, scroll, or use arrow keys to move the strata past the centre reticle.">
+            <div class="strip" id="strip"></div>
+            <div class="reticle"></div>
+            <div class="track-fade top"></div>
+            <div class="track-fade bot"></div>
+            <canvas class="ghost-trail" id="trail"></canvas>
+            <div class="ghost" id="ghost" aria-hidden="true"></div>
+            <div class="rail"><div class="rail-thumb" id="rail-thumb"></div><div class="rail-target" id="rail-target"></div></div>
+            <div class="rec-lamp" id="lamp"><i></i><span id="lamp-text">Standby</span></div>
+          </div>
+        </div>
+
+        <div class="live mono">
+          <div><span>Offset</span><b id="ro-offset">0 px</b></div>
+          <div><span>Velocity</span><b id="ro-vel">0 px/s</b></div>
+          <div><span>Landing Δ</span><b id="ro-land">—</b></div>
+        </div>
+
+        <p class="hint" id="task-hint">Task: bring <b id="task-name">stratum</b> to the centre reticle, then stop. The instrument records the whole approach.</p>
+
+        <div class="row">
+          <button id="btn-record" class="rec grow"><span class="dot"></span><span id="rec-label">Record Take A</span></button>
+          <button id="btn-newtask" title="Pick a new target stratum">New target</button>
+        </div>
+        <div class="row tight">
+          <div class="seg" role="group" aria-label="Track surface feel">
+            <button id="feel-glass" aria-pressed="true">Glass</button>
+            <button id="feel-paper" aria-pressed="false">Paper</button>
+            <button id="feel-detent" aria-pressed="false">Detent</button>
+          </div>
+          <button id="btn-rewind" class="grow">Rewind track</button>
+        </div>
+        <p class="hint">Surface changes the friction and settle behaviour of the track. Record the same reach on two surfaces, then compare the traces.</p>
+
+      </div>
+    </section>
+
+    <!-- ================= SEISMOGRAM ================= -->
+    <section class="panel" aria-labelledby="pl-scope">
+      <div class="plate">
+        <h2 id="pl-scope">Temporal Seismogram</h2>
+        <div class="spacer"></div>
+        <div class="code mono" id="scope-code">CH 3 · 60 HZ</div>
+      </div>
+
+      <div class="takebar">
+        <div class="seg a" role="group" aria-label="Active take">
+          <button id="take-a" aria-pressed="true">Take A</button>
+          <button id="take-b" aria-pressed="false">Take B</button>
+        </div>
+        <button id="btn-compare" aria-pressed="true">Overlay both</button>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="body">
+        <div class="scope-wrap">
+          <canvas id="scope" aria-label="Seismogram of the recorded gesture" role="img"></canvas>
+          <div class="legend">
+            <span><i style="background:var(--a)"></i>Take A</span>
+            <span><i style="background:var(--b)"></i>Take B</span>
+            <span><i style="background:#5b7482"></i>Displacement</span>
+            <span><i style="background:var(--hot)"></i>Long frame &gt; 20 ms</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="btn-play" class="primary grow">▶ Replay Take A</button>
+          <div class="seg" role="group" aria-label="Replay rate">
+            <button id="rate-05" aria-pressed="false">0.5×</button>
+            <button id="rate-1" aria-pressed="true">1×</button>
+            <button id="rate-2" aria-pressed="false">2×</button>
+          </div>
+        </div>
+        <div class="row tight">
+          <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Scrub the recorded trace">
+        </div>
+        <div class="row tight">
+          <button id="btn-loop" aria-pressed="false">Loop</button>
+          <button id="btn-copy" class="grow">Copy A → B</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= MEASUREMENTS ================= -->
+  <section class="panel" aria-labelledby="pl-metrics">
+    <div class="plate">
+      <h2 id="pl-metrics">Measurements</h2>
+      <div class="spacer"></div>
+      <span class="chip a"><i></i><span id="chip-a">A · demo</span></span>
+      <span class="chip b"><i></i><span id="chip-b">B · demo</span></span>
+    </div>
+    <div class="body">
+      <div class="metrics mono" id="metrics"></div>
+      <div class="row">
+        <button id="btn-export" class="grow">⤓ Export SVG trace</button>
+        <button id="btn-clear">Clear take</button>
+      </div>
+      <p class="hint" id="export-note">Export writes a genuine vector SVG of the current seismogram to your downloads folder. Nothing leaves this tab.</p>
+    </div>
+  </section>
+
+  <footer>
+    <b>Scroll Seismograph</b> — everything here runs inside this one file. No network requests, no external assets, no analytics, no storage, no camera or microphone. The specimen strata are invented mineral labels. Close the tab and every trace is gone.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   0 · constants + small helpers
+   ===================================================================== */
+
+var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var ROW_H   = 54;
+var ROWS    = 30;
+var MOVE_EPS = 0.35;          // px per frame considered "still"
+var STILL_STOP = 750;         // ms of stillness that ends a recording
+var MAX_REC = 15000;          // hard ceiling on a take, ms
+var STILL_V = 24;             // px/s below which we call it stationary
+
+var FEEL = {
+  glass:  { decay: 0.955, grab: 1.00, wheel: 1.00, detent: 0 },
+  paper:  { decay: 0.885, grab: 0.92, wheel: 0.80, detent: 0 },
+  detent: { decay: 0.905, grab: 0.96, wheel: 0.90, detent: ROW_H }
+};
+
+function $(id){ return document.getElementById(id); }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function fmt(n,d){ d=d||0; return (Math.round(n*Math.pow(10,d))/Math.pow(10,d)).toFixed(d); }
+function fmtK(n){ return Math.abs(n)>=1000 ? fmt(n/1000,1)+'k' : fmt(n,0); }
+
+// deterministic pseudo-random for the built-in demo traces
+function lcg(seed){
+  var s = seed >>> 0;
+  return function(){ s = (s*1664525 + 1013904223) >>> 0; return s/4294967296; };
+}
+
+var MINERALS = ['basalt lamina','ash varve','quartz seam','silt band','chert nodule','tuff layer',
+  'clay parting','pumice drift','olivine flake','gypsum crust','shale leaf','ironstone rib',
+  'calcite vein','loess sheet','pyrite bloom','feldspar grit'];
+
+/* =====================================================================
+   1 · state
+   ===================================================================== */
+
+var track = $('track'), strip = $('strip'), ghost = $('ghost');
+var scope = $('scope'), sctx = scope.getContext('2d');
+var trail = $('trail'), tctx = trail.getContext('2d');
+
+var S = {
+  offset: 0,
+  vel: 0,                 // inertial velocity px/s
+  max: 0,
+  feel: 'glass',
+  dragging: false,
+  pointer: null,          // {nx,ny} normalized in track box
+  target: 0,              // target row index
+  takes: { A: null, B: null },
+  active: 'A',
+  compare: true,
+  arming: false,
+  recording: false,
+  recT0: 0,
+  recLastMove: 0,
+  buf: null,
+  play: { on:false, t:0, rate:1, loop:false, take:'A' },
+  scrubbing: false,
+  view: { vMax: 900, aMax: 9000, tMax: 4 }
+};
+
+/* =====================================================================
+   2 · specimen strip
+   ===================================================================== */
+
+function buildStrip(){
+  var rnd = lcg(90210), html = '';
+  for (var i=0;i<ROWS;i++){
+    var isMarker = (i % 5 === 0);
+    var w = 26 + Math.floor(rnd()*54);
+    var name = MINERALS[Math.floor(rnd()*MINERALS.length)];
+    html += '<div class="stratum'+(isMarker?' marker':'')+'" data-row="'+i+'">'
+          +   '<span class="idx mono">'+(i<10?'0':'')+i+'</span>'
+          +   '<span class="bar" style="width:'+w+'%"></span>'
+          +   '<span class="name">'+name+'</span>'
+          + '</div>';
+  }
+  strip.innerHTML = html;
+  measure();
+}
+
+function measure(){
+  S.max = Math.max(0, ROWS*ROW_H - track.clientHeight);
+  S.offset = clamp(S.offset, 0, S.max);
+  applyOffset();
+  layoutTrail();
+}
+
+function applyOffset(){
+  strip.style.transform = 'translate3d(0,' + (-S.offset).toFixed(2) + 'px,0)';
+  var frac = S.max ? S.offset/S.max : 0;
+  var railH = track.clientHeight - 16;
+  var th = $('rail-thumb');
+  var h = Math.max(28, railH * (track.clientHeight / (ROWS*ROW_H)));
+  th.style.height = h + 'px';
+  th.style.top = (frac * (railH - h)) + 'px';
+  $('rail-target').style.top = (railH * (targetCenter()/(ROWS*ROW_H)) ) + 'px';
+  $('ro-offset').textContent = fmt(S.offset,0) + ' px';
+}
+
+function targetCenter(){ return S.target*ROW_H + ROW_H/2; }
+function targetOffset(){ return clamp(targetCenter() - track.clientHeight/2, 0, S.max); }
+
+function pickTarget(){
+  var prev = S.target, n;
+  do { n = 3 + Math.floor(Math.random()*(ROWS-6)); } while (n === prev);
+  S.target = n;
+  var rows = strip.children;
+  for (var i=0;i<rows.length;i++) rows[i].classList.toggle('target', i===n);
+  var nm = rows[n] ? rows[n].querySelector('.name').textContent : '';
+  $('task-name').textContent = 'stratum ' + (n<10?'0':'') + n + ' · ' + nm;
+  $('track-code').textContent = 'SPEC-' + String(1000 + n*37 % 9000);
+  applyOffset();
+  updateLanding();
+}
+
+function updateLanding(){
+  var d = S.offset - targetOffset();
+  var el = $('ro-land');
+  if (S.recording || Math.abs(S.vel) > STILL_V){ el.textContent = '…'; el.style.color=''; return; }
+  el.textContent = (d>0?'+':'') + fmt(d,0) + ' px';
+  el.style.color = Math.abs(d) < 12 ? 'var(--a)' : (Math.abs(d) < 40 ? '' : 'var(--dim)');
+}
+
+/* =====================================================================
+   3 · input — pointer, wheel, keyboard
+   ===================================================================== */
+
+function normPointer(e){
+  var r = track.getBoundingClientRect();
+  return { nx: clamp((e.clientX - r.left)/r.width, 0, 1),
+           ny: clamp((e.clientY - r.top)/r.height, 0, 1) };
+}
+
+var drag = { id:null, lastY:0, lastT:0, vel:0 };
+
+track.addEventListener('pointerdown', function(e){
+  if (S.play.on) stopPlay();
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  drag.id = e.pointerId;
+  drag.lastY = e.clientY;
+  drag.lastT = performance.now();
+  drag.vel = 0;
+  S.dragging = true;
+  S.vel = 0;
+  S.pointer = normPointer(e);
+  track.classList.add('dragging');
+  try { track.setPointerCapture(e.pointerId); } catch(err){}
+  maybeStart();
+  e.preventDefault();
+});
+
+track.addEventListener('pointermove', function(e){
+  if (drag.id !== e.pointerId) return;
+  var now = performance.now();
+  var dy = e.clientY - drag.lastY;
+  var dt = Math.max(1, now - drag.lastT);
+  drag.lastY = e.clientY; drag.lastT = now;
+  S.pointer = normPointer(e);
+  var f = FEEL[S.feel];
+  S.offset = clamp(S.offset - dy*f.grab, 0, S.max);
+  // running estimate of throw velocity (px/s), smoothed
+  drag.vel = lerp(drag.vel, (-dy*f.grab)/dt*1000, 0.55);
+  applyOffset();
+  if (Math.abs(dy) > 0) maybeStart();
+  e.preventDefault();
+}, {passive:false});
+
+function endDrag(e){
+  if (drag.id !== e.pointerId) return;
+  drag.id = null;
+  S.dragging = false;
+  track.classList.remove('dragging');
+  var f = FEEL[S.feel];
+  // only throw if the pointer was still moving at release
+  if (performance.now() - drag.lastT < 90) S.vel = clamp(drag.vel, -6000, 6000);
+  if (f.detent && Math.abs(S.vel) < 260) snapToDetent();
+}
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
+
+// Wheel: consume the event only while the specimen still has travel left.
+// Once the track is at either end the page scrolls normally, so the instrument
+// never traps the wheel underneath the pointer.
+track.addEventListener('wheel', function(e){
+  var d = e.deltaY;
+  if (e.deltaMode === 1) d *= 16;            // lines
+  else if (e.deltaMode === 2) d *= track.clientHeight; // pages
+  var f = FEEL[S.feel];
+  var before = S.offset;
+  var next = clamp(S.offset + d*f.wheel, 0, S.max);
+  if (next === before) return;               // exhausted — hand the scroll back
+  e.preventDefault();
+  if (S.play.on) stopPlay();
+  S.offset = next;
+  S.pointer = normPointer(e);
+  applyOffset();
+  S.vel = 0;
+  maybeStart();
+}, {passive:false});
+
+track.addEventListener('keydown', function(e){
+  var step = 0;
+  if (e.key === 'ArrowDown') step = 34;
+  else if (e.key === 'ArrowUp') step = -34;
+  else if (e.key === 'PageDown') step = track.clientHeight*0.85;
+  else if (e.key === 'PageUp') step = -track.clientHeight*0.85;
+  else if (e.key === 'Home') step = -S.offset;
+  else if (e.key === 'End') step = S.max - S.offset;
+  else return;
+  e.preventDefault();
+  if (S.play.on) stopPlay();
+  if (!S.pointer) S.pointer = {nx:0.86, ny:0.5};
+  S.offset = clamp(S.offset + step, 0, S.max);
+  S.vel = 0;
+  applyOffset();
+  maybeStart();
+});
+
+function snapToDetent(){
+  var want = Math.round(S.offset / ROW_H) * ROW_H;
+  S.offset = clamp(want, 0, S.max);
+}
+
+/* =====================================================================
+   4 · main loop — inertia, sampling, replay, paint
+   ===================================================================== */
+
+var lastFrame = performance.now();
+var lastOffset = 0, lastVel = 0;
+
+function frame(now){
+  requestAnimationFrame(frame);
+  var dt = clamp(now - lastFrame, 1, 120);
+  lastFrame = now;
+
+  if (S.play.on) stepPlay(dt);
+  else if (!S.dragging && S.vel !== 0){
+    var f = FEEL[S.feel];
+    S.offset += S.vel * dt/1000;
+    if (S.offset < 0 || S.offset > S.max){ S.offset = clamp(S.offset,0,S.max); S.vel = 0; }
+    S.vel *= Math.pow(f.decay, dt/16.667);
+    if (Math.abs(S.vel) < 14){ S.vel = 0; if (f.detent) snapToDetent(); }
+    applyOffset();
+  }
+
+  // instantaneous kinematics of the track itself
+  var dy = S.offset - lastOffset;
+  var v  = dy/dt*1000;
+  var a  = (v - lastVel)/dt*1000;
+  lastOffset = S.offset; lastVel = v;
+
+  $('ro-vel').textContent = fmt(v,0) + ' px/s';
+  if (!S.recording) updateLanding();
+
+  if (S.recording){
+    S.buf.push({ t: now - S.recT0, y: S.offset, v: v, a: a, dt: dt,
+                 nx: S.pointer ? S.pointer.nx : 0.86,
+                 ny: S.pointer ? S.pointer.ny : 0.5 });
+    if (Math.abs(dy) > MOVE_EPS) S.recLastMove = now;
+    var el = now - S.recT0;
+    if (el > MAX_REC) stopRecord('ceiling');
+    else if (el > 600 && now - S.recLastMove > STILL_STOP) stopRecord('settled');
+  }
+
+  drawScope();
+  drawGhost();
+}
+
+/* =====================================================================
+   5 · recording
+   ===================================================================== */
+
+function maybeStart(){
+  if (!S.arming || S.recording) return;
+  S.arming = false;
+  S.recording = true;
+  S.recT0 = performance.now();
+  S.recLastMove = S.recT0;
+  S.buf = [];
+  lamp('rec', 'Recording');
+  $('rec-label').textContent = 'Stop recording';
+  say('Recording take ' + S.active + '.');
+}
+
+function armRecord(){
+  if (S.recording){ stopRecord('manual'); return; }
+  if (S.arming){                       // second press cancels the arm
+    S.arming = false;
+    lamp('', 'Standby');
+    $('rec-label').textContent = 'Record Take ' + S.active;
+    say('Recording cancelled.');
+    return;
+  }
+  if (S.play.on) stopPlay();
+  S.arming = true;
+  S.vel = 0;
+  lamp('armed', 'Armed');
+  $('rec-label').textContent = 'Cancel arm';
+  say('Armed. Move the specimen track to begin recording take ' + S.active + '.');
+}
+
+function stopRecord(reason){
+  if (!S.recording){                   // cancelling an arm
+    S.arming = false;
+    lamp('', 'Standby');
+    $('rec-label').textContent = 'Record Take ' + S.active;
+    return;
+  }
+  S.recording = false;
+  lamp('', 'Standby');
+  $('rec-label').textContent = 'Record Take ' + S.active;
+
+  var samples = S.buf; S.buf = null;
+  if (!samples || samples.length < 8){
+    say('Take discarded — too short to measure.');
+    return;
+  }
+  var moved = 0;
+  for (var q=1;q<samples.length;q++) moved += Math.abs(samples[q].y - samples[q-1].y);
+  if (moved < 8){
+    say('Take discarded — the track never moved.');
+    return;
+  }
+  // trim the trailing still tail so the trace ends where the hand did
+  var end = samples.length - 1;
+  while (end > 8 && Math.abs(samples[end].v) < STILL_V &&
+         samples[end].t - samples[end-1].t < 200) end--;
+  samples = samples.slice(0, Math.min(samples.length, end + 12));
+
+  var take = makeTake(S.active, samples, 'live', S.feel);
+  S.takes[S.active] = take;
+  syncScrub(0);
+  renderMetrics();
+  updateChips();
+  say('Take ' + S.active + ' recorded: ' + fmt(take.m.duration,2) + ' seconds, ' +
+      samples.length + ' samples, peak ' + fmt(take.m.peakV,0) + ' pixels per second.' +
+      ' Reason: ' + reason + '.');
+}
+
+function lamp(cls, text){
+  var el = $('lamp');
+  el.className = 'rec-lamp' + (cls ? ' ' + cls : '');
+  $('lamp-text').textContent = text;
+}
+
+/* =====================================================================
+   6 · take model + metrics
+   ===================================================================== */
+
+function makeTake(id, samples, source, feel){
+  // normalise time base
+  var t0 = samples[0].t;
+  var s = samples.map(function(p){
+    return { t:p.t - t0, y:p.y, v:p.v, a:p.a, dt:p.dt, nx:p.nx, ny:p.ny };
+  });
+  return { id:id, samples:s, source:source, feel:feel || 'glass', m: metrics(s) };
+}
+
+function metrics(s){
+  var n = s.length;
+  var dur = s[n-1].t/1000;
+  var travel=0, peakV=0, peakA=0, sumV=0, movN=0, rev=0, still=0, longF=0, worst=0;
+  var jerkSq=0, jn=0, sign=0, pauses=0, inPause=false, pauseT=0;
+
+  for (var i=1;i<n;i++){
+    var p = s[i], q = s[i-1];
+    travel += Math.abs(p.y - q.y);
+    var av = Math.abs(p.v);
+    if (av > peakV) peakV = av;
+    if (Math.abs(p.a) > peakA) peakA = Math.abs(p.a);
+    if (av > STILL_V){ sumV += av; movN++; }
+    else {
+      still += p.dt;
+      pauseT += p.dt;
+      if (!inPause && pauseT > 160){ inPause = true; pauses++; }
+    }
+    if (av > STILL_V){ inPause = false; pauseT = 0; }
+
+    var sg = p.v > 60 ? 1 : (p.v < -60 ? -1 : 0);
+    if (sg !== 0){ if (sign !== 0 && sg !== sign) rev++; sign = sg; }
+
+    if (p.dt > 20){ longF++; }
+    if (p.dt > worst) worst = p.dt;
+
+    var j = (p.a - q.a)/Math.max(1,p.dt)*1000;
+    jerkSq += j*j; jn++;
+  }
+  return {
+    duration: dur,
+    travel: travel,
+    peakV: peakV,
+    meanV: movN ? sumV/movN : 0,
+    peakA: peakA,
+    reversals: rev,
+    pauses: pauses,
+    stillPct: dur ? (still/1000)/dur*100 : 0,
+    longFrames: longF,
+    worstFrame: worst,
+    jerkRMS: jn ? Math.sqrt(jerkSq/jn) : 0,
+    samples: n,
+    fps: dur ? n/dur : 0,
+    landing: s[n-1].y
+  };
+}
+
+var TILES = [
+  { k:'Duration',     f:function(m){return fmt(m.duration,2);},   u:'s'     },
+  { k:'Travel',       f:function(m){return fmtK(m.travel);},      u:'px'    },
+  { k:'Peak velocity',f:function(m){return fmtK(m.peakV);},       u:'px/s'  },
+  { k:'Mean velocity',f:function(m){return fmtK(m.meanV);},       u:'px/s'  },
+  { k:'Peak accel',   f:function(m){return fmtK(m.peakA);},       u:'px/s²' },
+  { k:'Jerk RMS',     f:function(m){return fmtK(m.jerkRMS/1000);},u:'k px/s³'},
+  { k:'Reversals',    f:function(m){return fmt(m.reversals,0);},  u:''      },
+  { k:'Dwells',       f:function(m){return fmt(m.pauses,0);},     u:''      },
+  { k:'Still time',   f:function(m){return fmt(m.stillPct,0);},   u:'%'     },
+  { k:'Long frames',  f:function(m){return fmt(m.longFrames,0);}, u:'>20ms' },
+  { k:'Worst frame',  f:function(m){return fmt(m.worstFrame,1);}, u:'ms'    },
+  { k:'Sample rate',  f:function(m){return fmt(m.fps,0);},        u:'Hz'    }
+];
+
+function renderMetrics(){
+  var A = S.takes[S.active];
+  var otherId = S.active === 'A' ? 'B' : 'A';
+  var B = S.compare ? S.takes[otherId] : null;
+  var host = $('metrics');
+  if (!A){
+    host.innerHTML = '<div class="tile" style="grid-column:1/-1"><span class="k">No take loaded</span>'
+      + '<span class="v" style="font-size:14px">Press Record, then move the track.</span></div>';
+    return;
+  }
+  var html = '';
+  for (var i=0;i<TILES.length;i++){
+    var T = TILES[i];
+    var va = T.f(A.m);
+    html += '<div class="tile"><span class="k">'+T.k+'</span>'
+          + '<span class="v">'+va+(T.u?'<u>'+T.u+'</u>':'')+'</span>';
+    if (B){
+      var vb = T.f(B.m);
+      var na = numOf(T, A.m), nb = numOf(T, B.m);
+      var d = na - nb, arrow = '';
+      // purely directional: is this take higher or lower than the other one?
+      if (Math.abs(d) > Math.abs(nb)*0.02 + 1e-6) arrow = d > 0 ? '▲' : '▼';
+      html += '<span class="cmp">' + otherId + ' <em>' + vb + '</em>'
+            + (arrow ? '<span class="d">'+arrow+'</span>' : '') + '</span>';
+    }
+    html += '</div>';
+  }
+  host.innerHTML = html;
+}
+
+function numOf(T, m){
+  var raw = { 'Duration':m.duration,'Travel':m.travel,'Peak velocity':m.peakV,'Mean velocity':m.meanV,
+    'Peak accel':m.peakA,'Jerk RMS':m.jerkRMS,'Reversals':m.reversals,'Dwells':m.pauses,
+    'Still time':m.stillPct,'Long frames':m.longFrames,'Worst frame':m.worstFrame,'Sample rate':m.fps };
+  return raw[T.k] || 0;
+}
+
+function updateChips(){
+  ['A','B'].forEach(function(id){
+    var t = S.takes[id];
+    $('chip-'+id.toLowerCase()).textContent = id + ' · ' + (t ? (t.source==='demo'?'demo':t.feel) + ' ' + fmt(t.m.duration,1)+'s' : 'empty');
+  });
+}
+
+/* =====================================================================
+   7 · seismogram rendering
+   ===================================================================== */
+
+var LAYOUT = null;
+
+function sizeCanvas(cv, ctx){
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  var w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return false;
+  if (cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)){
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return true;
+}
+
+function computeLayout(w,h){
+  var padL = 40, padR = 12, padT = 20, padB = 26;
+  var x0 = padL, x1 = w - padR;
+  var inner = h - padT - padB;
+  var hDisp = inner*0.20, hVel = inner*0.42, hAcc = inner*0.24, hCad = inner*0.14;
+  var yDisp = padT, yVel = yDisp+hDisp+2, yAcc = yVel+hVel+2, yCad = yAcc+hAcc+2;
+  return { w:w,h:h,x0:x0,x1:x1,
+    disp:{y:yDisp,h:hDisp}, vel:{y:yVel,h:hVel}, acc:{y:yAcc,h:hAcc}, cad:{y:yCad,h:hCad} };
+}
+
+function activeTakes(){
+  var out = [];
+  var A = S.takes[S.active];
+  if (A) out.push({ take:A, color: S.active==='A' ? '#4fe3b0' : '#ffb454', primary:true, id:S.active });
+  if (S.compare){
+    var o = S.active==='A'?'B':'A', T = S.takes[o];
+    if (T) out.push({ take:T, color: o==='A' ? '#4fe3b0' : '#ffb454', primary:false, id:o });
+  }
+  return out;
+}
+
+function scales(list){
+  var vMax=300, aMax=3000, tMax=1, yMin=Infinity, yMax=-Infinity;
+  list.forEach(function(e){
+    var m = e.take.m;
+    if (m.peakV > vMax) vMax = m.peakV;
+    if (m.peakA > aMax) aMax = m.peakA;
+    if (m.duration > tMax) tMax = m.duration;
+    e.take.samples.forEach(function(s){ if(s.y<yMin)yMin=s.y; if(s.y>yMax)yMax=s.y; });
+  });
+  if (S.recording && S.buf && S.buf.length){
+    var el = (S.buf[S.buf.length-1].t)/1000;
+    if (el > tMax) tMax = el;
+    S.buf.forEach(function(s){
+      if (Math.abs(s.v)>vMax) vMax=Math.abs(s.v);
+      if (Math.abs(s.a)>aMax) aMax=Math.abs(s.a);
+      if(s.y<yMin)yMin=s.y; if(s.y>yMax)yMax=s.y;
+    });
+  }
+  if (yMin===Infinity){ yMin=0; yMax=1; }
+  if (yMax-yMin < 40) yMax = yMin + 40;
+  return { vMax:vMax*1.12, aMax:aMax*1.12, tMax:Math.max(tMax,0.6)*1.02, yMin:yMin, yMax:yMax };
+}
+
+function drawScope(){
+  if (!sizeCanvas(scope, sctx)) return;
+  var w = scope.clientWidth, h = scope.clientHeight;
+  var L = LAYOUT = computeLayout(w,h);
+  var list = activeTakes();
+
+  var sc = scales(list);
+  // ease the axis scales so live recording doesn't strobe
+  var V = S.view;
+  var k = REDUCED ? 1 : 0.18;
+  V.vMax = lerp(V.vMax, sc.vMax, k);
+  V.aMax = lerp(V.aMax, sc.aMax, k);
+  V.tMax = lerp(V.tMax, sc.tMax, k);
+  sc.vMax = V.vMax; sc.aMax = V.aMax; sc.tMax = V.tMax;
+
+  sctx.clearRect(0,0,w,h);
+  paintPaper(sctx, L, sc);
+
+  // live buffer draws as a provisional take
+  if (S.recording && S.buf && S.buf.length > 2){
+    drawTrace(sctx, { samples:S.buf }, L, sc, '#ff6f5e', 1, true);
+  }
+  for (var i=list.length-1;i>=0;i--){
+    drawTrace(sctx, list[i].take, L, sc, list[i].color, list[i].primary?1:0.55, false);
+  }
+
+  // playhead
+  if ((S.play.on || S.scrubbing) && S.takes[S.play.take]){
+    var tk = S.takes[S.play.take];
+    var x = L.x0 + (S.play.t/1000/sc.tMax)*(L.x1-L.x0);
+    x = clamp(x, L.x0, L.x1);
+    sctx.save();
+    sctx.strokeStyle = 'rgba(255,255,255,.62)';
+    sctx.lineWidth = 1;
+    sctx.beginPath(); sctx.moveTo(x, L.disp.y-6); sctx.lineTo(x, L.cad.y+L.cad.h+4); sctx.stroke();
+    sctx.fillStyle = 'rgba(255,255,255,.9)';
+    sctx.beginPath(); sctx.moveTo(x,L.disp.y-9); sctx.lineTo(x-4,L.disp.y-15); sctx.lineTo(x+4,L.disp.y-15); sctx.closePath(); sctx.fill();
+    sctx.restore();
+  }
+
+  paintLabels(sctx, L, sc);
+}
+
+function paintPaper(ctx, L, sc){
+  ctx.save();
+  // channel beds
+  [['disp','rgba(255,255,255,.018)'],['vel','rgba(79,227,176,.030)'],
+   ['acc','rgba(255,255,255,.018)'],['cad','rgba(255,255,255,.026)']].forEach(function(p){
+    var c = L[p[0]];
+    ctx.fillStyle = p[1];
+    ctx.fillRect(L.x0, c.y, L.x1-L.x0, c.h);
+  });
+
+  // vertical time rules — one per 0.5 s while that stays legible
+  var step = sc.tMax > 9 ? 2 : (sc.tMax > 4 ? 1 : 0.5);
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  ctx.lineWidth = 1;
+  for (var t=0; t<=sc.tMax+0.001; t+=step){
+    var x = Math.round(L.x0 + (t/sc.tMax)*(L.x1-L.x0)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(x, L.disp.y); ctx.lineTo(x, L.cad.y+L.cad.h); ctx.stroke();
+  }
+  // zero lines
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  [L.vel, L.acc].forEach(function(c){
+    var y = Math.round(c.y + c.h/2) + 0.5;
+    ctx.beginPath(); ctx.moveTo(L.x0,y); ctx.lineTo(L.x1,y); ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function chanPoints(samples, L, sc, chan){
+  var pts = [], c = L[chan==='disp'?'disp':(chan==='v'?'vel':'acc')];
+  var span = L.x1 - L.x0;
+  for (var i=0;i<samples.length;i++){
+    var s = samples[i];
+    var x = L.x0 + (s.t/1000/sc.tMax)*span;
+    var y;
+    if (chan === 'disp') y = c.y + c.h - ((s.y - sc.yMin)/(sc.yMax - sc.yMin))*c.h;
+    else if (chan === 'v') y = c.y + c.h/2 - (s.v/sc.vMax)*(c.h/2);
+    else y = c.y + c.h/2 - clamp(s.a/sc.aMax,-1,1)*(c.h/2);
+    pts.push([x, y]);
+  }
+  return pts;
+}
+
+function drawTrace(ctx, take, L, sc, color, alpha, live){
+  var s = take.samples;
+  if (s.length < 2) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // --- displacement ---
+  var dp = chanPoints(s, L, sc, 'disp');
+  ctx.strokeStyle = 'rgba(140,175,190,'+(alpha*0.85)+')';
+  ctx.lineWidth = 1.4;
+  poly(ctx, dp);
+  ctx.stroke();
+
+  // --- velocity seismogram (mirrored fill) ---
+  var vp = chanPoints(s, L, sc, 'v');
+  var mid = L.vel.y + L.vel.h/2;
+  ctx.beginPath();
+  ctx.moveTo(vp[0][0], mid);
+  for (var i=0;i<vp.length;i++) ctx.lineTo(vp[i][0], vp[i][1]);
+  ctx.lineTo(vp[vp.length-1][0], mid);
+  ctx.closePath();
+  var g = ctx.createLinearGradient(0, L.vel.y, 0, L.vel.y+L.vel.h);
+  g.addColorStop(0, hexA(color,.30)); g.addColorStop(.5, hexA(color,.06)); g.addColorStop(1, hexA(color,.30));
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = live ? 1.3 : 1.7;
+  poly(ctx, vp); ctx.stroke();
+
+  // --- acceleration ---
+  var ap = chanPoints(s, L, sc, 'a');
+  var amid = L.acc.y + L.acc.h/2;
+  ctx.strokeStyle = hexA(color,.62);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (var j=0;j<ap.length;j++){ ctx.moveTo(ap[j][0], amid); ctx.lineTo(ap[j][0], ap[j][1]); }
+  ctx.stroke();
+
+  // --- frame cadence ---
+  var span = L.x1 - L.x0;
+  for (var m=0;m<s.length;m++){
+    var p = s[m];
+    var x = L.x0 + (p.t/1000/sc.tMax)*span;
+    var jank = p.dt > 20;
+    var hh = clamp(p.dt/40, 0.08, 1) * L.cad.h;
+    ctx.fillStyle = jank ? 'rgba(255,111,94,.9)' : hexA(color,.42);
+    ctx.fillRect(x, L.cad.y + L.cad.h - hh, jank ? 2 : 1, hh);
+  }
+  ctx.restore();
+}
+
+function poly(ctx, pts){
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (var i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+}
+
+function hexA(hex, a){
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+
+function paintLabels(ctx, L, sc){
+  ctx.save();
+  ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillStyle = 'rgba(150,172,183,.85)';
+  ctx.textBaseline = 'middle';
+
+  ctx.save();
+  [['DISP', L.disp],['VEL', L.vel],['ACC', L.acc],['FRAME', L.cad]].forEach(function(p){
+    ctx.save();
+    ctx.translate(11, p[1].y + p[1].h/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.textAlign = 'center';
+    ctx.fillText(p[0], 0, 0);
+    ctx.restore();
+  });
+  ctx.restore();
+
+  // right-hand scale callouts
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(150,172,183,.6)';
+  ctx.fillText('±'+fmtK(sc.vMax)+' px/s', L.x0+4, L.vel.y+8);
+  ctx.fillText('±'+fmtK(sc.aMax)+' px/s²', L.x0+4, L.acc.y+7);
+  ctx.fillText('0–40 ms', L.x0+4, L.cad.y+6);
+
+  // time axis
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(150,172,183,.7)';
+  var step = sc.tMax > 9 ? 2 : (sc.tMax > 4 ? 1 : 0.5);
+  for (var t=0; t<=sc.tMax+0.001; t+=step){
+    var x = L.x0 + (t/sc.tMax)*(L.x1-L.x0);
+    ctx.fillText(fmt(t, step<1?1:0)+'s', x, L.cad.y + L.cad.h + 12);
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   8 · replay + ghost cursor
+   ===================================================================== */
+
+function sampleAt(take, ms){
+  var s = take.samples, n = s.length;
+  if (ms <= s[0].t) return s[0];
+  if (ms >= s[n-1].t) return s[n-1];
+  var lo=0, hi=n-1;
+  while (hi - lo > 1){ var mid=(lo+hi)>>1; if (s[mid].t <= ms) lo=mid; else hi=mid; }
+  var a=s[lo], b=s[hi];
+  var f = (ms - a.t)/Math.max(0.0001, b.t - a.t);
+  return { t:ms, y:lerp(a.y,b.y,f), v:lerp(a.v,b.v,f), a:lerp(a.a,b.a,f),
+           dt:b.dt, nx:lerp(a.nx,b.nx,f), ny:lerp(a.ny,b.ny,f) };
+}
+
+function startPlay(){
+  var tk = S.takes[S.active];
+  if (!tk) { say('No take to replay.'); return; }
+  if (S.recording) stopRecord('manual');
+  S.play.on = true;
+  S.play.take = S.active;
+  if (S.play.t >= tk.samples[tk.samples.length-1].t - 1) S.play.t = 0;
+  track.classList.add('replaying');
+  ghost.classList.add('on');
+  $('btn-play').textContent = '❚❚ Pause';
+  say('Replaying take ' + S.active + '.');
+}
+
+function stopPlay(){
+  S.play.on = false;
+  track.classList.remove('replaying');
+  ghost.classList.remove('on');
+  $('btn-play').textContent = '▶ Replay Take ' + S.active;
+}
+
+function stepPlay(dt){
+  var tk = S.takes[S.play.take];
+  if (!tk){ stopPlay(); return; }
+  var end = tk.samples[tk.samples.length-1].t;
+  S.play.t += dt * S.play.rate;
+  if (S.play.t >= end){
+    if (S.play.loop) S.play.t = 0;
+    else { S.play.t = end; applySample(sampleAt(tk, end)); syncScrub(); stopPlay(); return; }
+  }
+  applySample(sampleAt(tk, S.play.t));
+  syncScrub();
+}
+
+function applySample(s){
+  S.offset = clamp(s.y, 0, S.max);
+  S.vel = 0;
+  applyOffset();
+  S.ghostPos = { nx:s.nx, ny:s.ny };
+}
+
+function syncScrub(force){
+  var tk = S.takes[S.play.take] || S.takes[S.active];
+  if (!tk) return;
+  if (force === 0) S.play.t = 0;
+  var end = tk.samples[tk.samples.length-1].t || 1;
+  if (!S.scrubbing) $('scrub').value = String(Math.round(clamp(S.play.t/end,0,1)*1000));
+}
+
+function layoutTrail(){
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  var w = track.clientWidth, h = track.clientHeight;
+  if (!w||!h) return;
+  trail.width = Math.round(w*dpr); trail.height = Math.round(h*dpr);
+  trail.style.width = w+'px'; trail.style.height = h+'px';
+  tctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function drawGhost(){
+  var w = track.clientWidth, h = track.clientHeight;
+  tctx.clearRect(0,0,w,h);
+  var showing = (S.play.on || S.scrubbing) && S.takes[S.play.take];
+  if (!showing){ ghost.classList.remove('on'); return; }
+  ghost.classList.add('on');
+  var tk = S.takes[S.play.take];
+  var cur = S.ghostPos || {nx:.86,ny:.5};
+  ghost.style.transform = 'translate3d(' + (cur.nx*w).toFixed(1) + 'px,' + (cur.ny*h).toFixed(1) + 'px,0)';
+
+  if (REDUCED) return;
+  // comet tail of the previous ~380 ms of pointer positions
+  var back = 380, steps = 14;
+  tctx.save();
+  tctx.lineCap = 'round';
+  for (var i=1;i<=steps;i++){
+    var t0 = S.play.t - back*(i/steps), t1 = S.play.t - back*((i-1)/steps);
+    if (t0 < 0) break;
+    var p0 = sampleAt(tk,t0), p1 = sampleAt(tk,t1);
+    tctx.strokeStyle = 'rgba(255,180,84,' + (0.30*(1 - i/steps)).toFixed(3) + ')';
+    tctx.lineWidth = 5*(1 - i/steps) + 1;
+    tctx.beginPath();
+    tctx.moveTo(p0.nx*w, p0.ny*h);
+    tctx.lineTo(p1.nx*w, p1.ny*h);
+    tctx.stroke();
+  }
+  tctx.restore();
+}
+
+/* =====================================================================
+   9 · built-in demo traces (deterministic, offline)
+   ===================================================================== */
+
+function simulate(script, opts){
+  var rnd = lcg(opts.seed);
+  var st = { y: opts.start, vel: 0 };
+  var max = opts.max;
+  var out = [], t = 0, lastY = st.y, lastV = 0;
+  var fired = {};
+  while (t <= opts.duration){
+    var dt = (1000/60)*(0.93 + rnd()*0.16);
+    if (rnd() < 0.032) dt += 10 + rnd()*24;        // an honest, occasional long frame
+    var seg = null;
+    for (var i=0;i<script.length;i++){
+      var q = script[i];
+      if (t >= q.t*1000 && t < (q.t + q.dur)*1000){ seg = q; seg._i = i; break; }
+    }
+    if (seg && seg.mode === 'drag'){
+      var p = (t - seg.t*1000)/(seg.dur*1000);
+      var shape = Math.sin(Math.PI*clamp(p,0,1));
+      var v = seg.v*shape*(1 + (rnd()-0.5)*0.14);
+      st.y += v*dt/1000;
+      st.vel = v;
+    } else if (seg && seg.mode === 'flick'){
+      if (!fired[seg._i]){ fired[seg._i] = 1; st.vel = seg.v; }
+      st.y += st.vel*dt/1000;
+      st.vel *= Math.pow(seg.decay || 0.945, dt/16.667);
+    } else {
+      st.y += st.vel*dt/1000;
+      st.vel *= Math.pow(opts.decay, dt/16.667);
+      if (Math.abs(st.vel) < 10) st.vel = 0;
+    }
+    if (st.y < 0){ st.y = 0; st.vel = 0; }
+    if (st.y > max){ st.y = max; st.vel = 0; }
+
+    var vv = (st.y - lastY)/dt*1000;
+    var aa = (vv - lastV)/dt*1000;
+    // a plausible thumb path: drifts with the motion, never leaves the pad
+    var nx = 0.70 + Math.sin(t/900)*0.10 + (rnd()-0.5)*0.012;
+    var ny = clamp(0.50 + (st.y - opts.start)/Math.max(1,max)*0.34 + Math.sin(t/620)*0.10, 0.10, 0.90);
+    out.push({ t:t, y:st.y, v:vv, a:aa, dt:dt, nx:clamp(nx,0.08,0.92), ny:ny });
+    lastY = st.y; lastV = vv;
+    t += dt;
+  }
+  return out;
+}
+
+function loadDemos(){
+  var max = Math.max(120, ROWS*ROW_H - track.clientHeight);
+  // Take A — an impatient hand: hard flick, overshoot, two corrections.
+  var A = simulate([
+    { t:0.30, dur:0.16, mode:'flick', v: 2350, decay:0.949 },
+    { t:1.55, dur:0.34, mode:'drag',  v: 520  },
+    { t:2.25, dur:0.20, mode:'flick', v: -780, decay:0.930 },
+    { t:3.10, dur:0.30, mode:'drag',  v: 180  },
+    { t:3.90, dur:0.26, mode:'drag',  v: -95  }
+  ], { seed:1337, start: 0, max: max, duration: 5200, decay: 0.955 });
+
+  // Take B — a measured hand: three even drags, one small settle.
+  var B = simulate([
+    { t:0.25, dur:0.85, mode:'drag', v: 760 },
+    { t:1.35, dur:0.80, mode:'drag', v: 690 },
+    { t:2.45, dur:0.70, mode:'drag', v: 430 },
+    { t:3.45, dur:0.40, mode:'drag', v: 120 }
+  ], { seed:8675309, start: 0, max: max, duration: 4600, decay: 0.885 });
+
+  S.takes.A = makeTake('A', A, 'demo', 'glass');
+  S.takes.B = makeTake('B', B, 'demo', 'paper');
+}
+
+/* =====================================================================
+   10 · SVG export
+   ===================================================================== */
+
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function pathFrom(pts, round){
+  var d = '', r = round === undefined ? 2 : round;
+  for (var i=0;i<pts.length;i++){
+    d += (i?'L':'M') + pts[i][0].toFixed(r) + ' ' + pts[i][1].toFixed(r) + ' ';
+  }
+  return d.trim();
+}
+
+function buildSVG(){
+  var W = 1160, H = 720;
+  var list = activeTakes();
+  if (!list.length) return null;
+
+  var head = 92;
+  var L = computeLayout(W, H - head - 46);
+  // shift the whole plot below the title block
+  ['disp','vel','acc','cad'].forEach(function(k){ L[k] = { y: L[k].y + head, h: L[k].h }; });
+  L.x0 = 60; L.x1 = W - 34;
+
+  var sc = scales(list);
+  var o = [];
+  o.push('<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">');
+  o.push('<rect width="'+W+'" height="'+H+'" fill="#070a0d"/>');
+  o.push('<rect x="14" y="14" width="'+(W-28)+'" height="'+(H-28)+'" fill="none" stroke="#22313a" rx="10"/>');
+
+  // title block
+  o.push('<text x="40" y="56" fill="#eef6f9" font-size="24" letter-spacing="1">SCROLL SEISMOGRAPH</text>');
+  o.push('<text x="40" y="76" fill="#7d8f9a" font-size="11" letter-spacing="2.4">GESTURE MOTION RECORDER · LOCAL TRACE EXPORT</text>');
+
+  var meta = list.map(function(e){
+    var m = e.take.m;
+    return 'TAKE ' + e.id + ' (' + (e.take.source === 'demo' ? 'demo' : e.take.feel) + '): '
+      + fmt(m.duration,2) + ' s · ' + m.samples + ' samples · peak ' + fmt(m.peakV,0) + ' px/s · '
+      + fmt(m.travel,0) + ' px travelled · ' + m.reversals + ' reversals · ' + m.longFrames + ' long frames';
+  });
+  meta.forEach(function(line, i){
+    o.push('<text x="40" y="'+(H-46+i*15)+'" fill="#7d8f9a" font-size="11">'+esc(line)+'</text>');
+  });
+
+  // channel beds + rules
+  [['disp','#ffffff',0.02],['vel','#4fe3b0',0.035],['acc','#ffffff',0.02],['cad','#ffffff',0.03]].forEach(function(p){
+    var c = L[p[0]];
+    o.push('<rect x="'+L.x0+'" y="'+c.y.toFixed(1)+'" width="'+(L.x1-L.x0)+'" height="'+c.h.toFixed(1)+'" fill="'+p[1]+'" opacity="'+p[2]+'"/>');
+  });
+  var step = sc.tMax > 9 ? 2 : (sc.tMax > 4 ? 1 : 0.5);
+  for (var t=0;t<=sc.tMax+0.001;t+=step){
+    var x = L.x0 + (t/sc.tMax)*(L.x1-L.x0);
+    o.push('<line x1="'+x.toFixed(1)+'" y1="'+L.disp.y.toFixed(1)+'" x2="'+x.toFixed(1)+'" y2="'+(L.cad.y+L.cad.h).toFixed(1)+'" stroke="#ffffff" stroke-opacity="0.07"/>');
+    o.push('<text x="'+x.toFixed(1)+'" y="'+(L.cad.y+L.cad.h+16).toFixed(1)+'" fill="#7d8f9a" font-size="10" text-anchor="middle">'+fmt(t, step<1?1:0)+'s</text>');
+  }
+  [L.vel, L.acc].forEach(function(c){
+    var y = (c.y + c.h/2).toFixed(1);
+    o.push('<line x1="'+L.x0+'" y1="'+y+'" x2="'+L.x1+'" y2="'+y+'" stroke="#ffffff" stroke-opacity="0.2"/>');
+  });
+
+  // channel names
+  [['DISP',L.disp],['VEL',L.vel],['ACC',L.acc],['FRAME',L.cad]].forEach(function(p){
+    var cy = (p[1].y + p[1].h/2).toFixed(1);
+    o.push('<text x="34" y="'+cy+'" fill="#9fb2bd" font-size="10" text-anchor="middle" transform="rotate(-90 34 '+cy+')">'+p[0]+'</text>');
+  });
+  o.push('<text x="'+(L.x0+6)+'" y="'+(L.vel.y+13).toFixed(1)+'" fill="#7d8f9a" font-size="10">±'+fmtK(sc.vMax)+' px/s</text>');
+  o.push('<text x="'+(L.x0+6)+'" y="'+(L.acc.y+12).toFixed(1)+'" fill="#7d8f9a" font-size="10">±'+fmtK(sc.aMax)+' px/s²</text>');
+  o.push('<text x="'+(L.x0+6)+'" y="'+(L.cad.y+11).toFixed(1)+'" fill="#7d8f9a" font-size="10">0–40 ms frame interval</text>');
+
+  // traces
+  list.slice().reverse().forEach(function(e){
+    var s = e.take.samples, col = e.color, op = e.primary ? 1 : 0.6;
+    o.push('<g opacity="'+op+'">');
+
+    o.push('<path d="'+pathFrom(chanPoints(s,L,sc,'disp'))+'" fill="none" stroke="#8cafbe" stroke-opacity="0.85" stroke-width="1.3"/>');
+
+    var vp = chanPoints(s,L,sc,'v');
+    var mid = L.vel.y + L.vel.h/2;
+    var fill = 'M'+vp[0][0].toFixed(2)+' '+mid.toFixed(2)+' ' + pathFrom(vp).slice(1) + ' L'+vp[vp.length-1][0].toFixed(2)+' '+mid.toFixed(2)+' Z';
+    o.push('<path d="'+fill+'" fill="'+col+'" fill-opacity="0.16"/>');
+    o.push('<path d="'+pathFrom(vp)+'" fill="none" stroke="'+col+'" stroke-width="1.6" stroke-linejoin="round"/>');
+
+    var ap = chanPoints(s,L,sc,'a');
+    var amid = L.acc.y + L.acc.h/2;
+    var spikes = '';
+    for (var i=0;i<ap.length;i+=1){
+      spikes += 'M'+ap[i][0].toFixed(2)+' '+amid.toFixed(2)+'L'+ap[i][0].toFixed(2)+' '+ap[i][1].toFixed(2);
+    }
+    o.push('<path d="'+spikes+'" stroke="'+col+'" stroke-opacity="0.6" stroke-width="0.9" fill="none"/>');
+
+    var span = L.x1 - L.x0, bars = '', jank = '';
+    for (var m=0;m<s.length;m++){
+      var p = s[m];
+      var x2 = L.x0 + (p.t/1000/sc.tMax)*span;
+      var hh = clamp(p.dt/40, 0.08, 1)*L.cad.h;
+      var seg = '<rect x="'+x2.toFixed(2)+'" y="'+(L.cad.y+L.cad.h-hh).toFixed(2)+'" width="'+(p.dt>20?2:1)+'" height="'+hh.toFixed(2)+'"/>';
+      if (p.dt > 20) jank += seg; else bars += seg;
+    }
+    o.push('<g fill="'+col+'" fill-opacity="0.45">'+bars+'</g>');
+    o.push('<g fill="#ff6f5e">'+jank+'</g>');
+    o.push('</g>');
+  });
+
+  // legend
+  var lx = L.x1 - 210;
+  list.forEach(function(e, i){
+    var ly = 56 + i*17;
+    o.push('<rect x="'+lx+'" y="'+(ly-8)+'" width="16" height="3" fill="'+e.color+'"/>');
+    o.push('<text x="'+(lx+24)+'" y="'+ly+'" fill="#9fb2bd" font-size="11">Take '+e.id+'</text>');
+  });
+
+  o.push('</svg>');
+  return o.join('\n');
+}
+
+function exportSVG(){
+  var svg = buildSVG();
+  if (!svg){ say('Nothing to export.'); return; }
+  var names = activeTakes().map(function(e){ return e.id.toLowerCase(); }).join('');
+  var blob = new Blob([svg], { type:'image/svg+xml;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'scroll-seismograph-take-' + names + '.svg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  $('export-note').textContent = 'Exported ' + a.download + ' — a real vector file, written locally by your browser.';
+  say('SVG trace exported.');
+}
+
+/* =====================================================================
+   11 · wiring
+   ===================================================================== */
+
+function say(msg){ $('live-status').textContent = msg; }
+
+function setActive(id){
+  S.active = id;
+  $('take-a').setAttribute('aria-pressed', String(id==='A'));
+  $('take-b').setAttribute('aria-pressed', String(id==='B'));
+  if (!S.recording && !S.arming) $('rec-label').textContent = 'Record Take ' + id;
+  S.play.take = id;
+  S.play.t = 0;
+  stopPlay();
+  syncScrub(0);
+  renderMetrics();
+}
+
+function setFeel(f){
+  S.feel = f;
+  ['glass','paper','detent'].forEach(function(k){
+    $('feel-'+k).setAttribute('aria-pressed', String(k===f));
+  });
+  $('scope-code').textContent = 'CH 3 · ' + f.toUpperCase();
+}
+
+function setRate(r){
+  S.play.rate = r;
+  $('rate-05').setAttribute('aria-pressed', String(r===0.5));
+  $('rate-1').setAttribute('aria-pressed', String(r===1));
+  $('rate-2').setAttribute('aria-pressed', String(r===2));
+}
+
+$('btn-record').addEventListener('click', armRecord);
+$('btn-newtask').addEventListener('click', function(){ pickTarget(); say('New target selected.'); });
+$('btn-rewind').addEventListener('click', function(){
+  if (S.play.on) stopPlay();
+  S.offset = 0; S.vel = 0; applyOffset(); updateLanding();
+});
+$('feel-glass').addEventListener('click', function(){ setFeel('glass'); });
+$('feel-paper').addEventListener('click', function(){ setFeel('paper'); });
+$('feel-detent').addEventListener('click', function(){ setFeel('detent'); });
+
+$('take-a').addEventListener('click', function(){ setActive('A'); });
+$('take-b').addEventListener('click', function(){ setActive('B'); });
+
+$('btn-compare').addEventListener('click', function(){
+  S.compare = !S.compare;
+  this.setAttribute('aria-pressed', String(S.compare));
+  this.textContent = S.compare ? 'Overlay both' : 'Single take';
+  renderMetrics();
+});
+
+$('btn-play').addEventListener('click', function(){ S.play.on ? stopPlay() : startPlay(); });
+$('rate-05').addEventListener('click', function(){ setRate(0.5); });
+$('rate-1').addEventListener('click', function(){ setRate(1); });
+$('rate-2').addEventListener('click', function(){ setRate(2); });
+
+$('btn-loop').addEventListener('click', function(){
+  S.play.loop = !S.play.loop;
+  this.setAttribute('aria-pressed', String(S.play.loop));
+});
+
+$('btn-copy').addEventListener('click', function(){
+  var from = S.active, to = from === 'A' ? 'B' : 'A';
+  if (!S.takes[from]){ say('Nothing to copy.'); return; }
+  var src = S.takes[from];
+  S.takes[to] = makeTake(to, src.samples.map(function(s){ return {t:s.t,y:s.y,v:s.v,a:s.a,dt:s.dt,nx:s.nx,ny:s.ny}; }), src.source, src.feel);
+  updateChips(); renderMetrics();
+  say('Take ' + from + ' copied into take ' + to + '.');
+});
+
+$('btn-clear').addEventListener('click', function(){
+  S.takes[S.active] = null;
+  stopPlay();
+  updateChips(); renderMetrics();
+  say('Take ' + S.active + ' cleared.');
+});
+
+$('btn-export').addEventListener('click', exportSVG);
+
+var scrub = $('scrub');
+function scrubTo(){
+  var tk = S.takes[S.active];
+  if (!tk) return;
+  S.play.take = S.active;
+  var end = tk.samples[tk.samples.length-1].t;
+  S.play.t = (Number(scrub.value)/1000)*end;
+  applySample(sampleAt(tk, S.play.t));
+}
+scrub.addEventListener('pointerdown', function(){ S.scrubbing = true; if (S.play.on) stopPlay(); });
+scrub.addEventListener('input', scrubTo);
+scrub.addEventListener('change', scrubTo);
+['pointerup','pointercancel','blur'].forEach(function(ev){
+  scrub.addEventListener(ev, function(){ S.scrubbing = false; });
+});
+scrub.addEventListener('keydown', function(){ S.scrubbing = true; setTimeout(function(){ S.scrubbing=false; }, 900); });
+
+// global keys, but never while typing in a control
+document.addEventListener('keydown', function(e){
+  if (e.metaKey || e.ctrlKey || e.altKey) return;   // never shadow browser shortcuts
+  if (e.target !== document.body && e.target !== track) return;
+  if (e.code === 'Space'){ e.preventDefault(); S.play.on ? stopPlay() : startPlay(); }
+  else if (e.key.toLowerCase() === 'r'){ armRecord(); }
+  else if (e.key.toLowerCase() === 'c'){ $('btn-compare').click(); }
+});
+
+/* resize */
+var ro = window.ResizeObserver ? new ResizeObserver(function(){ measure(); }) : null;
+if (ro){ ro.observe(track); ro.observe(scope); }
+window.addEventListener('resize', measure);
+window.addEventListener('orientationchange', function(){ setTimeout(measure, 200); });
+
+/* =====================================================================
+   12 · boot
+   ===================================================================== */
+
+buildStrip();
+pickTarget();
+loadDemos();
+setActive('A');
+setFeel('glass');
+setRate(1);
+updateChips();
+renderMetrics();
+layoutTrail();
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
