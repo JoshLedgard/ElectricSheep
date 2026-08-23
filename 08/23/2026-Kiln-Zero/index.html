@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Kiln Zero — a pocket glassblowing arcade instrument. Heat, blow, and spin a molten gather to match target vessel silhouettes before it cracks or slumps.">
+<link rel="icon" href="data:,">
+<title>Kiln Zero — a pocket glassblowing arcade instrument</title>
+<style>
+  :root{
+    --bg0:#0a0607;
+    --bg1:#170d0b;
+    --ink:#f6e9de;
+    --muted:#b0958a;
+    --ember:#ff8a3d;
+    --ember-hi:#ffd166;
+    --glass:#6fe3d0;
+    --glass-dk:#2b7f7a;
+    --danger:#ff5d5d;
+    --line:rgba(255,206,160,.16);
+    --pad:rgba(255,255,255,.055);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 80% at 50% 108%, #3a1707 0%, rgba(58,23,7,0) 62%),
+      linear-gradient(178deg, var(--bg0) 0%, var(--bg1) 100%);
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;
+    height:100dvh;min-height:100svh;
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;
+    -webkit-text-size-adjust:100%;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:calc(6px + env(safe-area-inset-top)) 10px 6px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(255,150,70,.07),rgba(0,0,0,0));
+  }
+  .brand{
+    font-size:13px;font-weight:800;letter-spacing:.16em;line-height:1;
+    color:var(--ember-hi);text-shadow:0 0 14px rgba(255,140,60,.5);
+    white-space:nowrap;
+  }
+  .brand small{display:block;font-size:8.5px;letter-spacing:.22em;color:var(--muted);font-weight:600;margin-top:3px}
+  .slot{flex:1 1 auto;min-width:0;text-align:right;padding-right:2px}
+  #tgtName{display:block;font-size:14px;font-weight:700;letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #tgtMeta{display:block;font-size:10.5px;color:var(--muted);letter-spacing:.06em;margin-top:2px;font-variant-numeric:tabular-nums}
+  .ic{
+    flex:0 0 auto;width:44px;height:44px;border-radius:12px;
+    border:1px solid var(--line);background:var(--pad);color:var(--ink);
+    font-size:17px;line-height:1;display:grid;place-items:center;cursor:pointer;
+    touch-action:manipulation;
+  }
+  .ic:active{background:rgba(255,255,255,.13)}
+  .ic[aria-pressed="true"]{color:var(--ember-hi);border-color:rgba(255,180,90,.5);background:rgba(255,140,60,.14)}
+  .ic:focus-visible,.pad:focus-visible,.btn:focus-visible{outline:2px solid var(--ember-hi);outline-offset:2px}
+
+  /* ---------- stage ---------- */
+  #stage{position:relative;flex:1 1 auto;min-height:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  /* ---------- overlays ---------- */
+  #overlay{
+    position:absolute;inset:0;display:none;place-items:center;
+    padding:16px;background:rgba(8,4,3,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    z-index:5;
+  }
+  #overlay.on{display:grid}
+  .card{
+    width:100%;max-width:400px;max-height:100%;overflow:auto;
+    border:1px solid var(--line);border-radius:18px;
+    background:linear-gradient(170deg,rgba(46,24,16,.96),rgba(14,9,9,.97));
+    box-shadow:0 26px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,210,160,.14);
+    padding:18px 16px 16px;
+  }
+  .kicker{font-size:10px;letter-spacing:.24em;color:var(--ember);font-weight:800;text-transform:uppercase}
+  .card h1{font-size:26px;line-height:1.08;margin:8px 0 2px;letter-spacing:-.01em}
+  .card h2{font-size:21px;line-height:1.15;margin:8px 0 4px}
+  .card p{font-size:13.5px;line-height:1.5;color:#e2cec2;margin:8px 0}
+  .card p.dim{color:var(--muted);font-size:12px}
+  .keys{list-style:none;margin:12px 0 4px;padding:0;display:grid;gap:8px}
+  .keys li{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.35}
+  .glyph{
+    flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    font-size:15px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+  }
+  .g-heat{color:#ffb35c;border-color:rgba(255,150,70,.45)}
+  .g-blow{color:#9fe8ff;border-color:rgba(120,200,255,.35)}
+  .g-spin{color:#b8ffd9;border-color:rgba(110,230,180,.35)}
+  .keys b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#fff0dd}
+  .keys span{color:var(--muted)}
+  .row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .btn{
+    flex:1 1 140px;min-height:48px;border-radius:13px;border:1px solid rgba(255,190,120,.35);
+    background:linear-gradient(180deg,#ff9d47,#e0631f);color:#2a1103;font-weight:800;
+    font-size:14.5px;letter-spacing:.06em;cursor:pointer;touch-action:manipulation;
+    box-shadow:0 8px 20px rgba(224,99,31,.28);
+  }
+  .btn.ghost{background:rgba(255,255,255,.06);color:var(--ink);border-color:var(--line);box-shadow:none;font-weight:700}
+  .btn:active{transform:translateY(1px)}
+  .stat{display:flex;gap:14px;align-items:baseline;margin-top:6px}
+  .stat .big{font-size:44px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .stat .grade{font-size:15px;font-weight:800;letter-spacing:.1em;padding:5px 10px;border-radius:9px;border:1px solid var(--line)}
+
+  /* ---------- pads ---------- */
+  #pads{
+    flex:0 0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);
+    background:linear-gradient(0deg,rgba(255,140,60,.06),rgba(0,0,0,0));
+  }
+  .pad{
+    position:relative;min-width:0;min-height:74px;border-radius:15px;cursor:pointer;
+    border:1px solid var(--line);background:var(--pad);color:var(--ink);
+    display:grid;place-items:center;gap:2px;padding:6px 4px;
+    font-family:inherit;touch-action:none;overflow:hidden;
+    transition:background .09s linear, border-color .09s linear, transform .06s;
+  }
+  .pad .sym{font-size:22px;line-height:1}
+  .pad .lbl{font-size:11px;font-weight:800;letter-spacing:.16em}
+  .pad .sub{font-size:9px;letter-spacing:.1em;color:var(--muted)}
+  .pad .fill{position:absolute;left:0;right:0;bottom:0;height:0;opacity:.7;pointer-events:none}
+  .pad[data-on="1"]{transform:translateY(1px)}
+  #padHeat[data-on="1"]{background:rgba(255,130,50,.26);border-color:rgba(255,170,90,.7);box-shadow:0 0 26px rgba(255,120,40,.35) inset}
+  #padBlow[data-on="1"]{background:rgba(90,190,255,.22);border-color:rgba(140,215,255,.7);box-shadow:0 0 26px rgba(90,190,255,.3) inset}
+  #padSpin[data-on="1"]{background:rgba(90,240,180,.2);border-color:rgba(130,250,200,.7);box-shadow:0 0 26px rgba(90,240,180,.28) inset}
+  #padHeat .fill{background:linear-gradient(0deg,#ff8a3d,rgba(255,138,61,0))}
+  #padBlow .fill{background:linear-gradient(0deg,#57c2ff,rgba(87,194,255,0))}
+  #padSpin .fill{background:linear-gradient(0deg,#4fe6ac,rgba(79,230,172,0))}
+
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  @media (min-width:760px){
+    .brand{font-size:15px}
+    #tgtName{font-size:16px}
+    .pad{min-height:86px}
+    #pads{max-width:760px;margin:0 auto;width:100%}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .btn:active,.pad[data-on="1"]{transform:none}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">KILN ZERO<small>POCKET GLASSWORKS</small></div>
+  <div class="slot">
+    <span id="tgtName">Ember Cup</span>
+    <span id="tgtMeta">piece 1 / 4</span>
+  </div>
+  <button class="ic" id="btnSound" aria-pressed="false" aria-label="Sound off — tap to enable"><span aria-hidden="true">🔇</span></button>
+  <button class="ic" id="btnHelp" aria-label="How to play"><span aria-hidden="true">?</span></button>
+</header>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="ovTitle">
+    <div class="card" id="ovCard"></div>
+  </div>
+</div>
+
+<div id="pads">
+  <button class="pad" id="padHeat" aria-label="Heat (hold). Keyboard H">
+    <span class="fill"></span>
+    <span class="sym" aria-hidden="true">🔥</span>
+    <span class="lbl">HEAT</span>
+    <span class="sub">HOLD · H</span>
+  </button>
+  <button class="pad" id="padBlow" aria-label="Blow (hold). Keyboard space">
+    <span class="fill"></span>
+    <span class="sym" aria-hidden="true">💨</span>
+    <span class="lbl">BLOW</span>
+    <span class="sub">HOLD · SPACE</span>
+  </button>
+  <button class="pad" id="padSpin" aria-label="Spin (tap or hold). Keyboard S">
+    <span class="fill"></span>
+    <span class="sym" aria-hidden="true">↻</span>
+    <span class="lbl">SPIN</span>
+    <span class="sub">TAP · S</span>
+  </button>
+</div>
+
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Kiln Zero — deterministic pocket glassblowing.
+   Everything below runs offline: no network, no storage,
+   no dependencies. Sim is fixed-timestep + seeded RNG so any
+   piece can be replayed exactly from its recorded input tape.
+   ============================================================ */
+
+var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- tiny math ---------- */
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function smooth(a,b,v){ var t=clamp((v-a)/(b-a),0,1); return t*t*(3-2*t); }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ---------- simulation constants ---------- */
+var N        = 44;      // profile samples from pipe (0) to bottom (N-1)
+var DT       = 1/60;    // fixed sim step
+var NECK     = 0.085;   // pinned radius at the blowpipe
+var COOL     = 0.135;
+var HEAT_RATE= 0.95, HEAT_W = 0.30;
+var BLOW_RATE= 0.62,  BLOW_W = 0.26;
+var SPIN_GAIN= 1.55, SPIN_DECAY = 0.30;
+var SET_HOLD = 0.80;
+var SOFT_LO  = 0.38, SOFT_HI = 0.78;   // workable temperature band
+var OVERHEAT = 0.97;
+var BURST_TH = 0.13;                    // wall thickness that lets go
+
+/* ---------- the four fictional targets ---------- */
+var TARGETS = [
+  { name:'Ember Cup',    hint:'Squat cup, rolled shoulder.',
+    pts:[[0,0.09],[0.12,0.20],[0.30,0.45],[0.50,0.52],[0.72,0.50],[0.88,0.34],[1,0.05]],
+    tol:0.175, pass:70, time:54 },
+  { name:'Kiln Bell',    hint:'Long throat, wide skirt.',
+    pts:[[0,0.09],[0.24,0.12],[0.44,0.18],[0.63,0.35],[0.80,0.53],[0.92,0.52],[1,0.06]],
+    tol:0.152, pass:74, time:52 },
+  { name:'Twin Node',    hint:'Two bulbs and one cool waist.',
+    pts:[[0,0.09],[0.14,0.28],[0.28,0.43],[0.42,0.23],[0.50,0.18],[0.62,0.31],[0.78,0.46],[0.90,0.33],[1,0.05]],
+    tol:0.136, pass:76, time:58 },
+  { name:'Stacked Flask',hint:'Bulb, straight waist, flared foot.',
+    pts:[[0,0.09],[0.12,0.25],[0.24,0.40],[0.38,0.30],[0.55,0.27],[0.68,0.31],[0.82,0.50],[0.93,0.43],[1,0.06]],
+    tol:0.126, pass:78, time:60 }
+];
+
+/* build a smooth N-sample profile from control points */
+function buildProfile(pts){
+  var out=new Float64Array(N), i, k=0;
+  for(i=0;i<N;i++){
+    var u=i/(N-1);
+    while(k<pts.length-2 && pts[k+1][0]<u) k++;
+    var a=pts[k], b=pts[k+1];
+    var t=(b[0]-a[0])<=0?0:clamp((u-a[0])/(b[0]-a[0]),0,1);
+    out[i]=lerp(a[1],b[1],t*t*(3-2*t));
+  }
+  for(var pass=0;pass<2;pass++){
+    var cp=out.slice();
+    for(i=1;i<N-1;i++) out[i]=cp[i-1]*0.25+cp[i]*0.5+cp[i+1]*0.25;
+  }
+  out[0]=NECK;
+  out[N-1]=Math.min(out[N-1],out[N-2]*0.45);
+  return out;
+}
+for(var ti=0;ti<TARGETS.length;ti++) TARGETS[ti].prof=buildProfile(TARGETS[ti].pts);
+
+/* ---------- game state ---------- */
+var G = {
+  mode:'title',            // title | play | setting | failing | result | shelf | replay
+  level:0,
+  r:new Float64Array(N),
+  r0:new Float64Array(N),
+  t:new Float64Array(N),
+  off:new Float64Array(N),
+  th:new Float64Array(N),
+  stress:0, slump:0, spin:1, press:0, collar:0.42,
+  phase:0, time:0, left:0, setT:0, match:0, lean:1,
+  rng:mulberry32(1), seed:1, tick:0,
+  parts:[], anim:0, failReason:'', shake:0,
+  rec:{f:[],c:[]}, play:null,
+  shelf:[], coach:'', coachT:0, flash:0, glowPulse:0
+};
+
+var INPUT = { heat:false, blow:false, spin:false };
+
+function resetPiece(idx){
+  var T=TARGETS[idx];
+  G.level=idx;
+  G.seed = 9001 + idx*7717;
+  G.rng = mulberry32(G.seed);
+  G.lean = (idx%2===0)? 1 : -1;
+  for(var i=0;i<N;i++){
+    var u=i/(N-1);
+    var tip = 1 - 0.75*smooth(0.86,1,u);
+    G.r[i] = (0.088 + 0.085*Math.pow(Math.sin(Math.PI*u),0.75)) * tip;
+    G.r0[i]= G.r[i];
+    G.t[i] = 0.86 - 0.10*u;
+    G.off[i]=0;
+    G.th[i]=1;
+  }
+  G.r[0]=NECK;
+  G.stress=0; G.slump=0; G.spin=1; G.press=0; G.collar=0.42;
+  G.phase=0; G.time=0; G.left=T.time; G.setT=0; G.match=0; G.tick=0;
+  G.parts.length=0; G.anim=0; G.failReason=''; G.shake=0;
+  G.rec={f:[],c:[]}; G.play=null;
+  G.coach=''; G.coachT=0; G.flash=0; G.glowPulse=0;
+  INPUT.heat=INPUT.blow=INPUT.spin=false;
+  syncPads();
+  updateHeader();
+}
+
+function updateHeader(){
+  var T=TARGETS[G.level];
+  document.getElementById('tgtName').textContent = T.name;
+  document.getElementById('tgtMeta').textContent =
+    'piece ' + (G.level+1) + ' / ' + TARGETS.length + ' · match ' + T.pass + '% to set';
+}
+
+/* ---------- particles (spawned only inside the fixed step → replay safe) ---------- */
+function spawn(x,y,vx,vy,life,size,kind){
+  if(G.parts.length > (REDUCE?60:160)) return;
+  G.parts.push({x:x,y:y,vx:vx,vy:vy,l:life,L:life,s:size,k:kind});
+}
+
+/* ---------- the step ---------- */
+function step(inp){
+  var i,u,g;
+  G.tick++;
+  G.time += DT;
+  G.phase += DT * (0.6 + G.spin*7.5);
+
+  var live = (G.mode==='play' || G.mode==='replay');
+
+  if(live){
+    G.left -= DT;
+
+    /* pressure builds while blowing, bleeds off after */
+    if(inp.blow) G.press = Math.min(1, G.press + DT/0.42);
+    else         G.press = Math.max(0, G.press - DT/0.22);
+
+    /* spin */
+    if(inp.spin) G.spin = Math.min(1, G.spin + SPIN_GAIN*DT);
+    G.spin = Math.max(0, G.spin - SPIN_DECAY*DT);
+
+    var c = inp.collar;
+    var maxT=0, minTh=1, sumOff=0;
+
+    for(i=0;i<N;i++){
+      u=i/(N-1);
+
+      /* --- thermal --- */
+      var surf = 0.55 + 1.15*G.r[i];
+      G.t[i] -= COOL*DT*surf;
+      if(inp.heat){
+        var d=(u-c)/HEAT_W;
+        g = Math.exp(-d*d);
+        G.t[i] += HEAT_RATE*DT*(0.22 + 0.78*g)*(1.18-G.t[i]);
+      }
+      if(inp.blow) G.t[i] -= 0.09*DT*G.press;   /* moving air chills the gather */
+      G.t[i]=clamp(G.t[i],0,1.18);
+
+      var soft = smooth(SOFT_LO,SOFT_HI,G.t[i]);
+      if(G.t[i]>OVERHEAT) soft = Math.min(1.35, soft + (G.t[i]-OVERHEAT)*4);
+
+      /* --- inflation --- */
+      if(G.press>0.02){
+        var db=(u-c)/BLOW_W;
+        var gb=Math.exp(-db*db);
+        var grow = BLOW_RATE*DT*G.press*gb*Math.min(soft,1.15) / (1 + 1.7*G.r[i]);
+        G.r[i] += grow;
+        if(soft < 0.55){
+          G.stress += DT*G.press*gb*(0.55-soft)*1.9;
+        }
+      }
+
+      /* --- gravity: unspun soft glass droops and goes off-axis --- */
+      var sag = Math.max(0, (0.55-G.spin)/0.55);
+      if(sag>0 && soft>0.05){
+        if(i>0) G.r[i] += DT*sag*soft*0.55*(G.r[i-1]-G.r[i]);
+        G.off[i] += DT*sag*soft*0.075*G.lean;
+      }
+      /* --- spin trues the form back up --- */
+      if(G.spin>0.55){
+        var tr = (G.spin-0.55)/0.45;
+        G.off[i] *= (1 - Math.min(0.9, DT*2.6*tr));
+      }
+      G.off[i]=clamp(G.off[i],-0.55,0.55);
+
+      /* wall thickness from volume conservation */
+      G.th[i]=clamp(Math.pow(0.155/Math.max(G.r[i],0.02),1.15),0,1);
+
+      if(G.t[i]>maxT) maxT=G.t[i];
+      if(G.th[i]<minTh) minTh=G.th[i];
+      sumOff += Math.abs(G.off[i]);
+    }
+
+    /* keep the pipe joint and the bottom pole honest */
+    G.r[0]=NECK; G.off[0]*=0.25;
+    G.r[1]=lerp(G.r[1],(G.r[0]+G.r[2])*0.5,0.35);
+    G.r[N-1]=Math.min(G.r[N-1],G.r[N-2]*0.5);
+
+    /* spin also evens neighbouring bands out */
+    if(G.spin>0.4){
+      var sm=G.r.slice(), w=0.13*(G.spin-0.4)/0.6;
+      for(i=1;i<N-1;i++) G.r[i]=lerp(sm[i],(sm[i-1]+sm[i+1])*0.5,w);
+    }
+
+    G.stress = Math.max(0, G.stress - DT*0.55*smooth(0.4,0.85,maxT));
+    if(maxT>OVERHEAT) G.slump += DT*(maxT-OVERHEAT)*3.1; else G.slump=Math.max(0,G.slump-DT*0.35);
+
+    /* --- scoring: mean profile error against the ghost --- */
+    var T=TARGETS[G.level], err=0, wsum=0;
+    for(i=2;i<N-2;i++){
+      var wgt = 0.45 + Math.sin(Math.PI*(i/(N-1)));
+      err += wgt*Math.abs(G.r[i]-T.prof[i]);
+      wsum += wgt;
+    }
+    err = err/wsum + 1.25*(sumOff/N);
+    G.match = clamp(1 - err/T.tol, 0, 1)*100;
+
+    /* --- particles --- */
+    var rr=G.rng;
+    if(inp.heat && (!REDUCE || G.tick%3===0)){
+      spawn(0.5 + (rr()-0.5)*0.10, c + (rr()-0.5)*0.12,
+            (rr()-0.5)*0.06, -0.16-rr()*0.22, 0.9+rr()*0.6, 1.4+rr()*2.4, 'ember');
+    }
+    if(inp.blow && G.press>0.5 && G.tick%4===0 && !REDUCE){
+      spawn(0.5 + (rr()-0.5)*0.05, -0.02, (rr()-0.5)*0.05, 0.18+rr()*0.1, 0.5, 1.2+rr(), 'air');
+    }
+
+    /* --- outcomes --- */
+    if(G.mode==='play'){
+      if(G.match >= T.pass){
+        G.setT += DT;
+        if(G.setT>=SET_HOLD) succeed();
+      } else {
+        G.setT = Math.max(0, G.setT - DT*1.6);
+      }
+      if(G.stress>=1)       fail('CRACKED', 'You worked it cold. Glass under 40% heat tears instead of stretching.');
+      else if(minTh<BURST_TH) fail('BLEW OUT', 'The wall went too thin. Short puffs, then reheat.');
+      else if(G.slump>=1)     fail('SLUMPED', 'Over-fired. Above the red band the gather just runs.');
+      else if(G.left<=0)      fail('GATHER SPENT', 'Out of working time. The piece went dead cold.');
+    }
+    coachUpdate(inp, maxT, minTh);
+  }
+
+  /* particle integration always runs */
+  for(i=G.parts.length-1;i>=0;i--){
+    var p=G.parts[i];
+    p.l-=DT;
+    if(p.l<=0){ G.parts.splice(i,1); continue; }
+    p.x+=p.vx*DT; p.y+=p.vy*DT;
+    if(p.k==='ember'){ p.vy-=0.10*DT; p.vx*=0.995; }
+    else if(p.k==='shard'){ p.vy+=0.55*DT; }
+    else if(p.k==='spark'){ p.vy+=0.12*DT; }
+  }
+  if(G.shake>0) G.shake=Math.max(0,G.shake-DT*2.2);
+  if(G.flash>0) G.flash=Math.max(0,G.flash-DT*1.8);
+  if(G.anim>0)  G.anim -= DT;
+  G.glowPulse += DT;
+}
+
+/* ---------- coaching line (piece 1 mostly) ---------- */
+function coachUpdate(inp, maxT, minTh){
+  var msg='';
+  var T=TARGETS[G.level];
+  if(G.spin<0.30) msg='SPIN — it is drooping off-axis';
+  else if(minTh<0.19) msg='WALL IS THIN — stop blowing, reheat';
+  else if(maxT>OVERHEAT) msg='TOO HOT — let it cool a beat';
+  else if(G.match>=T.pass) msg='HOLD IT THERE — setting…';
+  else if(G.level===0){
+    if(maxT<SOFT_LO+0.06) msg='HOLD HEAT until the glass glows amber';
+    else if(G.press<0.05) msg='HOLD BLOW to push it toward the ghost';
+    else msg='Drag on the glass to move the shaping collar';
+  }
+  else if(G.level===2 && G.match<40) msg='Blow high, reheat, then blow low — keep the waist cool';
+  G.coach = msg;
+}
+
+/* ---------- outcomes ---------- */
+function succeed(){
+  var T=TARGETS[G.level];
+  G.mode='setting';
+  G.anim=1.6; G.flash=1;
+  var rr=G.rng;
+  for(var k=0;k<(REDUCE?10:26);k++){
+    spawn(0.5+(rr()-0.5)*0.3, 0.2+rr()*0.6, (rr()-0.5)*0.16, -0.05-rr()*0.14, 1.1+rr()*0.5, 1+rr()*2, 'spark');
+  }
+  G.shelf[G.level]={ name:T.name, prof:Float64Array.from(G.r), off:Float64Array.from(G.off), match:G.match, grade:gradeOf(G.match) };
+  sfx('set');
+  announce(T.name+' set at '+Math.round(G.match)+' percent match.');
+}
+function fail(reason, why){
+  G.mode='failing';
+  G.failReason=reason; G.failWhy=why;
+  G.anim=1.3; G.shake=1;
+  var rr=G.rng;
+  for(var k=0;k<(REDUCE?12:44);k++){
+    var u=rr();
+    spawn(0.5+(rr()-0.5)*0.16, 0.15+u*0.7, (rr()-0.5)*0.55, -0.1-rr()*0.3, 0.8+rr()*0.7, 1+rr()*2.6, 'shard');
+  }
+  sfx(reason==='SLUMPED'?'thud':'crack');
+  announce(reason+'. '+why);
+}
+function gradeOf(m){ return m>=95?'A+':m>=88?'A':m>=80?'B':'C'; }
+
+/* ---------- input tape / replay ---------- */
+function recordTick(){
+  G.rec.f.push((INPUT.heat?1:0)|(INPUT.blow?2:0)|(INPUT.spin?4:0));
+  G.rec.c.push(Math.round(clamp(G.collar,0,1)*255));
+}
+function startReplay(){
+  var tape=G.rec, lvl=G.level, shelfSnapshot=G.shelf.slice();
+  resetPiece(lvl);
+  G.shelf=shelfSnapshot;
+  G.play={f:tape.f, c:tape.c, i:0};
+  G.rec={f:[],c:[]};
+  G.mode='replay';
+  hideOverlay();
+}
+
+/* ---------- audio (Web Audio, generated locally, off until enabled) ---------- */
+var AC=null, master=null, heatGain=null, blowGain=null, soundOn=false, noiseBuf=null;
+function makeNoise(){
+  var len=AC.sampleRate*2, b=AC.createBuffer(1,len,AC.sampleRate), d=b.getChannelData(0);
+  var s=12345;
+  for(var i=0;i<len;i++){ s=(s*1103515245+12345)&0x7fffffff; d[i]=(s/0x3fffffff)-1; }
+  return b;
+}
+function loopNoise(type, freq, q, gain){
+  var src=AC.createBufferSource(); src.buffer=noiseBuf; src.loop=true;
+  var f=AC.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q;
+  var g=AC.createGain(); g.gain.value=0;
+  src.connect(f); f.connect(g); g.connect(master); src.start();
+  return g;
+}
+function ensureAudio(){
+  if(AC) { if(AC.state==='suspended') AC.resume(); return; }
+  var Ctx=window.AudioContext||window.webkitAudioContext;
+  if(!Ctx) return;
+  AC=new Ctx();
+  master=AC.createGain(); master.gain.value=0.0; master.connect(AC.destination);
+  noiseBuf=makeNoise();
+  heatGain=loopNoise('lowpass', 620, 0.9);
+  blowGain=loopNoise('bandpass', 1150, 0.8);
+}
+function setSound(on){
+  soundOn=on;
+  if(on) ensureAudio();
+  if(master) master.gain.setTargetAtTime(on?0.85:0, AC.currentTime, 0.03);
+  var b=document.getElementById('btnSound');
+  b.setAttribute('aria-pressed', on?'true':'false');
+  b.setAttribute('aria-label', on?'Sound on — tap to mute':'Sound off — tap to enable');
+  b.firstElementChild.textContent = on?'🔊':'🔇';
+}
+function audioFrame(){
+  if(!soundOn||!AC) return;
+  var live=(G.mode==='play'||G.mode==='replay');
+  var h = live && INPUT.heat ? 0.20 : 0;
+  var b = live ? G.press*0.16 : 0;
+  heatGain.gain.setTargetAtTime(h, AC.currentTime, 0.06);
+  blowGain.gain.setTargetAtTime(b, AC.currentTime, 0.05);
+}
+function tone(f0,f1,dur,type,vol){
+  if(!soundOn||!AC) return;
+  var o=AC.createOscillator(), g=AC.createGain(), n=AC.currentTime;
+  o.type=type||'sine'; o.frequency.setValueAtTime(f0,n);
+  o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),n+dur);
+  g.gain.setValueAtTime(0,n);
+  g.gain.linearRampToValueAtTime(vol||0.18,n+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,n+dur);
+  o.connect(g); g.connect(master); o.start(n); o.stop(n+dur+0.05);
+}
+function burst(freq,q,dur,vol,type){
+  if(!soundOn||!AC) return;
+  var s=AC.createBufferSource(); s.buffer=noiseBuf;
+  var f=AC.createBiquadFilter(); f.type=type||'highpass'; f.frequency.value=freq; f.Q.value=q;
+  var g=AC.createGain(), n=AC.currentTime;
+  g.gain.setValueAtTime(vol,n); g.gain.exponentialRampToValueAtTime(0.0001,n+dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(n); s.stop(n+dur+0.05);
+}
+function sfx(kind){
+  if(!soundOn||!AC) return;
+  if(kind==='spin'){ tone(340,190,0.10,'triangle',0.10); }
+  else if(kind==='set'){ tone(880,878,1.15,'sine',0.15); tone(1320,1318,0.9,'sine',0.07); tone(1760,1758,0.6,'sine',0.04); }
+  else if(kind==='crack'){ burst(2400,1.2,0.5,0.32); tone(520,90,0.35,'square',0.08); }
+  else if(kind==='thud'){ burst(320,0.8,0.6,0.28,'lowpass'); tone(140,60,0.5,'sine',0.14); }
+  else if(kind==='tap'){ tone(660,600,0.05,'sine',0.07); }
+}
+function announce(s){ document.getElementById('live').textContent = s; }
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var W=0,H=0,DPR=1;
+
+function resize(){
+  var st=document.getElementById('stage');
+  var w=st.clientWidth, h=st.clientHeight;
+  DPR=Math.min(2, window.devicePixelRatio||1);
+  cv.width=Math.max(1,Math.round(w*DPR));
+  cv.height=Math.max(1,Math.round(h*DPR));
+  W=w; H=h;
+}
+if(window.ResizeObserver){ new ResizeObserver(resize).observe(document.getElementById('stage')); }
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', function(){ setTimeout(resize,120); });
+
+function geom(){
+  var top=H*0.16, bot=H*0.795;
+  if(H<330){ top=H*0.19; bot=H*0.80; }
+  var S=Math.min(W*0.40, (bot-top)*0.48);
+  return { y0:top, y1:bot, cx:W*0.5, S:S, hh:bot-top };
+}
+
+/* temperature → colour */
+function heatColor(t,a){
+  var r,g,b;
+  if(t<0.20){ var k=t/0.20; r=lerp(96,120,k); g=lerp(190,205,k); b=lerp(198,196,k); }
+  else if(t<0.42){ var k2=(t-0.20)/0.22; r=lerp(120,176,k2); g=lerp(205,140,k2); b=lerp(196,96,k2); }
+  else if(t<0.68){ var k3=(t-0.42)/0.26; r=lerp(176,236,k3); g=lerp(140,124,k3); b=lerp(96,48,k3); }
+  else if(t<0.92){ var k4=(t-0.68)/0.24; r=lerp(236,255,k4); g=lerp(124,186,k4); b=lerp(48,72,k4); }
+  else { var k5=clamp((t-0.92)/0.26,0,1); r=255; g=lerp(186,246,k5); b=lerp(72,214,k5); }
+  return 'rgba('+(r|0)+','+(g|0)+','+(b|0)+','+(a===undefined?1:a)+')';
+}
+
+function outlinePoints(prof, off, gm, squash){
+  var L=[],R=[],i;
+  for(i=0;i<N;i++){
+    var u=i/(N-1);
+    var y=gm.y0 + u*gm.hh*(squash||1);
+    var x=gm.cx + off[i]*gm.S;
+    var rad=prof[i]*gm.S;
+    L.push([x-rad,y]); R.push([x+rad,y]);
+  }
+  R.reverse();
+  return L.concat(R);
+}
+function tracePath(pts, close){
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0],pts[0][1]);
+  for(var i=1;i<pts.length-1;i++){
+    var mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+    ctx.quadraticCurveTo(pts[i][0],pts[i][1],mx,my);
+  }
+  ctx.lineTo(pts[pts.length-1][0],pts[pts.length-1][1]);
+  if(close) ctx.closePath();
+}
+
+function drawBackground(gm){
+  /* kiln floor glow, brightens while heating */
+  var hot = (G.mode==='play'||G.mode==='replay') ? (INPUT.heat?1:0) : 0;
+  var amb = 0.28 + hot*0.55 + G.flash*0.4;
+  var g=ctx.createRadialGradient(gm.cx, gm.y1+H*0.12, 4, gm.cx, gm.y1+H*0.12, Math.max(W,H)*0.72);
+  g.addColorStop(0,'rgba(255,132,44,'+(0.30*amb).toFixed(3)+')');
+  g.addColorStop(0.38,'rgba(150,52,16,'+(0.14*amb).toFixed(3)+')');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  /* firebrick arch behind the piece */
+  ctx.save();
+  ctx.globalAlpha=0.30;
+  ctx.strokeStyle='rgba(255,178,110,0.14)';
+  ctx.lineWidth=1;
+  var rows=6;
+  for(var r=0;r<rows;r++){
+    var rad=gm.S*(1.5+r*0.42);
+    ctx.beginPath();
+    ctx.arc(gm.cx, gm.y1+H*0.06, rad, Math.PI*1.06, Math.PI*1.94);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawGhost(gm){
+  var T=TARGETS[G.level];
+  var pts=outlinePoints(T.prof, new Float64Array(N), gm);
+  tracePath(pts,true);
+  ctx.fillStyle='rgba(90,220,210,0.055)';
+  ctx.fill();
+  ctx.save();
+  ctx.setLineDash([5,6]);
+  ctx.lineWidth=1.6;
+  ctx.strokeStyle='rgba(120,236,220,0.55)';
+  ctx.stroke();
+  ctx.restore();
+
+  /* target name etched on the ghost's widest band */
+  var wide=0,wi=0;
+  for(var i=0;i<N;i++) if(T.prof[i]>wide){wide=T.prof[i];wi=i;}
+  ctx.save();
+  ctx.font='700 9px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle='rgba(120,236,220,0.6)';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  var ty=gm.y0+(wi/(N-1))*gm.hh;
+  ctx.fillText('TARGET · '+T.name.toUpperCase(), gm.cx+wide*gm.S+9, ty);
+  ctx.restore();
+}
+
+/* per-band error ribbon: the score, drawn on the work itself */
+function drawErrorRibbon(gm){
+  var T=TARGETS[G.level];
+  ctx.save();
+  for(var i=3;i<N-3;i+=1){
+    var d=G.r[i]-T.prof[i];
+    var ad=Math.abs(d);
+    if(ad<0.012) continue;
+    var y=gm.y0+(i/(N-1))*gm.hh;
+    var x0=gm.cx+G.off[i]*gm.S+T.prof[i]*gm.S;
+    var x1=gm.cx+G.off[i]*gm.S+G.r[i]*gm.S;
+    ctx.strokeStyle = d>0 ? 'rgba(255,96,96,'+clamp(ad*3.2,0.08,0.62)+')'
+                          : 'rgba(96,190,255,'+clamp(ad*3.2,0.08,0.5)+')';
+    ctx.lineWidth=Math.max(1,gm.hh/N*0.72);
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawGlass(gm, coolMix){
+  var i, pts=outlinePoints(G.r,G.off,gm);
+  var maxT=0; for(i=0;i<N;i++) if(G.t[i]>maxT) maxT=G.t[i];
+
+  /* outer glow */
+  if(maxT>0.35 && !REDUCE){
+    ctx.save();
+    var gg=ctx.createRadialGradient(gm.cx,(gm.y0+gm.y1)/2,gm.S*0.15,gm.cx,(gm.y0+gm.y1)/2,gm.S*2.3);
+    var ga=clamp((maxT-0.35)*0.5,0,0.34)*(1-coolMix);
+    gg.addColorStop(0,'rgba(255,140,50,'+ga.toFixed(3)+')');
+    gg.addColorStop(1,'rgba(255,90,20,0)');
+    ctx.fillStyle=gg; ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+
+  /* body fill — vertical gradient sampled from the temperature field */
+  var grad=ctx.createLinearGradient(0,gm.y0,0,gm.y1);
+  for(i=0;i<9;i++){
+    var f=i/8, idx=Math.round(f*(N-1));
+    var tv=G.t[idx]*(1-coolMix);
+    grad.addColorStop(f, heatColor(tv, 0.95));
+  }
+  tracePath(pts,true);
+  ctx.fillStyle=grad;
+  ctx.fill();
+
+  /* rotating longitudinal highlight bands — reads as a solid of revolution */
+  ctx.save();
+  tracePath(pts,true); ctx.clip();
+  for(i=0;i<4;i++){
+    var ph=G.phase + i*Math.PI/2;
+    var cph=Math.cos(ph);
+    if(cph<=0.02) continue;
+    var bx=gm.cx + Math.sin(ph)*gm.S*0.62;
+    var bw=Math.max(2,gm.S*0.16*cph);
+    var bg=ctx.createLinearGradient(bx-bw,0,bx+bw,0);
+    var ba=0.16*cph*(0.4+0.6*(1-coolMix*0.5));
+    bg.addColorStop(0,'rgba(255,255,255,0)');
+    bg.addColorStop(0.5,'rgba(255,246,226,'+ba.toFixed(3)+')');
+    bg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=bg;
+    ctx.fillRect(bx-bw,gm.y0-4,bw*2,gm.hh+8);
+  }
+
+  /* hollow core — the visible wall thins as you blow */
+  var inner=new Float64Array(N), ioff=new Float64Array(N);
+  for(i=0;i<N;i++){
+    var wall = clamp(0.10 + 0.42*G.th[i], 0.06, 0.62);
+    inner[i]=Math.max(0, G.r[i]*(1-wall));
+    ioff[i]=G.off[i];
+  }
+  var ipts=outlinePoints(inner,ioff,gm);
+  tracePath(ipts,true);
+  ctx.fillStyle='rgba(12,6,8,0.42)';
+  ctx.fill();
+  ctx.restore();
+
+  /* rim light */
+  tracePath(pts,true);
+  ctx.lineWidth=1.6;
+  ctx.strokeStyle = coolMix>0.5 ? 'rgba(180,240,238,0.85)' : heatColor(Math.min(1.05,maxT+0.16),0.9);
+  ctx.stroke();
+
+  /* stress fractures creeping in */
+  if(G.stress>0.30){
+    ctx.save();
+    tracePath(pts,true); ctx.clip();
+    var rr=mulberry32(G.seed^0x5f3a);
+    var a=clamp((G.stress-0.30)/0.7,0,1);
+    ctx.strokeStyle='rgba(255,255,255,'+(0.25+0.6*a)+')';
+    ctx.lineWidth=1;
+    for(i=0;i<5;i++){
+      var uu=clamp(G.collar + (rr()-0.5)*0.4,0.05,0.95);
+      var yy=gm.y0+uu*gm.hh, xx=gm.cx+(rr()-0.5)*gm.S*0.8;
+      ctx.beginPath(); ctx.moveTo(xx,yy);
+      for(var s=0;s<4;s++){ xx+=(rr()-0.5)*gm.S*0.3; yy+=(rr()-0.4)*gm.hh*0.06*(1+a); ctx.lineTo(xx,yy); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* faint reflection on the bench */
+  ctx.save();
+  ctx.globalAlpha=0.13;
+  ctx.translate(0, gm.y1*2+6);
+  ctx.scale(1,-0.28);
+  tracePath(pts,true);
+  ctx.fillStyle=grad; ctx.fill();
+  ctx.restore();
+}
+
+function drawPipe(gm){
+  var x=gm.cx, top=Math.max(6,gm.y0-H*0.10);
+  ctx.save();
+  var pw=Math.max(5,gm.S*0.075);
+  var pg=ctx.createLinearGradient(x-pw,0,x+pw,0);
+  pg.addColorStop(0,'#3b3238'); pg.addColorStop(0.42,'#b9aeb4'); pg.addColorStop(0.62,'#6c6068'); pg.addColorStop(1,'#2b252a');
+  ctx.fillStyle=pg;
+  ctx.fillRect(x-pw,top,pw*2,gm.y0-top+6);
+  /* rotation hatching scrolls with the spin phase */
+  ctx.globalAlpha=0.5;
+  ctx.strokeStyle='rgba(20,16,18,0.9)'; ctx.lineWidth=1.4;
+  for(var i=0;i<9;i++){
+    var yy=top + ((i*11 + (G.phase*13)%11) % (gm.y0-top+6));
+    ctx.beginPath(); ctx.moveTo(x-pw,yy); ctx.lineTo(x+pw,yy+3); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  /* spin gauge ring */
+  var gy=top+10, gr=Math.max(13,gm.S*0.14);
+  ctx.beginPath(); ctx.arc(x,gy,gr,0,Math.PI*2);
+  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=3.4; ctx.stroke();
+  var col = G.spin<0.3?'#ff5d5d':(G.spin<0.55?'#ffb347':'#6ff0bb');
+  ctx.beginPath(); ctx.arc(x,gy,gr,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp(G.spin,0,1));
+  ctx.strokeStyle=col; ctx.lineWidth=3.4; ctx.lineCap='round'; ctx.stroke();
+  /* rotor mark */
+  ctx.beginPath();
+  ctx.arc(x+Math.cos(G.phase)*gr, gy+Math.sin(G.phase)*gr*0.34, 2.6, 0, Math.PI*2);
+  ctx.fillStyle=col; ctx.fill();
+  if(G.spin<0.30 && (G.mode==='play'||G.mode==='replay')){
+    ctx.font='800 9px ui-sans-serif,system-ui,sans-serif';
+    ctx.fillStyle='rgba(255,93,93,'+(0.55+0.45*Math.sin(G.glowPulse*9))+')';
+    ctx.textAlign='center';
+    ctx.fillText('SPIN', x, gy+gr+12);
+  }
+  ctx.restore();
+}
+
+function drawCollar(gm){
+  if(G.mode!=='play' && G.mode!=='replay') return;
+  var idx=Math.round(clamp(G.collar,0,1)*(N-1));
+  var y=gm.y0+G.collar*gm.hh;
+  var rad=Math.max(gm.S*0.14, G.r[idx]*gm.S*1.16);
+  var cx=gm.cx+G.off[idx]*gm.S;
+  var hot=INPUT.heat, blow=G.press>0.05;
+  ctx.save();
+  ctx.strokeStyle = hot? 'rgba(255,170,80,0.95)' : (blow? 'rgba(150,220,255,0.95)':'rgba(126,240,226,0.7)');
+  ctx.lineWidth = hot||blow ? 2.4 : 1.4;
+  ctx.beginPath();
+  ctx.ellipse(cx, y, rad, Math.max(3,rad*0.20), 0, 0, Math.PI*2);
+  ctx.stroke();
+  /* pointer chevrons so the collar is findable */
+  ctx.fillStyle=ctx.strokeStyle;
+  var tri=6;
+  ctx.beginPath();
+  ctx.moveTo(cx-rad-4,y); ctx.lineTo(cx-rad-4-tri,y-tri*0.72); ctx.lineTo(cx-rad-4-tri,y+tri*0.72); ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx+rad+4,y); ctx.lineTo(cx+rad+4+tri,y-tri*0.72); ctx.lineTo(cx+rad+4+tri,y+tri*0.72); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawHaze(gm){
+  if(REDUCE) return;
+  var maxT=0; for(var i=0;i<N;i++) if(G.t[i]>maxT) maxT=G.t[i];
+  if(maxT<0.55) return;
+  ctx.save();
+  ctx.globalAlpha=clamp((maxT-0.55)*0.5,0,0.22);
+  ctx.strokeStyle='rgba(255,196,150,0.7)';
+  ctx.lineWidth=1;
+  for(var k=0;k<6;k++){
+    var base=gm.y0-6-k*9;
+    if(base<8) break;
+    ctx.beginPath();
+    for(var x=gm.cx-gm.S*1.05;x<=gm.cx+gm.S*1.05;x+=8){
+      var yy=base + Math.sin((x*0.055)+G.glowPulse*(2.2+k*0.3)+k)*3.1;
+      if(x<gm.cx-gm.S) ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParticles(gm){
+  for(var i=0;i<G.parts.length;i++){
+    var p=G.parts[i], f=p.l/p.L;
+    var x=gm.cx + (p.x-0.5)*gm.S*2.2;
+    var y=gm.y0 + p.y*gm.hh;
+    ctx.beginPath();
+    if(p.k==='ember'){ ctx.fillStyle='rgba(255,'+(140+90*f|0)+',60,'+(f*0.85).toFixed(3)+')'; }
+    else if(p.k==='shard'){ ctx.fillStyle='rgba(190,240,238,'+(f*0.9).toFixed(3)+')'; }
+    else if(p.k==='spark'){ ctx.fillStyle='rgba(255,244,210,'+(f*0.95).toFixed(3)+')'; }
+    else { ctx.fillStyle='rgba(160,215,255,'+(f*0.4).toFixed(3)+')'; }
+    ctx.arc(x,y,p.s*(0.4+f*0.9),0,Math.PI*2);
+    ctx.fill();
+  }
+}
+
+/* vertical gauge */
+function gauge(x,y,h,w,val,label,zones,warn){
+  ctx.save();
+  ctx.fillStyle='rgba(255,255,255,0.055)';
+  roundRect(x,y,w,h,w/2); ctx.fill();
+  if(zones){
+    for(var i=0;i<zones.length;i++){
+      var z=zones[i];
+      ctx.fillStyle=z[2];
+      var zy=y+h*(1-z[1]), zh=h*(z[1]-z[0]);
+      roundRect(x,zy,w,zh,Math.min(w/2,zh/2)); ctx.fill();
+    }
+  }
+  var vh=h*clamp(val,0,1);
+  var g=ctx.createLinearGradient(0,y+h,0,y);
+  g.addColorStop(0, warn?'#ff7676':'#ff9b3d');
+  g.addColorStop(1, warn?'#ffd0d0':'#ffe6a8');
+  ctx.fillStyle=g;
+  roundRect(x,y+h-vh,w,vh,w/2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.font='800 8px ui-sans-serif,system-ui,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(label, x+w/2, y+h+5);
+  ctx.restore();
+}
+function roundRect(x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawHUD(gm){
+  var T=TARGETS[G.level];
+  var idx=Math.round(clamp(G.collar,0,1)*(N-1));
+  var gh=Math.min(gm.hh*0.66, H*0.44), gy=gm.y0+gm.hh*0.06, gwid=10;
+
+  /* temp gauge with the workable band marked */
+  gauge(12, gy, gh, gwid, G.t[idx]/1.18, 'TEMP',
+    [[SOFT_LO/1.18, SOFT_HI/1.18,'rgba(120,255,190,0.16)'],
+     [OVERHEAT/1.18, 1,'rgba(255,80,80,0.22)']],
+    G.t[idx]>OVERHEAT);
+
+  /* wall thickness gauge */
+  gauge(W-22, gy, gh, gwid, G.th[idx], 'WALL',
+    [[0,BURST_TH,'rgba(255,80,80,0.24)']],
+    G.th[idx]<0.20);
+
+  /* working-time strip */
+  var tw=W-96, tx=48, ty=10;
+  ctx.fillStyle='rgba(255,255,255,0.07)'; roundRect(tx,ty,tw,4,2); ctx.fill();
+  var frac=clamp(G.left/T.time,0,1);
+  ctx.fillStyle = frac<0.22 ? '#ff5d5d' : 'rgba(255,170,90,0.9)';
+  roundRect(tx,ty,tw*frac,4,2); ctx.fill();
+  ctx.font='700 8px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle='rgba(255,220,190,0.65)'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('GATHER', 10, ty-1);
+  ctx.textAlign='right';
+  ctx.fillText(Math.max(0,G.left).toFixed(1)+'s', W-10, ty-1);
+
+  /* match bar — the score lives here, notched at the pass mark */
+  var mb=W-40, mx=20, my=H*0.885, mh=13;
+  ctx.fillStyle='rgba(255,255,255,0.07)'; roundRect(mx,my,mb,mh,mh/2); ctx.fill();
+  var mf=clamp(G.match/100,0,1);
+  var pass=G.match>=T.pass;
+  var mg=ctx.createLinearGradient(mx,0,mx+mb,0);
+  mg.addColorStop(0, pass?'#3fd9a4':'#c98a52');
+  mg.addColorStop(1, pass?'#b6ffe4':'#ffd166');
+  ctx.fillStyle=mg; roundRect(mx,my,Math.max(mh,mb*mf),mh,mh/2); ctx.fill();
+  /* pass notch */
+  var nx=mx+mb*(T.pass/100);
+  ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(nx,my-4); ctx.lineTo(nx,my+mh+4); ctx.stroke();
+  /* set-hold overlay */
+  if(G.setT>0){
+    ctx.fillStyle='rgba(255,255,255,0.55)';
+    roundRect(mx,my,mb*(G.setT/SET_HOLD),mh,mh/2); ctx.fill();
+  }
+  ctx.font='800 11px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle='rgba(255,235,215,0.9)'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('MATCH', mx, my-5);
+  ctx.textAlign='right';
+  ctx.font='800 13px ui-monospace,SFMono-Regular,Menlo,monospace';
+  ctx.fillStyle = pass ? '#b6ffe4' : 'rgba(255,235,215,0.9)';
+  ctx.fillText(Math.round(G.match)+'%', mx+mb, my-4);
+
+  /* coach ribbon */
+  if(G.coach){
+    ctx.font='700 10.5px ui-sans-serif,system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillStyle='rgba(255,214,180,0.82)';
+    ctx.fillText(G.coach, W/2, my+mh+7);
+  }
+
+  if(G.mode==='replay'){
+    ctx.save();
+    ctx.font='800 10px ui-sans-serif,system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    var bw2=86,bh2=20, bx2=W/2-bw2/2, by2=gm.y0-H*0.115;
+    ctx.fillStyle='rgba(255,93,93,0.9)'; roundRect(bx2,by2,bw2,bh2,10); ctx.fill();
+    ctx.fillStyle='#2a0808';
+    ctx.fillText('● INSTANT REPLAY', W/2, by2+bh2/2+0.5);
+    ctx.restore();
+  }
+}
+
+/* the annealing shelf, drawn as real glass, not a table of numbers */
+function drawShelf(){
+  ctx.clearRect(0,0,W,H);
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'rgba(30,16,12,0.6)'); g.addColorStop(1,'rgba(8,5,6,0.9)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  var n=G.shelf.length||1;
+  var cols=Math.min(n, W<330?2:4);
+  var rows=Math.ceil(n/cols);
+  var cw=W/cols, chh=(H*0.66)/rows, topPad=H*0.16;
+
+  ctx.font='800 12px ui-sans-serif,system-ui,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillStyle='rgba(255,209,102,0.95)';
+  ctx.fillText('THE ANNEALING SHELF', W/2, H*0.06);
+  var total=0;
+  for(var i=0;i<G.shelf.length;i++) total+=G.shelf[i].match;
+  var avg = G.shelf.length? total/G.shelf.length : 0;
+  ctx.font='800 26px ui-monospace,SFMono-Regular,Menlo,monospace';
+  ctx.fillStyle='#f6e9de';
+  ctx.fillText(Math.round(avg)+'% KILN RATING', W/2, H*0.085+10);
+
+  for(var k=0;k<G.shelf.length;k++){
+    var it=G.shelf[k];
+    var col=k%cols, row=Math.floor(k/cols);
+    var cx=cw*col+cw/2, y0=topPad+row*chh+10, hh=chh*0.62;
+    var S=Math.min(cw*0.34, hh*0.46);
+    var gm={y0:y0,y1:y0+hh,cx:cx,S:S,hh:hh};
+    var pts=outlinePoints(it.prof, it.off, gm);
+    tracePath(pts,true);
+    var vg=ctx.createLinearGradient(0,y0,0,y0+hh);
+    vg.addColorStop(0,'rgba(150,232,228,0.85)');
+    vg.addColorStop(1,'rgba(64,150,158,0.85)');
+    ctx.fillStyle=vg; ctx.fill();
+    ctx.strokeStyle='rgba(214,255,250,0.8)'; ctx.lineWidth=1.2; ctx.stroke();
+    /* shelf line */
+    ctx.strokeStyle='rgba(255,180,110,0.30)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx-cw*0.40,y0+hh+4); ctx.lineTo(cx+cw*0.40,y0+hh+4); ctx.stroke();
+    ctx.font='700 9.5px ui-sans-serif,system-ui,sans-serif';
+    ctx.fillStyle='rgba(246,233,222,0.95)'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(it.name, cx, y0+hh+9);
+    ctx.font='800 10px ui-monospace,SFMono-Regular,Menlo,monospace';
+    ctx.fillStyle= it.grade==='C'?'#ffb347':'#8ef0c8';
+    ctx.fillText(Math.round(it.match)+'%  '+it.grade, cx, y0+hh+22);
+  }
+}
+
+function render(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  if(G.mode==='shelf'){ drawShelf(); return; }
+
+  var gm=geom();
+  if(G.shake>0 && !REDUCE){
+    var s=G.shake*6;
+    ctx.translate((Math.sin(G.glowPulse*61)*s),(Math.cos(G.glowPulse*47)*s));
+  }
+
+  drawBackground(gm);
+  drawGhost(gm);
+  drawErrorRibbon(gm);
+
+  var coolMix = 0;
+  if(G.mode==='setting') coolMix = clamp(1-(G.anim/1.6),0,1);
+  if(G.mode==='result')  coolMix = 1;
+
+  if(G.mode!=='failing' || G.anim>1.15) drawGlass(gm, coolMix);
+  else if(G.mode==='failing'){
+    /* the shards are all that's left */
+    ctx.save(); ctx.globalAlpha=clamp(G.anim/1.15,0,1)*0.35; drawGlass(gm, 0.3); ctx.restore();
+  }
+
+  drawHaze(gm);
+  drawPipe(gm);
+  drawCollar(gm);
+  drawParticles(gm);
+
+  if(G.mode==='play'||G.mode==='replay'||G.mode==='setting') drawHUD(gm);
+
+  if(G.flash>0){
+    ctx.fillStyle='rgba(255,240,210,'+(G.flash*0.30).toFixed(3)+')';
+    ctx.fillRect(0,0,W,H);
+  }
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+/* ============================================================
+   LOOP
+   ============================================================ */
+var last=0, acc=0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!last) last=now;
+  var dt=Math.min(0.25,(now-last)/1000); last=now;
+  acc+=dt;
+  var guard=0;
+  while(acc>=DT && guard<5){
+    acc-=DT; guard++;
+    var inp;
+    if(G.mode==='replay' && G.play){
+      if(G.play.i < G.play.f.length){
+        var fl=G.play.f[G.play.i], cc=G.play.c[G.play.i]/255;
+        G.play.i++;
+        INPUT.heat=!!(fl&1); INPUT.blow=!!(fl&2); INPUT.spin=!!(fl&4);
+        G.collar=cc;
+        inp={heat:INPUT.heat,blow:INPUT.blow,spin:INPUT.spin,collar:cc};
+        syncPads();
+      } else {
+        G.mode='result'; INPUT.heat=INPUT.blow=INPUT.spin=false; syncPads();
+        showResult(true); continue;
+      }
+    } else {
+      inp={heat:INPUT.heat,blow:INPUT.blow,spin:INPUT.spin,collar:G.collar};
+      if(G.mode==='play') recordTick();
+    }
+    step(inp);
+    if((G.mode==='setting'||G.mode==='failing') && G.anim<=0){
+      var won=(G.mode==='setting');
+      G.mode='result';
+      showResult(won);
+    }
+  }
+  audioFrame();
+  paintPads();
+  render();
+}
+requestAnimationFrame(frame);
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+var padHeat=document.getElementById('padHeat'),
+    padBlow=document.getElementById('padBlow'),
+    padSpin=document.getElementById('padSpin');
+
+function bindPad(el, key){
+  var id=null;
+  function on(e){
+    if(id!==null) return;
+    id=e.pointerId;
+    try{ el.setPointerCapture(id); }catch(err){}
+    if(G.mode!=='play') { id=null; return; }
+    INPUT[key]=true; syncPads();
+    if(key==='spin'){ G.spin=Math.min(1,G.spin+0.22); sfx('spin'); }
+    else sfx('tap');
+    e.preventDefault();
+  }
+  function off(e){
+    if(id===null) return;
+    if(e && e.pointerId!==undefined && e.pointerId!==id) return;
+    try{ el.releasePointerCapture(id); }catch(err){}
+    id=null; INPUT[key]=false; syncPads();
+  }
+  el.addEventListener('pointerdown', on);
+  el.addEventListener('pointerup', off);
+  el.addEventListener('pointercancel', off);
+  el.addEventListener('lostpointercapture', off);
+  el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  /* keyboard hold on a focused pad */
+  el.addEventListener('keydown', function(e){
+    if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!INPUT[key]&&G.mode==='play'){ INPUT[key]=true; if(key==='spin'){G.spin=Math.min(1,G.spin+0.22);sfx('spin');} syncPads(); } }
+  });
+  el.addEventListener('keyup', function(e){
+    if(e.key===' '||e.key==='Enter'){ e.preventDefault(); INPUT[key]=false; syncPads(); }
+  });
+  el.addEventListener('blur', function(){ INPUT[key]=false; syncPads(); });
+}
+bindPad(padHeat,'heat'); bindPad(padBlow,'blow'); bindPad(padSpin,'spin');
+
+function syncPads(){
+  padHeat.setAttribute('data-on', INPUT.heat?'1':'0');
+  padBlow.setAttribute('data-on', INPUT.blow?'1':'0');
+  padSpin.setAttribute('data-on', INPUT.spin?'1':'0');
+}
+function paintPads(){
+  var idx=Math.round(clamp(G.collar,0,1)*(N-1));
+  padHeat.firstElementChild.style.height=(G.t[idx]/1.18*100).toFixed(1)+'%';
+  padBlow.firstElementChild.style.height=(G.press*100).toFixed(1)+'%';
+  padSpin.firstElementChild.style.height=(G.spin*100).toFixed(1)+'%';
+}
+
+/* collar dragging straight on the glass */
+var dragId=null;
+function collarFrom(e){
+  var rect=cv.getBoundingClientRect();
+  var gm=geom();
+  var y=e.clientY-rect.top;
+  G.collar=clamp((y-gm.y0)/gm.hh, 0, 1);
+}
+cv.addEventListener('pointerdown', function(e){
+  if(G.mode!=='play') return;
+  dragId=e.pointerId;
+  try{ cv.setPointerCapture(dragId); }catch(err){}
+  collarFrom(e); e.preventDefault();
+});
+cv.addEventListener('pointermove', function(e){
+  if(dragId===null||e.pointerId!==dragId) return;
+  collarFrom(e); e.preventDefault();
+});
+function endDrag(e){
+  if(dragId===null) return;
+  if(e && e.pointerId!==undefined && e.pointerId!==dragId) return;
+  try{ cv.releasePointerCapture(dragId); }catch(err){}
+  dragId=null;
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+/* keyboard */
+document.addEventListener('keydown', function(e){
+  if(e.target && /^(BUTTON|INPUT|TEXTAREA)$/.test(e.target.tagName) && (e.key===' '||e.key==='Enter')) return;
+  var k=e.key.toLowerCase();
+  if(k==='m'){ setSound(!soundOn); return; }
+  if(k==='?'||k==='/'){ showHelp(); return; }
+  if(G.mode!=='play') return;
+  if(k==='h'){ if(!INPUT.heat){INPUT.heat=true;syncPads();} e.preventDefault(); }
+  else if(k===' '||k==='f'){ if(!INPUT.blow){INPUT.blow=true;syncPads();} e.preventDefault(); }
+  else if(k==='s'){ if(!INPUT.spin){INPUT.spin=true;G.spin=Math.min(1,G.spin+0.22);sfx('spin');syncPads();} e.preventDefault(); }
+  else if(k==='arrowup'){ G.collar=clamp(G.collar-0.05,0,1); e.preventDefault(); }
+  else if(k==='arrowdown'){ G.collar=clamp(G.collar+0.05,0,1); e.preventDefault(); }
+  else if(k==='r'){ resetPiece(G.level); G.mode='play'; }
+});
+document.addEventListener('keyup', function(e){
+  var k=e.key.toLowerCase();
+  if(k==='h'){ INPUT.heat=false; syncPads(); }
+  else if(k===' '||k==='f'){ INPUT.blow=false; syncPads(); }
+  else if(k==='s'){ INPUT.spin=false; syncPads(); }
+});
+window.addEventListener('blur', function(){ INPUT.heat=INPUT.blow=INPUT.spin=false; syncPads(); });
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){ INPUT.heat=INPUT.blow=INPUT.spin=false; syncPads(); }
+  last=0;
+});
+
+/* ============================================================
+   OVERLAYS
+   ============================================================ */
+var overlay=document.getElementById('overlay'), ovCard=document.getElementById('ovCard');
+function showOverlay(html){
+  ovCard.innerHTML=html;
+  overlay.classList.add('on');
+  var b=ovCard.querySelector('.btn');
+  if(b) setTimeout(function(){ b.focus(); }, 30);
+}
+function hideOverlay(){ overlay.classList.remove('on'); }
+
+var HOWTO =
+  '<ul class="keys">'+
+  '<li><span class="glyph g-heat" aria-hidden="true">🔥</span><span><b>Heat · hold</b><span>Softens the glass around the collar. Amber is workable, red is ruin.</span></span></li>'+
+  '<li><span class="glyph g-blow" aria-hidden="true">💨</span><span><b>Blow · hold</b><span>Inflates the soft band. Cold glass cracks, thin glass blows out.</span></span></li>'+
+  '<li><span class="glyph g-spin" aria-hidden="true">↻</span><span><b>Spin · tap or hold</b><span>Keeps it on axis. Let it stall and gravity drags the form sideways.</span></span></li>'+
+  '<li><span class="glyph" aria-hidden="true">↕</span><span><b>Collar · drag the glass</b><span>Sets where the heat and the air land. Arrow keys work too.</span></span></li>'+
+  '</ul>'+
+  '<p class="dim">Fill the dashed ghost. Hold the match above the notch for a moment and the piece sets itself.</p>';
+
+function showTitle(){
+  G.mode='title';
+  showOverlay(
+    '<div class="kicker">Pocket glassworks · 4 pieces</div>'+
+    '<h1 id="ovTitle">Kiln Zero</h1>'+
+    '<p>A gather of molten glass hangs off the pipe. Heat it, blow it, keep it turning, and grow it into the ghost silhouette before it cracks, blows out, or slumps.</p>'+
+    HOWTO+
+    '<div class="row">'+
+      '<button class="btn" data-act="start">LIGHT THE KILN</button>'+
+      '<button class="btn ghost" data-act="sound">SOUND: OFF</button>'+
+    '</div>'
+  );
+}
+function showHelp(){
+  var back = (G.mode==='title') ? 'title' : 'close';
+  showOverlay(
+    '<div class="kicker">How to play</div><h2 id="ovTitle">Three verbs, one gather</h2>'+HOWTO+
+    '<div class="row"><button class="btn" data-act="'+back+'">BACK</button></div>'
+  );
+}
+function showResult(won){
+  hideOverlayLater();
+  var T=TARGETS[G.level];
+  var last=(G.level>=TARGETS.length-1);
+  if(won){
+    var gr=gradeOf(G.match);
+    showOverlay(
+      '<div class="kicker">Piece '+(G.level+1)+' set</div>'+
+      '<h2 id="ovTitle">'+T.name+'</h2>'+
+      '<div class="stat"><span class="big">'+Math.round(G.match)+'%</span><span class="grade">'+gr+'</span></div>'+
+      '<p class="dim">'+(gr==='A+'?'Dead on the ghost. The shelf will be jealous.':gr==='A'?'Clean work — the profile barely wobbles.':gr==='B'?'Solid. A little slack in the shoulder.':'It set. Barely, but it set.')+'</p>'+
+      '<div class="row">'+
+        '<button class="btn" data-act="'+(last?'shelf':'next')+'">'+(last?'SEE THE SHELF':'NEXT PIECE')+'</button>'+
+        '<button class="btn ghost" data-act="replay">WATCH REPLAY</button>'+
+      '</div>'
+    );
+  } else {
+    showOverlay(
+      '<div class="kicker">Piece '+(G.level+1)+' lost</div>'+
+      '<h2 id="ovTitle">'+G.failReason+'</h2>'+
+      '<p>'+G.failWhy+'</p>'+
+      '<p class="dim">Best match this attempt: '+Math.round(G.match)+'% · needed '+T.pass+'%</p>'+
+      '<div class="row">'+
+        '<button class="btn" data-act="retry">RE-GATHER</button>'+
+        '<button class="btn ghost" data-act="replay">WATCH REPLAY</button>'+
+      '</div>'
+    );
+  }
+}
+function hideOverlayLater(){}
+function showShelf(){
+  G.mode='shelf';
+  hideOverlay();
+  setTimeout(function(){
+    var total=0; for(var i=0;i<G.shelf.length;i++) total+=G.shelf[i].match;
+    var avg=G.shelf.length?total/G.shelf.length:0;
+    showOverlay(
+      '<div class="kicker">Shift complete</div>'+
+      '<h2 id="ovTitle">'+(avg>=90?'Master of the bench':avg>=80?'Steady hands':avg>=70?'Serviceable glass':'Rough but yours')+'</h2>'+
+      '<p>Four pieces annealed at an average of <strong>'+Math.round(avg)+'%</strong>. Every run is the same kiln, the same physics — only your timing changes.</p>'+
+      '<div class="row"><button class="btn" data-act="again">FIRE ANOTHER SHIFT</button></div>'
+    );
+  }, 1500);
+}
+
+overlay.addEventListener('click', function(e){
+  var b=e.target.closest ? e.target.closest('[data-act]') : null;
+  if(!b) return;
+  var a=b.getAttribute('data-act');
+  if(a==='start'){ G.shelf=[]; resetPiece(0); G.mode='play'; hideOverlay(); }
+  else if(a==='sound'){ setSound(!soundOn); b.textContent='SOUND: '+(soundOn?'ON':'OFF'); }
+  else if(a==='title'){ showTitle(); }
+  else if(a==='close'){ hideOverlay(); }
+  else if(a==='next'){ resetPiece(G.level+1); G.mode='play'; hideOverlay(); }
+  else if(a==='retry'){ resetPiece(G.level); G.mode='play'; hideOverlay(); }
+  else if(a==='replay'){ startReplay(); }
+  else if(a==='shelf'){ showShelf(); }
+  else if(a==='again'){ G.shelf=[]; resetPiece(0); G.mode='play'; hideOverlay(); }
+});
+
+document.getElementById('btnSound').addEventListener('click', function(){
+  setSound(!soundOn);
+  var t=overlay.querySelector('[data-act="sound"]');
+  if(t) t.textContent='SOUND: '+(soundOn?'ON':'OFF');
+});
+document.getElementById('btnHelp').addEventListener('click', showHelp);
+
+/* ---------- go ---------- */
+resize();
+resetPiece(0);
+showTitle();
+
+})();
+</script>
+</body>
+</html>
