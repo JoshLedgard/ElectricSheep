@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Squint — A Screenshot Attention Darkroom</title>
+<meta name="description" content="Drop a screenshot into a local darkroom, scrub perception filters, move an aperture, and export a before/after contact sheet. Everything stays in your browser.">
+<style>
+  :root {
+    --bg: #0a090c;
+    --bg2: #111015;
+    --panel: #17151c;
+    --panel2: #1e1b25;
+    --line: rgba(255,190,120,0.14);
+    --line-soft: rgba(255,255,255,0.07);
+    --ink: #ece5da;
+    --ink-dim: #9d9389;
+    --ink-faint: #6b6259;
+    --amber: #ffb454;
+    --amber-deep: #d9822b;
+    --safelight: #ff4d5e;
+    --cool: #7fd7d0;
+    --radius: 14px;
+    --tap: 44px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(120% 60% at 50% -14%, rgba(255,77,94,0.16), transparent 62%),
+      radial-gradient(90% 50% at 12% 108%, rgba(255,180,84,0.08), transparent 60%);
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 14px 56px;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    padding: 26px 2px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 16px;
+  }
+  .kicker {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--amber-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lamp {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--safelight);
+    box-shadow: 0 0 10px 2px rgba(255,77,94,0.65);
+    animation: pulse 3.4s ease-in-out infinite;
+    flex: none;
+  }
+  @keyframes pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+  h1 {
+    font-family: ui-serif, Georgia, 'Times New Roman', serif;
+    font-weight: 500;
+    font-size: clamp(30px, 9.4vw, 46px);
+    line-height: 1.03;
+    letter-spacing: -0.02em;
+    margin: 8px 0 6px;
+    color: #fff6e9;
+  }
+  h1 em { font-style: normal; color: var(--amber); }
+  .sub {
+    color: var(--ink-dim);
+    font-size: 14.5px;
+    max-width: 54ch;
+  }
+
+  /* ---------- generic panel ---------- */
+  .panel {
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .panel-title b { color: var(--amber-deep); font-weight: 600; }
+
+  /* ---------- stage ---------- */
+  .stage-shell {
+    position: relative;
+    background:
+      repeating-linear-gradient(45deg, #131117 0 10px, #17151b 10px 20px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 18px 40px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .stage-shell.dragging {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 2px rgba(255,180,84,0.28), 0 18px 40px -24px #000;
+  }
+  .stage-box {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 180px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas#stage {
+    display: block;
+    max-width: 100%;
+    border-radius: 6px;
+    background: #000;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
+    cursor: crosshair;
+  }
+  #handle {
+    position: absolute;
+    width: var(--tap);
+    height: var(--tap);
+    margin: calc(var(--tap) / -2) 0 0 calc(var(--tap) / -2);
+    border-radius: 50%;
+    border: 1px solid rgba(255,180,84,0.5);
+    background: radial-gradient(circle, rgba(255,180,84,0.28), rgba(255,180,84,0.02) 70%);
+    cursor: grab;
+    touch-action: none;
+  }
+  #handle::after {
+    content: '';
+    position: absolute;
+    inset: 18px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px rgba(255,180,84,0.8);
+  }
+  #handle:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+  }
+  #handle[hidden] { display: none; }
+
+  .stage-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+  }
+  .badge {
+    border: 1px solid var(--line-soft);
+    border-radius: 100px;
+    padding: 3px 9px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .badge.live { color: var(--amber); border-color: rgba(255,180,84,0.3); }
+
+  /* ---------- buttons ---------- */
+  button, .btn {
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--panel2);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    min-height: var(--tap);
+    padding: 10px 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-align: center;
+    transition: border-color .15s, background .15s, transform .08s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:hover, .btn:hover { border-color: rgba(255,180,84,0.36); }
+  button:active, .btn:active { transform: translateY(1px); }
+  button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  button.primary {
+    background: linear-gradient(180deg, #ffc072, var(--amber-deep));
+    color: #2a1602;
+    font-weight: 650;
+    border-color: rgba(255,200,140,0.5);
+  }
+  button.on {
+    background: rgba(255,180,84,0.14);
+    border-color: rgba(255,180,84,0.5);
+    color: #ffd9a3;
+  }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn-row.three { grid-template-columns: repeat(3, 1fr); }
+  .btn-row .wide { grid-column: 1 / -1; }
+
+  /* ---------- chips ---------- */
+  .chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chips::-webkit-scrollbar { height: 4px; }
+  .chips::-webkit-scrollbar-thumb { background: rgba(255,180,84,0.25); border-radius: 4px; }
+  .chip {
+    flex: none;
+    white-space: nowrap;
+    font-size: 12.5px;
+    padding: 9px 13px;
+    min-height: var(--tap);
+    border-radius: 100px;
+  }
+
+  /* ---------- sliders ---------- */
+  .dial { margin-bottom: 4px; padding: 5px 0; }
+  .dial + .dial { border-top: 1px dashed rgba(255,255,255,0.055); }
+  .dial-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 1px;
+  }
+  .dial-head label { font-size: 13.5px; color: var(--ink); }
+  .dial-head output {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  .dial-note { font-size: 11.5px; color: var(--ink-faint); margin-bottom: 2px; }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: var(--tap);
+    background: transparent;
+    cursor: pointer;
+    display: block;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255,180,84,0.55), rgba(255,180,84,0.1));
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px; height: 24px;
+    margin-top: -10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 32%, #fff3df, var(--amber-deep));
+    border: 1px solid rgba(0,0,0,0.5);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px; border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255,180,84,0.55), rgba(255,180,84,0.1));
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.5);
+    background: radial-gradient(circle at 35% 32%, #fff3df, var(--amber-deep));
+  }
+
+  /* ---------- reading notes ---------- */
+  .notes { font-size: 13.5px; color: var(--ink-dim); }
+  .notes p + p { margin-top: 9px; }
+  .notes b { color: var(--ink); font-weight: 600; }
+  .notes .cue {
+    color: var(--amber);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .disclaimer {
+    border: 1px dashed rgba(255,77,94,0.3);
+    background: rgba(255,77,94,0.05);
+    border-radius: 12px;
+    padding: 11px 13px;
+    font-size: 12.5px;
+    color: #e3b9b9;
+  }
+  .disclaimer b { color: #ffd2d2; }
+
+  .hint {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 9px;
+    line-height: 1.5;
+  }
+  .hint kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    border: 1px solid var(--line-soft);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--ink-dim);
+    background: #0e0d11;
+  }
+
+  .status {
+    min-height: 18px;
+    font-size: 12px;
+    color: var(--amber);
+    margin-top: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  footer {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    line-height: 1.65;
+  }
+
+  .sr {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  details.about summary {
+    cursor: pointer;
+    min-height: var(--tap);
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink-dim);
+    list-style: none;
+  }
+  details.about summary::-webkit-details-marker { display: none; }
+  details.about summary::before { content: '▸'; margin-right: 8px; color: var(--amber-deep); }
+  details.about[open] summary::before { content: '▾'; }
+  details.about .notes { padding-top: 4px; }
+
+  @media (min-width: 620px) {
+    .wrap { padding: 0 22px 60px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    .two-col > .panel { margin-bottom: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lamp { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker"><span class="lamp" aria-hidden="true"></span> Squint · local darkroom · v1</div>
+    <h1>Squint<em>.</em></h1>
+    <p class="sub">A screenshot attention darkroom. Blur it, drain it, shrink it, and shine an aperture across it — then look at what still shouts. Nothing you drop here leaves this browser tab.</p>
+  </header>
+
+  <!-- ============ STAGE ============ -->
+  <div class="stage-shell" id="shell">
+    <div class="stage-box" id="stagebox">
+      <canvas id="stage" role="img" aria-label="Perception preview of the loaded composition"></canvas>
+      <div id="handle" tabindex="0" role="button"
+           aria-label="Aperture position. Drag, or use arrow keys to move and bracket keys to resize."></div>
+    </div>
+    <div class="stage-foot">
+      <span class="badge" id="srcBadge">demo · Tideglass Home</span>
+      <span class="badge live" id="mixBadge">clear window</span>
+    </div>
+  </div>
+
+  <div class="btn-row three" style="margin-bottom:14px">
+    <button id="holdBtn" aria-describedby="holdHint">Hold: original</button>
+    <button id="apBtn" class="on">Aperture: on</button>
+    <button id="modeBtn">Clear window</button>
+  </div>
+  <p class="hint" id="holdHint" style="margin-top:-6px;margin-bottom:14px">
+    Drag anywhere on the plate to move the aperture. <kbd>Space</kbd> held on <em>Hold: original</em> peeks at the untouched image. Arrow keys nudge the aperture; <kbd>[</kbd> <kbd>]</kbd> resize it.
+  </p>
+
+  <!-- ============ PRESETS ============ -->
+  <section class="panel" aria-labelledby="pt-presets">
+    <div class="panel-title" id="pt-presets"><span>Developing baths</span><b id="presetName">squint test</b></div>
+    <div class="chips" id="presets" role="group" aria-label="Filter presets"></div>
+  </section>
+
+  <div class="two-col">
+    <!-- ============ DIALS ============ -->
+    <section class="panel" aria-labelledby="pt-dials">
+      <div class="panel-title" id="pt-dials"><span>Perception dials</span><b>manual</b></div>
+      <div id="dials"></div>
+    </section>
+
+    <!-- ============ SOURCE + EXPORT ============ -->
+    <div>
+      <section class="panel" aria-labelledby="pt-source">
+        <div class="panel-title" id="pt-source"><span>Load a plate</span><b>local only</b></div>
+        <div class="chips" id="demos" role="group" aria-label="Built-in demo compositions" style="margin-bottom:10px"></div>
+        <div class="btn-row">
+          <button id="pickBtn">Choose image…</button>
+          <button id="pasteBtn">Paste from clipboard</button>
+        </div>
+        <input type="file" id="file" accept="image/*" class="sr" aria-label="Choose a screenshot to inspect">
+        <p class="hint">Drag a screenshot straight onto the plate, or press <kbd>⌘V</kbd> / <kbd>Ctrl V</kbd> anywhere on this page. Images are decoded in memory, never uploaded, and vanish when you close the tab.</p>
+        <div class="status" id="srcStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="pt-export">
+        <div class="panel-title" id="pt-export"><span>Contact sheet</span><b>PNG</b></div>
+        <p class="notes" style="margin-bottom:10px">Six frames on one plate: the untouched original, four single-dial passes, and your current mix with the aperture where you left it. Rendered from these canvases and saved straight to your device.</p>
+        <div class="btn-row">
+          <button id="exportBtn" class="primary wide">Print contact sheet</button>
+        </div>
+        <div class="status" id="expStatus" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ============ NOTES ============ -->
+  <section class="panel" aria-labelledby="pt-read">
+    <div class="panel-title" id="pt-read"><span>What each bath is for</span><b>read, don't score</b></div>
+    <div class="notes" id="readNotes"></div>
+  </section>
+
+  <section class="panel">
+    <div class="disclaimer">
+      <b>This is a perception aid, not an accessibility compliance test.</b> Squinting at a picture tells you what pulls the eye first — it does not measure contrast ratios, text size, focus order, reading order, or anything a real accessibility audit checks. Treat what you see here as a conversation starter about visual hierarchy, then verify with proper tooling and, above all, with people.
+    </div>
+  </section>
+
+  <section class="panel">
+    <details class="about">
+      <summary>How the darkroom works (and where your image goes)</summary>
+      <div class="notes">
+        <p>Every pass runs on offscreen <b>&lt;canvas&gt;</b> elements in this tab. Thumbnail distance downsamples to a small buffer and scales it back up with smoothing. Grayscale and contrast isolation ride the native canvas filter. Squint blur pads the plate with clamped edge pixels first so the border doesn't bleed to black. Peripheral falloff builds a second, heavier layer and masks the sharp one over it with a radial gradient centred on your aperture.</p>
+        <p>There is no server, no network request, no analytics, no storage, and no persistence of any kind. Reload the page and whatever you loaded is gone. The only thing that ever leaves is the PNG you deliberately save.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    Squint — a screenshot attention darkroom. Self-contained single file; works from <code>file://</code> with no dependencies, no install, and no account. Demo compositions are fictional products invented for this tool.
+  </footer>
+</div>
+
+<script>
+"use strict";
+(function () {
+
+  /* =====================================================================
+     0 · tiny helpers
+     ===================================================================== */
+  const $ = (s) => document.querySelector(s);
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+  function mk(w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w));
+    c.height = Math.max(1, Math.round(h));
+    return c;
+  }
+  function ctx2d(c) {
+    const x = c.getContext('2d');
+    x.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in x) x.imageSmoothingQuality = 'high';
+    return x;
+  }
+  function rr(x, cx, cy, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    x.beginPath();
+    x.moveTo(cx + r, cy);
+    x.arcTo(cx + w, cy, cx + w, cy + h, r);
+    x.arcTo(cx + w, cy + h, cx, cy + h, r);
+    x.arcTo(cx, cy + h, cx, cy, r);
+    x.arcTo(cx, cy, cx + w, cy, r);
+    x.closePath();
+  }
+  function fillRR(x, cx, cy, w, h, r, fill) { rr(x, cx, cy, w, h, r); x.fillStyle = fill; x.fill(); }
+  function strokeRR(x, cx, cy, w, h, r, col, lw) {
+    rr(x, cx, cy, w, h, r); x.strokeStyle = col; x.lineWidth = lw || 2; x.stroke();
+  }
+  const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  function txt(x, s, px, py, size, weight, color, align) {
+    x.font = weight + ' ' + size + 'px ' + SANS;
+    x.fillStyle = color;
+    x.textAlign = align || 'left';
+    x.textBaseline = 'alphabetic';
+    x.fillText(s, px, py);
+  }
+
+  /* =====================================================================
+     1 · fictional demo compositions (drawn procedurally, no assets)
+     ===================================================================== */
+  const DW = 750, DH = 1334;
+
+  function statusBar(x, tint) {
+    txt(x, '9:41', 30, 46, 22, '650', tint);
+    x.fillStyle = tint;
+    for (let i = 0; i < 4; i++) {
+      const h = 6 + i * 3.5;
+      x.fillRect(DW - 128 + i * 11, 44 - h, 7, h);
+    }
+    rr(x, DW - 74, 30, 40, 18, 4); x.strokeStyle = tint; x.lineWidth = 2; x.stroke();
+    x.fillRect(DW - 71, 33, 30, 12);
+  }
+  function bottomNav(x, bg, items, activeIdx, activeCol, idleCol) {
+    x.fillStyle = bg;
+    x.fillRect(0, DH - 108, DW, 108);
+    x.fillStyle = 'rgba(0,0,0,0.08)';
+    x.fillRect(0, DH - 108, DW, 1);
+    const step = DW / items.length;
+    items.forEach((label, i) => {
+      const cx = step * (i + 0.5);
+      const on = i === activeIdx;
+      const col = on ? activeCol : idleCol;
+      x.fillStyle = col;
+      rr(x, cx - 13, DH - 86, 26, 22, 5); x.fill();
+      txt(x, label, cx, DH - 44, 17, on ? '650' : '500', col, 'center');
+    });
+    x.fillStyle = 'rgba(0,0,0,0.28)';
+    rr(x, DW / 2 - 66, DH - 20, 132, 6, 3); x.fill();
+  }
+  function textLines(x, px, py, w, n, lh, col, lastFrac) {
+    x.fillStyle = col;
+    for (let i = 0; i < n; i++) {
+      const ww = (i === n - 1) ? w * (lastFrac || 0.62) : w;
+      rr(x, px, py + i * lh, ww, 9, 4.5); x.fill();
+    }
+  }
+
+  /* ---- A · busy home screen, two equally loud calls to action ---- */
+  function demoHome() {
+    const c = mk(DW, DH), x = ctx2d(c);
+    x.fillStyle = '#f2f5f7'; x.fillRect(0, 0, DW, DH);
+    statusBar(x, '#1d2a33');
+
+    txt(x, 'Tideglass', 30, 118, 34, '700', '#132029');
+    x.fillStyle = '#d9e3e9'; x.beginPath(); x.arc(DW - 52, 106, 24, 0, 6.284); x.fill();
+    x.fillStyle = '#8fa6b3'; x.beginPath(); x.arc(DW - 52, 99, 9, 0, 6.284); x.fill();
+    x.beginPath(); x.arc(DW - 52, 128, 16, Math.PI, 0); x.fill();
+
+    // hero card
+    const g = x.createLinearGradient(30, 150, DW - 30, 470);
+    g.addColorStop(0, '#12626b'); g.addColorStop(1, '#1d8f8a');
+    fillRR(x, 30, 150, DW - 60, 320, 20, g);
+    txt(x, 'Autumn refresh is live', 58, 232, 36, '700', '#ffffff');
+    textLines(x, 58, 254, 470, 2, 22, 'rgba(255,255,255,0.5)', 0.55);
+    fillRR(x, 58, 330, 250, 76, 38, '#ff7a3d');
+    txt(x, 'Browse all', 183, 377, 24, '650', '#ffffff', 'center');
+    fillRR(x, 330, 330, 250, 76, 38, '#ffc93c');
+    txt(x, 'Learn more', 455, 377, 24, '650', '#3a2a00', 'center');
+    x.fillStyle = 'rgba(255,255,255,0.16)';
+    x.beginPath(); x.arc(DW - 70, 200, 96, 0, 6.284); x.fill();
+
+    // stat tiles
+    const tw = (DW - 60 - 24) / 3;
+    ['48', '12', '7.4'].forEach((n, i) => {
+      const px = 30 + i * (tw + 12);
+      fillRR(x, px, 500, tw, 128, 16, '#ffffff');
+      txt(x, n, px + tw / 2, 570, 40, '700', '#17272f', 'center');
+      txt(x, ['saved', 'baskets', 'avg days'][i], px + tw / 2, 600, 17, '500', '#7e93a0', 'center');
+    });
+
+    // section
+    txt(x, 'Continue where you left off', 30, 692, 24, '650', '#17272f');
+    txt(x, 'See all', DW - 30, 692, 21, '650', '#1d8f8a', 'right');
+
+    for (let i = 0; i < 3; i++) {
+      const py = 716 + i * 132;
+      fillRR(x, 30, py, DW - 60, 116, 16, '#ffffff');
+      fillRR(x, 46, py + 16, 84, 84, 12, ['#cfe3e6', '#e8dcc9', '#dbd6ea'][i]);
+      x.fillStyle = ['#79b3b8', '#c2ab7d', '#a79cc7'][i];
+      x.beginPath(); x.arc(88, py + 58, 22, 0, 6.284); x.fill();
+      txt(x, ['Harbour tumbler set', 'Fernwick low table', 'Slate pour-over kit'][i], 148, py + 48, 23, '600', '#17272f');
+      textLines(x, 148, py + 62, 380, 2, 20, '#dbe3e8', 0.5);
+      txt(x, ['$38', '$210', '$64'][i], DW - 46, py + 48, 23, '700', '#17272f', 'right');
+    }
+
+    bottomNav(x, '#ffffff', ['Home', 'Shop', 'Saved', 'You'], 0, '#2a9d96', '#a9bac4');
+    return c;
+  }
+
+  /* ---- B · a form where the quiet button is the important one ---- */
+  function demoForm() {
+    const c = mk(DW, DH), x = ctx2d(c);
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, DW, DH);
+    statusBar(x, '#2b2b31');
+
+    txt(x, '‹', 34, 128, 46, '400', '#4a4a55');
+    txt(x, 'Reserve a slot', DW / 2, 122, 25, '650', '#2b2b31', 'center');
+
+    x.fillStyle = '#eceef1'; x.fillRect(0, 152, DW, 1);
+
+    txt(x, 'Friday workshop', 40, 236, 40, '700', '#1b1b21');
+    textLines(x, 40, 262, DW - 130, 2, 24, '#e5e8ec', 0.68);
+
+    const fields = ['Full name', 'Email address', 'How many seats'];
+    fields.forEach((f, i) => {
+      const py = 350 + i * 132;
+      txt(x, f, 40, py, 19, '600', '#6d7480');
+      fillRR(x, 40, py + 16, DW - 80, 84, 12, '#f6f7f9');
+      strokeRR(x, 40, py + 16, DW - 80, 84, 12, '#e3e6ea', 2);
+      textLines(x, 62, py + 52, 220, 1, 0, '#c9cfd6', 1);
+    });
+
+    // checkbox row
+    strokeRR(x, 40, 758, 34, 34, 8, '#c9cfd6', 2);
+    txt(x, 'Send me a reminder the day before', 90, 782, 20, '500', '#5c636e');
+
+    // the quiet primary
+    fillRR(x, 40, 842, DW - 80, 92, 14, '#dfe3e8');
+    txt(x, 'Confirm reservation', DW / 2, 898, 26, '650', '#ffffff', 'center');
+
+    // the loud secondary
+    txt(x, 'Cancel and go back', DW / 2, 992, 26, '750', '#0b63e5', 'center');
+    x.fillStyle = '#0b63e5'; x.fillRect(DW / 2 - 122, 1002, 244, 3);
+
+    // loud reassurance block that isn't the action
+    fillRR(x, 40, 1046, DW - 80, 120, 14, '#fff2cc');
+    strokeRR(x, 40, 1046, DW - 80, 120, 14, '#ffd980', 2);
+    txt(x, 'Only 3 seats left', 68, 1094, 25, '700', '#8a5a00');
+    textLines(x, 68, 1108, 430, 1, 0, '#f0dca8', 1);
+
+    bottomNav(x, '#fafbfc', ['Browse', 'Book', 'Passes', 'Account'], 1, '#0b63e5', '#aab2bd');
+    return c;
+  }
+
+  /* ---- C · three plans, none of them visibly recommended ---- */
+  function demoPlans() {
+    const c = mk(DW, DH), x = ctx2d(c);
+    const bg = x.createLinearGradient(0, 0, 0, DH);
+    bg.addColorStop(0, '#171b27'); bg.addColorStop(1, '#101320');
+    x.fillStyle = bg; x.fillRect(0, 0, DW, DH);
+    statusBar(x, '#e7ecf5');
+
+    txt(x, 'Choose a plan', 40, 156, 40, '700', '#f2f5fb');
+    textLines(x, 40, 182, DW - 150, 2, 24, 'rgba(255,255,255,0.12)', 0.6);
+
+    // toggle
+    fillRR(x, 40, 250, 300, 60, 30, 'rgba(255,255,255,0.07)');
+    fillRR(x, 44, 254, 146, 52, 26, 'rgba(255,255,255,0.14)');
+    txt(x, 'Monthly', 117, 288, 20, '600', '#e9eef7', 'center');
+    txt(x, 'Yearly', 265, 288, 20, '600', '#8892a6', 'center');
+
+    const plans = [
+      { n: 'Drift', p: '$6', d: 'for one workspace' },
+      { n: 'Current', p: '$14', d: 'for small teams' },
+      { n: 'Tideglass Pro', p: '$29', d: 'for busy studios' }
+    ];
+    plans.forEach((pl, i) => {
+      const py = 350 + i * 300;
+      fillRR(x, 40, py, DW - 80, 272, 18, 'rgba(255,255,255,0.055)');
+      strokeRR(x, 40, py, DW - 80, 272, 18, 'rgba(255,255,255,0.1)', 2);
+      txt(x, pl.n, 72, py + 62, 27, '650', '#eef2f9');
+      txt(x, pl.p, DW - 72, py + 66, 34, '700', '#eef2f9', 'right');
+      txt(x, pl.d, 72, py + 94, 19, '500', '#7d8798');
+      if (i === 1) {
+        fillRR(x, 250, py + 36, 132, 34, 17, 'rgba(120,200,255,0.14)');
+        txt(x, 'Recommended', 316, py + 59, 15, '600', '#8fc9ee', 'center');
+      }
+      for (let k = 0; k < 3; k++) {
+        x.fillStyle = 'rgba(150,200,230,0.4)';
+        x.beginPath(); x.arc(80, py + 132 + k * 30, 5, 0, 6.284); x.fill();
+        textLines(x, 96, py + 127 + k * 30, 300 + k * 40, 1, 0, 'rgba(255,255,255,0.12)', 1);
+      }
+      fillRR(x, 72, py + 210, DW - 144, 46, 23, 'rgba(255,255,255,0.09)');
+      strokeRR(x, 72, py + 210, DW - 144, 46, 23, 'rgba(255,255,255,0.16)', 2);
+      txt(x, 'Select', DW / 2, py + 240, 20, '600', '#dbe3ef', 'center');
+    });
+
+    return c;
+  }
+
+  const DEMOS = [
+    { id: 'home',  name: 'Tideglass Home',  make: demoHome,  note: 'A home screen with two equally loud buttons.' },
+    { id: 'form',  name: 'Reserve a slot',  make: demoForm,  note: 'The real action is the quietest thing on the page.' },
+    { id: 'plans', name: 'Choose a plan',   make: demoPlans, note: 'Three plans, and nothing says which one to take.' }
+  ];
+
+  /* =====================================================================
+     2 · state
+     ===================================================================== */
+  const state = {
+    src: null,          // canvas holding the plate at native size
+    label: '',
+    isDemo: true,
+    f: { squint: 52, gray: 100, distance: 0, contrast: 0, periph: 0 },
+    apR: 0.20,          // fraction of min(stage w,h)
+    fx: 0.5, fy: 0.42,  // normalised focus
+    aperture: true,
+    mode: 'clear',      // 'clear' | 'spot'
+    peek: false,
+    stageW: 0, stageH: 0
+  };
+
+  const DIALS = [
+    { k: 'squint',   label: 'Squint blur',        note: 'Throw the plate out of focus the way half-closed eyes do. Only mass and value survive.' },
+    { k: 'gray',     label: 'Grayscale',          note: 'Pull the colour out so hue can no longer do the work that value should be doing.' },
+    { k: 'distance', label: 'Thumbnail distance', note: 'Downsample hard and scale back up — the view from an arm away, or a list of small previews.' },
+    { k: 'contrast', label: 'Contrast isolation', note: 'Crush the midtones until only the strongest light–dark steps are left standing.' },
+    { k: 'periph',   label: 'Peripheral falloff', note: 'Keep the aperture sharp and let everything outside it soften and dim, like real side vision.' }
+  ];
+
+  const PRESETS = [
+    { id: 'squint',  name: 'Squint test',    f: { squint: 52, gray: 100, distance: 0,  contrast: 0,  periph: 0  }, apR: 0.20 },
+    { id: 'arm',     name: "Arm's length",   f: { squint: 14, gray: 0,   distance: 44, contrast: 0,  periph: 0  }, apR: 0.20 },
+    { id: 'room',    name: 'Across the room',f: { squint: 34, gray: 62,  distance: 78, contrast: 0,  periph: 0  }, apR: 0.20 },
+    { id: 'value',   name: 'Value only',     f: { squint: 8,  gray: 100, distance: 0,  contrast: 58, periph: 0  }, apR: 0.20 },
+    { id: 'tunnel',  name: 'Tunnel vision',  f: { squint: 22, gray: 30,  distance: 0,  contrast: 0,  periph: 86 }, apR: 0.17 },
+    { id: 'thumb',   name: 'Icon size',      f: { squint: 6,  gray: 0,   distance: 92, contrast: 22, periph: 0  }, apR: 0.24 },
+    { id: 'clear',   name: 'Clear the bath', f: { squint: 0,  gray: 0,   distance: 0,  contrast: 0,  periph: 0  }, apR: 0.20 }
+  ];
+
+  /* =====================================================================
+     3 · the image pipeline
+     ===================================================================== */
+
+  // Blur with clamped edges so the frame doesn't bleed into black.
+  function blurred(src, W, H, px) {
+    if (px < 0.15) { const c = mk(W, H); ctx2d(c).drawImage(src, 0, 0, W, H); return c; }
+    const m = Math.ceil(px * 3) + 2;
+    const pad = mk(W + 2 * m, H + 2 * m), p = ctx2d(pad);
+    p.drawImage(src, m, m, W, H);
+    p.drawImage(src, 0, 0, src.width, 1, m, 0, W, m);
+    p.drawImage(src, 0, src.height - 1, src.width, 1, m, H + m, W, m);
+    p.drawImage(src, 0, 0, 1, src.height, 0, m, m, H);
+    p.drawImage(src, src.width - 1, 0, 1, src.height, W + m, m, m, H);
+    p.drawImage(src, 0, 0, 1, 1, 0, 0, m, m);
+    p.drawImage(src, src.width - 1, 0, 1, 1, W + m, 0, m, m);
+    p.drawImage(src, 0, src.height - 1, 1, 1, 0, H + m, m, m);
+    p.drawImage(src, src.width - 1, src.height - 1, 1, 1, W + m, H + m, m, m);
+    const out = mk(W, H), o = ctx2d(out);
+    o.filter = 'blur(' + px.toFixed(2) + 'px)';
+    o.drawImage(pad, -m, -m);
+    o.filter = 'none';
+    return out;
+  }
+
+  function baseLayer(W, H) {
+    const c = mk(W, H);
+    ctx2d(c).drawImage(state.src, 0, 0, W, H);
+    return c;
+  }
+
+  // distance -> tone -> blur
+  function filteredLayer(base, W, H, f) {
+    const minD = Math.min(W, H);
+    let step = base;
+
+    if (f.distance > 0) {
+      const k = 1 / (1 + (f.distance / 100) * 13);
+      const dw = Math.max(3, Math.round(W * k)), dh = Math.max(3, Math.round(H * k));
+      const small = mk(dw, dh);
+      ctx2d(small).drawImage(base, 0, 0, dw, dh);
+      const up = mk(W, H);
+      ctx2d(up).drawImage(small, 0, 0, W, H);
+      step = up;
+    }
+
+    if (f.gray > 0 || f.contrast > 0) {
+      const tone = mk(W, H), t = ctx2d(tone);
+      const parts = [];
+      if (f.gray > 0) parts.push('grayscale(' + f.gray + '%)');
+      if (f.contrast > 0) {
+        parts.push('contrast(' + (100 + f.contrast * 1.9).toFixed(0) + '%)');
+        parts.push('brightness(' + (100 + f.contrast * 0.06).toFixed(0) + '%)');
+      }
+      t.filter = parts.join(' ');
+      t.drawImage(step, 0, 0, W, H);
+      t.filter = 'none';
+      step = tone;
+    }
+
+    if (f.squint > 0) step = blurred(step, W, H, (f.squint / 100) * minD * 0.048);
+    return step;
+  }
+
+  function maskRadial(layer, W, H, cx, cy, rIn, rOut) {
+    const m = mk(W, H), x = ctx2d(m);
+    x.drawImage(layer, 0, 0, W, H);
+    x.globalCompositeOperation = 'destination-in';
+    const r0 = Math.max(0, rIn), r1 = Math.max(r0 + 1, rOut);
+    const g = x.createRadialGradient(cx, cy, r0, cx, cy, r1);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.62, 'rgba(0,0,0,0.72)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, W, H);
+    x.globalCompositeOperation = 'source-over';
+    return m;
+  }
+
+  function peripheral(filt, W, H, amt) {
+    const minD = Math.min(W, H);
+    const extra = (amt / 100) * minD * 0.07;
+    const p = blurred(filt, W, H, extra);
+    const x = p.getContext('2d');
+    x.fillStyle = 'rgba(5,4,7,' + (0.12 + (amt / 100) * 0.5).toFixed(3) + ')';
+    x.fillRect(0, 0, W, H);
+    const sat = mk(W, H), s = ctx2d(sat);
+    s.filter = 'saturate(' + (100 - amt * 0.55).toFixed(0) + '%)';
+    s.drawImage(p, 0, 0);
+    s.filter = 'none';
+    return sat;
+  }
+
+  /**
+   * Draw one fully composited frame.
+   * cfg: { f, fx, fy, apR, aperture, mode, ring, peek }
+   */
+  function composite(dst, W, H, cfg) {
+    const x = ctx2d(dst);
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = '#000';
+    x.fillRect(0, 0, W, H);
+
+    const base = baseLayer(W, H);
+    if (cfg.peek) { x.drawImage(base, 0, 0, W, H); return; }
+
+    const minD = Math.min(W, H);
+    const rr0 = cfg.apR * minD;
+    const cx = cfg.fx * W, cy = cfg.fy * H;
+    const filt = filteredLayer(base, W, H, cfg.f);
+
+    if (cfg.mode === 'spot') {
+      // sharp world, filtered puck under the aperture
+      x.drawImage(base, 0, 0, W, H);
+      if (cfg.aperture) {
+        x.drawImage(maskRadial(filt, W, H, cx, cy, rr0 * 0.86, rr0 * 1.1), 0, 0);
+      }
+    } else {
+      // filtered world, optional clear window
+      if (cfg.f.periph > 0) {
+        x.drawImage(peripheral(filt, W, H, cfg.f.periph), 0, 0, W, H);
+        const fov = Math.max(rr0, minD * 0.08);
+        x.drawImage(maskRadial(filt, W, H, cx, cy, fov * 0.55, fov * 2.35), 0, 0);
+      } else {
+        x.drawImage(filt, 0, 0, W, H);
+      }
+      if (cfg.aperture) {
+        x.drawImage(maskRadial(base, W, H, cx, cy, rr0 * 0.84, rr0 * 1.08), 0, 0);
+      }
+    }
+
+    if (cfg.aperture && cfg.ring) {
+      x.save();
+      x.strokeStyle = 'rgba(255,180,84,0.85)';
+      x.lineWidth = Math.max(1.2, minD * 0.005);
+      x.setLineDash([minD * 0.035, minD * 0.028]);
+      x.beginPath(); x.arc(cx, cy, rr0, 0, 6.2832); x.stroke();
+      x.setLineDash([]);
+      x.strokeStyle = 'rgba(0,0,0,0.35)';
+      x.lineWidth = Math.max(1, minD * 0.0022);
+      x.beginPath(); x.arc(cx, cy, rr0 + x.lineWidth * 2, 0, 6.2832); x.stroke();
+      const t = minD * 0.022;
+      x.strokeStyle = 'rgba(255,180,84,0.9)';
+      x.lineWidth = Math.max(1, minD * 0.004);
+      x.beginPath();
+      x.moveTo(cx - t, cy); x.lineTo(cx + t, cy);
+      x.moveTo(cx, cy - t); x.lineTo(cx, cy + t);
+      x.stroke();
+      x.restore();
+    }
+  }
+
+  /* =====================================================================
+     4 · stage sizing + render
+     ===================================================================== */
+  const stage = $('#stage');
+  const stagebox = $('#stagebox');
+  const handle = $('#handle');
+  let raf = 0;
+
+  function fitStage() {
+    if (!state.src) return;
+    const shellW = stagebox.clientWidth || 320;
+    const maxH = Math.max(240, Math.min(window.innerHeight * 0.62, 720));
+    const ar = state.src.width / state.src.height;
+    let w = shellW, h = w / ar;
+    if (h > maxH) { h = maxH; w = h * ar; }
+    w = Math.max(120, Math.floor(w));
+    h = Math.max(120, Math.floor(h));
+    state.stageW = w; state.stageH = h;
+    const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+    stage.style.width = w + 'px';
+    stage.style.height = h + 'px';
+    stage.width = Math.round(w * dpr);
+    stage.height = Math.round(h * dpr);
+  }
+
+  function placeHandle() {
+    const boxW = stagebox.clientWidth, boxH = stagebox.clientHeight;
+    const left = (boxW - state.stageW) / 2 + state.fx * state.stageW;
+    const top = (boxH - state.stageH) / 2 + state.fy * state.stageH;
+    handle.style.left = left + 'px';
+    handle.style.top = top + 'px';
+    handle.hidden = !state.aperture;
+  }
+
+  function render() {
+    if (!state.src) return;
+    composite(stage, stage.width, stage.height, {
+      f: state.f,
+      fx: state.fx, fy: state.fy,
+      apR: state.apR,
+      aperture: state.aperture && !state.peek,
+      mode: state.mode,
+      ring: true,
+      peek: state.peek
+    });
+    placeHandle();
+    const f = state.f;
+    $('#mixBadge').textContent = state.peek
+      ? 'original'
+      : (state.mode === 'clear' ? 'clear window' : 'blur spot') +
+        ' · sq' + f.squint + ' gy' + f.gray + ' ds' + f.distance + ' ct' + f.contrast + ' pf' + f.periph;
+  }
+
+  function schedule() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0; render(); });
+  }
+
+  function relayout() { fitStage(); render(); }
+
+  /* =====================================================================
+     5 · source loading
+     ===================================================================== */
+  const MAXDIM = 1800;
+
+  function setSource(canvasOrImg, label, isDemo) {
+    const w = canvasOrImg.width || canvasOrImg.naturalWidth;
+    const h = canvasOrImg.height || canvasOrImg.naturalHeight;
+    let sw = w, sh = h;
+    if (Math.max(w, h) > MAXDIM) {
+      const k = MAXDIM / Math.max(w, h);
+      sw = Math.round(w * k); sh = Math.round(h * k);
+    }
+    const c = mk(sw, sh);
+    ctx2d(c).drawImage(canvasOrImg, 0, 0, sw, sh);
+    state.src = c;
+    state.label = label;
+    state.isDemo = !!isDemo;
+    $('#srcBadge').textContent = (isDemo ? 'demo · ' : 'yours · ') + label;
+    relayout();
+  }
+
+  function loadDemo(id) {
+    const d = DEMOS.find(x => x.id === id) || DEMOS[0];
+    setSource(d.make(), d.name, true);
+    $('#srcStatus').textContent = d.note;
+    Array.prototype.forEach.call($('#demos').children, (b) => {
+      b.classList.toggle('on', b.dataset.id === d.id);
+      b.setAttribute('aria-pressed', b.dataset.id === d.id ? 'true' : 'false');
+    });
+  }
+
+  function loadFile(file) {
+    if (!file || !/^image\//.test(file.type)) {
+      $('#srcStatus').textContent = 'That file is not an image the browser can decode.';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      setSource(img, (file.name || 'pasted image').slice(0, 40), false);
+      URL.revokeObjectURL(url);
+      $('#srcStatus').textContent = 'Loaded in memory only — ' + img.naturalWidth + '×' + img.naturalHeight + '. Nothing was uploaded.';
+      Array.prototype.forEach.call($('#demos').children, (b) => {
+        b.classList.remove('on'); b.setAttribute('aria-pressed', 'false');
+      });
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      $('#srcStatus').textContent = 'The browser could not decode that image.';
+    };
+    img.src = url;
+  }
+
+  /* =====================================================================
+     6 · contact sheet
+     ===================================================================== */
+  function contactSheet() {
+    const ar = state.src.width / state.src.height;
+    const portrait = ar < 0.95;
+    const cols = portrait ? 3 : 2;
+    const rows = Math.ceil(6 / cols);
+    const SHEET_W = 1400;
+    const PAD = 34, GAP = 22, HEAD = 132, FOOT = 76, CAP = 46;
+    const tileW = Math.floor((SHEET_W - PAD * 2 - GAP * (cols - 1)) / cols);
+    const tileH = Math.round(tileW / ar);
+    const cellH = tileH + CAP;
+    const SHEET_H = HEAD + rows * cellH + GAP * (rows - 1) + FOOT;
+
+    const sheet = mk(SHEET_W, SHEET_H), x = ctx2d(sheet);
+    x.fillStyle = '#0d0c10'; x.fillRect(0, 0, SHEET_W, SHEET_H);
+    const glow = x.createRadialGradient(SHEET_W / 2, 0, 0, SHEET_W / 2, 0, SHEET_W * 0.8);
+    glow.addColorStop(0, 'rgba(255,77,94,0.13)');
+    glow.addColorStop(1, 'rgba(255,77,94,0)');
+    x.fillStyle = glow; x.fillRect(0, 0, SHEET_W, 420);
+
+    txt(x, 'SQUINT · CONTACT SHEET', PAD, 58, 26, '700', '#ffb454');
+    txt(x, 'Before / after perception passes — ' + state.label, PAD, 94, 24, '500', '#cfc6bb');
+    txt(x, 'Perception aid, not an accessibility compliance test.', SHEET_W - PAD, 58, 21, '600', '#ff7a86', 'right');
+    txt(x, 'Rendered locally in-browser. No upload, no network.', SHEET_W - PAD, 92, 20, '400', '#7d746b', 'right');
+    x.fillStyle = 'rgba(255,180,84,0.22)'; x.fillRect(PAD, 112, SHEET_W - PAD * 2, 2);
+
+    const f = state.f;
+    const tiles = [
+      { t: 'BEFORE — original',      s: 'no passes applied',
+        cfg: { f: { squint: 0, gray: 0, distance: 0, contrast: 0, periph: 0 }, aperture: false, mode: 'clear', ring: false } },
+      { t: 'Squint blur 60',         s: 'mass and value only',
+        cfg: { f: { squint: 60, gray: 0, distance: 0, contrast: 0, periph: 0 }, aperture: false, mode: 'clear', ring: false } },
+      { t: 'Grayscale 100',          s: 'colour can no longer carry it',
+        cfg: { f: { squint: 0, gray: 100, distance: 0, contrast: 0, periph: 0 }, aperture: false, mode: 'clear', ring: false } },
+      { t: 'Thumbnail distance 80',  s: 'seen from across a desk',
+        cfg: { f: { squint: 0, gray: 0, distance: 80, contrast: 0, periph: 0 }, aperture: false, mode: 'clear', ring: false } },
+      { t: 'Peripheral falloff 85',  s: 'aperture sharp, edges dimmed',
+        cfg: { f: { squint: 18, gray: 0, distance: 0, contrast: 0, periph: 85 }, aperture: true, mode: 'clear', ring: true } },
+      { t: 'AFTER — your mix',       s: 'sq' + f.squint + ' · gy' + f.gray + ' · ds' + f.distance + ' · ct' + f.contrast + ' · pf' + f.periph,
+        cfg: { f: Object.assign({}, f), aperture: state.aperture, mode: state.mode, ring: state.aperture } }
+    ];
+
+    tiles.forEach((tile, i) => {
+      const cIdx = i % cols, rIdx = Math.floor(i / cols);
+      const px = PAD + cIdx * (tileW + GAP);
+      const py = HEAD + rIdx * (cellH + GAP);
+
+      const t = mk(tileW, tileH);
+      composite(t, tileW, tileH, Object.assign({ fx: state.fx, fy: state.fy, apR: state.apR, peek: false }, tile.cfg));
+
+      x.save();
+      rr(x, px, py, tileW, tileH, 8);
+      x.clip();
+      x.drawImage(t, px, py);
+      x.restore();
+
+      const first = i === 0, last = i === tiles.length - 1;
+      strokeRR(x, px, py, tileW, tileH, 8,
+        last ? 'rgba(255,180,84,0.85)' : first ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.16)',
+        last || first ? 3 : 2);
+
+      txt(x, String(i + 1).padStart(2, '0'), px + 2, py + tileH + 26, 19, '700',
+        last ? '#ffb454' : '#6f665d');
+      txt(x, tile.t, px + 34, py + tileH + 26, 20, '650', last ? '#ffd6a1' : '#ded5c9');
+      txt(x, tile.s, px + 34, py + tileH + 46, 17, '400', '#7d746b');
+    });
+
+    const fy = SHEET_H - FOOT + 30;
+    x.fillStyle = 'rgba(255,255,255,0.08)'; x.fillRect(PAD, SHEET_H - FOOT, SHEET_W - PAD * 2, 1);
+    txt(x, 'Squint — a screenshot attention darkroom · all processing local to the browser tab', PAD, fy, 19, '500', '#6f665d');
+    txt(x, 'Read it as attention, not as a score.', SHEET_W - PAD, fy, 19, '500', '#6f665d', 'right');
+
+    return sheet;
+  }
+
+  function exportSheet() {
+    const st = $('#expStatus');
+    st.textContent = 'Developing…';
+    setTimeout(() => {
+      try {
+        const sheet = contactSheet();
+        const name = 'squint-contact-sheet-' +
+          state.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) + '.png';
+        const finish = (href, revoke) => {
+          const a = document.createElement('a');
+          a.href = href; a.download = name;
+          a.rel = 'noopener';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          if (revoke) setTimeout(() => URL.revokeObjectURL(href), 30000);
+          st.textContent = 'Saved ' + sheet.width + '×' + sheet.height + ' PNG — ' + name;
+        };
+        if (sheet.toBlob) {
+          sheet.toBlob((b) => {
+            if (b) finish(URL.createObjectURL(b), true);
+            else finish(sheet.toDataURL('image/png'), false);
+          }, 'image/png');
+        } else {
+          finish(sheet.toDataURL('image/png'), false);
+        }
+      } catch (err) {
+        st.textContent = 'Could not print the sheet in this browser.';
+      }
+    }, 20);
+  }
+
+  /* =====================================================================
+     7 · UI wiring
+     ===================================================================== */
+
+  // -- dials
+  const dialsBox = $('#dials');
+  DIALS.forEach((d) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'dial';
+    wrap.innerHTML =
+      '<div class="dial-head"><label for="d-' + d.k + '">' + d.label + '</label>' +
+      '<output id="o-' + d.k + '" for="d-' + d.k + '">0</output></div>' +
+      '<div class="dial-note">' + d.note + '</div>' +
+      '<input type="range" id="d-' + d.k + '" min="0" max="100" step="1" value="0">';
+    dialsBox.appendChild(wrap);
+    wrap.querySelector('input').addEventListener('input', (e) => {
+      state.f[d.k] = +e.target.value;
+      $('#o-' + d.k).textContent = e.target.value;
+      $('#presetName').textContent = 'manual mix';
+      Array.prototype.forEach.call($('#presets').children, (b) => b.classList.remove('on'));
+      schedule();
+    });
+  });
+
+  // aperture size dial
+  const apWrap = document.createElement('div');
+  apWrap.className = 'dial';
+  apWrap.innerHTML =
+    '<div class="dial-head"><label for="d-apr">Aperture size</label><output id="o-apr" for="d-apr">20</output></div>' +
+    '<div class="dial-note">How wide the clear window opens. Small reads like a fovea; wide reads like a glance.</div>' +
+    '<input type="range" id="d-apr" min="6" max="46" step="1" value="20">';
+  dialsBox.appendChild(apWrap);
+  apWrap.querySelector('input').addEventListener('input', (e) => {
+    state.apR = +e.target.value / 100;
+    $('#o-apr').textContent = e.target.value;
+    schedule();
+  });
+
+  function syncDials() {
+    DIALS.forEach((d) => {
+      $('#d-' + d.k).value = state.f[d.k];
+      $('#o-' + d.k).textContent = state.f[d.k];
+    });
+    $('#d-apr').value = Math.round(state.apR * 100);
+    $('#o-apr').textContent = Math.round(state.apR * 100);
+  }
+
+  // -- presets
+  const presetBox = $('#presets');
+  PRESETS.forEach((p) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.textContent = p.name;
+    b.dataset.id = p.id;
+    b.addEventListener('click', () => {
+      state.f = Object.assign({}, p.f);
+      state.apR = p.apR;
+      syncDials();
+      $('#presetName').textContent = p.name.toLowerCase();
+      Array.prototype.forEach.call(presetBox.children, (o) => o.classList.remove('on'));
+      b.classList.add('on');
+      schedule();
+    });
+    presetBox.appendChild(b);
+  });
+  presetBox.children[0].classList.add('on');
+
+  // -- demo chips
+  const demoBox = $('#demos');
+  DEMOS.forEach((d) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.type = 'button';
+    b.textContent = d.name;
+    b.dataset.id = d.id;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => loadDemo(d.id));
+    demoBox.appendChild(b);
+  });
+
+  // -- reading notes
+  $('#readNotes').innerHTML = DIALS.map((d) =>
+    '<p><span class="cue">' + d.label + '</span><br>' + d.note + '</p>'
+  ).join('') +
+  '<p><span class="cue">The aperture</span><br>Drag the clear window over one region at a time. Whatever still reads inside a soft, dim frame is what a person actually lands on before they start hunting.</p>';
+
+  // -- toggle buttons
+  const apBtn = $('#apBtn'), modeBtn = $('#modeBtn'), holdBtn = $('#holdBtn');
+
+  apBtn.addEventListener('click', () => {
+    state.aperture = !state.aperture;
+    apBtn.textContent = 'Aperture: ' + (state.aperture ? 'on' : 'off');
+    apBtn.classList.toggle('on', state.aperture);
+    apBtn.setAttribute('aria-pressed', state.aperture ? 'true' : 'false');
+    schedule();
+  });
+  apBtn.setAttribute('aria-pressed', 'true');
+
+  modeBtn.addEventListener('click', () => {
+    state.mode = state.mode === 'clear' ? 'spot' : 'clear';
+    modeBtn.textContent = state.mode === 'clear' ? 'Clear window' : 'Blur spot';
+    modeBtn.classList.toggle('on', state.mode === 'spot');
+    schedule();
+  });
+
+  function peekOn() { if (!state.peek) { state.peek = true; holdBtn.classList.add('on'); schedule(); } }
+  function peekOff() { if (state.peek) { state.peek = false; holdBtn.classList.remove('on'); schedule(); } }
+  holdBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); peekOn(); });
+  ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach((ev) =>
+    holdBtn.addEventListener(ev, peekOff));
+  holdBtn.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); peekOn(); }
+  });
+  holdBtn.addEventListener('keyup', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); peekOff(); }
+  });
+
+  $('#exportBtn').addEventListener('click', exportSheet);
+
+  // -- file picker
+  $('#pickBtn').addEventListener('click', () => $('#file').click());
+  $('#file').addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) loadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  // -- clipboard
+  $('#pasteBtn').addEventListener('click', async () => {
+    const st = $('#srcStatus');
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      st.textContent = 'This browser will not hand over the clipboard on request — press ⌘V / Ctrl V instead.';
+      return;
+    }
+    try {
+      const items = await navigator.clipboard.read();
+      for (const it of items) {
+        const type = it.types.find((t) => t.indexOf('image/') === 0);
+        if (type) {
+          const blob = await it.getType(type);
+          loadFile(new File([blob], 'pasted image', { type: type }));
+          return;
+        }
+      }
+      st.textContent = 'No image found on the clipboard.';
+    } catch (err) {
+      st.textContent = 'Clipboard access was refused here — press ⌘V / Ctrl V instead.';
+    }
+  });
+
+  window.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image/') === 0) {
+        const f = items[i].getAsFile();
+        if (f) { e.preventDefault(); loadFile(f); return; }
+      }
+    }
+  });
+
+  // -- drag and drop
+  const shell = $('#shell');
+  ['dragenter', 'dragover'].forEach((ev) =>
+    shell.addEventListener(ev, (e) => { e.preventDefault(); shell.classList.add('dragging'); }));
+  ['dragleave', 'dragend'].forEach((ev) =>
+    shell.addEventListener(ev, () => shell.classList.remove('dragging')));
+  shell.addEventListener('drop', (e) => {
+    e.preventDefault();
+    shell.classList.remove('dragging');
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files[0]) loadFile(dt.files[0]);
+  });
+  ['dragover', 'drop'].forEach((ev) =>
+    window.addEventListener(ev, (e) => { e.preventDefault(); }));
+
+  /* =====================================================================
+     8 · pointer + keyboard control of the aperture
+     ===================================================================== */
+  function pointToFocus(clientX, clientY) {
+    const r = stage.getBoundingClientRect();
+    state.fx = clamp((clientX - r.left) / r.width, 0, 1);
+    state.fy = clamp((clientY - r.top) / r.height, 0, 1);
+    schedule();
+  }
+
+  let dragging = false;
+  function startDrag(e) {
+    if (!state.aperture) return;
+    dragging = true;
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+    pointToFocus(e.clientX, e.clientY);
+    e.preventDefault();
+  }
+  function moveDrag(e) {
+    if (!dragging) return;
+    pointToFocus(e.clientX, e.clientY);
+    e.preventDefault();
+  }
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+  [stage, handle].forEach((el) => {
+    el.addEventListener('pointerdown', startDrag);
+    el.addEventListener('pointermove', moveDrag);
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+  });
+
+  const live = document.createElement('div');
+  live.className = 'sr';
+  live.setAttribute('aria-live', 'polite');
+  document.body.appendChild(live);
+  let liveTimer = 0;
+  function announce() {
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(() => {
+      live.textContent = 'Aperture at ' + Math.round(state.fx * 100) + '% across, ' +
+        Math.round(state.fy * 100) + '% down, size ' + Math.round(state.apR * 100) + '%.';
+    }, 260);
+  }
+
+  handle.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 0.1 : 0.025;
+    let used = true;
+    switch (e.key) {
+      case 'ArrowLeft':  state.fx = clamp(state.fx - step, 0, 1); break;
+      case 'ArrowRight': state.fx = clamp(state.fx + step, 0, 1); break;
+      case 'ArrowUp':    state.fy = clamp(state.fy - step, 0, 1); break;
+      case 'ArrowDown':  state.fy = clamp(state.fy + step, 0, 1); break;
+      case '[':          state.apR = clamp(state.apR - 0.02, 0.06, 0.46); syncDials(); break;
+      case ']':          state.apR = clamp(state.apR + 0.02, 0.06, 0.46); syncDials(); break;
+      default: used = false;
+    }
+    if (used) { e.preventDefault(); announce(); schedule(); }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented) return;
+    if (e.target && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '[' || e.key === ']') {
+      state.apR = clamp(state.apR + (e.key === ']' ? 0.02 : -0.02), 0.06, 0.46);
+      syncDials(); announce(); schedule(); e.preventDefault();
+    } else if (e.key === 'o' || e.key === 'O') {
+      peekOn();
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'o' || e.key === 'O') peekOff();
+  });
+
+  /* =====================================================================
+     9 · boot
+     ===================================================================== */
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(relayout, 120);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(relayout, 160);
+    });
+  }
+
+  syncDials();
+  loadDemo('home');
+  $('#presetName').textContent = 'squint test';
+
+  // capability note
+  const probe = mk(2, 2).getContext('2d');
+  if (!('filter' in probe)) {
+    $('#srcStatus').textContent = 'This browser lacks canvas filters — blur, grayscale, and contrast passes will not apply.';
+  }
+
+})();
+</script>
+</body>
+</html>
