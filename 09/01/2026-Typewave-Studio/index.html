@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Typewave Studio</title>
+<style>
+:root{--bg:#090a12;--panel:#151827;--ink:#f7f4ff;--muted:#a8abc0;--accent:#ffdc5e;--line:#2b3048}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -20%,#252044 0,var(--bg) 48%);color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif}body{padding:18px;overflow-x:hidden}.app{width:min(760px,100%);margin:auto}.eyebrow{color:var(--accent);font-size:.75rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}h1{font-size:clamp(2rem,9vw,4rem);line-height:.92;margin:.35rem 0 .7rem;letter-spacing:-.06em}header p{color:var(--muted);margin:0 0 16px;max-width:44rem}.stage{position:relative;border:1px solid var(--line);border-radius:22px;overflow:hidden;background:#0d1020;box-shadow:0 20px 60px #0008}.stage:after{content:"DRAW HERE";position:absolute;right:12px;top:10px;color:#ffffff45;font-size:.65rem;font-weight:800;letter-spacing:.12em;pointer-events:none}canvas{display:block;width:100%;height:min(52vh,480px);min-height:320px;touch-action:none;cursor:crosshair}.hint{position:absolute;left:12px;bottom:10px;padding:6px 9px;border-radius:999px;background:#090a12b8;color:#ffffff99;font-size:.72rem;pointer-events:none}.panel{margin-top:12px;border:1px solid var(--line);border-radius:20px;background:#121522e8;padding:14px}.phrase{display:grid;grid-template-columns:1fr auto;gap:8px}input[type=text]{min-width:0;width:100%;height:48px;border:1px solid var(--line);border-radius:12px;background:#090b15;color:var(--ink);padding:0 14px;font:700 1rem inherit;outline:none}input[type=text]:focus{border-color:var(--accent)}button{min-height:44px;border:1px solid var(--line);border-radius:12px;background:#20253a;color:var(--ink);font:750 .86rem inherit;padding:0 14px;cursor:pointer}button:active{transform:translateY(1px)}button.primary{background:var(--accent);color:#16120a;border-color:transparent}.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.control label{display:flex;justify-content:space-between;color:var(--muted);font-size:.75rem;font-weight:700;margin-bottom:6px}.control output{color:var(--ink)}input[type=range]{width:100%;height:44px;accent-color:var(--accent)}.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.status{text-align:center;color:var(--muted);font-size:.74rem;min-height:1.2em;margin:10px 0 0}.foot{display:flex;justify-content:space-between;gap:16px;color:#74788e;font-size:.72rem;padding:12px 2px}@media(max-width:560px){body{padding:12px}.controls{grid-template-columns:1fr}.actions{grid-template-columns:1fr 1fr}.stage canvas{height:42vh;min-height:300px}.phrase{grid-template-columns:1fr}.phrase button{width:100%}.foot{display:block}.foot span{display:block;margin-top:4px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body><main class="app">
+<header><div class="eyebrow">A kinetic type instrument</div><h1>Typewave<br>Studio</h1><p>Draw a path. Give it words. Shape their motion. Everything stays in this browser.</p></header>
+<section class="stage"><canvas id="c" aria-label="Drawing canvas. Drag to create a path for animated text."></canvas><div class="hint">Drag anywhere to redraw</div></section>
+<section class="panel" aria-label="Typewave controls">
+<div class="phrase"><input id="text" type="text" maxlength="80" value="MAKE THE TOOL FEEL ALIVE" aria-label="Phrase"><button id="apply" class="primary">Set phrase</button></div>
+<div class="controls">
+<div class="control"><label for="speed">DRIFT <output id="speedOut">35</output></label><input id="speed" type="range" min="0" max="100" value="35"></div>
+<div class="control"><label for="wave">WAVE <output id="waveOut">18</output></label><input id="wave" type="range" min="0" max="48" value="18"></div>
+<div class="control"><label for="size">TYPE SIZE <output id="sizeOut">24</output></label><input id="size" type="range" min="14" max="48" value="24"></div>
+</div>
+<div class="actions"><button id="pause">Pause</button><button id="palette">Palette · Neon</button><button id="reset">New curve</button><button id="export">Export PNG</button></div>
+<p class="status" id="status" role="status">Tip: a longer path gives the phrase more room to breathe.</p>
+</section><div class="foot"><span>No upload. No tracking. No dependencies.</span><span>Draw with pointer or touch.</span></div>
+</main>
+<script>
+(()=>{'use strict';
+const canvas=document.querySelector('#c'),ctx=canvas.getContext('2d');
+const els={text:document.querySelector('#text'),apply:document.querySelector('#apply'),speed:document.querySelector('#speed'),wave:document.querySelector('#wave'),size:document.querySelector('#size'),speedOut:document.querySelector('#speedOut'),waveOut:document.querySelector('#waveOut'),sizeOut:document.querySelector('#sizeOut'),pause:document.querySelector('#pause'),palette:document.querySelector('#palette'),reset:document.querySelector('#reset'),export:document.querySelector('#export'),status:document.querySelector('#status')};
+const palettes=[{name:'Neon',bg:'#0d1020',ink:['#ffdc5e','#ff6bb5','#74e8ff']},{name:'Paper',bg:'#f0eadc',ink:['#13213c','#c7393f','#d58d16']},{name:'Midnight',bg:'#050611',ink:['#8b7cff','#6ef3ca','#f5f2ff']}];
+let palette=0,phrase=els.text.value,path=[],metrics=[],total=0,drawing=false,paused=matchMedia('(prefers-reduced-motion: reduce)').matches,offset=0,last=performance.now(),cssW=0,cssH=0;
+function demo(){path=[];const w=cssW,h=cssH;for(let i=0;i<=90;i++){const t=i/90;path.push({x:w*(.08+.84*t),y:h*(.5+Math.sin(t*Math.PI*2.3)*.21+Math.sin(t*Math.PI*5)*.035)})}measure()}
+function measure(){metrics=[];total=0;if(path.length<2)return;metrics.push({d:0,p:path[0]});for(let i=1;i<path.length;i++){total+=Math.hypot(path[i].x-path[i-1].x,path[i].y-path[i-1].y);metrics.push({d:total,p:path[i]})}}
+function pointAt(d){if(!metrics.length)return{x:0,y:0,a:0};d=((d%total)+total)%total;let lo=1;while(lo<metrics.length&&metrics[lo].d<d)lo++;const b=metrics[Math.min(lo,metrics.length-1)],a=metrics[Math.max(0,lo-1)],span=Math.max(1,b.d-a.d),t=(d-a.d)/span;return{x:a.p.x+(b.p.x-a.p.x)*t,y:a.p.y+(b.p.y-a.p.y)*t,a:Math.atan2(b.p.y-a.p.y,b.p.x-a.p.x)}}
+function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2),oldW=cssW,oldH=cssH;cssW=r.width;cssH=r.height;canvas.width=Math.round(cssW*d);canvas.height=Math.round(cssH*d);ctx.setTransform(d,0,0,d,0,0);if(path.length&&oldW>0&&oldH>0){path=path.map(p=>({x:p.x*cssW/oldW,y:p.y*cssH/oldH}));measure()}else demo()}
+function draw(now){const dt=Math.min(50,now-last);last=now;if(!paused)offset+=dt*(+els.speed.value/100)*.055;const p=palettes[palette];ctx.fillStyle=p.bg;ctx.fillRect(0,0,cssW,cssH);
+ctx.save();ctx.strokeStyle=p.ink[0]+'25';ctx.lineWidth=1.5;ctx.setLineDash([4,8]);ctx.beginPath();path.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.stroke();ctx.restore();
+if(total>5&&phrase){const font=+els.size.value;ctx.font=`800 ${font}px ui-rounded, system-ui, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';const chars=[...phrase];const spacing=Math.max(font*.72,total/Math.max(chars.length,1));const repeats=Math.max(chars.length,Math.ceil(total/spacing));for(let i=0;i<repeats;i++){const ch=chars[i%chars.length],d=i*spacing+offset*18,q=pointAt(d),w=Math.sin((d/total)*Math.PI*6+offset*.06)*(+els.wave.value);ctx.save();ctx.translate(q.x-Math.sin(q.a)*w,q.y+Math.cos(q.a)*w);ctx.rotate(q.a);ctx.fillStyle=p.ink[i%p.ink.length];ctx.globalAlpha=.94;ctx.fillText(ch,0,0);ctx.restore()}}
+requestAnimationFrame(draw)}
+function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+canvas.addEventListener('pointerdown',e=>{drawing=true;path=[pos(e)];canvas.setPointerCapture(e.pointerId);els.status.textContent='Drawing… release to set your typewave.'});
+canvas.addEventListener('pointermove',e=>{if(!drawing)return;const q=pos(e),prev=path[path.length-1];if(Math.hypot(q.x-prev.x,q.y-prev.y)>3){path.push(q);measure()}});
+canvas.addEventListener('pointerup',()=>{drawing=false;if(path.length<4)demo();measure();els.status.textContent='Curve set. Now tune the motion.'});canvas.addEventListener('pointercancel',()=>drawing=false);
+['speed','wave','size'].forEach(k=>els[k].addEventListener('input',()=>els[k+'Out'].value=els[k].value));
+els.apply.addEventListener('click',()=>{phrase=els.text.value.trim()||'TYPEWAVE';els.text.value=phrase;els.status.textContent='Phrase set.'});els.text.addEventListener('keydown',e=>{if(e.key==='Enter')els.apply.click()});
+els.pause.addEventListener('click',()=>{paused=!paused;els.pause.textContent=paused?'Play':'Pause';els.status.textContent=paused?'Motion paused.':'Motion playing.'});
+els.palette.addEventListener('click',()=>{palette=(palette+1)%palettes.length;els.palette.textContent='Palette · '+palettes[palette].name;document.documentElement.style.setProperty('--accent',palettes[palette].ink[0]);els.status.textContent=palettes[palette].name+' palette.'});
+els.reset.addEventListener('click',()=>{demo();offset=0;els.status.textContent='Fresh curve loaded — drag to make it yours.'});
+els.export.addEventListener('click',()=>{const link=document.createElement('a');link.download='typewave.png';link.href=canvas.toDataURL('image/png');link.click();els.status.textContent='PNG exported.'});
+new ResizeObserver(resize).observe(canvas);if(paused)els.pause.textContent='Play';requestAnimationFrame(draw);
+})();
+</script></body></html>
