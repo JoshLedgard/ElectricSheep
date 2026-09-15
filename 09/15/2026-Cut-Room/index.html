@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2eee6">
+<title>Cut Room — a tactile redline editor</title>
+<style>
+:root{--paper:#f2eee6;--ink:#171714;--muted:#716d64;--line:#d2cbc0;--red:#ef4d37;--redsoft:#ffd7cf;--lime:#d9ee61;--blue:#1e5eff;--panel:#fbf8f1;--shadow:0 18px 55px rgba(44,35,21,.12)}
+*{box-sizing:border-box}html{background:var(--paper);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}body{margin:0;min-height:100vh;background:linear-gradient(90deg,rgba(34,29,20,.035) 1px,transparent 1px) 0 0/24px 24px,var(--paper)}button,textarea,input{font:inherit}button{min-height:44px;cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.shell{width:min(1100px,100%);margin:auto;padding:18px clamp(14px,3vw,32px) 46px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0 22px;border-bottom:2px solid var(--ink)}.brand{font-weight:900;letter-spacing:-.08em;font-size:clamp(25px,7vw,42px);text-transform:uppercase}.brand i{font-style:normal;color:var(--red)}.local{font-size:10px;letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--ink);padding:7px 9px;background:var(--lime);box-shadow:3px 3px 0 var(--ink)}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:24px;padding:30px 0 24px;align-items:end}.hero h1{font-family:Georgia,serif;font-size:clamp(38px,7vw,76px);font-weight:400;line-height:.92;letter-spacing:-.055em;margin:0;max-width:730px}.hero p{font-family:system-ui,sans-serif;color:var(--muted);font-size:15px;line-height:1.5;margin:0;max-width:330px}.workspace{background:var(--panel);border:2px solid var(--ink);box-shadow:var(--shadow);overflow:hidden}.tape{height:13px;background:repeating-linear-gradient(135deg,var(--ink) 0 8px,var(--lime) 8px 16px)}
+.controls{display:grid;grid-template-columns:1fr minmax(220px,.6fr);border-bottom:1px solid var(--line)}.draft-input{padding:18px;border-right:1px solid var(--line)}.labelrow,.statrow{display:flex;justify-content:space-between;align-items:center;gap:12px}.eyebrow{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:800}textarea{display:block;width:100%;min-height:126px;margin-top:10px;padding:12px;border:1px solid var(--line);resize:vertical;background:#fffefb;color:var(--ink);line-height:1.55;border-radius:0}.analyze{margin-top:10px;width:100%;border:0;background:var(--ink);color:white;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.analyze:hover{background:var(--red)}
+.budget{padding:18px;background:#ece6db}.target-big{font-family:Georgia,serif;font-size:43px;line-height:1;margin:9px 0 4px}.target-big span{color:var(--red)}.hint{font-family:system-ui,sans-serif;color:var(--muted);font-size:12px;line-height:1.4}input[type=range]{appearance:none;width:100%;height:44px;background:transparent;margin:4px 0 0}input[type=range]::-webkit-slider-runnable-track{height:6px;background:var(--ink)}input[type=range]::-webkit-slider-thumb{appearance:none;width:28px;height:28px;margin-top:-11px;border:2px solid var(--ink);background:var(--lime);border-radius:50%;box-shadow:2px 2px 0 var(--ink)}input[type=range]::-moz-range-track{height:6px;background:var(--ink)}input[type=range]::-moz-range-thumb{width:28px;height:28px;border:2px solid var(--ink);background:var(--lime);border-radius:50%}
+.board{display:grid;grid-template-columns:minmax(0,1fr) 280px;min-height:330px}.page{padding:clamp(18px,4vw,42px);border-right:1px solid var(--line);position:relative}.page:before{content:'WORKING COPY';position:absolute;right:18px;top:13px;color:var(--line);font-size:10px;letter-spacing:.2em;transform:rotate(2deg)}.editor{font-family:Georgia,serif;font-size:clamp(20px,3vw,28px);line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;padding-top:15px}.cut{display:inline;padding:5px 4px;min-height:44px;margin:2px 0;border:0;border-bottom:2px dashed #e79383;background:var(--redsoft);color:var(--ink);font-family:inherit;font-size:inherit;line-height:1.25;transition:background .18s,color .18s}.cut:hover,.cut.recommended{background:#ffad9f}.cut.applied{background:transparent;color:#918c84;text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:3px}.replacement{color:var(--blue);text-decoration:none;margin-left:4px;font-family:ui-monospace,monospace;font-size:.65em;vertical-align:.18em}.empty{font-family:system-ui,sans-serif;color:var(--muted);font-size:15px;line-height:1.6;padding:60px 10px;text-align:center}
+.side{padding:18px;display:flex;flex-direction:column;gap:12px;background:#e9e3d8}.meter{border-top:2px solid var(--ink);padding-top:12px}.numbers{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.number{background:var(--panel);border:1px solid var(--line);padding:10px}.number b{font-family:Georgia,serif;font-size:28px;display:block}.number span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}.progress{height:9px;background:#cec6b9;margin:12px 0 6px;overflow:hidden}.progress div{height:100%;background:var(--red);transition:width .22s}.status{font-size:11px;color:var(--muted);line-height:1.4;min-height:32px}.action{width:100%;border:1px solid var(--ink);background:transparent;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.action.primary{background:var(--lime);box-shadow:3px 3px 0 var(--ink)}.action.copy{background:var(--blue);color:white;border-color:var(--blue);margin-top:auto}.action:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}.duo{display:grid;grid-template-columns:1fr 1fr;gap:8px}.legend{font-size:10px;line-height:1.5;color:var(--muted);padding:5px 0}.swatch{display:inline-block;width:11px;height:11px;background:var(--redsoft);border-bottom:2px dashed #e79383;vertical-align:-1px;margin-right:5px}.footer{display:flex;justify-content:space-between;gap:20px;padding:14px 2px;color:var(--muted);font-size:10px;line-height:1.5}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,120px);background:var(--ink);color:white;padding:12px 18px;font-size:12px;z-index:4;transition:transform .25s;box-shadow:4px 4px 0 var(--red)}.toast.show{transform:translate(-50%,0)}
+@media(max-width:740px){.hero{grid-template-columns:1fr;gap:13px}.controls,.board{grid-template-columns:1fr}.draft-input,.page{border-right:0;border-bottom:1px solid var(--line)}.board{min-height:0}.side{min-height:280px}.footer{flex-direction:column;gap:4px}.local{white-space:nowrap}.page:before{display:none}}
+@media(max-width:390px){.shell{padding-left:10px;padding-right:10px}.topbar{align-items:flex-start}.brand{font-size:28px}.hero{padding-top:22px}.hero h1{font-size:43px}.editor{font-size:20px}.page{padding:18px 14px}.draft-input,.budget,.side{padding:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar"><div class="brand">CUT R<i>OO</i>M</div><div class="local">OFFLINE · LOCAL</div></header>
+  <section class="hero"><h1>Make every word earn the ink.</h1><p>A tiny redline room for tightening a draft. No account. No upload. Just visible, reversible cuts.</p></section>
+  <main class="workspace">
+    <div class="tape" aria-hidden="true"></div>
+    <section class="controls">
+      <div class="draft-input">
+        <div class="labelrow"><label class="eyebrow" for="source">01 · Bring a draft</label><span class="eyebrow" id="sourceCount">0 words</span></div>
+        <textarea id="source" spellcheck="true">At this point in time, the team is currently working together in order to build a very simple prototype. We believe that it is really important to first begin with a small experiment, due to the fact that a focused test can help us learn faster. In my opinion, the best next step is to basically show the idea to a few people and ask for honest reactions. The end result will be a plan that is actually clearer, more useful, and easier to act on.</textarea>
+        <button class="analyze" id="analyze">Mark the cut table</button>
+      </div>
+      <div class="budget">
+        <label class="eyebrow" for="target">02 · Set the cut</label>
+        <div class="target-big"><span id="targetValue">20</span>% leaner</div>
+        <input id="target" type="range" min="5" max="40" step="5" value="20" aria-describedby="targetHint">
+        <div class="hint" id="targetHint">The dial marks enough candidate phrases to approach your target. You always make the final cut.</div>
+      </div>
+    </section>
+    <section class="board">
+      <article class="page"><div id="editor" class="editor" aria-label="Interactive redline"></div></article>
+      <aside class="side">
+        <div class="eyebrow">03 · Work the redline</div>
+        <div class="legend"><span class="swatch"></span>Tap marked language to cut or replace it.</div>
+        <div class="meter">
+          <div class="numbers">
+            <div class="number"><b id="before">0</b><span>Before</span></div>
+            <div class="number"><b id="after">0</b><span>After</span></div>
+          </div>
+          <div class="progress" aria-hidden="true"><div id="progress"></div></div>
+          <div class="status" id="status" aria-live="polite"></div>
+        </div>
+        <button class="action primary" id="apply">Apply marked cuts</button>
+        <div class="duo"><button class="action" id="undo">Undo</button><button class="action" id="redo">Redo</button></div>
+        <button class="action" id="reset">Restore draft</button>
+        <button class="action copy" id="copy">Copy clean draft</button>
+      </aside>
+    </section>
+  </main>
+  <footer class="footer"><span>Everything stays in this tab.</span><span>Heuristics, not AI · Each suggestion is yours to accept.</span></footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const source=$('#source'), editor=$('#editor'), target=$('#target');
+const els={sourceCount:$('#sourceCount'),targetValue:$('#targetValue'),before:$('#before'),after:$('#after'),progress:$('#progress'),status:$('#status'),apply:$('#apply'),undo:$('#undo'),redo:$('#redo'),reset:$('#reset'),copy:$('#copy'),toast:$('#toast')};
+const rules=[
+ [/at this point in time/gi,'now','four words doing one job'],[/in order to/gi,'to','shorter purpose phrase'],[/due to the fact that/gi,'because','shorter cause phrase'],[/in my opinion,?\s*/gi,'','the sentence already signals a view'],[/the end result/gi,'the result','redundant modifier'],[/first begin/gi,'begin','redundant sequence'],[/working together/gi,'working','implied collaboration'],[/we believe that\s*/gi,'','let the claim stand'],[/it is (really|very) important to/gi,'we should','name the action directly'],[/basically\s*/gi,'','softener'],[/actually\s*/gi,'','softener'],[/currently\s*/gi,'','time is already clear'],[/really\s+/gi,'','intensifier'],[/very\s+/gi,'','intensifier'],[/a few/gi,'three','make the quantity concrete'],[/can help us/gi,'helps us','use the direct verb']
+];
+let text='',cuts=[],applied=new Set(),recommended=new Set(),undoStack=[],redoStack=[],dirty=false;
+const countWords=s=>(s.trim().match(/\b[\w’'-]+\b/g)||[]).length;
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function findCuts(){
+ const found=[];
+ rules.forEach(([re,replacement,why],rank)=>{re.lastIndex=0;let m;while((m=re.exec(text))){found.push({start:m.index,end:m.index+m[0].length,old:m[0],replacement,why,rank});if(m[0].length===0)re.lastIndex++;}});
+ found.sort((a,b)=>a.start-b.start||a.rank-b.rank);
+ cuts=[];let end=-1;found.forEach(c=>{if(c.start>=end){c.id=cuts.length;c.saving=Math.max(1,countWords(c.old)-countWords(c.replacement));cuts.push(c);end=c.end;}});
+}
+function cleanText(){let out='',pos=0;cuts.forEach(c=>{out+=text.slice(pos,c.start);out+=applied.has(c.id)?c.replacement:c.old;pos=c.end;});out+=text.slice(pos);return out.replace(/[ \t]+([,.;!?])/g,'$1').replace(/ {2,}/g,' ').replace(/^\s+|\s+$/g,'');}
+function setRecommended(){
+ recommended.clear();const goal=Math.ceil(countWords(text)*(Number(target.value)/100));let saved=[...applied].reduce((sum,id)=>sum+(cuts[id]?cuts[id].saving:0),0);
+ [...cuts].sort((a,b)=>b.saving-a.saving||a.rank-b.rank).forEach(c=>{if(saved<goal&&!applied.has(c.id)){recommended.add(c.id);saved+=c.saving;}});
+}
+function render(){
+ setRecommended();let html='',pos=0;
+ cuts.forEach(c=>{html+=esc(text.slice(pos,c.start));const on=applied.has(c.id),rec=recommended.has(c.id);html+=`<button type="button" class="cut${on?' applied':''}${rec?' recommended':''}" data-id="${c.id}" aria-pressed="${on}" title="${esc(c.why)}">${esc(c.old)}${on&&c.replacement?`<span class="replacement">→ ${esc(c.replacement)}</span>`:''}</button>`;pos=c.end;});
+ html+=esc(text.slice(pos));editor.innerHTML=html||'<div class="empty">Add a draft above, then mark the cut table.</div>';
+ const before=countWords(text),after=countWords(cleanText()),pct=before?Math.round((before-after)/before*100):0;
+ els.before.textContent=before;els.after.textContent=after;els.progress.style.width=Math.min(100,pct)+'%';
+ const requested=Number(target.value);
+ els.status.textContent=cuts.length?(recommended.size===0&&pct<requested?`${applied.size} edits applied · ${pct}% leaner · no more local suggestions`:`${applied.size} of ${cuts.length} edits applied · ${pct}% leaner`):'No familiar filler found. The draft may already be tight.';
+ els.apply.disabled=dirty||recommended.size===0;els.undo.disabled=dirty||undoStack.length===0;els.redo.disabled=dirty||redoStack.length===0;els.reset.disabled=dirty||applied.size===0;els.copy.disabled=dirty||!text.trim();
+}
+function snapshot(){undoStack.push([...applied]);if(undoStack.length>40)undoStack.shift();redoStack=[];}
+function toggle(id){if(dirty){toast('Mark the changed draft first');return;}snapshot();applied.has(id)?applied.delete(id):applied.add(id);render();}
+function analyze(){text=source.value.trim();dirty=false;applied.clear();undoStack=[];redoStack=[];findCuts();render();}
+function markDirty(){dirty=true;els.sourceCount.textContent=countWords(source.value)+' words';els.status.textContent='Draft changed · mark the cut table to refresh';[els.apply,els.undo,els.redo,els.reset,els.copy].forEach(b=>b.disabled=true);}
+editor.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b)toggle(Number(b.dataset.id));});
+$('#analyze').addEventListener('click',analyze);
+source.addEventListener('input',markDirty);
+target.addEventListener('input',()=>{els.targetValue.textContent=target.value;if(!dirty)render();});
+els.apply.addEventListener('click',()=>{if(dirty||!recommended.size)return;snapshot();recommended.forEach(id=>applied.add(id));render();});
+els.undo.addEventListener('click',()=>{if(dirty||!undoStack.length)return;redoStack.push([...applied]);applied=new Set(undoStack.pop());render();});
+els.redo.addEventListener('click',()=>{if(dirty||!redoStack.length)return;undoStack.push([...applied]);applied=new Set(redoStack.pop());render();});
+els.reset.addEventListener('click',()=>{if(dirty||!applied.size)return;snapshot();applied.clear();render();});
+function toast(msg){els.toast.textContent=msg;els.toast.classList.add('show');setTimeout(()=>els.toast.classList.remove('show'),1700);}
+els.copy.addEventListener('click',async()=>{if(dirty)return;const out=cleanText();try{await navigator.clipboard.writeText(out);toast('Clean draft copied');}catch(e){const t=document.createElement('textarea');t.value=out;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Clean draft copied');}});
+els.sourceCount.textContent=countWords(source.value)+' words';analyze();
+})();
+</script>
+</body>
+</html>
