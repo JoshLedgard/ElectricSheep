@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="A tactile, fictional credential-rotation timeline lab.">
+<title>Rotation Window</title>
+<style>
+:root{--ink:#18201e;--muted:#65716d;--paper:#f5f1e8;--panel:#fffdf8;--line:#d8d6cd;--old:#ff735b;--new:#1b9d8a;--move:#6757c8;--gold:#e2b33b;--danger:#be3e4b;--shadow:0 16px 45px rgba(42,49,46,.11)}
+*{box-sizing:border-box}html,body{margin:0;max-width:100%;overflow-x:hidden}body{min-height:100vh;background:radial-gradient(circle at 85% 0,#d8efe8 0,transparent 28rem),linear-gradient(145deg,#f8f5ed,#e9ece4);color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit}button:focus-visible,[tabindex]:focus-visible{outline:3px solid #222;outline-offset:3px}.shell{width:min(1080px,100%);margin:auto;padding:22px clamp(14px,3vw,30px) 40px}.eyebrow{font:800 11px/1.2 ui-monospace,SFMono-Regular,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--move);margin:0 0 9px}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:8px 0 24px}.hero h1{font-size:clamp(2.35rem,8vw,5.4rem);line-height:.88;letter-spacing:-.065em;margin:0;max-width:700px}.hero p{max-width:340px;margin:0;color:var(--muted);font-size:14px}.pill{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:99px;padding:7px 10px;background:#ffffffa6;font-size:12px;font-weight:750}.dot{width:8px;height:8px;border-radius:50%;background:var(--new);box-shadow:0 0 0 4px #1b9d8a1b}
+.app{background:var(--panel);border:1px solid #d4d2ca;border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fff}.scenario-set,.actions{display:flex;gap:8px;flex-wrap:wrap}.chip,.action{min-height:44px;border:1px solid var(--line);background:#f8f7f2;border-radius:99px;padding:0 14px;font-weight:780;font-size:13px;cursor:pointer;touch-action:manipulation}.chip[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}.action{border-radius:12px;background:#fff}.action.primary{background:var(--move);border-color:var(--move);color:#fff}.action:active,.chip:active{transform:translateY(1px)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 270px}.lab{padding:clamp(16px,3vw,28px);min-width:0}.labhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.labhead h2{margin:0;font-size:18px}.dayread{font:800 12px ui-monospace,SFMono-Regular,monospace;color:var(--muted)}
+.timeline{position:relative;border:1px solid var(--line);border-radius:18px;background:linear-gradient(#fcfbf7,#f6f5ee);padding:54px 14px 16px;user-select:none;touch-action:pan-y;overflow:hidden}.rail{position:absolute;left:18px;right:18px;top:31px;height:4px;border-radius:4px;background:repeating-linear-gradient(90deg,#bec4c0 0 1px,transparent 1px calc(100% / 30)),#e5e4de}.handle{position:absolute;top:8px;transform:translateX(-50%);border:0;padding:0;width:44px;height:44px;background:transparent;cursor:grab;touch-action:none;z-index:6}.handle:active{cursor:grabbing}.handle i{display:block;width:22px;height:22px;margin:2px auto;border-radius:8px 8px 8px 2px;transform:rotate(-45deg);background:var(--c);box-shadow:0 3px 8px #0002;border:3px solid white}.handle b{position:absolute;top:31px;left:50%;transform:translateX(-50%);white-space:nowrap;font:800 9px ui-monospace,SFMono-Regular,monospace;color:#414946;background:#fffffff0;padding:2px 5px;border-radius:4px}.scale{display:flex;justify-content:space-between;margin:0 2px 15px;color:#8a928e;font:700 10px ui-monospace,SFMono-Regular,monospace}.track{position:relative;height:56px;border-top:1px solid #dddcd5;padding-top:9px}.track:last-of-type{border-bottom:1px solid #dddcd5}.track-label{position:absolute;z-index:3;left:8px;top:15px;font-size:11px;font-weight:850;color:#313936;text-shadow:0 1px #fff}.bar{position:absolute;top:9px;height:34px;border-radius:10px;min-width:2px;overflow:hidden}.bar.old{left:0;background:repeating-linear-gradient(135deg,#ff735b,#ff735b 9px,#f86150 9px,#f86150 14px)}.bar.new{background:repeating-linear-gradient(135deg,#1b9d8a,#1b9d8a 9px,#168978 9px,#168978 14px)}.bar.traffic-old{left:0;background:#6757c8}.bar.traffic-new{background:#aba3e6}.bar.gap{background:repeating-linear-gradient(45deg,#be3e4b,#be3e4b 6px,#f2b9bb 6px,#f2b9bb 12px);top:44px;height:6px;z-index:4}.cursor{position:absolute;top:0;bottom:0;width:2px;background:#121816;z-index:5;pointer-events:none;transition:left .08s linear}.cursor:before{content:attr(data-day);position:absolute;top:50px;left:50%;transform:translate(-50%,-100%);background:#121816;color:#fff;border-radius:6px;padding:4px 6px;font:800 10px ui-monospace,SFMono-Regular,monospace}.events{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.event{min-width:0;border:1px solid var(--line);border-radius:12px;padding:11px;background:#fff}.event span{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}.event strong{font-size:15px}.stepper{display:flex;gap:5px;margin-top:8px}.stepper button{width:44px;height:44px;border:1px solid var(--line);border-radius:10px;background:#f4f3ed;font-weight:900;cursor:pointer}
+.sidebar{border-left:1px solid var(--line);background:#f7f7f1;padding:22px 18px}.status{border-radius:17px;padding:17px;color:#fff;background:var(--ink);margin-bottom:15px}.status small{display:block;font:800 10px ui-monospace,SFMono-Regular,monospace;text-transform:uppercase;letter-spacing:.1em;opacity:.65}.status h3{font-size:24px;letter-spacing:-.04em;margin:6px 0}.status p{font-size:12px;margin:0;color:#dfe8e4}.metrics{display:grid;gap:9px}.metric{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px}.metric .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.metric b{font-size:20px}.metric span{font-size:11px;color:var(--muted)}.meter{height:7px;background:#ebeae4;border-radius:8px;margin-top:8px;overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--c);border-radius:8px;transition:width .25s}.legend{margin-top:17px;font-size:11px;color:var(--muted)}.legend div{display:flex;gap:7px;margin:7px 0}.swatch{width:13px;height:13px;border-radius:4px;background:var(--c);flex:none}.note{margin:15px 0 0;font-size:11px;color:var(--muted)}
+.explain{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.explain article{border:1px solid #d4d2ca;border-radius:18px;padding:17px;background:#ffffff9c}.explain h3{margin:0 0 6px;font-size:14px}.explain p{margin:0;color:var(--muted);font-size:12px}.local{margin-top:16px;text-align:center;color:var(--muted);font-size:11px}
+@media(max-width:760px){.hero{display:block}.hero p{margin-top:15px}.workspace{grid-template-columns:1fr}.sidebar{border-left:0;border-top:1px solid var(--line)}.toolbar{align-items:flex-start;flex-direction:column}.scenario-set,.actions{width:100%}.chip{flex:1;padding:0 8px}.action{flex:1}.events{grid-template-columns:1fr}.event{display:grid;grid-template-columns:1fr auto;align-items:center}.stepper{margin:0}.explain{grid-template-columns:1fr}.timeline{padding-left:8px;padding-right:8px}.track-label{font-size:10px}.handle b{font-size:8px}.shell{padding-top:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+<p class="eyebrow">Fictional systems lab · 30 local days</p>
+<div class="hero"><div><h1>Rotation<br>Window</h1></div><p>Move three moments. Watch a zero-downtime credential change become calm, exposed, or briefly broken.</p></div>
+<div class="app">
+<div class="toolbar">
+<div class="scenario-set" aria-label="Preset scenarios">
+<button class="chip" data-preset="calm" aria-pressed="true">Calm handoff</button><button class="chip" data-preset="tight" aria-pressed="false">Tight window</button><button class="chip" data-preset="gap" aria-pressed="false">Outage gap</button>
+</div>
+<div class="actions"><button class="action" id="random">Shuffle</button><button class="action primary" id="replay">▶ Replay 30 days</button></div>
+</div>
+<div class="workspace">
+<section class="lab" aria-label="Interactive rotation timeline">
+<div class="labhead"><h2>Credential lifecycle</h2><span class="dayread" id="dayread">Inspecting day 0</span></div>
+<div class="timeline" id="timeline">
+<div class="rail"></div>
+<button class="handle" id="hIssue" data-key="issue" style="--c:var(--new)" aria-label="Drag new credential issue day"><i></i><b>ISSUE</b></button>
+<button class="handle" id="hActivate" data-key="activate" style="--c:var(--move)" aria-label="Drag traffic switch day"><i></i><b>SWITCH</b></button>
+<button class="handle" id="hExpire" data-key="expire" style="--c:var(--old)" aria-label="Drag old credential revoke day"><i></i><b>REVOKE</b></button>
+<div class="scale"><span>D0</span><span>D5</span><span>D10</span><span>D15</span><span>D20</span><span>D25</span><span>D30</span></div>
+<div class="track"><span class="track-label">OLD VALID</span><div class="bar old" id="oldbar"></div></div>
+<div class="track"><span class="track-label">NEW VALID</span><div class="bar new" id="newbar"></div></div>
+<div class="track"><span class="track-label">TRAFFIC</span><div class="bar traffic-old" id="trafficOld"></div><div class="bar traffic-new" id="trafficNew"></div><div class="bar gap" id="gapbar"></div></div>
+<div class="cursor" id="cursor" data-day="D0"></div>
+</div>
+<div class="events">
+<div class="event"><div><span>New issued</span><strong id="vIssue">Day 6</strong></div><div class="stepper"><button data-step="issue,-1" aria-label="Issue one day earlier">−</button><button data-step="issue,1" aria-label="Issue one day later">+</button></div></div>
+<div class="event"><div><span>Traffic switches</span><strong id="vActivate">Day 12</strong></div><div class="stepper"><button data-step="activate,-1" aria-label="Switch one day earlier">−</button><button data-step="activate,1" aria-label="Switch one day later">+</button></div></div>
+<div class="event"><div><span>Old revoked</span><strong id="vExpire">Day 17</strong></div><div class="stepper"><button data-step="expire,-1" aria-label="Revoke one day earlier">−</button><button data-step="expire,1" aria-label="Revoke one day later">+</button></div></div>
+</div>
+</section>
+<aside class="sidebar" aria-live="polite">
+<div class="status" id="status"><small>Window state</small><h3 id="statusTitle">Calm handoff</h3><p id="statusText">The new credential is proven before traffic moves, then the old one is retired.</p></div>
+<div class="metrics">
+<div class="metric"><div class="top"><span>Warm-up before switch</span><b id="warm">6d</b></div><div class="meter"><i id="warmMeter" style="--c:var(--new)"></i></div></div>
+<div class="metric"><div class="top"><span>Old valid after switch</span><b id="exposure">5d</b></div><div class="meter"><i id="exposureMeter" style="--c:var(--gold)"></i></div></div>
+<div class="metric"><div class="top"><span>Availability gap</span><b id="gap">0d</b></div><div class="meter"><i id="gapMeter" style="--c:var(--danger)"></i></div></div>
+</div>
+<div class="legend"><div><i class="swatch" style="--c:var(--old)"></i>old credential remains valid</div><div><i class="swatch" style="--c:var(--new)"></i>new credential is valid</div><div><i class="swatch" style="--c:var(--move)"></i>application traffic</div></div>
+<p class="note">A visualization, not a security recommendation. Real rotation procedures vary.</p>
+</aside>
+</div>
+</div>
+<div class="explain"><article><h3>The tiny model</h3><p>A fictional old credential starts valid. A replacement is issued, application traffic switches, then the old one is revoked. Sequence and spacing—not a score—reveal the tradeoff.</p></article><article><h3>Try making it break</h3><p>Drag a colored marker, use the ± buttons, or pick a preset. Revoke before switching to expose an availability gap. Replay shows the month passing.</p></article></div>
+<p class="local"><span class="pill"><i class="dot"></i> Fictional data · runs entirely in this browser</span></p>
+</div>
+<script>
+(()=>{
+'use strict';
+const state={issue:6,activate:12,expire:17,day:0,timer:null};
+const $=id=>document.getElementById(id), clamp=n=>Math.max(0,Math.min(30,Math.round(n))), pct=n=>`${(n/30)*100}%`;
+const presets={calm:{issue:6,activate:12,expire:17},tight:{issue:12,activate:14,expire:15},gap:{issue:14,activate:20,expire:16}};
+const handles={issue:$('hIssue'),activate:$('hActivate'),expire:$('hExpire')};
+function metrics(){
+ const warm=Math.max(0,state.activate-state.issue);
+ const exposure=Math.max(0,state.expire-state.activate);
+ const gapA=Math.max(0,state.activate-state.expire);
+ const gapB=Math.max(0,state.issue-state.activate);
+ return {warm,exposure,gap:Math.max(gapA,gapB),gapStart:gapA?state.expire:(gapB?state.activate:0),gapEnd:gapA?state.activate:(gapB?state.issue:0)};
+}
+function describe(m){
+ if(m.gap>0)return['Availability gap',`For ${m.gap} day${m.gap===1?'':'s'}, the traffic plan and valid credentials do not overlap.`,'#792b35'];
+ if(m.warm===0)return['Blind cutover','The replacement appears exactly when traffic moves. There is no proving window.','#5545a8'];
+ if(m.exposure>=8)return['Long tail','The switch works, but the old credential stays valid well after cutover.','#855f13'];
+ if(m.exposure<=1)return['Tight handoff','The sequence is sound, with very little time to observe the new path before rollback disappears.','#1c6f65'];
+ return['Calm handoff','The new credential is proven before traffic moves, then the old one is retired.','#18201e'];
+}
+function render(){
+ const m=metrics(),d=describe(m);
+ Object.entries(handles).forEach(([k,h])=>{h.style.left=pct(state[k]);h.setAttribute('aria-valuenow',state[k]);h.setAttribute('aria-valuemin','0');h.setAttribute('aria-valuemax','30');h.setAttribute('role','slider');h.title=`${k}: day ${state[k]}`});
+ $('oldbar').style.width=pct(state.expire);
+ $('newbar').style.left=pct(state.issue);$('newbar').style.width=pct(30-state.issue);
+ $('trafficOld').style.width=pct(state.activate);$('trafficNew').style.left=pct(state.activate);$('trafficNew').style.width=pct(30-state.activate);
+ $('gapbar').style.left=pct(m.gapStart);$('gapbar').style.width=pct(m.gap);$('gapbar').hidden=!m.gap;
+ ['issue','activate','expire'].forEach(k=>$(`v${k[0].toUpperCase()+k.slice(1)}`).textContent=`Day ${state[k]}`);
+ $('warm').textContent=`${m.warm}d`;$('exposure').textContent=`${m.exposure}d`;$('gap').textContent=`${m.gap}d`;
+ $('warmMeter').style.width=pct(m.warm);$('exposureMeter').style.width=pct(m.exposure);$('gapMeter').style.width=pct(m.gap);
+ $('statusTitle').textContent=d[0];$('statusText').textContent=d[1];$('status').style.background=d[2];
+ state.day=clamp(state.day);$('cursor').style.left=pct(state.day);$('cursor').dataset.day=`D${state.day}`;$('dayread').textContent=`Inspecting day ${state.day}`;
+ document.querySelectorAll('[data-preset]').forEach(b=>{let p=presets[b.dataset.preset];b.setAttribute('aria-pressed',String(p.issue===state.issue&&p.activate===state.activate&&p.expire===state.expire))});
+}
+function stopReplay(){if(state.timer){clearInterval(state.timer);state.timer=null;$('replay').textContent='▶ Replay 30 days'}}
+function setPreset(name){stopReplay();Object.assign(state,presets[name],{day:0});render()}
+document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>setPreset(b.dataset.preset)));
+document.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{stopReplay();let[k,n]=b.dataset.step.split(',');state[k]=clamp(state[k]+Number(n));render()}));
+Object.entries(handles).forEach(([key,h])=>{
+ const move=e=>{const r=$('timeline').getBoundingClientRect();state[key]=clamp((e.clientX-r.left)/r.width*30);state.day=state[key];render()};
+ h.addEventListener('pointerdown',e=>{stopReplay();h.setPointerCapture(e.pointerId);move(e)});h.addEventListener('pointermove',e=>{if(h.hasPointerCapture(e.pointerId))move(e)});
+ h.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();state[key]=clamp(state[key]-1);render()}if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();state[key]=clamp(state[key]+1);render()}});
+});
+$('timeline').addEventListener('pointerdown',e=>{if(e.target.closest('.handle'))return;const r=e.currentTarget.getBoundingClientRect();state.day=clamp((e.clientX-r.left)/r.width*30);render()});
+$('random').addEventListener('click',()=>{stopReplay();let a=[clamp(2+Math.random()*16),clamp(8+Math.random()*15),clamp(10+Math.random()*18)];state.issue=a[0];state.activate=a[1];state.expire=a[2];state.day=0;render()});
+$('replay').addEventListener('click',()=>{if(state.timer){stopReplay();return}state.day=0;$('replay').textContent='■ Stop replay';render();state.timer=setInterval(()=>{state.day++;if(state.day>30){stopReplay();state.day=30}render()},window.matchMedia('(prefers-reduced-motion:reduce)').matches?220:120)});
+render();
+})();
+</script>
+</body>
+</html>
