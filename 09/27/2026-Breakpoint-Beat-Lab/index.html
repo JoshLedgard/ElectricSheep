@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f1eddf">
+<title>Breakpoint Beat Lab</title>
+<style>
+:root{--ink:#171c19;--paper:#f1eddf;--red:#ef5c48;--blue:#3267d6;--green:#138f72;--yellow:#e5b938;--line:#252c2760;--shadow:5px 5px 0 #171c19}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}body{overflow-x:hidden;background-image:linear-gradient(#171c1909 1px,transparent 1px),linear-gradient(90deg,#171c1909 1px,transparent 1px);background-size:24px 24px}
+button,input{font:inherit}button{min-height:46px;border:2px solid var(--ink);background:#fffdf5;color:var(--ink);padding:10px 14px;font-weight:800;box-shadow:3px 3px 0 var(--ink);cursor:pointer;touch-action:manipulation}button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}button:focus-visible,input:focus-visible{outline:4px solid #ef5c4866;outline-offset:2px}.primary{background:var(--ink);color:#fffdf5}.playing{background:var(--red);color:#fff}
+.shell{width:min(1100px,100%);margin:auto;padding:18px clamp(14px,3vw,30px) 40px}.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:3px solid var(--ink);padding-bottom:9px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.live{display:flex;align-items:center;gap:7px}.dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px #ef5c4828}
+.hero{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:end;padding:28px 0 22px}.kicker{font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}h1{font-family:Arial Black,Impact,sans-serif;font-size:clamp(42px,8vw,88px);line-height:.84;letter-spacing:-.055em;text-transform:uppercase;margin:8px 0 16px;max-width:760px}.lede{font-family:system-ui,sans-serif;font-size:clamp(15px,2vw,18px);line-height:1.5;max-width:630px;margin:0}.stamp{justify-self:end;width:138px;height:138px;border:3px solid var(--ink);border-radius:50%;display:grid;place-items:center;text-align:center;font-weight:900;transform:rotate(7deg);background:var(--yellow);box-shadow:var(--shadow);line-height:1.25}
+.controlbar{display:grid;grid-template-columns:auto minmax(150px,1fr) auto auto;gap:12px;align-items:center;background:#fffdf5;border:3px solid var(--ink);padding:12px;box-shadow:var(--shadow);margin-bottom:18px}.widthbox{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;min-width:0}.widthbox label{font-size:11px;font-weight:900;text-transform:uppercase}.widthread{font-size:12px;font-weight:900;width:54px;text-align:right}input[type=range]{width:100%;height:44px;accent-color:var(--blue);cursor:ew-resize}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:18px;align-items:start}.monitor{border:3px solid var(--ink);background:#20251f;padding:10px 10px 14px;box-shadow:var(--shadow);min-width:0}.monitor-top{color:#f7f2e5;display:flex;justify-content:space-between;gap:12px;font-size:11px;font-weight:900;text-transform:uppercase;padding:0 4px 9px}.viewport-wrap{background:#d5d0c2;min-height:430px;display:flex;align-items:stretch;justify-content:center;padding:14px 8px;overflow:hidden;position:relative}.viewport{width:100%;max-width:100%;height:400px;background:#faf7ed;border:2px solid var(--ink);position:relative;overflow:hidden;transition:width .28s ease;container-type:inline-size}.browserbar{height:32px;border-bottom:2px solid var(--ink);display:flex;align-items:center;padding:0 10px;gap:6px;background:#e9e3d2}.browserbar i{width:9px;height:9px;border:1px solid var(--ink);border-radius:50%;background:var(--red)}.browserbar i:nth-child(2){background:var(--yellow)}.browserbar i:nth-child(3){background:var(--green)}.url{margin-left:8px;height:15px;flex:1;max-width:180px;background:#fff;border:1px solid var(--ink)}
+.stage{height:calc(100% - 32px);position:relative;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(6,1fr);gap:6px;padding:10px;background-image:linear-gradient(90deg,transparent calc(100% - 1px),#171c1922 1px);background-size:12.5% 100%}.block{position:relative;z-index:2;border:2px solid var(--ink);padding:8px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;cursor:grab;touch-action:none;user-select:none;box-shadow:3px 3px 0 #171c19;font-weight:900;min-width:0}.block.dragging{cursor:grabbing;transform:scale(1.025);z-index:6}.block small{font-size:9px;letter-spacing:.06em;text-transform:uppercase}.block strong{font-family:Arial Black,Impact,sans-serif;font-size:clamp(14px,3cqw,25px);line-height:.9;text-transform:uppercase}.block b{font-size:10px;align-self:flex-end}.b0{background:var(--red);color:#fff}.b1{background:var(--blue);color:#fff}.b2{background:var(--yellow)}.b3{background:var(--green);color:#fff}.b4{background:#d987d4}.scan{position:absolute;z-index:5;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 0 1px var(--ink),0 0 16px #fff;left:10px;pointer-events:none;opacity:.9}.scan:after{content:'PLAY';position:absolute;top:0;left:5px;background:var(--ink);color:#fff;font-size:8px;padding:2px 4px}.beatflash{animation:flash .16s ease-out}@keyframes flash{50%{filter:brightness(1.7);transform:translateY(-2px)}}
+.panel{border:3px solid var(--ink);background:#fffdf5;box-shadow:var(--shadow)}.panel h2{font-family:Arial Black,Impact,sans-serif;text-transform:uppercase;font-size:19px;margin:0;padding:12px;border-bottom:3px solid var(--ink)}.track{display:grid;grid-template-columns:33px 1fr;gap:10px;padding:12px;border-bottom:1px solid var(--line);align-items:center}.swatch{width:33px;height:33px;border:2px solid var(--ink);display:grid;place-items:center;font-weight:900}.track strong{font-size:12px;display:block;text-transform:uppercase}.track small{font-size:10px;color:#4d554f}.how{padding:14px;font-family:system-ui,sans-serif;font-size:12px;line-height:1.5}.how b{font-family:ui-monospace,monospace;text-transform:uppercase}.footer{display:flex;justify-content:space-between;gap:20px;margin-top:28px;border-top:3px solid var(--ink);padding-top:12px;font-size:11px;font-weight:800;text-transform:uppercase}
+.toast{position:fixed;z-index:20;left:50%;bottom:18px;transform:translate(-50%,120px);background:var(--ink);color:#fff;padding:12px 18px;border:2px solid #fff;box-shadow:4px 4px 0 var(--red);font-size:12px;font-weight:900;transition:transform .25s}.toast.show{transform:translate(-50%,0)}
+.stage[data-cols="6"] .block strong{font-size:16px}.stage[data-cols="4"] .block strong{font-size:14px}
+@media(max-width:760px){.hero{grid-template-columns:1fr}.stamp{display:none}.controlbar{grid-template-columns:1fr 1fr}.widthbox{grid-column:1/-1;grid-row:1}.lab{grid-template-columns:1fr}.panel{display:grid;grid-template-columns:repeat(2,1fr)}.panel h2,.how{grid-column:1/-1}.viewport-wrap{min-height:390px}.viewport{height:360px}.footer{flex-direction:column}.track{min-height:62px}}
+@media(max-width:430px){.shell{padding-left:10px;padding-right:10px}.topline span:last-child,.monitor-top span:last-child{display:none}.controlbar{gap:9px;padding:9px}.controlbar button{padding:9px 8px;min-width:0}.widthbox{grid-template-columns:1fr auto;gap:2px 8px}.widthbox input{grid-column:1/-1;grid-row:2;min-width:0}.widthbox label{grid-column:1;grid-row:1}.widthread{grid-column:2;grid-row:1}.monitor{padding:7px 7px 10px;box-shadow:3px 3px 0 var(--ink)}.viewport-wrap{padding:9px 4px}.stage{gap:4px;padding:7px}.block{padding:5px;box-shadow:2px 2px 0 #171c19}.panel{box-shadow:3px 3px 0 var(--ink)}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.viewport{transition:none}.beatflash{animation:none}.toast{transition:none}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="topline"><span>Experimental Interface Audio Unit</span><span class="live"><i class="dot"></i> Browser instrument 027</span></div>
+  <section class="hero">
+    <div><div class="kicker">Responsive design you can hear</div><h1>Breakpoint<br>Beat Lab</h1><p class="lede">Arrange an interface. Change its viewport. Press play. Every block is both layout and instrument—the beat changes when the design reflows.</p></div>
+    <div class="stamp">NO PLUGINS<br>NO CLOUD<br>ALL BROWSER</div>
+  </section>
+  <section class="controlbar" aria-label="Playback and viewport controls">
+    <button id="play" class="primary" aria-pressed="false">▶ Play layout</button>
+    <div class="widthbox"><label for="width">Viewport</label><input id="width" type="range" min="320" max="900" value="760" step="10"><output id="widthread" class="widthread" for="width">760px</output></div>
+    <button id="remix">↻ Remix</button><button id="reset">Reset</button>
+  </section>
+  <section class="lab">
+    <div class="monitor">
+      <div class="monitor-top"><span>Live responsive canvas</span><span id="mode">8-column / wide</span></div>
+      <div class="viewport-wrap"><div id="viewport" class="viewport">
+        <div class="browserbar"><i></i><i></i><i></i><span class="url"></span></div>
+        <div id="stage" class="stage" aria-label="Draggable musical layout">
+          <div class="block b0" data-i="0"><small>01 / kick</small><strong>Hero<br>statement</strong><b>●</b></div>
+          <div class="block b1" data-i="1"><small>02 / tone</small><strong>Proof<br>point</strong><b>◆</b></div>
+          <div class="block b2" data-i="2"><small>03 / hat</small><strong>Call to<br>action</strong><b>✦</b></div>
+          <div class="block b3" data-i="3"><small>04 / bass</small><strong>Feature<br>signal</strong><b>■</b></div>
+          <div class="block b4" data-i="4"><small>05 / bell</small><strong>Small<br>detail</strong><b>○</b></div>
+          <div id="scan" class="scan" aria-hidden="true"></div>
+        </div>
+      </div></div>
+    </div>
+    <aside class="panel"><h2>Layout tracks</h2>
+      <div class="track"><span class="swatch b0">●</span><div><strong>Hero / Kick</strong><small>Low pulse on entry</small></div></div>
+      <div class="track"><span class="swatch b1">◆</span><div><strong>Proof / Tone</strong><small>Position sets pitch</small></div></div>
+      <div class="track"><span class="swatch b2">✦</span><div><strong>Action / Hat</strong><small>Width sets repeats</small></div></div>
+      <div class="track"><span class="swatch b3">■</span><div><strong>Feature / Bass</strong><small>Row sets depth</small></div></div>
+      <div class="track"><span class="swatch b4">○</span><div><strong>Detail / Bell</strong><small>Late bright accent</small></div></div>
+      <div class="how"><b>Try this:</b> drag the colored blocks, then pull the viewport from wide to phone. The same interface becomes a different rhythm.</div>
+    </aside>
+  </section>
+  <div class="footer"><span>Built from HTML + CSS + Web Audio</span><span>Touch friendly · sound starts only when you press play</span></div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite">Layout remixed</div>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s), stage=$('#stage'), viewport=$('#viewport'), slider=$('#width'), read=$('#widthread'), mode=$('#mode'), play=$('#play'), scan=$('#scan'), toast=$('#toast');
+const blocks=[...document.querySelectorAll('.block')];
+const defaults={
+  8:[{c:1,r:1,w:4,h:2},{c:5,r:1,w:4,h:2},{c:1,r:3,w:3,h:2},{c:4,r:3,w:3,h:2},{c:7,r:3,w:2,h:2}],
+  6:[{c:1,r:1,w:3,h:2},{c:4,r:1,w:3,h:2},{c:1,r:3,w:2,h:2},{c:3,r:3,w:2,h:2},{c:5,r:3,w:2,h:2}],
+  4:[{c:1,r:1,w:4,h:1},{c:1,r:2,w:2,h:2},{c:3,r:2,w:2,h:2},{c:1,r:4,w:2,h:2},{c:3,r:4,w:2,h:2}]
+};
+const copy=x=>x.map(o=>({...o}));
+let layouts={8:copy(defaults[8]),6:copy(defaults[6]),4:copy(defaults[4])}, playing=false, step=0, timer=null, audio=null;
+function cols(){return +slider.value<=380?4:+slider.value<=520?6:8}
+function current(){return layouts[cols()]}
+function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
+function render(){const n=cols(),layout=current();stage.dataset.cols=n;stage.style.gridTemplateColumns=`repeat(${n},1fr)`;stage.style.backgroundSize=`${100/n}% 100%`;blocks.forEach((b,i)=>{const o=layout[i];b.style.gridColumn=`${o.c}/span ${o.w}`;b.style.gridRow=`${o.r}/span ${o.h}`});mode.textContent=`${n}-column / ${n===8?'wide':n===6?'compact':'phone'}`}
+function setWidth(){const v=+slider.value, available=$('.viewport-wrap').clientWidth-16;viewport.style.width=Math.min(v,available)+'px';read.value=v+'px';render()}
+function announce(t){toast.textContent=t;toast.classList.add('show');clearTimeout(announce.t);announce.t=setTimeout(()=>toast.classList.remove('show'),1300)}
+function context(){if(!audio) audio=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();return audio}
+function sound(i){if(!audio)return;const a=audio,t=a.currentTime,o=a.createOscillator(),g=a.createGain(),row=current()[i].r;let type='sine',freq=180;
+ if(i===0){type='sine';freq=70}else if(i===1){type='triangle';freq=[330,294,262,220,196,174][row-1]}else if(i===2){type='square';freq=680}else if(i===3){type='sawtooth';freq=110/(1+(row-1)*.08)}else{type='sine';freq=740}
+ o.type=type;o.frequency.setValueAtTime(freq,t);if(i===0)o.frequency.exponentialRampToValueAtTime(38,t+.12);g.gain.setValueAtTime(i===2?.035:.09,t);g.gain.exponentialRampToValueAtTime(.001,t+(i===4?.34:.18));o.connect(g).connect(a.destination);o.start(t);o.stop(t+.36)}
+function tick(){const n=16,grid=cols(),layout=current();scan.style.left=`calc(10px + ${(step/(n-1))* (100 - 5)}%)`;blocks.forEach((b,i)=>{const o=layout[i],start=Math.round((o.c-1)/grid*(n-1)),end=Math.round((o.c+o.w-1)/grid*(n-1));if(step===start || (i===2&&step===end)){sound(i);b.classList.remove('beatflash');void b.offsetWidth;b.classList.add('beatflash')}});step=(step+1)%n}
+function start(){context();playing=true;play.textContent='■ Stop';play.classList.add('playing');play.setAttribute('aria-pressed','true');tick();timer=setInterval(tick,190)}
+function stop(){playing=false;clearInterval(timer);timer=null;play.textContent='▶ Play layout';play.classList.remove('playing');play.setAttribute('aria-pressed','false');step=0;scan.style.left='10px'}
+play.addEventListener('click',()=>playing?stop():start());
+slider.addEventListener('input',setWidth);window.addEventListener('resize',setWidth);
+blocks.forEach((b,i)=>{let active=false,grabX=0,grabY=0;b.addEventListener('pointerdown',e=>{active=true;b.setPointerCapture(e.pointerId);b.classList.add('dragging');const r=b.getBoundingClientRect();grabX=e.clientX-r.left;grabY=e.clientY-r.top});b.addEventListener('pointermove',e=>{if(!active)return;const sr=stage.getBoundingClientRect(),n=cols(),cw=sr.width/n,rh=sr.height/6,o=current()[i];o.c=clamp(Math.floor((e.clientX-sr.left-grabX+cw*.35)/cw)+1,1,n-o.w+1);o.r=clamp(Math.floor((e.clientY-sr.top-grabY+rh*.35)/rh)+1,1,6-o.h+1);render()});const up=()=>{if(active){active=false;b.classList.remove('dragging')}};b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up)});
+$('#remix').addEventListener('click',()=>{const n=cols(),slots=copy(defaults[n]);for(let j=slots.length-1;j>0;j--){const k=Math.floor(Math.random()*(j+1));[slots[j],slots[k]]=[slots[k],slots[j]]}layouts[n]=slots;render();announce('New composition loaded')});
+$('#reset').addEventListener('click',()=>{layouts={8:copy(defaults[8]),6:copy(defaults[6]),4:copy(defaults[4])};slider.value=760;setWidth();announce('Back to the original groove')});
+setWidth();render();
+})();
+</script>
+</body>
+</html>
