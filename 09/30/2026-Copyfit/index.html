@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Copyfit — The Tiny Interface Copy Game</title>
+<meta name="description" content="Cut and swap interface words under real spatial pressure without losing the meaning.">
+<style>
+:root{--ink:#17221f;--paper:#f3efe4;--cream:#fffaf0;--red:#ef6048;--blue:#3975e6;--lime:#d9ef57;--mint:#55c7a1;--muted:#68746f;--line:#17221f;--shadow:5px 5px 0 var(--line)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif}body{overflow-x:hidden;background-image:linear-gradient(rgba(23,34,31,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(23,34,31,.035) 1px,transparent 1px);background-size:18px 18px}.wrap{width:min(760px,100%);margin:auto;padding:18px 16px 70px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin:4px 0 20px}.kicker,.stamp{font:800 11px/1.2 ui-monospace,monospace;text-transform:uppercase;letter-spacing:.12em}.stamp{border:2px solid;padding:7px 9px;transform:rotate(2deg);background:var(--lime)}h1{font-size:clamp(38px,12vw,74px);line-height:.88;letter-spacing:-.07em;margin:8px 0 10px}.lede{max-width:500px;font-weight:650;line-height:1.4;margin:0}.progress{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:18px 0}.pip{height:10px;border:2px solid;border-radius:99px;background:var(--cream)}.pip.done{background:var(--mint)}.pip.now{background:var(--red)}
+.card{background:var(--cream);border:3px solid;border-radius:20px;box-shadow:var(--shadow);overflow:hidden}.topbar{padding:12px 14px;border-bottom:3px solid;display:flex;justify-content:space-between;align-items:center;gap:12px;background:#fff}.round{font:900 12px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em}.target{font-size:12px;color:var(--muted);font-weight:750}.stage{min-height:220px;padding:24px 16px;display:grid;place-items:center;background:var(--blue);position:relative}.stage:after{content:'LIVE FIT TEST';position:absolute;left:8px;bottom:7px;font:800 9px ui-monospace,monospace;letter-spacing:.14em;color:#fff8}.component{background:white;color:#17221f;border:3px solid #17221f;box-shadow:4px 4px 0 #17221f;font-family:system-ui,sans-serif;overflow:hidden}.component.button{height:52px;white-space:nowrap;border-radius:12px;padding:0 14px;display:flex;align-items:center;font-weight:800}.component.toast{height:58px;white-space:nowrap;border-radius:8px;padding:0 13px;display:flex;align-items:center;font-weight:700}.component.dialog{height:116px;border-radius:14px;padding:13px;font-size:15px;line-height:1.28;font-weight:650}.component.empty{height:105px;border-radius:4px;padding:15px;text-align:center;line-height:1.3;font-weight:700}.component.onboard{height:126px;border-radius:18px;padding:15px;font-weight:700;line-height:1.28}.component.bad{background:#ffe4df;outline:5px solid var(--red)}.component.good{background:#ecffd7;outline:5px solid var(--lime)}
+.work{padding:16px}.instruction{font-weight:850;margin:0 0 10px}.copyline{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.word{min-height:46px;border:2px solid;border-radius:9px;padding:10px 12px;background:#fff;font:750 15px inherit;box-shadow:2px 2px 0 var(--line);touch-action:manipulation;cursor:pointer}.word:active{transform:translate(2px,2px);box-shadow:none}.word.optional{border-style:dashed}.word.cut{text-decoration:line-through;color:#8c948f;background:#e4e2db;box-shadow:none}.requirements{border-top:2px dashed;padding-top:12px}.requirements b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{font-size:12px;font-weight:800;border:2px solid;border-radius:99px;padding:5px 9px;background:#fff}.chip.ok{background:var(--lime)}.chip.miss{background:#ffd0c8}.status{margin-top:12px;padding:11px 12px;border:2px solid;border-radius:9px;font-weight:800}.status.win{background:var(--lime)}.actions{display:flex;gap:10px;margin-top:14px}.btn{min-height:48px;border:3px solid;border-radius:11px;padding:10px 15px;background:#fff;font:900 14px inherit;box-shadow:3px 3px 0 var(--line);cursor:pointer}.btn.primary{background:var(--red);color:#fff;flex:1}.btn:disabled{opacity:.35;box-shadow:none}.btn:active:not(:disabled){transform:translate(2px,2px);box-shadow:1px 1px 0}
+.receipt{display:none;background:#fffef8;border:2px dashed;margin-top:18px;padding:22px 18px;font-family:ui-monospace,monospace;box-shadow:var(--shadow)}.receipt.show{display:block}.receipt h2{font:900 30px/1 system-ui;margin:4px 0 16px;letter-spacing:-.04em}.receipt-row{display:flex;justify-content:space-between;border-bottom:1px dotted;padding:7px 0;gap:20px}.receipt .big{text-align:center;font-size:42px;margin:18px 0 4px}.tiny{text-align:center;font-size:11px;color:var(--muted)}.footer{text-align:center;margin-top:28px;font-size:12px;color:var(--muted)}
+@media(max-width:430px){.wrap{padding-left:12px;padding-right:12px}.stage{min-height:205px}.word{font-size:14px;padding:9px 10px}.stamp{display:none}.actions{position:sticky;bottom:8px;z-index:5}.btn{background:#fff}.btn.primary{background:var(--red)}}
+@media(prefers-reduced-motion:no-preference){.card{animation:arrive .35s ease both}@keyframes arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div><div class="kicker">Department of Small Words · Shift 09/30</div><h1>COPY<br>FIT</h1><p class="lede">Five tiny interfaces. Too many words. Tap each phrase to cut or swap it—then keep the promise while making the copy physically fit.</p></div><div class="stamp">Local only<br>No AI inside</div></header>
+<div class="progress" id="progress" aria-label="Round progress"></div>
+<section class="card" id="game" aria-live="polite">
+ <div class="topbar"><span class="round" id="roundLabel"></span><span class="target" id="targetLabel"></span></div>
+ <div class="stage"><div class="component" id="component"></div></div>
+ <div class="work"><p class="instruction">Tap a phrase to cycle its edits.</p><div class="copyline" id="copyline"></div><div class="requirements"><b>Promises that must survive</b><div class="chips" id="chips"></div></div><div class="status" id="status"></div><div class="actions"><button class="btn" id="reset">Reset</button><button class="btn primary" id="next" disabled>Stamp & continue →</button></div></div>
+</section>
+<section class="receipt" id="receipt"><div class="kicker">Copyfit Department · Completed locally</div><h2>SHIFT RECEIPT</h2><div id="receiptRows"></div><div class="big">✓</div><div class="tiny">Five interfaces fitted. Meaning retained. No words were uploaded in the making of this receipt.</div><div class="actions"><button class="btn primary" id="again">Run another shift</button><button class="btn" id="print">Print</button></div></section>
+<p class="footer">A tiny interface-copy game. Everything stays in this tab.</p>
+</main>
+<script>
+const rounds=[
+ {name:'BUTTON',kind:'button',w:188,h:52,parts:[
+  {concept:'action',v:['Start creating your new workspace','Create your new workspace','Create workspace','']},
+  {concept:null,v:[' right now',' now','']}]},
+ {name:'PERMISSION DIALOG',kind:'dialog',w:274,h:116,parts:[
+  {concept:'request',v:['This application would like permission to use','Allow access to','Use']},
+  {concept:'resource',v:[' your microphone']},
+  {concept:'purpose',v:[' so it can record a voice note',' to record a voice note',' for voice notes','']},
+  {concept:'choice',v:['. You can change this later.','. Change this later in Settings.','.']}]},
+ {name:'EMPTY STATE',kind:'empty',w:248,h:105,parts:[
+  {concept:'state',v:['It looks like there are no saved drafts here yet','No saved drafts yet','No drafts yet']},
+  {concept:'next',v:['. Create your first draft to get started.','. Create your first draft.','. Create one.','']}]},
+ {name:'TOAST',kind:'toast',w:250,h:58,parts:[
+  {concept:'result',v:['Your report has been successfully exported','Report successfully exported','Exported','']},
+  {concept:'location',v:[' to Downloads',' to Downloads','']}]},
+ {name:'ONBOARDING CARD',kind:'onboard',w:276,h:126,parts:[
+  {concept:'feature',v:['Meet Focus Mode, a simple way to hide distractions','Focus Mode hides distractions','Hide distractions with Focus Mode']},
+  {concept:'benefit',v:[' so you can finish the work that matters',' and finish what matters',' to finish what matters','']},
+  {concept:'control',v:['. Turn it off whenever you want.','. Turn it off anytime.','.']}]}
+];
+let at=0,states=[],results=[];
+const $=id=>document.getElementById(id), comp=$('component'), copy=$('copyline'), chips=$('chips'), status=$('status'), next=$('next');
+function setup(){states=rounds[at].parts.map(()=>0);render();}
+function text(){return rounds[at].parts.map((p,i)=>p.v[states[i]]).join('');}
+function fit(){return comp.scrollWidth<=comp.clientWidth+1&&comp.scrollHeight<=comp.clientHeight+1;}
+function kept(){return rounds[at].parts.filter(p=>p.concept).every((p,i)=>{const realIndex=rounds[at].parts.indexOf(p);return p.v[states[realIndex]].trim().length>1;});}
+function render(){const r=rounds[at];$('roundLabel').textContent=`ROUND ${at+1}/5 · ${r.name}`;$('targetLabel').textContent=`${r.w} × ${r.h}px slot`;comp.className=`component ${r.kind}`;comp.style.width=r.w+'px';comp.style.height=r.h+'px';comp.textContent=text();
+ copy.innerHTML='';r.parts.forEach((p,i)=>{const b=document.createElement('button');b.className='word'+(!p.concept?' optional':'')+(p.v[states[i]].trim()===''?' cut':'');b.textContent=p.v[states[i]].trim()||'CUT';b.title='Tap to try the next edit';b.onclick=()=>{states[i]=(states[i]+1)%p.v.length;render()};copy.appendChild(b)});
+ requestAnimationFrame(()=>{const fits=fit(),meaning=kept();comp.classList.toggle('good',fits&&meaning);comp.classList.toggle('bad',!fits);chips.innerHTML='';r.parts.filter(p=>p.concept).forEach(p=>{const i=r.parts.indexOf(p),ok=p.v[states[i]].trim().length>1,c=document.createElement('span');c.className='chip '+(ok?'ok':'miss');c.textContent=(ok?'✓ ':'× ')+p.concept;chips.appendChild(c)});status.className='status'+(fits&&meaning?' win':'');status.textContent=fits&&meaning?'Perfect fit. The promise survived.':(!fits?'Still overflowing—trim or swap another phrase.':'It fits, but a promised idea disappeared.');next.disabled=!(fits&&meaning);});
+ $('progress').innerHTML=rounds.map((_,i)=>`<span class="pip ${i<at?'done':i===at?'now':''}"></span>`).join('');next.textContent=at===4?'Print the receipt →':'Stamp & continue →';}
+$('reset').onclick=setup;next.onclick=()=>{results[at]={name:rounds[at].name,before:rounds[at].parts.map(p=>p.v[0]).join('').length,after:text().length};if(at<4){at++;setup()}else finish()};
+function finish(){$('game').style.display='none';$('progress').style.display='none';const rows=$('receiptRows');rows.innerHTML='';results.forEach(r=>{const d=document.createElement('div');d.className='receipt-row';d.innerHTML=`<span>${r.name}</span><b>${r.before} → ${r.after} chars</b>`;rows.appendChild(d)});$('receipt').classList.add('show');window.scrollTo({top:0,behavior:'smooth'})}
+$('again').onclick=()=>{at=0;results=[];$('game').style.display='block';$('progress').style.display='grid';$('receipt').classList.remove('show');setup()};$('print').onclick=()=>window.print();setup();
+</script></body></html>
