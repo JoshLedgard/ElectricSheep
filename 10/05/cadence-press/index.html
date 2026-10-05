@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadence Press — a proofing table for prose</title>
+<meta name="description" content="Break a memo into sentence strips, reorder and retype them, and watch the rhythm print change. Everything stays in your browser.">
+<meta name="color-scheme" content="light">
+<style>
+  :root{
+    --paper:#f4ece0;
+    --paper-2:#efe5d6;
+    --paper-3:#e7dbc8;
+    --ink:#1d1a16;
+    --ink-soft:#4b443a;
+    --ink-faint:#8b8172;
+    --rule:#cbbda6;
+    --lead:#b8422f;
+    --press:#2f4a6d;
+    --ochre:#9d7122;
+    --sage:#4a6b52;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Hoefler Text",Georgia,"Times New Roman",serif;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --tap:44px;
+    --shadow:3px 3px 0 rgba(29,26,22,.16);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+
+  body{
+    font-family:var(--serif);
+    color:var(--ink);
+    background-color:#20201d;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 6px),
+      radial-gradient(120% 70% at 50% 0%, #34332d 0%, #1b1b18 70%);
+    min-height:100%;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+
+  .sheet{
+    max-width:720px;
+    margin:0 auto;
+    background-color:var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(29,26,22,.022) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(29,26,22,.018) 0 1px, transparent 1px 4px),
+      radial-gradient(130% 60% at 15% 0%, #fbf5ea 0%, rgba(251,245,234,0) 60%);
+    border-left:1px solid #cdbfa8;
+    border-right:1px solid #cdbfa8;
+    box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 18px 60px rgba(0,0,0,.45);
+    padding:0 0 64px;
+    min-height:100vh;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    position:relative;
+    padding:22px 16px 18px;
+    border-bottom:1px solid var(--ink);
+    background-image:linear-gradient(180deg, rgba(29,26,22,.05), rgba(29,26,22,0) 70%);
+  }
+  .masthead::after{
+    content:"";
+    position:absolute;left:0;right:0;bottom:-5px;height:4px;
+    border-top:1px solid var(--ink);
+    border-bottom:1px solid var(--rule);
+  }
+  .reg{
+    position:absolute;width:15px;height:15px;opacity:.5;
+    border:0;
+  }
+  .reg::before,.reg::after{content:"";position:absolute;background:var(--ink-faint)}
+  .reg::before{left:7px;top:0;width:1px;height:15px}
+  .reg::after{top:7px;left:0;height:1px;width:15px}
+  .reg.tl{left:9px;top:9px}
+  .reg.tr{right:9px;top:9px}
+
+  .kicker{
+    font-family:var(--sans);
+    font-size:10px;
+    letter-spacing:.26em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    text-align:center;
+    margin:0 0 8px;
+  }
+  h1{
+    font-family:var(--serif);
+    font-size:clamp(34px,11.5vw,56px);
+    line-height:.92;
+    letter-spacing:-.015em;
+    margin:0;
+    text-align:center;
+    font-weight:700;
+    color:#17150f;
+    text-shadow:0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(0,0,0,.12);
+  }
+  h1 .amp{display:block;font-size:.34em;letter-spacing:.3em;font-weight:400;text-transform:uppercase;color:var(--lead);margin:10px 0 2px;font-family:var(--sans)}
+  .dek{
+    margin:12px auto 0;
+    max-width:44ch;
+    text-align:center;
+    font-size:15px;
+    color:var(--ink-soft);
+    line-height:1.45;
+  }
+  .privacy{
+    margin:14px auto 0;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    font-family:var(--sans);font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--ink-faint);
+    border:1px dashed var(--rule);
+    padding:7px 10px;
+    width:fit-content;
+    max-width:100%;
+    text-align:center;
+    border-radius:2px;
+  }
+  .privacy b{font-weight:600;color:var(--ink-soft);letter-spacing:.06em}
+
+  /* ---------- generic chrome ---------- */
+  main{padding:0 14px}
+  .block{margin-top:22px}
+  .block-head{
+    display:flex;align-items:baseline;gap:10px;
+    border-bottom:1px solid var(--ink);
+    padding-bottom:5px;margin-bottom:12px;
+  }
+  .block-head h2{
+    font-family:var(--sans);
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;
+    margin:0;color:var(--ink);
+  }
+  .block-head .note{
+    font-family:var(--sans);font-size:10px;letter-spacing:.06em;color:var(--ink-faint);
+    margin-left:auto;text-align:right;
+  }
+
+  button{
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.03em;
+    color:var(--ink);
+    background:var(--paper-2);
+    border:1px solid var(--ink);
+    border-radius:2px;
+    min-height:var(--tap);
+    padding:8px 12px;
+    cursor:pointer;
+    box-shadow:var(--shadow);
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    transition:transform .08s ease, box-shadow .08s ease, background .15s ease;
+  }
+  button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(29,26,22,.16)}
+  button:focus-visible{outline:2px solid var(--press);outline-offset:2px}
+  button[disabled]{opacity:.4;cursor:default;box-shadow:none}
+  button[disabled]:active{transform:none}
+  button.primary{background:var(--ink);color:#f7f1e6;border-color:#000}
+  button.lead{background:var(--lead);color:#fdf3ec;border-color:#7d2a1c}
+  button.ghost{background:transparent;box-shadow:none;border-style:dashed;border-color:var(--rule);color:var(--ink-soft);font-weight:500}
+  button.tiny{font-size:11px;padding:6px 9px;letter-spacing:.08em;text-transform:uppercase}
+
+  .row{display:flex;flex-wrap:wrap;gap:8px}
+  .row > button{flex:1 1 auto;min-width:0}
+
+  /* ---------- composing stone ---------- */
+  .compose{
+    border:1px solid var(--ink);
+    background:#fbf6ec;
+    box-shadow:var(--shadow);
+    padding:10px;
+  }
+  textarea{
+    width:100%;
+    display:block;
+    font-family:var(--serif);
+    font-size:16px;
+    line-height:1.55;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24.8px, rgba(47,74,109,.1) 24.8px 25.8px);
+    background-attachment:local;
+    border:1px solid var(--rule);
+    border-radius:2px;
+    padding:6px 8px;
+    resize:vertical;
+    min-height:170px;
+    -webkit-appearance:none;
+  }
+  textarea:focus{outline:2px solid var(--press);outline-offset:1px;border-color:var(--press)}
+  .compose .hint{
+    font-family:var(--sans);font-size:11px;color:var(--ink-faint);
+    margin:8px 2px 10px;line-height:1.45;
+  }
+
+  /* ---------- rhythm print ---------- */
+  .print-frame{
+    border:1px solid var(--ink);
+    background:#fbf6ec;
+    box-shadow:var(--shadow);
+    padding:10px 10px 8px;
+  }
+  .print{
+    position:relative;
+    display:flex;
+    align-items:flex-end;
+    gap:2px;
+    height:104px;
+    padding:0 0 12px;
+    border-bottom:1px solid var(--ink);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(47,74,109,.07) 0 1px, transparent 1px 13px);
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:thin;
+  }
+  .col{
+    position:relative;
+    flex:1 0 44px;
+    min-width:44px;
+    height:100%;
+    display:flex;
+    align-items:flex-end;
+    background:none;border:0;box-shadow:none;padding:0;min-height:0;
+    border-radius:0;
+    cursor:pointer;
+  }
+  .col:active{transform:none;box-shadow:none}
+  .col .bar{
+    width:100%;
+    background:var(--press);
+    background-image:repeating-linear-gradient(0deg, rgba(255,255,255,.22) 0 1px, transparent 1px 4px);
+    border:1px solid rgba(0,0,0,.35);
+    border-bottom:0;
+    transition:height .42s cubic-bezier(.22,.9,.26,1), background-color .3s ease;
+    position:relative;
+    min-height:4px;
+  }
+  .col .cap{
+    position:absolute;left:-1px;right:-1px;top:-5px;height:4px;
+    background:var(--ink);
+  }
+  .col .dots{
+    position:absolute;left:0;right:0;bottom:3px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+  }
+  .col .dots i{width:3px;height:3px;background:rgba(255,255,255,.75);border-radius:50%}
+  .col[data-role="headline"] .bar{background-color:var(--press)}
+  .col[data-role="evidence"] .bar{background-color:var(--ochre)}
+  .col[data-role="decision"] .bar{background-color:var(--lead)}
+  .col[data-role="plain"] .bar{background-color:#6e6355}
+  .col[aria-current="true"] .bar{background-color:var(--sage);box-shadow:0 0 0 2px rgba(74,107,82,.3)}
+  .col .tick{
+    position:absolute;bottom:-12px;left:0;right:0;text-align:center;
+    font-family:var(--mono);font-size:8px;color:var(--ink-faint);
+    overflow:hidden;white-space:nowrap;
+  }
+  .col .pbreak{
+    position:absolute;top:0;bottom:-12px;left:-2px;width:1px;
+    background:repeating-linear-gradient(0deg, var(--lead) 0 3px, transparent 3px 6px);
+  }
+  .print-caption{
+    font-family:var(--sans);font-size:11.5px;color:var(--ink-soft);
+    margin:16px 2px 2px;line-height:1.5;
+  }
+  .print-legend{
+    display:flex;flex-wrap:wrap;gap:4px 12px;margin:9px 2px 0;
+    font-family:var(--sans);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .print-legend span{display:flex;align-items:center;gap:5px}
+  .print-legend i{width:9px;height:9px;display:inline-block;border:1px solid rgba(0,0,0,.35)}
+
+  /* ---------- strips ---------- */
+  .strips{list-style:none;margin:0;padding:0}
+  .strip{
+    position:relative;
+    border:1px solid var(--ink);
+    background:#fcf8f0;
+    box-shadow:var(--shadow);
+    margin-bottom:10px;
+    padding:0;
+    transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .strip.new-para{margin-top:20px}
+  .strip.new-para::before{
+    content:"¶ new paragraph";
+    position:absolute;top:-16px;left:0;
+    font-family:var(--sans);font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--lead);
+  }
+  .strip.sel{box-shadow:5px 5px 0 rgba(47,74,109,.3);border-color:#000}
+  .strip-main{
+    display:flex;gap:9px;align-items:flex-start;
+    width:100%;text-align:left;
+    background:transparent;border:0;box-shadow:none;border-radius:0;
+    padding:11px 11px 11px 9px;
+    font-family:var(--serif);font-weight:400;font-size:16.5px;letter-spacing:0;
+    color:var(--ink);
+    line-height:1.46;
+    min-height:var(--tap);
+  }
+  .strip-main:active{transform:none;box-shadow:none}
+  .strip-num{
+    flex:0 0 auto;
+    font-family:var(--mono);font-size:10px;
+    color:var(--ink-faint);
+    background:var(--paper-3);
+    border:1px solid var(--rule);
+    padding:2px 4px;
+    min-width:24px;text-align:center;
+    margin-top:3px;
+  }
+  .strip-text{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+  .strip[data-role="headline"] .strip-text{font-weight:700}
+  .strip[data-role="decision"] .strip-text{font-style:italic}
+  .strip-tag{
+    display:inline-block;
+    font-family:var(--sans);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+    padding:2px 6px;margin:0 0 5px;
+    color:#fdf8ef;
+    border:1px solid rgba(0,0,0,.35);
+  }
+  .strip-tag.headline{background:var(--press)}
+  .strip-tag.evidence{background:var(--ochre)}
+  .strip-tag.decision{background:var(--lead)}
+  .strip-spine{
+    position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rule);
+  }
+  .strip[data-role="headline"] .strip-spine{background:var(--press)}
+  .strip[data-role="evidence"] .strip-spine{background:var(--ochre)}
+  .strip[data-role="decision"] .strip-spine{background:var(--lead)}
+  .strip-meter{
+    height:3px;margin:0 11px 9px 13px;
+    background:var(--paper-3);
+    border:1px solid rgba(203,189,166,.8);
+  }
+  .strip-meter i{display:block;height:100%;background:#6e6355;transition:width .4s ease}
+
+  .controls{
+    border-top:1px dashed var(--rule);
+    padding:10px;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    background:var(--paper-2);
+  }
+  .controls button{font-size:12px;padding:6px 4px;box-shadow:2px 2px 0 rgba(29,26,22,.14)}
+  .controls .wide{grid-column:1 / -1}
+  .role-label{
+    grid-column:1 / -1;
+    font-family:var(--sans);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;
+    color:var(--ink-faint);margin:3px 0 -2px;
+  }
+  .controls button[aria-pressed="true"]{background:var(--ink);color:#f8f2e7}
+  .controls button.del{background:transparent;border-style:dashed;border-color:var(--lead);color:var(--lead);box-shadow:none}
+
+  .editor{padding:10px;border-top:1px dashed var(--rule);background:var(--paper-2)}
+  .editor textarea{min-height:120px;background-color:#fdfaf3}
+  .editor .row{margin-top:8px}
+
+  /* ---------- margin notes ---------- */
+  .notes{
+    border:1px solid var(--ink);
+    border-left:5px solid var(--lead);
+    background:#fbf6ec;
+    box-shadow:var(--shadow);
+    padding:12px 12px 6px;
+  }
+  .notes ul{list-style:none;margin:0;padding:0}
+  .notes li{
+    display:flex;gap:9px;
+    padding:0 0 11px;
+    font-size:15px;line-height:1.45;color:var(--ink-soft);
+  }
+  .notes li .mark{
+    flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--lead);margin-top:3px;
+  }
+  .notes .disclaimer{
+    font-family:var(--sans);font-size:10px;letter-spacing:.06em;color:var(--ink-faint);
+    border-top:1px dotted var(--rule);padding-top:8px;margin:2px 0 6px;
+  }
+
+  /* ---------- empty state ---------- */
+  .empty{
+    border:1px dashed var(--rule);
+    padding:20px 16px;
+    text-align:center;
+    background:
+      repeating-linear-gradient(135deg, rgba(203,189,166,.16) 0 7px, transparent 7px 14px);
+  }
+  .empty h3{font-size:19px;margin:0 0 8px;letter-spacing:-.01em}
+  .empty p{margin:0 auto 14px;max-width:38ch;font-size:14.5px;color:var(--ink-soft)}
+  .ghost-strips{display:flex;flex-direction:column;gap:6px;margin:4px auto 16px;max-width:300px}
+  .ghost-strips i{height:12px;background:var(--paper-3);border:1px solid var(--rule);display:block}
+  .ghost-strips i:nth-child(1){width:100%}
+  .ghost-strips i:nth-child(2){width:62%}
+  .ghost-strips i:nth-child(3){width:84%}
+  .ghost-strips i:nth-child(4){width:40%}
+
+  /* ---------- footer / toast ---------- */
+  .colophon{
+    margin:30px 14px 0;
+    border-top:1px solid var(--ink);
+    padding-top:12px;
+    font-family:var(--sans);font-size:11px;line-height:1.6;color:var(--ink-faint);
+  }
+  .colophon b{color:var(--ink-soft)}
+  .toast{
+    position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(14px);
+    background:var(--ink);color:#f8f2e7;
+    font-family:var(--sans);font-size:12.5px;letter-spacing:.04em;
+    padding:11px 16px;border-radius:2px;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    max-width:min(92vw,420px);text-align:center;
+    z-index:40;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  @media (min-width:560px){
+    main{padding:0 22px}
+    .controls{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .controls .wide{grid-column:auto}
+    .controls .role-label{grid-column:1 / -1}
+    .print{height:132px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+    button:active{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="masthead">
+    <span class="reg tl" aria-hidden="true"></span>
+    <span class="reg tr" aria-hidden="true"></span>
+    <p class="kicker">Proofing table · no. 05</p>
+    <h1>Cadence<span class="amp">Press</span></h1>
+    <p class="dek">Paste a memo. It gets set into sentence strips you can retype, split, join and reorder — and the rhythm print above shows the shape your reader actually feels.</p>
+    <p class="privacy"><span aria-hidden="true">⊚</span> <span><b>Nothing is uploaded.</b> No network, no accounts, no analytics.</span></p>
+  </header>
+
+  <main>
+
+    <!-- COMPOSING STONE -->
+    <section class="block" id="composeBlock">
+      <div class="block-head">
+        <h2>Composing stone</h2>
+        <span class="note" id="composeNote">paste or type, then set in strips</span>
+      </div>
+      <div class="compose">
+        <label class="sr" for="source">Your text</label>
+        <textarea id="source" placeholder="Paste a memo, an update, a paragraph you are stuck on…" spellcheck="true"></textarea>
+        <p class="hint">Blank lines and line breaks are kept as paragraph breaks. Sentences are found by their punctuation — you can always split or join afterwards.</p>
+        <div class="row">
+          <button class="primary" id="setStrips" type="button">Set in strips</button>
+          <button id="loadSample" type="button">Load sample memo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RHYTHM PRINT -->
+    <section class="block" id="printBlock" hidden>
+      <div class="block-head">
+        <h2>Rhythm print</h2>
+        <span class="note">height = sentence length</span>
+      </div>
+      <div class="print-frame">
+        <div class="print" id="print" role="group" aria-label="Rhythm print: one column per sentence"></div>
+        <p class="print-caption" id="printCaption"></p>
+        <div class="print-legend" aria-hidden="true">
+          <span><i style="background:#6e6355"></i>untagged</span>
+          <span><i style="background:#2f4a6d"></i>headline</span>
+          <span><i style="background:#9d7122"></i>evidence</span>
+          <span><i style="background:#b8422f"></i>decision</span>
+          <span><i style="background:#4a6b52"></i>selected</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- STRIPS -->
+    <section class="block" id="stripsBlock">
+      <div class="block-head">
+        <h2>Sentence strips</h2>
+        <span class="note" id="stripsNote">tap a strip to work on it</span>
+      </div>
+      <div id="emptyState" class="empty">
+        <h3>The table is clean.</h3>
+        <p>Load the sample memo to see how it works, or paste your own text above and press <b>Set in strips</b>.</p>
+        <div class="ghost-strips" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <button class="primary" id="emptySample" type="button">Load sample memo</button>
+      </div>
+      <ul class="strips" id="strips"></ul>
+      <div class="row" id="globalRow" hidden style="margin-top:4px">
+        <button id="undoBtn" type="button" disabled>Undo</button>
+        <button id="plainBtn" type="button">Back to plain text</button>
+        <button class="lead" id="clearBtn" type="button">Clear table</button>
+      </div>
+    </section>
+
+    <!-- MARGIN NOTES -->
+    <section class="block" id="notesBlock" hidden>
+      <div class="block-head">
+        <h2>Margin notes</h2>
+        <span class="note">observations, not grades</span>
+      </div>
+      <div class="notes">
+        <ul id="notesList"></ul>
+        <p class="disclaimer">Plain observations about structure and rhythm. No score, no grade, no verdict — the judgement is yours.</p>
+      </div>
+    </section>
+
+    <!-- PULL A PROOF -->
+    <section class="block" id="exportBlock" hidden>
+      <div class="block-head">
+        <h2>Pull a proof</h2>
+        <span class="note">copies stay on your device</span>
+      </div>
+      <div class="row">
+        <button class="primary" id="copyText" type="button">Copy clean text</button>
+        <button id="copyOutline" type="button">Copy tagged outline</button>
+        <button id="download" type="button">Save as .txt</button>
+      </div>
+      <p class="print-caption" id="draftState" style="margin-top:12px"></p>
+      <div class="row" style="margin-top:4px">
+        <button class="ghost tiny" id="forgetDraft" type="button">Forget saved draft</button>
+      </div>
+    </section>
+
+    <p class="colophon">
+      <b>Cadence Press</b> is one page of HTML. Your text is segmented, measured and drawn entirely by the script in this file; the draft is kept in this browser's local storage so a refresh doesn't lose your work, and <b>Forget saved draft</b> erases it. There is no server to send it to.
+      <br><br>
+      <b>On the keyboard:</b> <span style="font-family:var(--mono)">Enter</span> edits the selected strip, <span style="font-family:var(--mono)">Esc</span> steps back out, <span style="font-family:var(--mono)">Alt</span>+<span style="font-family:var(--mono)">↑/↓</span> moves it, <span style="font-family:var(--mono)">Ctrl/⌘+Z</span> undoes.
+    </p>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORE = "cadence-press.draft.v1";
+  var LONG = 26, SHORT = 9;
+
+  var SAMPLE = [
+    "There are a number of things worth noting about the onboarding rewrite, which the team has been circling for a while now. The current flow asks a new group for eleven separate pieces of information before it shows them anything they can actually use, and in testing most people stopped somewhere in the middle, usually right after the workspace naming step, which also happens to be where our help queue picks up the most confused messages. We think the ordering is probably the real problem rather than the number of questions, basically. Two of the eleven fields are only needed for billing and could quite easily move to a later screen without blocking anything else in the flow.",
+    "A smaller group saw a three-question version last month and finished at a noticeably higher rate. We would like to put the shortened version behind a flag next cycle and watch completion for two weeks. If it holds up, we retire the long one. Should we handle the billing fields some other way?"
+  ].join("\n\n");
+
+  var ABBREV = {};
+  ["mr","mrs","ms","dr","prof","sr","jr","st","vs","etc","eg","ie","approx","dept","fig","no","vol","inc","ltd","co","corp","al","pp","ca","cf","min","hrs","jan","feb","mar","apr","jun","jul","aug","sept","sep","oct","nov","dec"]
+    .forEach(function(a){ ABBREV[a] = true; });
+
+  var strips = [];
+  var selectedId = null;
+  var editingId = null;
+  var uid = 1;
+  var undoStack = [];
+  var toastTimer = null;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var el = {
+    source: $("source"),
+    composeBlock: $("composeBlock"),
+    composeNote: $("composeNote"),
+    printBlock: $("printBlock"),
+    print: $("print"),
+    printCaption: $("printCaption"),
+    stripsBlock: $("stripsBlock"),
+    strips: $("strips"),
+    stripsNote: $("stripsNote"),
+    empty: $("emptyState"),
+    globalRow: $("globalRow"),
+    notesBlock: $("notesBlock"),
+    notesList: $("notesList"),
+    exportBlock: $("exportBlock"),
+    draftState: $("draftState"),
+    toast: $("toast"),
+    undoBtn: $("undoBtn")
+  };
+
+  /* ---------------- text analysis ---------------- */
+
+  function words(t){
+    var m = String(t).match(/[A-Za-z0-9’'À-ɏ][A-Za-z0-9’'À-ɏ\-]*/g);
+    return m ? m.length : 0;
+  }
+
+  function commaCount(t){ return (String(t).match(/,/g) || []).length; }
+
+  function terminal(t){
+    var s = String(t).replace(/["'”’)\]\s]+$/, "");
+    var c = s.slice(-1);
+    if (c === "?") return "?";
+    if (c === "!") return "!";
+    if (c === ":") return ":";
+    if (c === ";") return ";";
+    if (c === ".") return ".";
+    return "";
+  }
+
+  function splitSentences(line){
+    var out = [], buf = "", i, j, nextChar, rest, m, nm;
+    for (i = 0; i < line.length; i++) {
+      buf += line[i];
+      if (".!?…".indexOf(line[i]) === -1) continue;
+
+      j = i + 1;
+      while (j < line.length && /[.!?…"'”’)\]]/.test(line[j])) { buf += line[j]; j++; }
+      i = j - 1;
+
+      nextChar = line[j];
+      if (nextChar === undefined) { out.push(buf); buf = ""; continue; }
+      if (!/\s/.test(nextChar)) continue;                 // 3.5, example.com
+
+      m = buf.match(/([A-Za-z]+)\.["'”’)\]]*$/);
+      if (m) {
+        if (ABBREV[m[1].toLowerCase()]) continue;         // etc. / Dr.
+        if (m[1].length === 1) continue;                  // initials: J. Doe
+      }
+
+      rest = line.slice(j);
+      nm = rest.match(/^\s+(\S)/);
+      if (nm && /[a-z]/.test(nm[1])) continue;            // sentence clearly continues
+
+      out.push(buf);
+      buf = "";
+    }
+    if (buf.trim()) out.push(buf);
+    return out.map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+
+  function textToStrips(text){
+    var lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+    var result = [];
+    lines.forEach(function(line){
+      if (!line.trim()) return;
+      splitSentences(line).forEach(function(sentence, idx){
+        // every source line (bullet, paragraph, stray break) starts a new paragraph
+        result.push({
+          id: uid++,
+          text: sentence,
+          role: "plain",
+          newPara: result.length > 0 && idx === 0
+        });
+      });
+    });
+    if (result.length) result[0].newPara = false;
+    return result;
+  }
+
+  function stripsToText(list){
+    var out = "";
+    (list || strips).forEach(function(s, i){
+      if (i === 0) { out += s.text; return; }
+      out += (s.newPara ? "\n\n" : " ") + s.text;
+    });
+    return out;
+  }
+
+  function stripsToOutline(){
+    var lines = ["CADENCE PRESS OUTLINE", ""];
+    var groups = [
+      ["headline", "HEADLINE"],
+      ["decision", "DECISION"],
+      ["evidence", "EVIDENCE"]
+    ];
+    groups.forEach(function(g){
+      var picks = strips.filter(function(s){ return s.role === g[0]; });
+      if (!picks.length) return;
+      lines.push("## " + g[1]);
+      picks.forEach(function(s){ lines.push("- " + s.text); });
+      lines.push("");
+    });
+    var rest = strips.filter(function(s){ return s.role === "plain"; });
+    if (rest.length) {
+      lines.push("## UNTAGGED");
+      rest.forEach(function(s){ lines.push("- " + s.text); });
+      lines.push("");
+    }
+    lines.push("## FULL TEXT", "", stripsToText());
+    return lines.join("\n");
+  }
+
+  /* ---------------- plain-language description ---------------- */
+
+  function countWord(n){
+    return ["no", "one", "two", "three", "four", "five"][n] || "several";
+  }
+
+  function shapeLine(){
+    if (!strips.length) return "";
+    var lens = strips.map(function(s){ return words(s.text); });
+    var shorts = 0, longs = 0, mids = 0;
+    lens.forEach(function(n){ if (n < SHORT) shorts++; else if (n >= LONG) longs++; else mids++; });
+
+    var bulk;
+    if (longs > mids && longs > shorts) bulk = "The print runs tall and even — long sentences carry most of this";
+    else if (shorts > mids && shorts > longs) bulk = "The print is mostly low and clipped — short sentences carry most of this";
+    else bulk = "The print sits mostly in the middle register";
+
+    var extras = [];
+    if (longs && shorts) extras.push("with " + countWord(shorts) + " short " + (shorts === 1 ? "beat" : "beats") + " breaking up " + countWord(longs) + " long " + (longs === 1 ? "stretch" : "stretches"));
+    else if (longs && !shorts) extras.push("and nothing short to break the line");
+    else if (shorts && !longs) extras.push("and nothing long enough to carry an argument");
+
+    var opener = lens[0] >= LONG ? "It opens on a tall column." : (lens[0] < SHORT ? "It opens on a short, clean beat." : "");
+    var closer = lens[lens.length - 1] < SHORT ? "It lands short." : (lens[lens.length - 1] >= LONG && lens.length > 1 ? "It trails off on a tall one." : "");
+
+    return [bulk + (extras.length ? " " + extras[0] : "") + ".", opener, closer].filter(Boolean).join(" ");
+  }
+
+  function hedgeHits(t){
+    var list = ["maybe", "perhaps", "possibly", "arguably", "somewhat", "fairly", "basically", "essentially", "kind of", "sort of", "pretty much", "a bit", "i think", "we think", "it seems", "probably", "generally", "mostly likely", "just", "really", "very", "quite"];
+    var low = " " + String(t).toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ") + " ";
+    var found = [];
+    list.forEach(function(h){
+      if (low.indexOf(" " + h + " ") !== -1 && found.indexOf(h) === -1) found.push(h);
+    });
+    return found;
+  }
+
+  function firstWord(t){
+    var m = String(t).match(/[A-Za-z’']+/);
+    return m ? m[0].toLowerCase() : "";
+  }
+
+  function buildNotes(){
+    var notes = [];
+    if (!strips.length) return notes;
+
+    var lens = strips.map(function(s){ return words(s.text); });
+    var n = strips.length;
+
+    if (n < 3) {
+      notes.push("There is not much on the table yet. Paste a longer passage and the print has something to compare against.");
+    }
+
+    // run of long sentences
+    var run = 0, runStart = 0, bestRun = 0, bestStart = 0;
+    lens.forEach(function(v, i){
+      if (v >= LONG) {
+        if (run === 0) runStart = i;
+        run++;
+        if (run > bestRun) { bestRun = run; bestStart = runStart; }
+      } else { run = 0; }
+    });
+    if (bestRun >= 3) {
+      notes.push(countWord(bestRun) + " long sentences run back to back from strip " + (bestStart + 1) + ". A short one dropped into that stretch gives the reader somewhere to land.");
+    } else if (bestRun === 2) {
+      notes.push("Strips " + (bestStart + 1) + " and " + (bestStart + 2) + " are both long. Reading them aloud will tell you whether the second one wants to be two sentences.");
+    }
+
+    // flat rhythm
+    var max = Math.max.apply(null, lens), min = Math.min.apply(null, lens);
+    if (n >= 4 && max - min <= 6) {
+      notes.push("Every column is nearly the same height. Uniform sentences read as flat; letting one run short is the cheapest way to add emphasis.");
+    }
+
+    // opening
+    if (lens[0] >= LONG) {
+      notes.push("The opening sentence is one of the tallest here. Readers decide whether to continue inside the first line, so a shorter opener gives them a handhold.");
+    }
+
+    // comma load
+    var heavy = -1, heavyCount = 0;
+    strips.forEach(function(s, i){
+      var c = commaCount(s.text);
+      if (c > heavyCount) { heavyCount = c; heavy = i; }
+    });
+    if (heavyCount >= 3) {
+      notes.push("Strip " + (heavy + 1) + " carries " + countWord(heavyCount) + " commas. Splitting at one of them usually produces two sentences that each say one thing.");
+    }
+
+    // semicolons / colons
+    var semi = strips.filter(function(s){ return /;/.test(s.text); }).length;
+    if (semi >= 2) {
+      notes.push("Semicolons are doing structural work in " + countWord(semi) + " places. A period is louder and asks less of the reader.");
+    }
+
+    // repeated openers
+    for (var i = 1; i < n; i++) {
+      var a = firstWord(strips[i - 1].text), b = firstWord(strips[i].text);
+      if (a && a === b && a.length > 2) {
+        notes.push("Strips " + i + " and " + (i + 1) + " both open with “" + a + "”. Varying the first word keeps consecutive sentences from blurring together.");
+        break;
+      }
+    }
+
+    // unbroken block
+    var block = 0, blockStart = 0, worst = 0, worstStart = 0;
+    strips.forEach(function(s, idx){
+      if (idx === 0 || !s.newPara) { if (block === 0) blockStart = idx; block++; }
+      else { block = 1; blockStart = idx; }
+      if (block > worst) { worst = block; worstStart = blockStart; }
+    });
+    if (worst >= 6) {
+      notes.push("Strips " + (worstStart + 1) + " onward sit in one unbroken block. Marking a paragraph break where the thought turns gives the eye a rest.");
+    }
+
+    // hedges
+    var hedges = [];
+    strips.forEach(function(s){
+      hedgeHits(s.text).forEach(function(h){ if (hedges.indexOf(h) === -1) hedges.push(h); });
+    });
+    if (hedges.length >= 3) {
+      notes.push("Softening words show up more than once — “" + hedges.slice(0, 3).join("”, “") + "”. Cutting them rarely changes the meaning and usually sharpens the ask.");
+    }
+
+    // filler openings
+    var filler = strips.filter(function(s){ return /^\s*(there (is|are|was|were)\b|it is (important|worth|clear)\b|in order to\b)/i.test(s.text); });
+    if (filler.length) {
+      notes.push("At least one sentence opens with scaffolding (“there are…”, “it is important…”). The real subject is usually a few words in; starting there saves the reader a step.");
+    }
+
+    // role coverage
+    var hasHead = strips.some(function(s){ return s.role === "headline"; });
+    var hasDec = strips.some(function(s){ return s.role === "decision"; });
+    var hasEv = strips.some(function(s){ return s.role === "evidence"; });
+    if (!hasHead) {
+      notes.push("No strip is marked as the headline yet. Pick the one sentence a hurried reader would keep, and see whether it is near the top.");
+    } else if (!hasDec) {
+      notes.push("You have a headline but no decision marked. If the reader is meant to do something, one strip should say what.");
+    } else if (!hasEv) {
+      notes.push("A headline and a decision are marked, but nothing in between is tagged as evidence. Tag what you would point at if someone pushed back.");
+    }
+
+    if (hasDec) {
+      var decIdx = -1;
+      strips.forEach(function(s, idx){ if (s.role === "decision" && decIdx === -1) decIdx = idx; });
+      if (decIdx > Math.floor(n * 0.75) && n >= 5) {
+        notes.push("The decision sits at the very end. Readers who stop early never reach it — try moving that strip up and letting the rest explain it.");
+      }
+    }
+
+    // ending on a question
+    if (terminal(strips[n - 1].text) === "?") {
+      notes.push("The last strip is a question. That is a fine ending if you want a reply, and a weak one if you want a decision.");
+    }
+
+    return notes.slice(0, 5);
+  }
+
+  /* ---------------- rendering ---------------- */
+
+  function roleLabel(r){
+    return r === "headline" ? "Headline" : r === "evidence" ? "Evidence" : r === "decision" ? "Decision" : "";
+  }
+
+  function renderPrint(){
+    var frag = document.createDocumentFragment();
+    var lens = strips.map(function(s){ return words(s.text); });
+    var max = lens.length ? Math.max.apply(null, lens) : 1;
+    if (max < 1) max = 1;
+
+    strips.forEach(function(s, i){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "col";
+      btn.setAttribute("data-role", s.role);
+      btn.setAttribute("data-id", String(s.id));
+      if (s.id === selectedId) btn.setAttribute("aria-current", "true");
+      btn.setAttribute("aria-label", "Sentence " + (i + 1) + ", " + lens[i] + " words" + (roleLabel(s.role) ? ", " + roleLabel(s.role) : "") + ". Select it.");
+
+      var bar = document.createElement("span");
+      bar.className = "bar";
+      bar.style.height = Math.round(14 + 86 * (lens[i] / max)) + "%";
+
+      var t = terminal(s.text);
+      if (t === "?" || t === "!") {
+        var cap = document.createElement("span");
+        cap.className = "cap";
+        cap.style.background = t === "?" ? "var(--press)" : "var(--lead)";
+        bar.appendChild(cap);
+      }
+
+      var commas = Math.min(commaCount(s.text), 5);
+      if (commas) {
+        var dots = document.createElement("span");
+        dots.className = "dots";
+        for (var c = 0; c < commas; c++) dots.appendChild(document.createElement("i"));
+        bar.appendChild(dots);
+      }
+
+      btn.appendChild(bar);
+
+      if (i > 0 && s.newPara) {
+        var pb = document.createElement("span");
+        pb.className = "pbreak";
+        btn.appendChild(pb);
+      }
+
+      var tick = document.createElement("span");
+      tick.className = "tick";
+      tick.setAttribute("aria-hidden", "true");
+      tick.textContent = strips.length <= 24 ? String(i + 1) : "";
+      btn.appendChild(tick);
+
+      frag.appendChild(btn);
+    });
+
+    el.print.textContent = "";
+    el.print.appendChild(frag);
+    el.printCaption.textContent = shapeLine();
+  }
+
+  function renderNotes(){
+    var notes = buildNotes();
+    el.notesList.textContent = "";
+    notes.forEach(function(text){
+      var li = document.createElement("li");
+      var mark = document.createElement("span");
+      mark.className = "mark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = "¶";
+      var span = document.createElement("span");
+      span.textContent = text;
+      li.appendChild(mark);
+      li.appendChild(span);
+      el.notesList.appendChild(li);
+    });
+    el.notesBlock.hidden = notes.length === 0;
+  }
+
+  function controlBtn(label, action, opts){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.setAttribute("data-act", action);
+    if (opts && opts.cls) b.className = opts.cls;
+    if (opts && opts.disabled) b.disabled = true;
+    if (opts && opts.pressed !== undefined) b.setAttribute("aria-pressed", opts.pressed ? "true" : "false");
+    if (opts && opts.role) b.setAttribute("data-role-val", opts.role);
+    return b;
+  }
+
+  function renderStrips(){
+    var lens = strips.map(function(s){ return words(s.text); });
+    var max = lens.length ? Math.max.apply(null, lens) : 1;
+    if (max < 1) max = 1;
+
+    el.strips.textContent = "";
+
+    strips.forEach(function(s, i){
+      var li = document.createElement("li");
+      li.className = "strip" + (s.id === selectedId ? " sel" : "") + (i > 0 && s.newPara ? " new-para" : "");
+      li.setAttribute("data-role", s.role);
+      li.setAttribute("data-id", String(s.id));
+
+      var spine = document.createElement("span");
+      spine.className = "strip-spine";
+      spine.setAttribute("aria-hidden", "true");
+      li.appendChild(spine);
+
+      var main = document.createElement("button");
+      main.type = "button";
+      main.className = "strip-main";
+      main.setAttribute("data-act", "select");
+      main.setAttribute("aria-expanded", s.id === selectedId ? "true" : "false");
+
+      var num = document.createElement("span");
+      num.className = "strip-num";
+      num.setAttribute("aria-hidden", "true");
+      num.textContent = i + 1;
+      main.appendChild(num);
+
+      var textWrap = document.createElement("span");
+      textWrap.className = "strip-text";
+      if (roleLabel(s.role)) {
+        var tag = document.createElement("span");
+        tag.className = "strip-tag " + s.role;
+        tag.textContent = roleLabel(s.role);
+        textWrap.appendChild(tag);
+        textWrap.appendChild(document.createElement("br"));
+      }
+      textWrap.appendChild(document.createTextNode(s.text));
+      main.appendChild(textWrap);
+      li.appendChild(main);
+
+      var meter = document.createElement("div");
+      meter.className = "strip-meter";
+      meter.setAttribute("aria-hidden", "true");
+      var fill = document.createElement("i");
+      fill.style.width = Math.round(100 * (lens[i] / max)) + "%";
+      if (s.role === "headline") fill.style.background = "var(--press)";
+      if (s.role === "evidence") fill.style.background = "var(--ochre)";
+      if (s.role === "decision") fill.style.background = "var(--lead)";
+      meter.appendChild(fill);
+      li.appendChild(meter);
+
+      if (s.id === editingId) {
+        var ed = document.createElement("div");
+        ed.className = "editor";
+        var ta = document.createElement("textarea");
+        ta.value = s.text;
+        ta.setAttribute("data-edit", String(s.id));
+        ta.setAttribute("aria-label", "Edit sentence " + (i + 1));
+        ed.appendChild(ta);
+        var row = document.createElement("div");
+        row.className = "row";
+        row.appendChild(controlBtn("Split at cursor", "split"));
+        row.appendChild(controlBtn("Done", "done", { cls: "primary" }));
+        ed.appendChild(row);
+        li.appendChild(ed);
+      } else if (s.id === selectedId) {
+        var box = document.createElement("div");
+        box.className = "controls";
+        box.appendChild(controlBtn("✎ Retype", "edit"));
+        box.appendChild(controlBtn("⤴ Join up", "join", { disabled: i === 0 }));
+        box.appendChild(controlBtn("¶ Break", "para", { disabled: i === 0, pressed: !!s.newPara }));
+        box.appendChild(controlBtn("↑ Move up", "up", { disabled: i === 0 }));
+        box.appendChild(controlBtn("↓ Move down", "down", { disabled: i === strips.length - 1 }));
+        box.appendChild(controlBtn("✕ Delete", "delete", { cls: "del" }));
+
+        var rl = document.createElement("div");
+        rl.className = "role-label";
+        rl.textContent = "Mark this strip as";
+        box.appendChild(rl);
+
+        box.appendChild(controlBtn("Headline", "role", { role: "headline", pressed: s.role === "headline" }));
+        box.appendChild(controlBtn("Evidence", "role", { role: "evidence", pressed: s.role === "evidence" }));
+        box.appendChild(controlBtn("Decision", "role", { role: "decision", pressed: s.role === "decision" }));
+        li.appendChild(box);
+      }
+
+      el.strips.appendChild(li);
+    });
+  }
+
+  function renderDraftState(){
+    var saved = null;
+    try { saved = window.localStorage.getItem(STORE); } catch (e) { saved = null; }
+    el.draftState.textContent = saved
+      ? "A draft is kept in this browser's local storage, so a refresh will not lose it. Nothing is uploaded."
+      : "No draft is stored yet — it saves itself to this browser as soon as you edit a strip.";
+  }
+
+  function renderAll(){
+    var any = strips.length > 0;
+    el.empty.hidden = any;
+    el.globalRow.hidden = !any;
+    el.printBlock.hidden = !any;
+    el.exportBlock.hidden = !any;
+    el.stripsNote.textContent = any
+      ? (strips.length === 1 ? "one strip on the table" : strips.length + " strips on the table")
+      : "tap a strip to work on it";
+    el.composeNote.textContent = any ? "set — strips below are live" : "paste or type, then set in strips";
+    el.undoBtn.disabled = undoStack.length === 0;
+
+    renderStrips();
+    if (any) renderPrint();
+    renderNotes();
+    renderDraftState();
+  }
+
+  /* ---------------- mutations ---------------- */
+
+  function snapshot(){
+    undoStack.push(JSON.stringify({ strips: strips, selectedId: selectedId }));
+    if (undoStack.length > 40) undoStack.shift();
+  }
+
+  function undo(){
+    if (!undoStack.length) return;
+    var prev = JSON.parse(undoStack.pop());
+    strips = prev.strips;
+    selectedId = prev.selectedId;
+    editingId = null;
+    save();
+    renderAll();
+    toast("Stepped back one move.");
+  }
+
+  function indexOfId(id){
+    for (var i = 0; i < strips.length; i++) if (strips[i].id === id) return i;
+    return -1;
+  }
+
+  function save(){
+    try {
+      window.localStorage.setItem(STORE, JSON.stringify({ strips: strips, uid: uid }));
+    } catch (e) { /* private mode, quota — the app still works in memory */ }
+  }
+
+  function load(){
+    var raw = null;
+    try { raw = window.localStorage.getItem(STORE); } catch (e) { return false; }
+    if (!raw) return false;
+    try {
+      var data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.strips) || !data.strips.length) return false;
+      strips = data.strips.filter(function(s){ return s && typeof s.text === "string" && s.text.trim(); })
+        .map(function(s){
+          return {
+            id: uid++,
+            text: s.text,
+            role: ["headline", "evidence", "decision"].indexOf(s.role) !== -1 ? s.role : "plain",
+            newPara: !!s.newPara
+          };
+        });
+      if (strips.length) strips[0].newPara = false;
+      el.source.value = stripsToText();
+      return strips.length > 0;
+    } catch (e) { return false; }
+  }
+
+  function toast(msg){
+    el.toast.textContent = msg;
+    el.toast.classList.add("show");
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function(){ el.toast.classList.remove("show"); }, 2600);
+  }
+
+  function setFromSource(announce){
+    var text = el.source.value;
+    if (!text.trim()) { toast("Nothing in the composing stone yet."); el.source.focus(); return; }
+    snapshot();
+    strips = textToStrips(text);
+    selectedId = null;
+    editingId = null;
+    save();
+    renderAll();
+    if (announce !== false) {
+      toast(strips.length === 1 ? "Set as one strip." : "Set as " + strips.length + " strips.");
+    }
+    if (!el.printBlock.hidden) el.printBlock.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /* ---------------- events ---------------- */
+
+  $("setStrips").addEventListener("click", function(){ setFromSource(); });
+
+  function loadSample(){
+    el.source.value = SAMPLE;
+    setFromSource(false);
+    toast("Sample memo set in strips. Tap any strip to work on it.");
+  }
+  $("loadSample").addEventListener("click", loadSample);
+  $("emptySample").addEventListener("click", loadSample);
+
+  el.print.addEventListener("click", function(ev){
+    var col = ev.target.closest(".col");
+    if (!col) return;
+    var id = parseInt(col.getAttribute("data-id"), 10);
+    selectedId = selectedId === id ? null : id;
+    editingId = null;
+    renderAll();
+    var node = el.strips.querySelector('.strip[data-id="' + id + '"]');
+    if (node && selectedId === id) node.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  el.strips.addEventListener("click", function(ev){
+    var btn = ev.target.closest("button[data-act]");
+    if (!btn) return;
+    var li = btn.closest(".strip");
+    if (!li) return;
+    var id = parseInt(li.getAttribute("data-id"), 10);
+    var i = indexOfId(id);
+    if (i === -1) return;
+    var act = btn.getAttribute("data-act");
+
+    if (act === "select") {
+      editingId = null;
+      selectedId = selectedId === id ? null : id;
+      renderAll();
+      return;
+    }
+
+    if (act === "edit") {
+      editingId = id;
+      selectedId = id;
+      renderAll();
+      var ta = el.strips.querySelector('textarea[data-edit="' + id + '"]');
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      return;
+    }
+
+    if (act === "done") {
+      editingId = null;
+      save();
+      renderAll();
+      return;
+    }
+
+    if (act === "split") {
+      var area = el.strips.querySelector('textarea[data-edit="' + id + '"]');
+      if (!area) return;
+      var pos = area.selectionStart;
+      var val = area.value;
+      var head = val.slice(0, pos).trim();
+      var tail = val.slice(pos).trim();
+      if (!head || !tail) { toast("Put the cursor inside the sentence, then split."); area.focus(); return; }
+      snapshot();
+      strips[i].text = head;
+      strips.splice(i + 1, 0, { id: uid++, text: tail, role: "plain", newPara: false });
+      editingId = null;
+      selectedId = strips[i + 1].id;
+      save();
+      renderAll();
+      toast("Split into two strips.");
+      return;
+    }
+
+    if (act === "join") {
+      if (i === 0) return;
+      snapshot();
+      strips[i - 1].text = (strips[i - 1].text.replace(/\s+$/, "") + " " + strips[i].text.replace(/^\s+/, "")).trim();
+      selectedId = strips[i - 1].id;
+      strips.splice(i, 1);
+      editingId = null;
+      save();
+      renderAll();
+      toast("Joined with the strip above.");
+      return;
+    }
+
+    if (act === "para") {
+      snapshot();
+      strips[i].newPara = !strips[i].newPara;
+      save();
+      renderAll();
+      return;
+    }
+
+    if (act === "up" || act === "down") {
+      var j = act === "up" ? i - 1 : i + 1;
+      if (j < 0 || j >= strips.length) return;
+      snapshot();
+      var tmp = strips[i];
+      strips[i] = strips[j];
+      strips[j] = tmp;
+      if (strips[0]) strips[0].newPara = false;
+      editingId = null;
+      save();
+      renderAll();
+      var moved = el.strips.querySelector('.strip[data-id="' + id + '"]');
+      if (moved) moved.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    if (act === "delete") {
+      snapshot();
+      strips.splice(i, 1);
+      if (strips.length) strips[0].newPara = false;
+      selectedId = null;
+      editingId = null;
+      save();
+      el.source.value = stripsToText();
+      renderAll();
+      toast("Strip removed. Undo is available.");
+      return;
+    }
+
+    if (act === "role") {
+      var want = btn.getAttribute("data-role-val");
+      snapshot();
+      strips[i].role = strips[i].role === want ? "plain" : want;
+      save();
+      renderAll();
+      return;
+    }
+  });
+
+  // live typing inside a strip: update measurements without rebuilding the list
+  el.strips.addEventListener("input", function(ev){
+    var ta = ev.target;
+    if (!ta || ta.tagName !== "TEXTAREA") return;
+    var id = parseInt(ta.getAttribute("data-edit"), 10);
+    var i = indexOfId(id);
+    if (i === -1) return;
+    strips[i].text = ta.value;
+    renderPrint();
+    renderNotes();
+    var li = ta.closest(".strip");
+    var fill = li && li.querySelector(".strip-meter i");
+    if (fill) {
+      var lens = strips.map(function(s){ return words(s.text); });
+      var max = Math.max(1, Math.max.apply(null, lens));
+      fill.style.width = Math.round(100 * (lens[i] / max)) + "%";
+    }
+    save();
+  });
+
+  el.strips.addEventListener("keydown", function(ev){
+    if (ev.key === "Escape" && ev.target.tagName === "TEXTAREA") {
+      editingId = null;
+      save();
+      renderAll();
+    }
+  });
+
+  el.undoBtn.addEventListener("click", undo);
+
+  $("plainBtn").addEventListener("click", function(){
+    el.source.value = stripsToText();
+    el.composeBlock.scrollIntoView({ behavior: "smooth", block: "start" });
+    el.source.focus();
+    toast("Plain text updated from your strips. Edit it and set it again.");
+  });
+
+  $("clearBtn").addEventListener("click", function(){
+    if (!strips.length) return;
+    if (!window.confirm("Clear the table? Your strips and the saved draft will be removed from this browser.")) return;
+    snapshot();
+    strips = [];
+    selectedId = null;
+    editingId = null;
+    el.source.value = "";
+    try { window.localStorage.removeItem(STORE); } catch (e) {}
+    renderAll();
+    toast("Table cleared.");
+  });
+
+  $("forgetDraft").addEventListener("click", function(){
+    try { window.localStorage.removeItem(STORE); } catch (e) {}
+    renderDraftState();
+    toast("Saved draft erased from this browser.");
+  });
+
+  function copy(text, label){
+    if (!text) { toast("Nothing to copy yet."); return; }
+    var done = function(){ toast(label); };
+    var fallback = function(){
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "readonly");
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      toast(ok ? label : "Copy was blocked — select the text in the composing stone instead.");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  $("copyText").addEventListener("click", function(){ copy(stripsToText(), "Clean text copied."); });
+  $("copyOutline").addEventListener("click", function(){ copy(stripsToOutline(), "Tagged outline copied."); });
+
+  $("download").addEventListener("click", function(){
+    var text = stripsToText();
+    if (!text) { toast("Nothing to save yet."); return; }
+    try {
+      var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "cadence-press.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      toast("Saved to your downloads.");
+    } catch (e) {
+      copy(text, "Saving is blocked here, so the text was copied instead.");
+    }
+  });
+
+  document.addEventListener("keydown", function(ev){
+    var inField = ev.target && (ev.target.tagName === "TEXTAREA" || ev.target.tagName === "INPUT");
+
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "z" && !inField) {
+      ev.preventDefault();
+      undo();
+      return;
+    }
+    if (inField) return;
+    if (selectedId === null) return;
+    var i = indexOfId(selectedId);
+    if (i === -1) return;
+
+    if (ev.altKey && (ev.key === "ArrowUp" || ev.key === "ArrowDown")) {
+      ev.preventDefault();
+      var j = ev.key === "ArrowUp" ? i - 1 : i + 1;
+      if (j < 0 || j >= strips.length) return;
+      snapshot();
+      var t = strips[i]; strips[i] = strips[j]; strips[j] = t;
+      if (strips[0]) strips[0].newPara = false;
+      save();
+      renderAll();
+      return;
+    }
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      editingId = selectedId;
+      renderAll();
+      var ta = el.strips.querySelector('textarea[data-edit="' + selectedId + '"]');
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+      return;
+    }
+    if (ev.key === "Escape") {
+      selectedId = null;
+      editingId = null;
+      renderAll();
+    }
+  });
+
+  /* ---------------- boot ---------------- */
+  var restored = load();
+  renderAll();
+  if (restored) toast("Your saved draft is back on the table.");
+})();
+</script>
+</body>
+</html>
