@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tailspin Lab — why averages hide congestion</title>
+<meta name="description" content="A deterministic queue simulator: bursty requests, bounded workers, variable service times. Compare a baseline and an experiment, scrub through time, and see p50/p95 latency explained.">
+<style>
+  :root {
+    --bg: #0e1318;
+    --panel: #151c23;
+    --panel2: #1b242d;
+    --line: #2a3641;
+    --text: #e8edf0;
+    --muted: #a0aebb;
+    --exp: #f2a541;
+    --exp-soft: rgba(242,165,65,0.22);
+    --p50: #6fd3c1;
+    --base: #98abbe;
+    --burst: rgba(242,165,65,0.075);
+    --warn: #ff8a7a;
+    --focus: #ffe08a;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+  .num, output, .stat b { font-variant-numeric: tabular-nums; }
+  a { color: var(--exp); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: clamp(1.7rem, 5vw, 2.5rem);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  header h1 span { color: var(--exp); }
+  .lede { margin: 0 0 6px; color: var(--muted); max-width: 70ch; }
+  .sample {
+    margin: 12px 0 18px;
+    padding: 12px 14px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 0.93rem;
+  }
+  .sample strong { color: var(--text); }
+  .layout { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 900px) {
+    .layout { grid-template-columns: 340px minmax(0, 1fr); align-items: start; }
+    .controls { position: sticky; top: 12px; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    min-width: 0;
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .ctrl { margin-bottom: 14px; }
+  .ctrl-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .ctrl label { font-weight: 600; }
+  .ctrl output { color: var(--exp); font-weight: 700; }
+  .ctrl .hint { font-size: 0.82rem; color: var(--muted); margin: 0 0 2px; }
+  .ctrl .base-val { font-size: 0.8rem; color: var(--base); }
+  .slider-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 6px; align-items: center; }
+  button {
+    font: inherit;
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel2);
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px 12px;
+    touch-action: manipulation;
+  }
+  button:hover { border-color: #3d4c59; }
+  button.primary { background: var(--exp); color: #1a1206; border-color: var(--exp); font-weight: 700; }
+  button[aria-pressed="true"] { border-color: var(--exp); box-shadow: inset 0 0 0 1px var(--exp); }
+  .step { padding: 0; font-size: 1.3rem; line-height: 1; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 44px; background: transparent; margin: 0; cursor: pointer;
+    touch-action: pan-y;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--line); }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--line); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px;
+    border-radius: 50%; background: var(--exp); border: 3px solid var(--bg);
+  }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--exp); border: 3px solid var(--bg); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn-row button { flex: 1 1 auto; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chips button { font-size: 0.88rem; flex: 1 1 140px; text-align: left; }
+  .chips button small { display: block; color: var(--muted); font-size: 0.76rem; }
+  .napkin {
+    margin-top: 14px; padding: 10px 12px; border-radius: 10px;
+    background: var(--panel2); font-size: 0.88rem; color: var(--muted);
+  }
+  .napkin b { color: var(--text); }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+  @media (min-width: 620px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .stat .k { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .stat b { display: block; font-size: 1.35rem; color: var(--exp); line-height: 1.25; }
+  .stat .b { font-size: 0.82rem; color: var(--base); }
+  .stat .d { font-size: 0.8rem; }
+  .worse { color: var(--warn); }
+  .better { color: var(--p50); }
+  .chart { margin-bottom: 14px; }
+  .chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; margin-bottom: 6px; }
+  .chart-head h3 { margin: 0; font-size: 1rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.8rem; color: var(--muted); }
+  .sw { display: inline-block; width: 18px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 4px; }
+  .sw.dash { border-top-style: dashed; }
+  .sw.box { height: 10px; border: 0; background: var(--burst); outline: 1px solid rgba(242,165,65,0.35); }
+  canvas { display: block; width: 100%; border-radius: 10px; background: #10171d; touch-action: pan-y; cursor: crosshair; }
+  .scrub { margin-bottom: 14px; }
+  .scrub-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .scrub label { font-weight: 600; font-size: 0.9rem; }
+  #timeOut { min-width: 4.5ch; text-align: right; color: var(--exp); font-weight: 700; }
+  .readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 0.88rem; margin-top: 6px; }
+  @media (min-width: 620px) { .readout { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .readout div { min-width: 0; }
+  .readout span { color: var(--muted); display: block; font-size: 0.76rem; }
+  .readout em { font-style: normal; color: var(--base); }
+  .story { font-size: 0.95rem; }
+  .story p { margin: 0 0 10px; }
+  .story strong { color: var(--exp); }
+  .explain { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); margin-top: 16px; }
+  @media (min-width: 760px) { .explain { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .explain p, .explain li { color: var(--muted); font-size: 0.92rem; }
+  .explain b { color: var(--text); }
+  .explain ul { padding-left: 1.1em; margin: 0; }
+  details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+  .try { counter-reset: t; list-style: none; padding: 0; margin: 0; }
+  .try li { counter-increment: t; position: relative; padding-left: 28px; margin-bottom: 8px; }
+  .try li::before { content: counter(t); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--panel2); color: var(--exp); font-size: 0.75rem; display: grid; place-items: center; font-weight: 700; }
+  footer { margin-top: 24px; color: var(--muted); font-size: 0.82rem; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tailspin <span>Lab</span></h1>
+    <p class="lede">A deterministic queue bench. Bursty requests arrive, a fixed pool of workers serves them, service times vary. Change one thing, then compare the run against a pinned baseline and scrub through ten minutes to see <em>when</em> the queue spins up — and why the average never warned you.</p>
+  </header>
+
+  <div class="sample" role="note">
+    <strong>Fictional sample:</strong> “Pebblecast”, an invented thumbnail-resizing service. Its baseline sees a steady 3.2 requests/s; the experiment receives the <em>same average</em> traffic, but in bursts. Same mean, same workers, same handlers — very different tail.
+  </div>
+
+  <div class="layout">
+    <section class="panel controls" aria-labelledby="ctrlTitle">
+      <h2 id="ctrlTitle">Experiment controls</h2>
+
+      <div class="chips" role="group" aria-label="Scenario presets">
+        <button type="button" data-preset="bursty">Bursty Tuesday<small>same mean, 60% burstiness</small></button>
+        <button type="button" data-preset="worker">Add a worker<small>bursts, 5 workers</small></button>
+        <button type="button" data-preset="faster">Faster handler<small>bursts, 0.8 s service</small></button>
+        <button type="button" data-preset="smooth">Smooth the intake<small>bursts damped to 15%</small></button>
+        <button type="button" data-preset="edge">Over the edge<small>4.2 req/s, ρ &gt; 100%</small></button>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label for="rate">Arrival rate</label><output id="rateOut" for="rate"></output></div>
+        <p class="hint">Average requests per second over the 10-minute window.</p>
+        <div class="slider-row">
+          <button type="button" class="step" data-step="rate" data-dir="-1" aria-label="Decrease arrival rate">−</button>
+          <input type="range" id="rate" min="0.5" max="8" step="0.1">
+          <button type="button" class="step" data-step="rate" data-dir="1" aria-label="Increase arrival rate">+</button>
+        </div>
+        <div class="base-val" id="rateBase"></div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label for="burst">Burstiness</label><output id="burstOut" for="burst"></output></div>
+        <p class="hint">How much traffic crowds into short bursts. The average stays the same.</p>
+        <div class="slider-row">
+          <button type="button" class="step" data-step="burst" data-dir="-1" aria-label="Decrease burstiness">−</button>
+          <input type="range" id="burst" min="0" max="100" step="5">
+          <button type="button" class="step" data-step="burst" data-dir="1" aria-label="Increase burstiness">+</button>
+        </div>
+        <div class="base-val" id="burstBase"></div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label for="workers">Workers</label><output id="workersOut" for="workers"></output></div>
+        <p class="hint">Requests served at once. Everyone else waits in one FIFO queue.</p>
+        <div class="slider-row">
+          <button type="button" class="step" data-step="workers" data-dir="-1" aria-label="Remove a worker">−</button>
+          <input type="range" id="workers" min="1" max="16" step="1">
+          <button type="button" class="step" data-step="workers" data-dir="1" aria-label="Add a worker">+</button>
+        </div>
+        <div class="base-val" id="workersBase"></div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-top"><label for="svc">Mean service time</label><output id="svcOut" for="svc"></output></div>
+        <p class="hint">Average time a worker spends on one request. Individual jobs vary a lot.</p>
+        <div class="slider-row">
+          <button type="button" class="step" data-step="svc" data-dir="-1" aria-label="Decrease service time">−</button>
+          <input type="range" id="svc" min="0.2" max="3" step="0.05">
+          <button type="button" class="step" data-step="svc" data-dir="1" aria-label="Increase service time">+</button>
+        </div>
+        <div class="base-val" id="svcBase"></div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="primary" id="pin">Pin as baseline</button>
+        <button type="button" id="reset">Reset sample</button>
+      </div>
+
+      <div class="napkin" id="napkin" aria-live="polite"></div>
+    </section>
+
+    <main class="results" aria-labelledby="resTitle">
+      <h2 id="resTitle" class="sr">Results</h2>
+      <div class="stats" id="stats"></div>
+
+      <div class="panel chart">
+        <div class="chart-head">
+          <h3 id="qTitle">Pending queue over time</h3>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="border-color:var(--exp)"></i>experiment</span>
+            <span><i class="sw dash" style="border-color:var(--base)"></i>baseline</span>
+            <span><i class="sw box"></i>burst window</span>
+          </div>
+        </div>
+        <canvas id="qChart" height="200" role="img" aria-labelledby="qTitle" aria-describedby="qDesc"></canvas>
+        <p class="sr" id="qDesc"></p>
+      </div>
+
+      <div class="panel scrub" role="group" aria-label="Time scrubber">
+        <div class="scrub-row">
+          <button type="button" id="play" aria-label="Play through time">▶</button>
+          <div>
+            <label for="time">Scrub time — or touch a chart</label>
+            <input type="range" id="time" min="0" max="600" step="1" value="0">
+          </div>
+          <output id="timeOut" for="time">0:00</output>
+        </div>
+        <div class="readout" id="readout" aria-live="off"></div>
+      </div>
+      <div class="panel chart">
+        <div class="chart-head">
+          <h3 id="lTitle">Completion latency (rolling 30 s)</h3>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="border-color:var(--exp)"></i>p95</span>
+            <span><i class="sw" style="border-color:var(--p50)"></i>p50</span>
+            <span><i class="sw dash" style="border-color:var(--base)"></i>baseline p95</span>
+            <span>· dots = single requests</span>
+          </div>
+        </div>
+        <canvas id="lChart" height="200" role="img" aria-labelledby="lTitle" aria-describedby="lDesc"></canvas>
+        <p class="sr" id="lDesc"></p>
+      </div>
+
+
+      <div class="panel chart">
+        <div class="chart-head">
+          <h3 id="hTitle">Where the latency actually lands</h3>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="border-color:var(--exp)"></i>experiment share</span>
+            <span><i class="sw dash" style="border-color:var(--base)"></i>baseline share</span>
+          </div>
+        </div>
+        <canvas id="hChart" height="180" role="img" aria-labelledby="hTitle" aria-describedby="hDesc"></canvas>
+        <p class="sr" id="hDesc"></p>
+      </div>
+
+      <section class="panel story" aria-labelledby="storyTitle">
+        <h2 id="storyTitle">What this run is telling you</h2>
+        <div id="story" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="explain">
+    <section class="panel" aria-labelledby="pTitle">
+      <h2 id="pTitle">p50, p95 and the mean</h2>
+      <p><b>p50 (median):</b> half of requests finished faster than this. It describes the typical request.</p>
+      <p><b>p95:</b> 1 request in 20 took longer than this. If a page makes 20 such calls, most page loads hit at least one of them.</p>
+      <p><b>Mean:</b> total time ÷ requests. A few very slow requests drag it up a little, but it blends the quiet minutes with the jammed ones — so it looks tame while the tail is on fire.</p>
+      <p><b>Why bursts hurt:</b> during a burst, arrivals exceed what the workers can finish, and the backlog grows every second the burst lasts. The quiet stretch afterwards has to drain it. Latency depends on <i>when</i> you arrive, which no single average can show.</p>
+    </section>
+    <section class="panel" aria-labelledby="tryTitle">
+      <h2 id="tryTitle">A two-minute tour</h2>
+      <ol class="try">
+        <li>Scrub into a shaded burst window. Watch the amber queue climb while the dashed baseline barely moves.</li>
+        <li>Tap <b>Add a worker</b>. Utilization only drops from 80% to 64%, yet the peak queue and the p95 fall far more than that — headroom is what absorbs bursts.</li>
+        <li>Drag burstiness to 0, then to 100. Arrival rate never changes — only its shape.</li>
+        <li>Tap <b>Over the edge</b>: above 100% average utilization, backlog grows over a long run, even if a quiet interval briefly drains this finite sample.</li>
+        <li>Find a setup you like, <b>Pin as baseline</b>, and try to beat it.</li>
+      </ol>
+    </section>
+    <section class="panel" aria-labelledby="aTitle" style="grid-column:1/-1">
+      <details>
+        <summary id="aTitle">Model assumptions (open the hood)</summary>
+        <ul>
+          <li><b>Deterministic:</b> a fixed seed drives everything, so the same settings always produce the same run. Baseline and experiment share the same random draws (common random numbers), so differences come from your settings, not luck.</li>
+          <li><b>Arrivals:</b> a Poisson process whose rate switches between calm and burst. Each 30 s block contains one 6 s burst window (20% of time) at a fixed seeded offset. Burst rate = mean × (1 + 4 × burstiness); calm rate is lowered so the 10-minute average equals the arrival-rate setting exactly. At 100% burstiness, all traffic lands inside bursts.</li>
+          <li><b>Service times:</b> lognormal with the chosen mean and coefficient of variation 1.0 (some jobs are quick, a few take 3–5× the mean).</li>
+          <li><b>Queue:</b> one shared first-in-first-out queue, no timeouts, retries, drops or autoscaling. Workers never idle while someone waits.</li>
+          <li><b>Pending queue</b> = arrived but not yet started. <b>Completion latency</b> = finish − arrival (waiting + service).</li>
+          <li><b>Window:</b> requests arrive during 10 minutes. Headline stats include every one of them, even ones that finish after the window ends. The latency chart plots p50/p95 of requests that completed in the previous 30 s.</li>
+          <li><b>Utilization ρ</b> = arrival rate × mean service ÷ workers — the “average math” shown in the controls panel.</li>
+          <li>Everything runs locally in this page. No network, storage, or tracking.</li>
+        </ul>
+      </details>
+    </section>
+  </div>
+
+  <footer>Tailspin Lab · a Daily Surprise · fictional data, real queueing behaviour.</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const HORIZON = 600, PERIOD = 30, BURST_LEN = 6, BURST_FRAC = BURST_LEN / PERIOD;
+  const DT = 0.05, MAXN = 8000, WINDOW = 30, LSTEP = 2;
+  const SIGMA = Math.sqrt(Math.log(2)); // lognormal with CV = 1
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- deterministic randomness ----------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rArr = mulberry32(20261008), rSvc = mulberry32(8675309), rBurst = mulberry32(4242);
+  const unitArrivals = new Float64Array(MAXN); // cumulative unit-rate exponentials
+  let acc = 0;
+  for (let i = 0; i < MAXN; i++) { acc += -Math.log(1 - rArr()); unitArrivals[i] = acc; }
+  const zs = new Float64Array(MAXN);
+  for (let i = 0; i < MAXN; i += 2) {
+    const u1 = 1 - rSvc(), u2 = rSvc(), r = Math.sqrt(-2 * Math.log(u1));
+    zs[i] = r * Math.cos(2 * Math.PI * u2);
+    if (i + 1 < MAXN) zs[i + 1] = r * Math.sin(2 * Math.PI * u2);
+  }
+  const burstStarts = [];
+  for (let k = 0; k < HORIZON / PERIOD; k++) burstStarts.push(k * PERIOD + Math.floor(rBurst() * (PERIOD - BURST_LEN + 1)));
+  const inBurst = t => { const k = Math.floor(t / PERIOD); const s = burstStarts[k]; return s !== undefined && t >= s && t < s + BURST_LEN; };
+
+  // ---------- simulation ----------
+  function rates(p) {
+    const m = 1 + 4 * p.burst / 100;
+    return { hi: p.rate * m, lo: Math.max(0, p.rate * (1 - BURST_FRAC * m) / (1 - BURST_FRAC)) };
+  }
+  function simulate(p) {
+    const { hi, lo } = rates(p);
+    const N = Math.round(HORIZON / DT);
+    const cum = new Float64Array(N + 1);
+    for (let j = 0; j < N; j++) cum[j + 1] = cum[j] + (inBurst((j + 0.5) * DT) ? hi : lo) * DT;
+    const arr = [];
+    let j = 0;
+    for (let i = 0; i < MAXN; i++) {
+      const E = unitArrivals[i];
+      if (E > cum[N]) break;
+      while (j < N - 1 && cum[j + 1] < E) j++;
+      const span = cum[j + 1] - cum[j];
+      arr.push((j + (span > 0 ? (E - cum[j]) / span : 0)) * DT);
+    }
+    const n = arr.length, start = new Float64Array(n), fin = new Float64Array(n), lat = new Float64Array(n);
+    const free = new Float64Array(p.workers);
+    for (let i = 0; i < n; i++) {
+      let k = 0;
+      for (let w = 1; w < free.length; w++) if (free[w] < free[k]) k = w;
+      const svc = p.svc * Math.exp(SIGMA * zs[i] - SIGMA * SIGMA / 2);
+      start[i] = Math.max(arr[i], free[k]);
+      fin[i] = start[i] + svc;
+      free[k] = fin[i];
+      lat[i] = fin[i] - arr[i];
+    }
+    // per-second pending & in-flight
+    const finSorted = Float64Array.from(fin).sort();
+    const pending = new Float64Array(HORIZON + 1), busy = new Float64Array(HORIZON + 1), arrivals10 = new Float64Array(HORIZON + 1);
+    let ia = 0, is = 0, ifn = 0;
+    for (let t = 0; t <= HORIZON; t++) {
+      while (ia < n && arr[ia] <= t) ia++;
+      while (is < n && start[is] <= t) is++;
+      while (ifn < n && finSorted[ifn] <= t) ifn++;
+      pending[t] = ia - is;
+      busy[t] = is - ifn;
+    }
+    // rolling percentiles by completion time
+    const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => fin[a] - fin[b]);
+    const rollT = [], roll50 = [], roll95 = [];
+    let lo2 = 0, hi2 = 0;
+    for (let t = LSTEP; t <= HORIZON; t += LSTEP) {
+      while (hi2 < n && fin[order[hi2]] <= t) hi2++;
+      while (lo2 < hi2 && fin[order[lo2]] <= t - WINDOW) lo2++;
+      rollT.push(t);
+      if (hi2 - lo2 > 0) {
+        const w = []; for (let q = lo2; q < hi2; q++) w.push(lat[order[q]]);
+        w.sort((a, b) => a - b);
+        roll50.push(pct(w, 50)); roll95.push(pct(w, 95));
+      } else { roll50.push(NaN); roll95.push(NaN); }
+    }
+    const sorted = Array.from(lat).sort((a, b) => a - b);
+    let sum = 0, waited = 0; for (let i = 0; i < n; i++) { sum += lat[i]; if (start[i] - arr[i] > 0.01) waited++; }
+    let peak = 0, peakT = 0, pendSum = 0, queuedSecs = 0;
+    for (let t = 0; t <= HORIZON; t++) { if (pending[t] > peak) { peak = pending[t]; peakT = t; } pendSum += pending[t]; if (pending[t] >= 1) queuedSecs++; }
+    return {
+      p, n, arr, fin, lat, sorted, pending, busy, rollT, roll50, roll95, hi, lo,
+      mean: n ? sum / n : 0, p50: pct(sorted, 50), p95: pct(sorted, 95), p99: pct(sorted, 99), max: sorted[n - 1] || 0,
+      waitedShare: n ? waited / n : 0, peak, peakT, avgPending: pendSum / (HORIZON + 1), queuedShare: queuedSecs / (HORIZON + 1),
+      rho: p.rate * p.svc / p.workers
+    };
+  }
+  function pct(sorted, q) {
+    if (!sorted.length) return 0;
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q / 100 * sorted.length) - 1));
+    return sorted[idx];
+  }
+  function rollAt(sim, t) {
+    if (t < sim.rollT[0]) return { p50: NaN, p95: NaN };
+    const i = Math.max(0, Math.min(sim.rollT.length - 1, Math.floor(t / LSTEP) - 1));
+    return { p50: sim.roll50[i], p95: sim.roll95[i] };
+  }
+
+  // ---------- state ----------
+  const SAMPLE_BASE = { rate: 3.2, burst: 0, workers: 4, svc: 1.0 };
+  const PRESETS = {
+    bursty: { rate: 3.2, burst: 60, workers: 4, svc: 1.0 },
+    worker: { rate: 3.2, burst: 60, workers: 5, svc: 1.0 },
+    faster: { rate: 3.2, burst: 60, workers: 4, svc: 0.8 },
+    smooth: { rate: 3.2, burst: 15, workers: 4, svc: 1.0 },
+    edge:   { rate: 4.2, burst: 60, workers: 4, svc: 1.0 }
+  };
+  let base = { ...SAMPLE_BASE }, exp = { ...PRESETS.bursty };
+  let simBase = simulate(base), simExp = simulate(exp);
+  let scrubT = 0;
+
+  const $ = id => document.getElementById(id);
+  const ctrls = ['rate', 'burst', 'workers', 'svc'];
+  const fmt = {
+    rate: v => v.toFixed(1) + ' req/s',
+    burst: v => Math.round(v) + '%',
+    workers: v => String(Math.round(v)),
+    svc: v => v.toFixed(2) + ' s'
+  };
+  const sec = v => !isFinite(v) ? '—' : v < 10 ? v.toFixed(2) + ' s' : v < 100 ? v.toFixed(1) + ' s' : Math.round(v) + ' s';
+  const clock = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+  function syncInputs() {
+    for (const k of ctrls) {
+      $(k).value = exp[k];
+      $(k + 'Out').textContent = fmt[k](exp[k]);
+      $(k).setAttribute('aria-valuetext', fmt[k](exp[k]));
+      $(k + 'Base').textContent = 'baseline: ' + fmt[k](base[k]);
+    }
+    document.querySelectorAll('[data-preset]').forEach(b => {
+      const pr = PRESETS[b.dataset.preset];
+      b.setAttribute('aria-pressed', String(ctrls.every(k => Math.abs(pr[k] - exp[k]) < 1e-9)));
+    });
+  }
+
+  let rafPending = false, announceTimer = 0;
+  function rerun(which) {
+    if (which !== 'exp') simBase = simulate(base);
+    simExp = simulate(exp);
+    syncInputs();
+    if (!rafPending) { rafPending = true; requestAnimationFrame(() => { rafPending = false; renderAll(); }); }
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(renderText, 250);
+  }
+
+  // ---------- drawing ----------
+  const PAD = { l: 40, r: 10, t: 10, b: 24 };
+  function prep(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = parseInt(canvas.getAttribute('height'), 10);
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      canvas.style.height = h + 'px';
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h, pw: w - PAD.l - PAD.r, ph: h - PAD.t - PAD.b };
+  }
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const e = Math.pow(10, Math.floor(Math.log10(v))), f = v / e;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e;
+  }
+  function axes(g, ymax, yLabel, xmax, xfmt) {
+    const { ctx, pw, ph } = g;
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillStyle = '#a0aebb'; ctx.strokeStyle = '#26313b'; ctx.lineWidth = 1;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const v = ymax * i / 4, y = PAD.t + ph - ph * i / 4;
+      ctx.beginPath(); ctx.moveTo(PAD.l, y + 0.5); ctx.lineTo(PAD.l + pw, y + 0.5); ctx.stroke();
+      ctx.fillText(yLabel(v), PAD.l - 5, y);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const ticks = pw < 340 ? 4 : 6;
+    for (let i = 0; i <= ticks; i++) {
+      const v = xmax * i / ticks;
+      ctx.fillText(xfmt(v), PAD.l + pw * i / ticks, PAD.t + ph + 6);
+    }
+  }
+  const xT = (g, t) => PAD.l + g.pw * t / HORIZON;
+  function bursts(g, sim) {
+    if (sim.p.burst <= 0) return;
+    g.ctx.fillStyle = 'rgba(242,165,65,0.075)';
+    for (const s of burstStarts) g.ctx.fillRect(xT(g, s), PAD.t, g.pw * BURST_LEN / HORIZON, g.ph);
+  }
+  function cursor(g) {
+    const x = Math.round(xT(g, scrubT)) + 0.5;
+    g.ctx.strokeStyle = '#ffe08a'; g.ctx.lineWidth = 1.5; g.ctx.setLineDash([]);
+    g.ctx.beginPath(); g.ctx.moveTo(x, PAD.t); g.ctx.lineTo(x, PAD.t + g.ph); g.ctx.stroke();
+  }
+  function line(g, xs, ys, ymax, color, width, dash) {
+    const { ctx, ph } = g;
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i < ys.length; i++) {
+      if (!isFinite(ys[i])) { pen = false; continue; }
+      const x = xT(g, xs(i)), y = PAD.t + ph - ph * Math.min(ys[i], ymax) / ymax;
+      if (pen) ctx.lineTo(x, y); else { ctx.moveTo(x, y); pen = true; }
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  function dot(g, t, v, ymax, color) {
+    const y = PAD.t + g.ph - g.ph * Math.min(v, ymax) / ymax;
+    g.ctx.fillStyle = color; g.ctx.strokeStyle = '#0e1318'; g.ctx.lineWidth = 2;
+    g.ctx.beginPath(); g.ctx.arc(xT(g, t), y, 4.5, 0, Math.PI * 2); g.ctx.fill(); g.ctx.stroke();
+  }
+
+  function drawQueue() {
+    const g = prep($('qChart'));
+    let m = 0; for (let t = 0; t <= HORIZON; t++) m = Math.max(m, simExp.pending[t], simBase.pending[t]);
+    const ymax = niceMax(Math.max(4, m * 1.08));
+    bursts(g, simExp);
+    axes(g, ymax, v => Math.round(v) === v ? String(v) : v.toFixed(1), HORIZON, clock);
+    // experiment area
+    const { ctx, ph } = g;
+    ctx.fillStyle = 'rgba(242,165,65,0.22)';
+    ctx.beginPath(); ctx.moveTo(xT(g, 0), PAD.t + ph);
+    for (let t = 0; t <= HORIZON; t++) ctx.lineTo(xT(g, t), PAD.t + ph - ph * simExp.pending[t] / ymax);
+    ctx.lineTo(xT(g, HORIZON), PAD.t + ph); ctx.closePath(); ctx.fill();
+    line(g, i => i, simBase.pending, ymax, '#98abbe', 1.6, [5, 4]);
+    line(g, i => i, simExp.pending, ymax, '#f2a541', 2);
+    cursor(g);
+    const t = Math.round(scrubT);
+    dot(g, t, simBase.pending[t], ymax, '#98abbe');
+    dot(g, t, simExp.pending[t], ymax, '#f2a541');
+    ctx.fillStyle = '#a0aebb'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText('waiting requests', PAD.l + 4, PAD.t + 2);
+  }
+
+  function drawLatency() {
+    const g = prep($('lChart'));
+    const ymax = niceMax(Math.max(simExp.p99, simBase.p99, 2) * 1.05);
+    bursts(g, simExp);
+    axes(g, ymax, v => v < 10 ? v.toFixed(v % 1 ? 1 : 0) + 's' : Math.round(v) + 's', HORIZON, clock);
+    const { ctx, ph } = g;
+    ctx.fillStyle = 'rgba(242,165,65,0.33)';
+    for (let i = 0; i < simExp.n; i++) {
+      const f = simExp.fin[i]; if (f > HORIZON) continue;
+      const v = simExp.lat[i];
+      const y = PAD.t + ph - ph * Math.min(v, ymax) / ymax;
+      ctx.fillRect(xT(g, f) - 1, y - 1, 2, 2);
+    }
+    const xs = i => simExp.rollT[i];
+    line(g, xs, simBase.roll95, ymax, '#98abbe', 1.6, [5, 4]);
+    line(g, xs, simExp.roll50, ymax, '#6fd3c1', 1.8);
+    line(g, xs, simExp.roll95, ymax, '#f2a541', 2.6);
+    // overall mean reference
+    const ym = PAD.t + ph - ph * Math.min(simExp.mean, ymax) / ymax;
+    ctx.strokeStyle = '#e8edf0'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, ym); ctx.lineTo(PAD.l + g.pw, ym); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#e8edf0'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText('overall mean ' + sec(simExp.mean), PAD.l + g.pw - 2, ym - 2);
+    cursor(g);
+    const r = rollAt(simExp, scrubT), rb = rollAt(simBase, scrubT);
+    if (isFinite(rb.p95)) dot(g, scrubT, rb.p95, ymax, '#98abbe');
+    if (isFinite(r.p50)) dot(g, scrubT, r.p50, ymax, '#6fd3c1');
+    if (isFinite(r.p95)) dot(g, scrubT, r.p95, ymax, '#f2a541');
+  }
+
+  function drawHist() {
+    const g = prep($('hChart'));
+    const xmax = niceMax(Math.max(simExp.p99, simBase.p99, 2) * 1.05);
+    const B = 36, bw = xmax / B;
+    const bin = s => { const h = new Float64Array(B); for (const v of s.sorted) h[Math.min(B - 1, Math.floor(v / bw))]++; for (let i = 0; i < B; i++) h[i] /= s.n || 1; return h; };
+    const he = bin(simExp), hb = bin(simBase);
+    const ymax = niceMax(Math.max(...he, ...hb) * 1.1);
+    const { ctx, pw, ph } = g;
+    axes(g, ymax, v => Math.round(v * 100) + '%', xmax, v => (v < 10 ? v.toFixed(v % 1 ? 1 : 0) : Math.round(v)) + 's');
+    const X = v => PAD.l + pw * Math.min(v, xmax) / xmax, Y = v => PAD.t + ph - ph * v / ymax;
+    ctx.fillStyle = 'rgba(242,165,65,0.55)';
+    for (let i = 0; i < B; i++) if (he[i] > 0) ctx.fillRect(X(i * bw) + 1, Y(he[i]), pw / B - 2, PAD.t + ph - Y(he[i]));
+    ctx.strokeStyle = '#98abbe'; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+    for (let i = 0; i < B; i++) { ctx.lineTo(X(i * bw), Y(hb[i])); ctx.lineTo(X((i + 1) * bw), Y(hb[i])); }
+    ctx.stroke(); ctx.setLineDash([]);
+    const marks = [['p50', simExp.p50, '#6fd3c1'], ['mean', simExp.mean, '#e8edf0'], ['p95', simExp.p95, '#f2a541']];
+    ctx.font = '11px system-ui, sans-serif'; ctx.textBaseline = 'top';
+    let lastX = -99, row = 0;
+    marks.slice().sort((a, b) => a[1] - b[1]).forEach(([name, v, c]) => {
+      const x = X(v);
+      ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.setLineDash(name === 'mean' ? [2, 3] : []);
+      ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ph); ctx.stroke(); ctx.setLineDash([]);
+      row = x - lastX < 54 ? row + 1 : 0; lastX = x;
+      ctx.fillStyle = c; ctx.textAlign = x > PAD.l + pw - 60 ? 'right' : 'left';
+      ctx.fillText(name + ' ' + sec(v), x + (ctx.textAlign === 'right' ? -4 : 4), PAD.t + 2 + row * 13);
+    });
+  }
+
+  function statCard(k, e, b, lowerIsBetter = true, f = sec) {
+    const d = e - b, rel = b > 0 ? d / b : 0;
+    let cls = '', txt = 'same as baseline';
+    if (Math.abs(rel) > 0.03 && Math.abs(d) > 0.005) {
+      const worse = lowerIsBetter ? d > 0 : d < 0;
+      cls = worse ? 'worse' : 'better';
+      txt = (b > 0 ? (rel > 0 ? '+' : '') + Math.round(rel * 100) + '%' : '+' + f(d)) + ' vs baseline';
+      if (b > 0 && Math.abs(rel) >= 3) txt = (e / b).toFixed(0) + '× baseline';
+    }
+    return `<div class="stat"><div class="k">${k}</div><b>${f(e)}</b><div class="b">baseline ${f(b)}</div><div class="d ${cls}">${txt}</div></div>`;
+  }
+
+  function renderStats() {
+    const cnt = v => v < 10 ? v.toFixed(1) : String(Math.round(v));
+    $('stats').innerHTML =
+      statCard('Mean latency', simExp.mean, simBase.mean) +
+      statCard('p50 latency', simExp.p50, simBase.p50) +
+      statCard('p95 latency', simExp.p95, simBase.p95) +
+      statCard('Peak queue', simExp.peak, simBase.peak, true, cnt);
+  }
+
+  function renderReadout() {
+    const t = Math.round(scrubT);
+    $('time').value = t;
+    $('timeOut').textContent = clock(t);
+    $('time').setAttribute('aria-valuetext', clock(t) + ', ' + simExp.pending[t] + ' waiting in experiment, ' + simBase.pending[t] + ' in baseline');
+    const r = rollAt(simExp, t), rb = rollAt(simBase, t);
+    const burst = inBurst(Math.min(t, HORIZON - 0.01)) && exp.burst > 0;
+    const rateNow = burst ? simExp.hi : simExp.lo;
+    const capacity = exp.workers / exp.svc;
+    $('readout').innerHTML =
+      `<div><span>Arrivals now</span>${rateNow.toFixed(1)} req/s ${burst ? '<b class="worse">burst</b>' : '(calm)'}<br><em>capacity ≈ ${capacity.toFixed(1)}/s</em></div>` +
+      `<div><span>Waiting</span><b style="color:var(--exp)">${simExp.pending[t]}</b> <em>base ${simBase.pending[t]}</em></div>` +
+      `<div><span>Workers busy</span>${simExp.busy[t]} / ${exp.workers} <em>base ${simBase.busy[t]}/${base.workers}</em></div>` +
+      `<div><span>Last-30 s p50 · p95</span>${sec(r.p50)} · <b style="color:var(--exp)">${sec(r.p95)}</b><br><em>base p95 ${sec(rb.p95)}</em></div>`;
+  }
+
+  function renderAll() {
+    drawQueue(); drawLatency(); drawHist(); renderStats(); renderReadout();
+  }
+
+  function renderText() {
+    const e = simExp, b = simBase;
+    const rho = e.rho;
+    const verdict = rho >= 1
+      ? `<b class="worse">Over capacity in the long run.</b> Requests arrive faster than ${exp.workers} worker${exp.workers > 1 ? 's' : ''} can finish them on average. A quiet interval may drain this finite sample, but sustained load builds backlog.`
+      : rho > 0.85
+      ? `<b>Running hot.</b> Little headroom: any burst or long job spills into a queue that takes a while to drain.`
+      : `<b>Looks comfortable on paper.</b> ${Math.round((1 - rho) * 100)}% idle on average — which says nothing about <i>when</i> that idle time happens.`;
+    $('napkin').innerHTML = `<b>Average math:</b> ${exp.rate.toFixed(1)} req/s × ${exp.svc.toFixed(2)} s ÷ ${exp.workers} worker${exp.workers > 1 ? 's' : ''} = utilization <b>ρ = ${Math.round(rho * 100)}%</b>. ${verdict}`;
+
+    const ratio = e.mean > 0 ? e.p95 / e.mean : 0;
+    const paras = [];
+    paras.push(`The average request took <strong>${sec(e.mean)}</strong>, but about 1 in 20 took longer than <strong>${sec(e.p95)}</strong> — the p95 is <strong>${ratio.toFixed(1)}×</strong> the mean. The slowest request took ${sec(e.max)} from arrival to completion.`);
+    if (exp.burst > 0 && e.peak > 0) {
+      paras.push(`Over the whole run, the queue averaged just <strong>${e.avgPending.toFixed(1)}</strong> waiting requests — yet it peaked at <strong>${e.peak}</strong> around ${clock(e.peakT)}. Bursts push arrivals up to ${e.hi.toFixed(1)} req/s against a capacity of about ${(exp.workers / exp.svc).toFixed(1)} req/s; backlog can keep growing just after a burst as earlier arrivals wait for service. Averages smooth this away.`);
+    } else {
+      paras.push(`Without bursts, the queue averaged ${e.avgPending.toFixed(1)} waiting requests and peaked at ${e.peak}. Even smooth Poisson traffic clumps by chance, and variable job sizes add their own tail.`);
+    }
+    paras.push(`${Math.round(e.waitedShare * 100)}% of requests had to queue before a worker picked them up (baseline: ${Math.round(b.waitedShare * 100)}%). Someone was waiting during ${Math.round(e.queuedShare * 100)}% of the seconds in the window.`);
+    const sameMean = Math.abs(exp.rate - base.rate) < 1e-9;
+    if (sameMean && exp.burst !== base.burst && exp.workers === base.workers && exp.svc === base.svc) {
+      paras.push(`Both runs receive exactly the same average traffic (${exp.rate.toFixed(1)} req/s). The only difference in arrivals is their shape — and the p95 moved from ${sec(b.p95)} to ${sec(e.p95)}.`);
+    } else if (exp.workers !== base.workers && sameMean && exp.burst === base.burst && exp.svc === base.svc && Math.abs(e.p95 - b.p95) > Math.abs(e.mean - b.mean)) {
+      paras.push(`Changing workers from ${base.workers} to ${exp.workers} moved the mean by ${sec(Math.abs(e.mean - b.mean))} but the p95 by ${sec(Math.abs(e.p95 - b.p95))}. Headroom mostly buys tail latency.`);
+    }
+    $('story').innerHTML = paras.map(p => `<p>${p}</p>`).join('');
+
+    $('qDesc').textContent = `Experiment queue averages ${e.avgPending.toFixed(1)} and peaks at ${e.peak} at ${clock(e.peakT)}; baseline averages ${b.avgPending.toFixed(1)} and peaks at ${b.peak}.`;
+    $('lDesc').textContent = `Experiment overall p50 ${sec(e.p50)}, p95 ${sec(e.p95)}, mean ${sec(e.mean)}. Baseline p95 ${sec(b.p95)}.`;
+    $('hDesc').textContent = `Latency distribution. Most experiment requests finish near ${sec(e.p50)}; a long tail stretches to ${sec(e.p99)} at the 99th percentile.`;
+  }
+
+  // ---------- interaction ----------
+  for (const k of ctrls) {
+    $(k).addEventListener('input', ev => { exp[k] = parseFloat(ev.target.value); rerun('exp'); });
+  }
+  document.querySelectorAll('[data-step]').forEach(btn => btn.addEventListener('click', () => {
+    const el = $(btn.dataset.step), step = parseFloat(el.step), dir = +btn.dataset.dir;
+    const v = Math.min(+el.max, Math.max(+el.min, Math.round((parseFloat(el.value) + dir * step) / step) * step));
+    exp[btn.dataset.step] = +v.toFixed(2); rerun('exp');
+  }));
+  document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
+    exp = { ...PRESETS[btn.dataset.preset] }; rerun('exp');
+  }));
+  $('pin').addEventListener('click', () => { base = { ...exp }; rerun('both'); });
+  $('reset').addEventListener('click', () => { base = { ...SAMPLE_BASE }; exp = { ...PRESETS.bursty }; scrubT = 0; rerun('both'); });
+
+  $('time').addEventListener('input', ev => { stopPlay(); scrubT = +ev.target.value; renderAll(); });
+
+  ['qChart', 'lChart'].forEach(id => {
+    const c = $(id);
+    let dragging = false, sx = 0, sy = 0, decided = false;
+    const setFrom = ev => {
+      const r = c.getBoundingClientRect();
+      const x = ev.clientX - r.left;
+      scrubT = Math.max(0, Math.min(HORIZON, Math.round((x - PAD.l) / (r.width - PAD.l - PAD.r) * HORIZON)));
+      renderAll();
+    };
+    c.addEventListener('pointerdown', ev => {
+      stopPlay(); dragging = true; decided = ev.pointerType === 'mouse'; sx = ev.clientX; sy = ev.clientY;
+      setFrom(ev);
+    });
+    c.addEventListener('pointermove', ev => {
+      if (!dragging) return;
+      if (!decided) {
+        const dx = Math.abs(ev.clientX - sx), dy = Math.abs(ev.clientY - sy);
+        if (dy > dx && dy > 6) { dragging = false; return; } // let vertical page scroll win
+        if (dx > 6) { decided = true; try { c.setPointerCapture(ev.pointerId); } catch (_) {} }
+      }
+      setFrom(ev);
+    });
+    const end = () => { dragging = false; };
+    c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
+  });
+
+  let playing = false, lastTs = 0, acc2 = 0;
+  function stopPlay() { playing = false; $('play').textContent = '▶'; $('play').setAttribute('aria-label', 'Play through time'); }
+  function tick(ts) {
+    if (!playing) return;
+    const dt = lastTs ? (ts - lastTs) / 1000 : 0; lastTs = ts;
+    if (reduceMotion) {
+      acc2 += dt; if (acc2 < 0.5) { requestAnimationFrame(tick); return; }
+      acc2 = 0; scrubT = Math.min(HORIZON, scrubT + 15);
+    } else scrubT = Math.min(HORIZON, scrubT + dt * 40);
+    renderAll();
+    if (scrubT >= HORIZON) { stopPlay(); return; }
+    requestAnimationFrame(tick);
+  }
+  $('play').addEventListener('click', () => {
+    if (playing) { stopPlay(); return; }
+    if (scrubT >= HORIZON) scrubT = 0;
+    playing = true; lastTs = 0; acc2 = 0;
+    $('play').textContent = '❚❚'; $('play').setAttribute('aria-label', 'Pause');
+    requestAnimationFrame(tick);
+  });
+
+  let rz = 0;
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderAll, 80); });
+
+  // Start the scrubber inside the first burst so the story is visible immediately.
+  scrubT = burstStarts[1] + BURST_LEN - 1;
+  syncInputs(); renderAll(); renderText();
+  window.__tailspin = { simulate, get exp() { return simExp; }, get base() { return simBase; } };
+})();
+</script>
+</body>
+</html>
