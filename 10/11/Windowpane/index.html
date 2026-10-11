@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#231f1c">
+<title>Windowpane — a stained-glass fitting puzzle</title>
+<style>
+  :root {
+    --lead: #231f1c;
+    --lead-2: #3a332e;
+    --paper: #f1eadb;
+    --ink: #2a2420;
+    --muted: #6d625a;
+    --accent: #c9542f;
+    --glass-clear: #efe9dc;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background:
+      radial-gradient(120% 70% at 50% -10%, #fff8e6 0%, rgba(255,248,230,0) 60%),
+      linear-gradient(180deg, #ece3d0, #e3d8c2);
+    color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: clamp(26px, 7vw, 34px);
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+  h1 small {
+    display: block;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-top: 5px;
+    letter-spacing: 0.02em;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 2px solid var(--lead);
+    background: #fffaf0;
+    font-size: 18px;
+    display: inline-grid;
+    place-items: center;
+  }
+  .levels {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin: 4px 0 12px;
+  }
+  .lvl {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--lead);
+    background: #fffaf0;
+    font-weight: 700;
+    font-size: 16px;
+    position: relative;
+  }
+  .lvl.done { background: #e9d9a8; }
+  .lvl.done::after {
+    content: "✓";
+    position: absolute;
+    right: -3px; top: -5px;
+    font-size: 12px;
+    background: var(--lead);
+    color: #fff;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+  }
+  .lvl.current { background: var(--lead); color: #fff; }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .target-box {
+    flex: 0 0 auto;
+    background: var(--lead);
+    padding: 5px;
+    border-radius: 10px;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+  }
+  .target-grid {
+    display: grid;
+    gap: 2px;
+    width: 76px;
+    aspect-ratio: 1;
+  }
+  .target-grid div { border-radius: 2px; }
+  .status-text { min-width: 0; flex: 1; }
+  .level-name {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .meter {
+    margin-top: 6px;
+    height: 10px;
+    border-radius: 6px;
+    background: rgba(35,31,28,0.12);
+    overflow: hidden;
+  }
+  .meter i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #e0533d, #f2c335, #3c9e63, #2f6bd1);
+    transition: width 0.25s ease;
+  }
+  .meta { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .msg {
+    min-height: 1.4em;
+    font-size: 15px;
+    color: var(--ink);
+    text-align: center;
+    margin: 8px 0 8px;
+  }
+
+  /* Board: a leaded-glass window */
+  .frame {
+    position: relative;
+    margin: 0 auto;
+    width: min(100%, 440px);
+    padding: 8px;
+    border-radius: 18px 18px 12px 12px;
+    background: var(--lead);
+    box-shadow: 0 10px 24px rgba(35,31,28,0.25), inset 0 0 0 2px var(--lead-2);
+  }
+  .board {
+    position: relative;
+    display: grid;
+    gap: 4px;
+    aspect-ratio: 1;
+    touch-action: manipulation;
+  }
+  .cell {
+    position: relative;
+    border: 0;
+    padding: 0;
+    border-radius: 5px;
+    min-width: 44px;
+    min-height: 44px;
+    background: var(--glass-clear);
+    transition: background-color 0.2s ease;
+    overflow: hidden;
+  }
+  .cell::before {
+    /* glass sheen */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 42%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.18) 100%);
+    pointer-events: none;
+  }
+  .cell .tgt {
+    position: absolute;
+    right: 5px; bottom: 5px;
+    width: 30%; height: 30%;
+    max-width: 18px; max-height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(35,31,28,0.55);
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .cell.ok .tgt { transform: scale(0.45); opacity: 0.0; }
+  .cell.ok::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55);
+    pointer-events: none;
+  }
+  .cell.ghost { outline: 3px dashed rgba(255,255,255,0.95); outline-offset: -5px; }
+  .cell.ghost-bad { outline: 3px dashed rgba(255,120,90,0.95); outline-offset: -5px; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    gap: 4px;
+    pointer-events: none;
+  }
+  .edge {
+    border-radius: 5px;
+    pointer-events: none;
+  }
+  .edge.sel { animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity: 0.55; } to { opacity: 1; } }
+
+  .win-burst .cell { animation: shine 0.8s ease both; }
+  @keyframes shine {
+    0% { filter: brightness(1); }
+    40% { filter: brightness(1.35) saturate(1.15); }
+    100% { filter: brightness(1); }
+  }
+
+  /* Tray */
+  .tray-label {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 14px 2px 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .tray {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .piece {
+    min-width: 64px;
+    min-height: 64px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 2px solid rgba(35,31,28,0.35);
+    background: #fffaf0;
+    display: grid;
+    place-items: center;
+    position: relative;
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .piece.placed { opacity: 0.5; background: transparent; border-style: dashed; }
+  .piece.selected {
+    border-color: var(--lead);
+    box-shadow: 0 0 0 3px #fffaf0, 0 0 0 6px var(--lead);
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+  .mini {
+    display: grid;
+    gap: 2px;
+    transition: transform 0.18s ease;
+  }
+  .mini span {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1.5px rgba(35,31,28,0.55);
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .ctl {
+    min-height: 48px;
+    border-radius: 12px;
+    border: 2px solid var(--lead);
+    background: #fffaf0;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 4px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+  }
+  .ctl b { font-size: 18px; line-height: 1; }
+  .ctl:disabled { opacity: 0.4; cursor: default; }
+  .ctl.primary { background: var(--lead); color: #fff; }
+  .help {
+    margin-top: 16px;
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .help summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .help ul { margin: 4px 0 0; padding-left: 20px; }
+  .help li { margin-bottom: 4px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; }
+  .swatches span { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; }
+  .swatches i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; box-shadow: inset 0 0 0 1.5px rgba(35,31,28,0.5); }
+
+  /* Win dialog */
+  .win {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: rgba(35,31,28,0.45);
+    padding: 20px;
+    z-index: 10;
+  }
+  .win.show { display: grid; }
+  .win-card {
+    width: min(100%, 360px);
+    background: var(--paper);
+    border-radius: 18px;
+    border: 3px solid var(--lead);
+    padding: 22px 20px 18px;
+    text-align: center;
+    animation: rise 0.35s ease both;
+  }
+  @keyframes rise { from { transform: translateY(16px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+  .win-card h2 {
+    margin: 0 0 6px;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 28px;
+  }
+  .win-card p { margin: 0 0 16px; color: var(--muted); }
+  .win-card .row { display: flex; gap: 8px; }
+  .win-card .row .ctl { flex: 1; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 380px) {
+    .target-grid { width: 64px; }
+    .ctl { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Windowpane<small>Layer coloured glass to match the window</small></h1>
+    <button class="icon-btn" id="soundBtn" aria-label="Sound on" aria-pressed="true" title="Sound">♪</button>
+  </header>
+
+  <nav class="levels" id="levels" aria-label="Levels"></nav>
+
+  <section class="status">
+    <div class="target-box" aria-hidden="true"><div class="target-grid" id="targetGrid"></div></div>
+    <div class="status-text">
+      <div class="level-name" id="levelName">—</div>
+      <div class="meter" aria-hidden="true"><i id="meterFill"></i></div>
+      <div class="meta" id="meta">0 / 16 panes matching</div>
+    </div>
+  </section>
+
+  <div class="frame">
+    <div class="board" id="board" role="grid" aria-label="Window grid"></div>
+  </div>
+  <div class="msg" id="msg" role="status" aria-live="polite">Pick a pane from the tray below.</div>
+
+  <div class="tray-label"><span>Glass tray</span><span id="trayHint">tap again to rotate</span></div>
+  <div class="tray" id="tray"></div>
+
+  <div class="controls">
+    <button class="ctl" id="rotateBtn" aria-label="Rotate selected pane"><b>⟳</b>Rotate</button>
+    <button class="ctl" id="undoBtn" aria-label="Undo"><b>↶</b>Undo</button>
+    <button class="ctl" id="hintBtn" aria-label="Hint"><b>✦</b>Hint</button>
+    <button class="ctl" id="resetBtn" aria-label="Reset level"><b>↺</b>Reset</button>
+  </div>
+
+  <details class="help">
+    <summary>How to play</summary>
+    <ul>
+      <li>Every pane is tinted glass. Where panes overlap, their colours mix.</li>
+      <li>Tap a pane in the tray to pick it up. Tap it again (or Rotate) to turn it.</li>
+      <li>Tap the window to set it down, centred on that square.</li>
+      <li>Tap a placed pane to pick it back up — tap it once more to rotate it where it sits, or tap elsewhere to move it. Tap its tray slot twice to send it back.</li>
+      <li>The small ring in each square shows the colour it needs. Match every square to finish.</li>
+    </ul>
+    <div class="swatches" id="swatches"></div>
+  </details>
+</div>
+
+<div class="win" id="win" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+  <div class="win-card">
+    <h2 id="winTitle">Pane perfect</h2>
+    <p id="winText">The light comes through just right.</p>
+    <div class="row">
+      <button class="ctl" id="stayBtn">Admire</button>
+      <button class="ctl primary" id="nextBtn">Next window</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Core (pure, testable) ---------- */
+(function (root) {
+  // Colour channels: red=1, yellow=2, blue=4. Overlaps OR together like paint on glass.
+  const COLORS = {
+    0: '#efe9dc', 1: '#e0533d', 2: '#f2c335', 3: '#ef8a2c',
+    4: '#2f6bd1', 5: '#8a4fbf', 6: '#3c9e63', 7: '#4a3a33'
+  };
+  const NAMES = {
+    0: 'clear', 1: 'red', 2: 'yellow', 3: 'orange',
+    4: 'blue', 5: 'violet', 6: 'green', 7: 'umber'
+  };
+  const EDGE = { 1: '#8f2412', 2: '#9a7105', 4: '#123c86' };
+
+  const SHAPES = {
+    I2: [[0, 0], [0, 1]],
+    I3: [[0, 0], [0, 1], [0, 2]],
+    V3: [[0, 0], [1, 0], [1, 1]],
+    O4: [[0, 0], [0, 1], [1, 0], [1, 1]],
+    L4: [[0, 0], [1, 0], [2, 0], [2, 1]],
+    T4: [[0, 0], [0, 1], [0, 2], [1, 1]],
+    S4: [[0, 1], [0, 2], [1, 0], [1, 1]],
+    P5: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]],
+    X5: [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]],
+    U5: [[0, 0], [0, 2], [1, 0], [1, 1], [1, 2]]
+  };
+
+  // Each level is defined by its solution; the target is derived from it, so every level is solvable.
+  const LEVELS = [
+    {
+      name: 'First Light', n: 4,
+      pieces: [
+        { shape: 'I3', color: 1, start: 0, sol: { rot: 1, r: 0, c: 1 } },
+        { shape: 'O4', color: 4, start: 0, sol: { rot: 0, r: 1, c: 1 } }
+      ]
+    },
+    {
+      name: 'Sunrise Sash', n: 4,
+      pieces: [
+        { shape: 'T4', color: 2, start: 2, sol: { rot: 0, r: 0, c: 0 } },
+        { shape: 'V3', color: 1, start: 0, sol: { rot: 1, r: 1, c: 1 } },
+        { shape: 'I3', color: 4, start: 0, sol: { rot: 1, r: 1, c: 3 } }
+      ]
+    },
+    {
+      name: 'Garden Gate', n: 4,
+      pieces: [
+        { shape: 'L4', color: 4, start: 1, sol: { rot: 0, r: 1, c: 0 } },
+        { shape: 'S4', color: 2, start: 0, sol: { rot: 1, r: 0, c: 0 } },
+        { shape: 'I2', color: 1, start: 0, sol: { rot: 1, r: 2, c: 3 } },
+        { shape: 'V3', color: 2, start: 0, sol: { rot: 2, r: 2, c: 2 } }
+      ]
+    },
+    {
+      name: 'Harbour Lantern', n: 5,
+      pieces: [
+        { shape: 'X5', color: 2, start: 0, sol: { rot: 0, r: 1, c: 1 } },
+        { shape: 'U5', color: 4, start: 0, sol: { rot: 2, r: 3, c: 0 } },
+        { shape: 'P5', color: 1, start: 0, sol: { rot: 1, r: 0, c: 2 } },
+        { shape: 'I3', color: 4, start: 0, sol: { rot: 1, r: 0, c: 0 } }
+      ]
+    },
+    {
+      name: 'Rose Window', n: 5,
+      pieces: [
+        { shape: 'X5', color: 1, start: 0, sol: { rot: 0, r: 1, c: 1 } },
+        { shape: 'O4', color: 4, start: 0, sol: { rot: 0, r: 0, c: 0 } },
+        { shape: 'O4', color: 2, start: 0, sol: { rot: 0, r: 3, c: 3 } },
+        { shape: 'L4', color: 2, start: 0, sol: { rot: 3, r: 0, c: 2 } },
+        { shape: 'S4', color: 4, start: 0, sol: { rot: 0, r: 2, c: 0 } }
+      ]
+    }
+  ];
+
+  function norm(cells) {
+    let mr = Infinity, mc = Infinity;
+    for (const [r, c] of cells) { if (r < mr) mr = r; if (c < mc) mc = c; }
+    return cells.map(([r, c]) => [r - mr, c - mc])
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  }
+  function rotate(cells) { return norm(cells.map(([r, c]) => [c, -r])); }
+  function rotated(shapeName, k) {
+    let s = norm(SHAPES[shapeName]);
+    for (let i = 0; i < ((k % 4) + 4) % 4; i++) s = rotate(s);
+    return s;
+  }
+  function dims(cells) {
+    let h = 0, w = 0;
+    for (const [r, c] of cells) { if (r + 1 > h) h = r + 1; if (c + 1 > w) w = c + 1; }
+    return { h, w };
+  }
+  function cellsAt(shapeName, rot, r0, c0) {
+    return rotated(shapeName, rot).map(([r, c]) => [r + r0, c + c0]);
+  }
+  function inBounds(n, cells) {
+    return cells.every(([r, c]) => r >= 0 && c >= 0 && r < n && c < n);
+  }
+  // Centre the shape's bounding box on the tapped square, then nudge it inside the window.
+  function anchorFor(n, shapeName, rot, tr, tc) {
+    const { h, w } = dims(rotated(shapeName, rot));
+    let r = tr - Math.floor((h - 1) / 2);
+    let c = tc - Math.floor((w - 1) / 2);
+    r = Math.max(0, Math.min(n - h, r));
+    c = Math.max(0, Math.min(n - w, c));
+    return { r, c };
+  }
+  function computeGrid(level, rots, pos) {
+    const g = new Array(level.n * level.n).fill(0);
+    level.pieces.forEach((p, i) => {
+      if (!pos[i]) return;
+      for (const [r, c] of cellsAt(p.shape, rots[i], pos[i].r, pos[i].c)) g[r * level.n + c] |= p.color;
+    });
+    return g;
+  }
+  function targetOf(level) {
+    return computeGrid(level, level.pieces.map(p => p.sol.rot), level.pieces.map(p => ({ r: p.sol.r, c: p.sol.c })));
+  }
+  function createState(level) {
+    return { rots: level.pieces.map(p => p.start), pos: level.pieces.map(() => null) };
+  }
+  function cloneState(s) {
+    return { rots: s.rots.slice(), pos: s.pos.map(p => (p ? { r: p.r, c: p.c } : null)) };
+  }
+  function matchCount(level, state, target) {
+    const g = computeGrid(level, state.rots, state.pos);
+    let k = 0;
+    for (let i = 0; i < g.length; i++) if (g[i] === target[i]) k++;
+    return k;
+  }
+  function isSolved(level, state, target) {
+    return state.pos.every(Boolean) && matchCount(level, state, target) === level.n * level.n;
+  }
+  function keyOf(cells) { return cells.map(([r, c]) => r + ',' + c).sort().join(' '); }
+  function pieceCorrect(level, state, i) {
+    const p = level.pieces[i];
+    if (!state.pos[i]) return false;
+    return keyOf(cellsAt(p.shape, state.rots[i], state.pos[i].r, state.pos[i].c)) ===
+      keyOf(cellsAt(p.shape, p.sol.rot, p.sol.r, p.sol.c));
+  }
+  // Prefer a misplaced pane over an unplaced one, so the hint corrects mistakes first.
+  function hintIndex(level, state) {
+    let unplaced = -1;
+    for (let i = 0; i < level.pieces.length; i++) {
+      if (pieceCorrect(level, state, i)) continue;
+      if (state.pos[i]) return i;
+      if (unplaced < 0) unplaced = i;
+    }
+    return unplaced;
+  }
+  function applyHint(level, state) {
+    const i = hintIndex(level, state);
+    if (i < 0) return -1;
+    const p = level.pieces[i];
+    state.rots[i] = p.sol.rot;
+    state.pos[i] = { r: p.sol.r, c: p.sol.c };
+    return i;
+  }
+  // Topmost (last in list) placed pane covering a square.
+  function pieceAt(level, state, r, c) {
+    for (let i = level.pieces.length - 1; i >= 0; i--) {
+      if (!state.pos[i]) continue;
+      const p = level.pieces[i];
+      if (cellsAt(p.shape, state.rots[i], state.pos[i].r, state.pos[i].c).some(([a, b]) => a === r && b === c)) return i;
+    }
+    return -1;
+  }
+  // Rotate a placed pane around its bounding-box centre, kept inside the window.
+  function rotatePlaced(level, state, i) {
+    const p = level.pieces[i];
+    const before = dims(rotated(p.shape, state.rots[i]));
+    const cr = state.pos[i].r + Math.floor((before.h - 1) / 2);
+    const cc = state.pos[i].c + Math.floor((before.w - 1) / 2);
+    state.rots[i] = (state.rots[i] + 1) % 4;
+    state.pos[i] = anchorFor(level.n, p.shape, state.rots[i], cr, cc);
+  }
+
+  root.WindowpaneCore = {
+    COLORS, NAMES, EDGE, SHAPES, LEVELS,
+    norm, rotate, rotated, dims, cellsAt, inBounds, anchorFor, computeGrid, targetOf,
+    createState, cloneState, matchCount, isSolved, pieceCorrect, hintIndex, applyHint,
+    pieceAt, rotatePlaced
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ---------- UI ---------- */
+(function () {
+  if (typeof document === 'undefined') return;
+  const W = window.WindowpaneCore;
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), trayEl = $('tray'), msgEl = $('msg');
+  const STORE = 'windowpane-progress-v1';
+
+  let levelIdx = 0, level, target, state, history, selected = -1, moves = 0, hints = 0, solved = false;
+  let hover = null;
+  let done = loadDone();
+  let soundOn = true, audio = null;
+
+  function loadDone() {
+    try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch (e) { return []; }
+  }
+  function saveDone() {
+    try { localStorage.setItem(STORE, JSON.stringify(done)); } catch (e) { /* private mode */ }
+  }
+
+  function tone(freq, dur, type, vol) {
+    if (!soundOn) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type || 'triangle';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.08, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+      o.connect(g).connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + dur);
+    } catch (e) { /* audio unavailable */ }
+  }
+  const clink = () => { tone(1320, 0.12, 'sine', 0.06); tone(1980, 0.08, 'sine', 0.03); buzz(8); };
+  const chime = () => [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => tone(f, 0.5, 'sine', 0.06), i * 110));
+  const buzz = ms => { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} };
+
+  function say(t) { msgEl.textContent = t; }
+
+  function loadLevel(i) {
+    levelIdx = i;
+    level = W.LEVELS[i];
+    target = W.targetOf(level);
+    state = W.createState(level);
+    history = [];
+    selected = -1; moves = 0; hints = 0; solved = false; hover = null;
+    buildBoard();
+    buildTarget();
+    renderLevels();
+    render();
+    say(i === 0 ? 'Pick a pane from the tray below.' : level.pieces.length + ' panes to fit. Overlaps mix their colours.');
+  }
+
+  function buildBoard() {
+    const n = level.n;
+    boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    boardEl.innerHTML = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      const b = document.createElement('button');
+      b.className = 'cell';
+      b.dataset.r = r; b.dataset.c = c;
+      b.setAttribute('role', 'gridcell');
+      const t = document.createElement('span');
+      t.className = 'tgt';
+      t.style.background = W.COLORS[target[r * n + c]];
+      b.appendChild(t);
+      boardEl.appendChild(b);
+    }
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.id = 'overlay';
+    ov.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    ov.style.gridTemplateRows = `repeat(${n}, 1fr)`;
+    boardEl.appendChild(ov);
+  }
+
+  function buildTarget() {
+    const tg = $('targetGrid');
+    tg.style.gridTemplateColumns = `repeat(${level.n}, 1fr)`;
+    tg.innerHTML = target.map(v => `<div style="background:${W.COLORS[v]}"></div>`).join('');
+  }
+
+  function renderLevels() {
+    $('levels').innerHTML = W.LEVELS.map((L, i) =>
+      `<button class="lvl${i === levelIdx ? ' current' : ''}${done.includes(i) ? ' done' : ''}" data-l="${i}" aria-label="Level ${i + 1}: ${L.name}${done.includes(i) ? ', solved' : ''}">${i + 1}</button>`
+    ).join('');
+  }
+
+  function render() {
+    const n = level.n;
+    const g = W.computeGrid(level, state.rots, state.pos);
+    const cells = boardEl.querySelectorAll('.cell');
+    let ghostKeys = null, ghostOk = true;
+    if (hover && selected >= 0) {
+      const p = level.pieces[selected];
+      const a = W.anchorFor(n, p.shape, state.rots[selected], hover.r, hover.c);
+      ghostKeys = new Set(W.cellsAt(p.shape, state.rots[selected], a.r, a.c).map(([r, c]) => r * n + c));
+    }
+    let k = 0;
+    cells.forEach((el, i) => {
+      el.style.backgroundColor = W.COLORS[g[i]];
+      const ok = g[i] === target[i];
+      if (ok) k++;
+      el.classList.toggle('ok', ok);
+      el.classList.toggle('ghost', !!(ghostKeys && ghostKeys.has(i) && ghostOk));
+      const r = Math.floor(i / n), c = i % n;
+      el.setAttribute('aria-label', `Row ${r + 1}, column ${c + 1}: ${W.NAMES[g[i]]}, needs ${W.NAMES[target[i]]}${ok ? ', matched' : ''}`);
+    });
+
+    // Lead outlines around each placed pane
+    const ov = $('overlay');
+    let html = '';
+    level.pieces.forEach((p, i) => {
+      if (!state.pos[i]) return;
+      const cs = W.cellsAt(p.shape, state.rots[i], state.pos[i].r, state.pos[i].c);
+      const set = new Set(cs.map(([r, c]) => r + ',' + c));
+      const col = W.EDGE[p.color];
+      const w = i === selected ? 4 : 3;
+      for (const [r, c] of cs) {
+        const sh = [];
+        if (!set.has((r - 1) + ',' + c)) sh.push(`inset 0 ${w}px 0 ${col}`);
+        if (!set.has((r + 1) + ',' + c)) sh.push(`inset 0 -${w}px 0 ${col}`);
+        if (!set.has(r + ',' + (c - 1))) sh.push(`inset ${w}px 0 0 ${col}`);
+        if (!set.has(r + ',' + (c + 1))) sh.push(`inset -${w}px 0 0 ${col}`);
+        html += `<div class="edge${i === selected ? ' sel' : ''}" style="grid-row:${r + 1};grid-column:${c + 1};box-shadow:${sh.join(',') || 'none'}"></div>`;
+      }
+    });
+    ov.innerHTML = html;
+
+    const total = n * n;
+    $('levelName').textContent = `${levelIdx + 1}. ${level.name}`;
+    $('meterFill').style.width = (k / total * 100) + '%';
+    $('meta').textContent = `${k} / ${total} squares matching · ${moves} move${moves === 1 ? '' : 's'}${hints ? ` · ${hints} hint${hints === 1 ? '' : 's'}` : ''}`;
+
+    renderTray();
+    $('undoBtn').disabled = history.length === 0;
+    $('rotateBtn').disabled = selected < 0;
+    $('hintBtn').disabled = solved;
+    $('trayHint').textContent = selected >= 0
+      ? (state.pos[selected] ? 'tap pane to rotate · tap tray slot to remove' : 'tap again to rotate · tap window to place')
+      : 'tap a pane to pick it up';
+  }
+
+  function renderTray() {
+    trayEl.innerHTML = '';
+    level.pieces.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.className = 'piece' + (state.pos[i] ? ' placed' : '') + (i === selected ? ' selected' : '');
+      b.dataset.i = i;
+      b.setAttribute('aria-label', `${W.NAMES[p.color]} pane, ${p.shape[0] === 'I' ? 'bar' : 'shape'} of ${W.SHAPES[p.shape].length}${state.pos[i] ? ', placed' : ''}${i === selected ? ', selected' : ''}`);
+      const cs = W.rotated(p.shape, state.rots[i]);
+      const { h, w } = W.dims(cs);
+      const m = document.createElement('div');
+      m.className = 'mini';
+      m.style.gridTemplateColumns = `repeat(${w}, 14px)`;
+      m.style.gridTemplateRows = `repeat(${h}, 14px)`;
+      for (const [r, c] of cs) {
+        const s = document.createElement('span');
+        s.style.gridRow = r + 1; s.style.gridColumn = c + 1;
+        s.style.background = W.COLORS[p.color];
+        m.appendChild(s);
+      }
+      b.appendChild(m);
+      trayEl.appendChild(b);
+    });
+  }
+
+  function snapshot() { history.push(W.cloneState(state)); if (history.length > 200) history.shift(); }
+  function afterBoardChange() {
+    moves++;
+    clink();
+    render();
+    checkWin();
+  }
+
+  function checkWin() {
+    if (solved || !W.isSolved(level, state, target)) return;
+    solved = true;
+    selected = -1;
+    if (!done.includes(levelIdx)) { done.push(levelIdx); saveDone(); }
+    renderLevels();
+    render();
+    boardEl.classList.remove('win-burst'); void boardEl.offsetWidth; boardEl.classList.add('win-burst');
+    chime(); buzz([20, 40, 20]);
+    const last = levelIdx === W.LEVELS.length - 1;
+    const allDone = done.length === W.LEVELS.length;
+    $('winTitle').textContent = last && allDone ? 'Every window glows' : 'Pane perfect';
+    $('winText').textContent = `${level.name} finished in ${moves} move${moves === 1 ? '' : 's'}` +
+      (hints ? ` with ${hints} hint${hints === 1 ? '' : 's'}.` : ', no hints.') +
+      (last && allDone ? ' All five windows are lit.' : '');
+    $('nextBtn').textContent = last ? 'Play again' : 'Next window';
+    setTimeout(() => { $('win').classList.add('show'); $('nextBtn').focus(); }, 650);
+    say('Solved! The light comes through just right.');
+  }
+
+  function onCell(r, c) {
+    if (solved) return;
+    if (selected >= 0) {
+      const p = level.pieces[selected];
+      // Tapping the selected placed pane itself rotates it in place.
+      if (state.pos[selected] &&
+          W.cellsAt(p.shape, state.rots[selected], state.pos[selected].r, state.pos[selected].c).some(([a, b]) => a === r && b === c)) {
+        snapshot();
+        W.rotatePlaced(level, state, selected);
+        say(`Turned the ${W.NAMES[p.color]} pane.`);
+        afterBoardChange();
+        return;
+      }
+      snapshot();
+      const wasPlaced = !!state.pos[selected];
+      state.pos[selected] = W.anchorFor(level.n, p.shape, state.rots[selected], r, c);
+      say(wasPlaced ? `Moved the ${W.NAMES[p.color]} pane.` : `Set the ${W.NAMES[p.color]} pane.`);
+      selected = -1;
+      hover = null;
+      afterBoardChange();
+      return;
+    }
+    const i = W.pieceAt(level, state, r, c);
+    if (i >= 0) {
+      selected = i;
+      say(`Holding the ${W.NAMES[level.pieces[i].color]} pane — tap it to rotate, or tap elsewhere to move.`);
+      render();
+    } else {
+      say('Pick a pane from the tray first.');
+    }
+  }
+
+  function onTray(i) {
+    if (solved) return;
+    if (selected === i) {
+      if (state.pos[i]) {
+        // Second tap on a placed pane's slot sends it back to the tray.
+        snapshot();
+        state.pos[i] = null;
+        selected = -1;
+        say('Pane returned to the tray.');
+        afterBoardChange();
+      } else {
+        state.rots[i] = (state.rots[i] + 1) % 4;
+        tone(660, 0.06, 'triangle', 0.04);
+        render();
+      }
+      return;
+    }
+    selected = i;
+    const p = level.pieces[i];
+    say(state.pos[i]
+      ? `Holding the placed ${W.NAMES[p.color]} pane. Tap its slot again to remove it.`
+      : `Holding the ${W.NAMES[p.color]} pane. Tap the window to set it down.`);
+    render();
+  }
+
+  function rotateSelected() {
+    if (selected < 0 || solved) return;
+    if (state.pos[selected]) {
+      snapshot();
+      W.rotatePlaced(level, state, selected);
+      afterBoardChange();
+    } else {
+      state.rots[selected] = (state.rots[selected] + 1) % 4;
+      tone(660, 0.06, 'triangle', 0.04);
+      render();
+    }
+  }
+
+  function undo() {
+    if (!history.length || solved) return;
+    state = history.pop();
+    selected = -1;
+    moves = Math.max(0, moves - 1);
+    say('Undone.');
+    render();
+  }
+
+  function reset() {
+    if (solved) { loadLevel(levelIdx); return; }
+    if (state.pos.some(Boolean)) snapshot();
+    state = W.createState(level);
+    selected = -1;
+    say('Window cleared. Undo brings it back.');
+    render();
+  }
+
+  function hint() {
+    if (solved) return;
+    snapshot();
+    const i = W.applyHint(level, state);
+    if (i < 0) { history.pop(); return; }
+    hints++;
+    selected = -1;
+    say(`Hint: the ${W.NAMES[level.pieces[i].color]} pane belongs here.`);
+    afterBoardChange();
+  }
+
+  // Events
+  boardEl.addEventListener('click', e => {
+    const b = e.target.closest('.cell');
+    if (b) onCell(+b.dataset.r, +b.dataset.c);
+  });
+  boardEl.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const b = e.target.closest('.cell');
+    const h = b ? { r: +b.dataset.r, c: +b.dataset.c } : null;
+    if ((h && hover && h.r === hover.r && h.c === hover.c) || (!h && !hover)) return;
+    hover = h;
+    if (selected >= 0) render();
+  });
+  boardEl.addEventListener('pointerleave', () => { hover = null; if (selected >= 0) render(); });
+  trayEl.addEventListener('click', e => {
+    const b = e.target.closest('.piece');
+    if (b) onTray(+b.dataset.i);
+  });
+  $('levels').addEventListener('click', e => {
+    const b = e.target.closest('.lvl');
+    if (b) loadLevel(+b.dataset.l);
+  });
+  $('rotateBtn').addEventListener('click', rotateSelected);
+  $('undoBtn').addEventListener('click', undo);
+  $('resetBtn').addEventListener('click', reset);
+  $('hintBtn').addEventListener('click', hint);
+  $('stayBtn').addEventListener('click', () => $('win').classList.remove('show'));
+  $('nextBtn').addEventListener('click', () => {
+    $('win').classList.remove('show');
+    loadLevel((levelIdx + 1) % W.LEVELS.length);
+  });
+  $('soundBtn').addEventListener('click', () => {
+    soundOn = !soundOn;
+    $('soundBtn').setAttribute('aria-pressed', String(soundOn));
+    $('soundBtn').setAttribute('aria-label', soundOn ? 'Sound on' : 'Sound off');
+    $('soundBtn').textContent = soundOn ? '♪' : '·';
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') rotateSelected();
+    else if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); undo(); }
+    else if (e.key === 'Escape') {
+      if ($('win').classList.contains('show')) $('win').classList.remove('show');
+      else { selected = -1; render(); }
+    }
+  });
+
+  $('swatches').innerHTML = [1, 2, 4, 3, 5, 6, 7].map(v =>
+    `<span><i style="background:${W.COLORS[v]}"></i>${v === 3 ? 'red + yellow' : v === 5 ? 'red + blue' : v === 6 ? 'yellow + blue' : v === 7 ? 'all three' : W.NAMES[v]}${[3, 5, 6, 7].includes(v) ? ' = ' + W.NAMES[v] : ''}</span>`
+  ).join('');
+
+  const firstOpen = W.LEVELS.findIndex((_, i) => !done.includes(i));
+  loadLevel(firstOpen < 0 ? 0 : firstOpen);
+})();
+</script>
+</body>
+</html>
