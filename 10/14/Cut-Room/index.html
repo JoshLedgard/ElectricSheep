@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cut Room — rearrange your sentences</title>
+<style>
+  :root {
+    --bg: #17151a;
+    --panel: #221f26;
+    --strip: #f3ead8;
+    --strip-ink: #231d16;
+    --ink: #efe7da;
+    --muted: #a69c8f;
+    --accent: #f0a14a;
+    --cut: #e0645a;
+    --moved: #6fc6b4;
+    --line: #3a3540;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 18px 14px 80px; }
+  header h1 {
+    font: 700 2rem/1.1 ui-serif, Georgia, serif;
+    margin: 6px 0 4px; letter-spacing: -0.01em;
+  }
+  header h1 span { color: var(--accent); }
+  header p { margin: 0 0 14px; color: var(--muted); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  button, .btn {
+    min-height: 44px; min-width: 44px;
+    border-radius: 10px; border: 1px solid var(--line);
+    background: #2c2832; color: var(--ink);
+    font: 600 0.95rem/1 inherit; font-family: inherit;
+    padding: 0 14px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:hover { border-color: #5a5262; }
+  button:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #241505; border-color: var(--accent); }
+  button.ghost { background: transparent; }
+
+  section.panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 16px;
+  }
+  label.lbl { display: block; font-weight: 700; margin-bottom: 6px; }
+  textarea {
+    width: 100%; min-height: 170px; resize: vertical;
+    background: #141217; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px; font: 16px/1.5 ui-serif, Georgia, serif;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row.mt { margin-top: 10px; }
+  .hint { color: var(--muted); font-size: 0.88rem; }
+  .msg { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 0.95rem; }
+  .msg.err { background: #3a1f1f; border: 1px solid #6b3434; color: #ffcfc9; }
+  .msg.info { background: #1f2c2a; border: 1px solid #2f5049; color: #cdeee6; }
+  .msg:empty { display: none; }
+
+  /* Toolbar */
+  .toolbar {
+    position: sticky; top: 0; z-index: 5;
+    background: rgba(23,21,26,0.94); backdrop-filter: blur(6px);
+    padding: 8px 0; margin: 0 0 10px; border-bottom: 1px solid var(--line);
+  }
+  .stats { font-size: 0.88rem; color: var(--muted); margin-top: 6px; }
+  .stats b { color: var(--ink); }
+
+  /* Cards: film-strip paper */
+  ol.cards { list-style: none; padding: 0; margin: 0; }
+  li.card {
+    position: relative;
+    background: var(--strip); color: var(--strip-ink);
+    border-radius: 8px; margin: 0 0 10px; padding: 12px 12px 10px 34px;
+    box-shadow: 0 2px 0 #00000055;
+    transition: transform .18s ease, background .2s;
+  }
+  li.card::before {
+    content: ""; position: absolute; left: 10px; top: 10px; bottom: 10px; width: 10px;
+    background: repeating-linear-gradient(to bottom, #00000030 0 6px, transparent 6px 14px);
+    border-radius: 2px;
+  }
+  li.card.flash { animation: flash .5s ease; }
+  @keyframes flash { from { background: #fff3c4; } to { background: var(--strip); } }
+  li.card.para { margin-top: 22px; }
+  li.card.para:first-child { margin-top: 0; }
+  .meta { display: flex; gap: 8px; align-items: center; font: 600 0.75rem/1 ui-monospace, Menlo, monospace; color: #6d6253; margin-bottom: 6px; flex-wrap: wrap; }
+  .tag { padding: 3px 6px; border-radius: 5px; background: #e5d9c2; }
+  .tag.moved { background: #cbeee6; color: #1f5146; }
+  .tag.para { background: #efd7b6; color: #6a3f10; }
+  .lenbar { flex: 1; min-width: 50px; height: 5px; background: #e2d6c0; border-radius: 3px; overflow: hidden; }
+  .lenbar i { display: block; height: 100%; background: #b79a71; }
+  .lenbar i.long { background: var(--cut); }
+  .stext { font: 1.05rem/1.45 ui-serif, Georgia, serif; margin: 0 0 8px; overflow-wrap: anywhere; }
+  .cardbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cardbtns button { background: #fffaf0; color: var(--strip-ink); border-color: #cdbfa6; font-size: 0.9rem; padding: 0 10px; }
+  .cardbtns button.cutbtn { margin-left: auto; color: #8d2a22; border-color: #e0b0a8; }
+  .cardbtns button[aria-pressed="true"] { background: #f0c58e; border-color: #c68b44; }
+
+  /* Floor */
+  details.floor { margin-top: 18px; }
+  details.floor summary {
+    cursor: pointer; min-height: 44px; display: flex; align-items: center;
+    font-weight: 700; color: var(--cut); list-style: none;
+  }
+  details.floor summary::-webkit-details-marker { display: none; }
+  details.floor summary::before { content: "▸ "; margin-right: 6px; }
+  details.floor[open] summary::before { content: "▾ "; }
+  ul.floorlist { list-style: none; padding: 0; margin: 6px 0 0; }
+  ul.floorlist li {
+    display: flex; gap: 10px; align-items: center; justify-content: space-between;
+    background: #2a2024; border: 1px dashed #6b3f3a; border-radius: 8px;
+    padding: 8px 8px 8px 12px; margin-bottom: 8px; color: #d9c6bf;
+  }
+  ul.floorlist li span { min-width: 0; overflow-wrap: anywhere; text-decoration: line-through; text-decoration-color: #e0645a99; font-family: ui-serif, Georgia, serif; }
+  .empty-floor { color: var(--muted); font-size: 0.9rem; }
+
+  /* Compare */
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-radius: 0; background: transparent; }
+  .seg button[aria-selected="true"] { background: #3a3341; color: var(--accent); }
+  .views { display: grid; gap: 12px; margin-top: 12px; }
+  .views.both { grid-template-columns: 1fr; }
+  @media (min-width: 680px) { .views.both { grid-template-columns: 1fr 1fr; } }
+  .view h3 { margin: 0 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .prose {
+    background: #f7f1e6; color: #241d15; border-radius: 10px; padding: 12px 14px;
+    font: 1rem/1.6 ui-serif, Georgia, serif; white-space: normal; min-height: 60px; overflow-wrap: anywhere;
+  }
+  .prose p { margin: 0 0 0.8em; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose del { color: #a0453c; text-decoration-color: #c0392b; background: #f6d9d4; }
+  .prose mark.mv { background: #cdeee6; color: inherit; border-radius: 3px; }
+  .legend { font-size: 0.82rem; color: var(--muted); margin-top: 8px; }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin: 0 4px 0 10px; }
+
+  .empty-state { text-align: center; padding: 26px 10px; color: var(--muted); }
+  .empty-state .big { font: 700 3rem/1 ui-serif, Georgia, serif; color: #4a4352; }
+  footer { color: var(--muted); font-size: 0.82rem; text-align: center; margin-top: 30px; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Cut <span>Room</span></h1>
+    <p>Paste a draft. It becomes a strip of sentence cards you can move, cut and restore. Then compare what you had with what you made.</p>
+  </header>
+
+  <section class="panel" id="inputPanel" aria-labelledby="inLbl">
+    <label class="lbl" id="inLbl" for="src">Your draft</label>
+    <textarea id="src" placeholder="Paste a paragraph or two here — an email, an intro, a note to your team…" aria-describedby="srcHint"></textarea>
+    <p class="hint" id="srcHint">Stays on this device, in memory only. Nothing is saved or sent.</p>
+    <div class="row mt">
+      <button class="primary" id="splitBtn" type="button">Cut into cards</button>
+      <button id="sampleBtn" type="button">Try a sample</button>
+      <button class="ghost" id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="msg" id="inputMsg" role="alert"></div>
+  </section>
+
+  <section id="editor" hidden aria-labelledby="edH">
+    <h2 id="edH" class="sr">Sentence cards</h2>
+    <div class="toolbar">
+      <div class="row">
+        <button id="undoBtn" type="button" aria-keyshortcuts="Control+Z Meta+Z">↶ Undo</button>
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="copyBtn" class="primary" type="button">Copy edit</button>
+        <button id="newBtn" class="ghost" type="button">New text</button>
+      </div>
+      <div class="stats" id="stats" aria-live="polite"></div>
+    </div>
+    <p class="hint">Each card shows where it started (“was #3”) and a length bar — red bars are long sentences worth a second look. ¶ marks a sentence that opens a paragraph. Tip: with focus on a card, <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves it.</p>
+
+    <ol class="cards" id="cards" aria-label="Sentence cards in current order"></ol>
+    <div class="empty-state" id="allCut" hidden>
+      <div class="big">✂</div>
+      <p>Everything’s on the floor. Restore a sentence below, or undo.</p>
+    </div>
+
+    <details class="floor" id="floor">
+      <summary id="floorSum">Cutting-room floor (0)</summary>
+      <ul class="floorlist" id="floorList" aria-label="Cut sentences"></ul>
+      <p class="empty-floor" id="floorEmpty">Nothing cut yet. Use ✂ Cut on any card.</p>
+    </details>
+
+    <section class="panel" style="margin-top:20px" aria-labelledby="cmpH">
+      <h2 id="cmpH" style="margin:0 0 10px;font-size:1.1rem">Before / after</h2>
+      <div class="seg" role="tablist" aria-label="Preview mode">
+        <button role="tab" id="tabBoth" aria-selected="true" aria-controls="views" type="button">Side by side</button>
+        <button role="tab" id="tabOrig" aria-selected="false" aria-controls="views" type="button">Original</button>
+        <button role="tab" id="tabEdit" aria-selected="false" aria-controls="views" type="button">Edited</button>
+      </div>
+      <div class="views both" id="views" role="tabpanel" aria-live="polite">
+        <div class="view" id="vOrig"><h3>Original</h3><div class="prose" id="origProse"></div></div>
+        <div class="view" id="vEdit"><h3>Edited</h3><div class="prose" id="editProse"></div></div>
+      </div>
+      <div class="legend"><span class="sw" style="background:#f6d9d4"></span>cut <span class="sw" style="background:#cdeee6"></span>moved</div>
+    </section>
+  </section>
+
+  <div id="status" class="sr" role="status" aria-live="polite"></div>
+  <footer>Cut Room · a single offline page · your text never leaves this tab</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const MAX_CHARS = 20000, MAX_CARDS = 200, LONG_WORDS = 28;
+
+  const SAMPLES = [
+    "Thanks for coming to the planning session yesterday. I know it ran long and some of you had to leave early. We covered a lot, including the budget, the timeline and the volunteer rota. The main thing is that the community garden workday moves to Saturday the 9th. Please bring gloves if you have them.\n\nWe also talked about the compost bins, which still need fixing. Someone suggested a sign-up sheet for watering. Again, the key change is the new date, so please update your calendars. Lunch will be provided.",
+    "I wanted to write to you about the delay. As you may know, there have been some supply issues this quarter, and we have been working hard to resolve them, which has involved a number of conversations with several partners over many weeks. Your order will now arrive on Thursday. We are sorry for the inconvenience. There is no action needed on your part.\n\nIf you would prefer a refund instead, just reply to this message. Thank you for your patience.",
+    "This tool helps small teams keep their notes in one place. It started as a weekend project. It now syncs across devices and works offline. Setup takes about two minutes. The biggest benefit is that nobody has to ask where the latest version lives. We built it because we kept losing track of decisions. Try it free for a month."
+  ];
+  let sampleIdx = 0;
+
+  // ---- state ----
+  // sentences: [{id, text, words, origIndex, origPara}]
+  // state: {order: [id...] (kept, in current order), cut: [id...] (in cut order), para: {id: bool}}
+  let sentences = [];
+  let state = null;
+  let history = [];
+  let lastMoved = null;
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    src: $("src"), inputMsg: $("inputMsg"), inputPanel: $("inputPanel"), editor: $("editor"),
+    cards: $("cards"), allCut: $("allCut"), floor: $("floor"), floorSum: $("floorSum"),
+    floorList: $("floorList"), floorEmpty: $("floorEmpty"), stats: $("stats"),
+    undoBtn: $("undoBtn"), resetBtn: $("resetBtn"), copyBtn: $("copyBtn"), newBtn: $("newBtn"),
+    origProse: $("origProse"), editProse: $("editProse"), views: $("views"),
+    vOrig: $("vOrig"), vEdit: $("vEdit"), status: $("status")
+  };
+
+  const announce = (t) => { els.status.textContent = ""; setTimeout(() => { els.status.textContent = t; }, 30); };
+  const countWords = (s) => (s.trim().match(/\S+/g) || []).length;
+  const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // ---- splitting ----
+  function splitSentences(paragraph) {
+    if (typeof Intl !== "undefined" && Intl.Segmenter) {
+      try {
+        const seg = new Intl.Segmenter(undefined, { granularity: "sentence" });
+        return Array.from(seg.segment(paragraph), (s) => s.segment.trim()).filter(Boolean);
+      } catch (e) { /* fall through */ }
+    }
+    const out = paragraph.match(/[^.!?…]+(?:[.!?…]+["'”’)\]]*|$)/g) || [];
+    return out.map((s) => s.trim()).filter(Boolean);
+  }
+
+  function parse(text) {
+    const paras = text.replace(/\r\n?/g, "\n").split(/\n\s*\n+/).map((p) => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean);
+    const list = [];
+    paras.forEach((p, pi) => {
+      splitSentences(p).forEach((s, si) => {
+        list.push({ id: list.length, text: s, words: countWords(s), origIndex: list.length, origPara: pi, startsPara: si === 0 });
+      });
+    });
+    return list;
+  }
+
+  // ---- state helpers ----
+  const clone = (s) => ({ order: s.order.slice(), cut: s.cut.slice(), para: Object.assign({}, s.para) });
+  function commit(mutator, msg) {
+    history.push(clone(state));
+    if (history.length > 300) history.shift();
+    mutator(state);
+    render();
+    if (msg) announce(msg);
+  }
+
+  function minimalMoves(order) {
+    // cards outside the longest increasing run of original indices = cards that "moved"
+    const a = order.map((id) => sentences[id].origIndex);
+    const n = a.length; if (!n) return new Set();
+    const tails = [], tailIdx = [], prev = new Array(n).fill(-1);
+    for (let i = 0; i < n; i++) {
+      let lo = 0, hi = tails.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (tails[m] < a[i]) lo = m + 1; else hi = m; }
+      tails[lo] = a[i]; tailIdx[lo] = i; prev[i] = lo > 0 ? tailIdx[lo - 1] : -1;
+    }
+    const stay = new Set();
+    let k = tailIdx[tails.length - 1];
+    while (k !== -1 && k !== undefined) { stay.add(order[k]); k = prev[k]; }
+    const moved = new Set();
+    order.forEach((id) => { if (!stay.has(id)) moved.add(id); });
+    return moved;
+  }
+
+  function editedText() {
+    let out = "";
+    state.order.forEach((id, i) => {
+      const t = sentences[id].text;
+      if (i === 0) out = t;
+      else out += (state.para[id] ? "\n\n" : " ") + t;
+    });
+    return out;
+  }
+
+  // ---- rendering ----
+  function render() {
+    const moved = minimalMoves(state.order);
+    const maxW = Math.max(LONG_WORDS + 4, ...sentences.map((s) => s.words));
+
+    els.cards.innerHTML = "";
+    state.order.forEach((id, pos) => {
+      const s = sentences[id];
+      const li = document.createElement("li");
+      li.className = "card" + (state.para[id] && pos > 0 ? " para" : "") + (id === lastMoved ? " flash" : "");
+      li.tabIndex = 0;
+      li.dataset.id = id;
+      const snippet = s.text.length > 60 ? s.text.slice(0, 57) + "…" : s.text;
+      li.setAttribute("aria-label", `Card ${pos + 1} of ${state.order.length}, originally sentence ${s.origIndex + 1}: ${snippet}`);
+      const pct = Math.min(100, Math.round((s.words / maxW) * 100));
+      li.innerHTML =
+        `<div class="meta"><span class="tag">#${pos + 1}</span>` +
+        (moved.has(id) ? `<span class="tag moved">moved · was #${s.origIndex + 1}</span>` : `<span class="tag">was #${s.origIndex + 1}</span>`) +
+        (state.para[id] ? `<span class="tag para">¶</span>` : "") +
+        `<span class="lenbar" title="${s.words} words" aria-hidden="true"><i class="${s.words >= LONG_WORDS ? "long" : ""}" style="width:${pct}%"></i></span>` +
+        `<span>${s.words}w</span></div>` +
+        `<p class="stext">${esc(s.text)}</p>` +
+        `<div class="cardbtns">` +
+        `<button type="button" data-act="up" aria-label="Move sentence ${s.origIndex + 1} up" ${pos === 0 ? "disabled" : ""}>↑ Up</button>` +
+        `<button type="button" data-act="down" aria-label="Move sentence ${s.origIndex + 1} down" ${pos === state.order.length - 1 ? "disabled" : ""}>↓ Down</button>` +
+        `<button type="button" data-act="para" aria-pressed="${!!state.para[id]}" aria-label="Start a new paragraph at sentence ${s.origIndex + 1}">¶</button>` +
+        `<button type="button" class="cutbtn" data-act="cut" aria-label="Cut sentence ${s.origIndex + 1}">✂ Cut</button>` +
+        `</div>`;
+      els.cards.appendChild(li);
+    });
+    els.allCut.hidden = state.order.length > 0;
+
+    // floor
+    els.floorList.innerHTML = "";
+    state.cut.forEach((id) => {
+      const s = sentences[id];
+      const li = document.createElement("li");
+      li.innerHTML = `<span>${esc(s.text)}</span><button type="button" data-restore="${id}" aria-label="Restore sentence ${s.origIndex + 1}">Restore</button>`;
+      els.floorList.appendChild(li);
+    });
+    els.floorSum.textContent = `Cutting-room floor (${state.cut.length})`;
+    els.floorEmpty.hidden = state.cut.length > 0;
+
+    // stats
+    const before = sentences.reduce((n, s) => n + s.words, 0);
+    const after = state.order.reduce((n, id) => n + sentences[id].words, 0);
+    const pct = before ? Math.round((1 - after / before) * 100) : 0;
+    els.stats.innerHTML =
+      `<b>${state.order.length}</b>/${sentences.length} sentences kept · ` +
+      `<b>${after}</b> of ${before} words` + (pct > 0 ? ` (${pct}% leaner)` : "") +
+      ` · <b>${moved.size}</b> moved`;
+
+    // previews
+    const cutSet = new Set(state.cut);
+    let oHtml = "", curPara = -1;
+    sentences.forEach((s) => {
+      if (s.origPara !== curPara) { if (curPara !== -1) oHtml += "</p>"; oHtml += "<p>"; curPara = s.origPara; }
+      else oHtml += " ";
+      oHtml += cutSet.has(s.id) ? `<del>${esc(s.text)}</del>` : esc(s.text);
+    });
+    els.origProse.innerHTML = oHtml + "</p>";
+
+    if (!state.order.length) {
+      els.editProse.innerHTML = `<p><em>Nothing kept yet.</em></p>`;
+    } else {
+      let eHtml = "<p>";
+      state.order.forEach((id, i) => {
+        if (i > 0) eHtml += state.para[id] ? "</p><p>" : " ";
+        const t = esc(sentences[id].text);
+        eHtml += moved.has(id) ? `<mark class="mv">${t}</mark>` : t;
+      });
+      els.editProse.innerHTML = eHtml + "</p>";
+    }
+
+    els.undoBtn.disabled = history.length === 0;
+    els.copyBtn.disabled = state.order.length === 0;
+  }
+
+  function focusCardButton(id, act) {
+    const li = els.cards.querySelector(`li[data-id="${id}"]`);
+    if (!li) return;
+    let b = li.querySelector(`button[data-act="${act}"]`);
+    if (b && b.disabled) b = li.querySelector(`button[data-act="${act === "up" ? "down" : "up"}"]`);
+    (b && !b.disabled ? b : li).focus();
+  }
+
+  // ---- actions ----
+  function move(id, dir) {
+    const i = state.order.indexOf(id), j = i + dir;
+    if (i < 0 || j < 0 || j >= state.order.length) return;
+    lastMoved = id;
+    commit((s) => { [s.order[i], s.order[j]] = [s.order[j], s.order[i]]; },
+      `Moved to position ${j + 1} of ${state.order.length}.`);
+  }
+  function cut(id) {
+    const i = state.order.indexOf(id);
+    lastMoved = null;
+    commit((s) => { s.order.splice(i, 1); s.cut.push(id); }, "Sentence cut. It's on the cutting-room floor.");
+    const next = els.cards.children[Math.min(i, els.cards.children.length - 1)];
+    if (next) next.querySelector('button[data-act="cut"]').focus(); else els.floorSum.focus();
+  }
+  function restore(id) {
+    // put it back near its original neighbours: before the first kept card with a later original index
+    lastMoved = id;
+    commit((s) => {
+      s.cut = s.cut.filter((x) => x !== id);
+      const o = sentences[id].origIndex;
+      let at = s.order.findIndex((x) => sentences[x].origIndex > o);
+      if (at === -1) at = s.order.length;
+      s.order.splice(at, 0, id);
+    }, "Sentence restored to the strip.");
+    const b = els.floorList.querySelector("button");
+    if (b) b.focus(); else focusCardButton(id, "cut");
+  }
+  function togglePara(id) {
+    lastMoved = null;
+    commit((s) => { s.para[id] = !s.para[id]; }, "Paragraph break toggled.");
+    focusCardButton(id, "para");
+  }
+  function undo() {
+    if (!history.length) { announce("Nothing to undo."); return; }
+    state = history.pop();
+    lastMoved = null;
+    render();
+    announce("Undone.");
+  }
+  function resetAll() {
+    lastMoved = null;
+    commit((s) => {
+      s.order = sentences.map((x) => x.id);
+      s.cut = [];
+      s.para = {}; sentences.forEach((x) => { s.para[x.id] = x.startsPara; });
+    }, "Back to the original. Undo is still available.");
+  }
+
+  function load(text) {
+    const msg = els.inputMsg;
+    msg.className = "msg"; msg.textContent = "";
+    const t = text.trim();
+    if (!t) { msg.className = "msg err"; msg.textContent = "There’s nothing to cut yet. Paste some text, or tap “Try a sample”."; els.src.focus(); return; }
+    if (t.length > MAX_CHARS) { msg.className = "msg err"; msg.textContent = `That’s ${t.length.toLocaleString()} characters — Cut Room handles up to ${MAX_CHARS.toLocaleString()}. Try one section at a time.`; return; }
+    const list = parse(t);
+    if (!list.length) { msg.className = "msg err"; msg.textContent = "Couldn’t find any sentences in that text."; return; }
+    if (list.length > MAX_CARDS) { msg.className = "msg err"; msg.textContent = `That splits into ${list.length} sentences; the limit is ${MAX_CARDS}. Try a shorter passage.`; return; }
+    sentences = list;
+    state = { order: list.map((s) => s.id), cut: [], para: {} };
+    list.forEach((s) => { state.para[s.id] = s.startsPara; });
+    history = []; lastMoved = null;
+    els.inputPanel.hidden = true;
+    els.editor.hidden = false;
+    render();
+    if (list.length === 1) {
+      announce("Only one sentence found — add punctuation between ideas to get more cards.");
+      els.stats.innerHTML += " · <b>Tip:</b> only one sentence found; end ideas with . ! or ? to split them.";
+    } else {
+      announce(`${list.length} sentence cards ready.`);
+    }
+    const first = els.cards.querySelector("li"); if (first) first.focus();
+  }
+
+  async function copyOut() {
+    const text = editedText();
+    if (!text) { announce("Nothing kept to copy."); return; }
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; }
+    } catch (e) { ok = false; }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+    }
+    const old = "Copy edit";
+    els.copyBtn.textContent = ok ? "Copied ✓" : "Copy failed";
+    announce(ok ? "Edited text copied to clipboard." : "Copy was blocked. Select the Edited preview and copy it manually.");
+    setTimeout(() => { els.copyBtn.textContent = old; }, 1600);
+  }
+
+  // ---- events ----
+  $("splitBtn").addEventListener("click", () => load(els.src.value));
+  $("sampleBtn").addEventListener("click", () => {
+    els.src.value = SAMPLES[sampleIdx % SAMPLES.length]; sampleIdx++;
+    els.inputMsg.className = "msg info";
+    els.inputMsg.textContent = "Sample loaded. Each one buries its most important sentence — can you find it and bring it to the top?";
+  });
+  $("clearBtn").addEventListener("click", () => { els.src.value = ""; els.inputMsg.className = "msg"; els.inputMsg.textContent = ""; els.src.focus(); });
+  els.newBtn.addEventListener("click", () => {
+    els.editor.hidden = true; els.inputPanel.hidden = false;
+    els.src.focus();
+  });
+  els.undoBtn.addEventListener("click", undo);
+  els.resetBtn.addEventListener("click", resetAll);
+  els.copyBtn.addEventListener("click", copyOut);
+
+  els.cards.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    const id = +b.closest("li").dataset.id, act = b.dataset.act;
+    if (act === "up") { move(id, -1); focusCardButton(id, "up"); }
+    else if (act === "down") { move(id, 1); focusCardButton(id, "down"); }
+    else if (act === "cut") cut(id);
+    else if (act === "para") togglePara(id);
+  });
+  els.cards.addEventListener("keydown", (e) => {
+    if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    const li = e.target.closest("li.card"); if (!li) return;
+    e.preventDefault();
+    const id = +li.dataset.id;
+    move(id, e.key === "ArrowUp" ? -1 : 1);
+    const nli = els.cards.querySelector(`li[data-id="${id}"]`); if (nli) nli.focus();
+  });
+  els.floorList.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-restore]"); if (b) restore(+b.dataset.restore);
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z" && !els.editor.hidden && e.target !== els.src) {
+      e.preventDefault(); undo();
+    }
+  });
+
+  const tabs = { tabBoth: "both", tabOrig: "orig", tabEdit: "edit" };
+  Object.keys(tabs).forEach((tid) => {
+    $(tid).addEventListener("click", () => {
+      Object.keys(tabs).forEach((k) => $(k).setAttribute("aria-selected", String(k === tid)));
+      const m = tabs[tid];
+      els.views.className = "views" + (m === "both" ? " both" : "");
+      els.vOrig.hidden = m === "edit";
+      els.vEdit.hidden = m === "orig";
+    });
+  });
+
+  // test hook (read-only)
+  window.__cutRoom = { editedText: () => editedText(), state: () => clone(state) };
+})();
+</script>
+</body>
+</html>
