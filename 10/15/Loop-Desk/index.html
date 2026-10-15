@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loop Desk — a tiny 6-frame pixel flipbook</title>
+<meta name="description" content="Draw a 16×16, six-frame pixel loop with onion skin, watch it play live, and download a sprite sheet PNG.">
+<meta name="theme-color" content="#2f6f5e">
+<style>
+  :root {
+    --mat: #2f6f5e;
+    --mat-line: rgba(255, 255, 255, .07);
+    --paper: #fffaf2;
+    --paper-2: #f3e9d8;
+    --ink: #1d1a2f;
+    --muted: #5d5870;
+    --accent: #ff5d73;
+    --sun: #ffd166;
+    --focus: #3a86ff;
+    --r: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    color: var(--ink);
+    background-color: var(--mat);
+    background-image:
+      linear-gradient(var(--mat-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--mat-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    font: 16px/1.45 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: max(14px, env(safe-area-inset-top)) 12px 48px; }
+  .card {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: var(--r);
+    box-shadow: 4px 4px 0 var(--ink);
+    padding: 14px;
+    min-width: 0;
+  }
+  h1, h2 { margin: 0; line-height: 1.1; }
+  h2 { font-size: 1rem; letter-spacing: .08em; text-transform: uppercase; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  /* Header */
+  header.card { position: relative; margin-bottom: 16px; overflow: hidden; }
+  .title-row { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 48px; height: 48px; flex: 0 0 48px; image-rendering: pixelated; border: 2px solid var(--ink); border-radius: 10px; background: var(--paper-2); }
+  h1 { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: clamp(1.7rem, 7vw, 2.5rem); letter-spacing: .14em; font-weight: 900; }
+  h1 span { color: var(--accent); }
+  .tag { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+  .steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .steps li { background: var(--paper-2); border-radius: 10px; padding: 8px 10px; font-size: .9rem; display: flex; gap: 8px; align-items: flex-start; }
+  .steps b { flex: 0 0 auto; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--ink); color: var(--sun); font-size: .8rem; font-family: ui-monospace, Menlo, monospace; }
+  @media (min-width: 720px) { .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  /* Layout */
+  .desk { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 860px) {
+    .desk { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); align-items: start; }
+    .side { position: sticky; top: 12px; }
+  }
+  .side { display: grid; gap: 16px; min-width: 0; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: .85rem; }
+
+  /* Buttons */
+  .btn {
+    min-height: 44px; min-width: 44px;
+    border: 2px solid var(--ink); border-radius: 11px;
+    background: #fff; color: var(--ink);
+    font: inherit; font-weight: 700; font-size: .92rem;
+    padding: 0 12px;
+    box-shadow: 2px 2px 0 var(--ink);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform .06s, box-shadow .06s, background .15s;
+  }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+  .btn[aria-pressed="true"] { background: var(--sun); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.warn { background: #ffe1e5; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn .ico { font-family: ui-monospace, Menlo, monospace; font-size: 1.05rem; line-height: 1; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+  /* Editor */
+  .stage {
+    position: relative;
+    width: 100%; max-width: 480px; margin: 0 auto;
+    border: 2px solid var(--ink); border-radius: 12px; overflow: hidden;
+    background: var(--paper-2);
+  }
+  #editor { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; touch-action: none; cursor: crosshair; image-rendering: pixelated; }
+  #editor:focus-visible { outline: none; }
+  .stage:focus-within { box-shadow: 0 0 0 3px var(--focus); }
+  .frame-badge { position: absolute; top: 8px; left: 8px; background: var(--ink); color: var(--sun); border-radius: 8px; padding: 2px 8px; font: 700 .8rem ui-monospace, Menlo, monospace; pointer-events: none; }
+  .tools { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+  .tools .btn { padding: 0 4px; flex-direction: column; gap: 0; min-height: 52px; font-size: .78rem; }
+  .tools .btn .ico { font-size: 1.15rem; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 2px solid var(--ink); vertical-align: middle; }
+
+  .palette { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+  .swatch {
+    min-height: 44px; min-width: 0; height: 48px;
+    border: 2px solid var(--ink); border-radius: 10px; cursor: pointer;
+    box-shadow: 2px 2px 0 var(--ink);
+    position: relative; padding: 0;
+    touch-action: manipulation;
+  }
+  .swatch[aria-pressed="true"] { transform: translateY(-3px); box-shadow: 2px 5px 0 var(--ink); }
+  .swatch[aria-pressed="true"]::after {
+    content: ""; position: absolute; left: 50%; bottom: -10px; width: 8px; height: 8px; margin-left: -4px;
+    background: var(--ink); border-radius: 50%;
+  }
+
+  .frames { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 18px; }
+  .frame-btn {
+    position: relative; padding: 4px; min-height: 44px; min-width: 0;
+    border: 2px solid var(--ink); border-radius: 10px; background: #fff; cursor: pointer;
+    box-shadow: 2px 2px 0 var(--ink); display: grid; gap: 2px; justify-items: center;
+    font: 700 .75rem ui-monospace, Menlo, monospace; color: var(--ink);
+    touch-action: manipulation;
+  }
+  .frame-btn canvas {
+    width: 100%; aspect-ratio: 1 / 1; height: auto; image-rendering: pixelated; border-radius: 4px;
+    background-color: #f8f2e7;
+    background-image: linear-gradient(45deg, #ece2d0 25%, transparent 25%, transparent 75%, #ece2d0 75%), linear-gradient(45deg, #ece2d0 25%, transparent 25%, transparent 75%, #ece2d0 75%);
+    background-size: 12.5% 12.5%; background-position: 0 0, 6.25% 6.25%;
+  }
+  .frame-btn[aria-pressed="true"] { background: var(--sun); transform: translateY(-3px); box-shadow: 2px 5px 0 var(--ink); }
+  .frame-btn.playing::before {
+    content: ""; position: absolute; top: -7px; left: 50%; margin-left: -5px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--ink);
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .row .btn { flex: 1 1 auto; }
+  .status { min-height: 1.45em; margin: 10px 0 0; font-size: .88rem; color: var(--muted); }
+
+  .confirm {
+    margin-top: 12px; padding: 12px; border: 2px dashed var(--accent); border-radius: 12px; background: #fff0f2;
+  }
+  .confirm p { margin: 0 0 10px; font-weight: 700; }
+  .confirm .row { margin-top: 0; }
+
+  /* Preview */
+  .preview-box {
+    display: grid; place-items: center; padding: 14px; border-radius: 12px; border: 2px solid var(--ink);
+    background-color: #f8f2e7;
+    background-image: linear-gradient(45deg, #ece2d0 25%, transparent 25%, transparent 75%, #ece2d0 75%), linear-gradient(45deg, #ece2d0 25%, transparent 25%, transparent 75%, #ece2d0 75%);
+    background-size: 16px 16px; background-position: 0 0, 8px 8px;
+  }
+  #preview { width: min(192px, 60vw); height: auto; aspect-ratio: 1 / 1; image-rendering: pixelated; display: block; }
+  .fps { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 12px; }
+  .fps label { font-weight: 700; font-size: .9rem; }
+  .fps output { font: 700 .9rem ui-monospace, Menlo, monospace; min-width: 4.5ch; text-align: right; }
+  input[type=range] { width: 100%; min-height: 44px; accent-color: var(--accent); margin: 0; }
+  .pv-meta { display: flex; justify-content: space-between; margin-top: 8px; font: .8rem ui-monospace, Menlo, monospace; color: var(--muted); }
+
+  /* Export */
+  .field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .field label { font-weight: 700; font-size: .9rem; }
+  select {
+    min-height: 44px; border: 2px solid var(--ink); border-radius: 11px; background: #fff; color: var(--ink);
+    font: inherit; padding: 0 10px; flex: 1 1 140px; min-width: 0;
+  }
+  .fallback { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--paper-2); border: 2px solid var(--ink); }
+  .fallback p { margin: 0 0 8px; font-size: .9rem; }
+  .fallback img {
+    display: block; max-width: 100%; height: auto; image-rendering: pixelated; border-radius: 6px;
+    background-color: #fff;
+    background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%);
+    background-size: 12px 12px; background-position: 0 0, 6px 6px;
+  }
+  details { margin-top: 12px; font-size: .9rem; }
+  summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+  details ul { margin: 0; padding-left: 1.2em; }
+  kbd { font: .8rem ui-monospace, Menlo, monospace; background: #fff; border: 1.5px solid var(--ink); border-bottom-width: 3px; border-radius: 5px; padding: 0 5px; }
+  footer { text-align: center; color: rgba(255,255,255,.75); font-size: .82rem; margin-top: 20px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .btn, .swatch, .frame-btn { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="card">
+    <div class="title-row">
+      <canvas class="logo" id="logo" width="16" height="16" aria-hidden="true"></canvas>
+      <div>
+        <h1>LOOP<span>·</span>DESK</h1>
+        <p class="tag">A pocket flipbook: six 16×16 frames, one tiny loop, made in minutes.</p>
+      </div>
+    </div>
+    <ol class="steps">
+      <li><b>1</b><span>Tap or drag on the grid to draw. A hopping blob is already loaded to remix.</span></li>
+      <li><b>2</b><span>Pick a frame below. Onion skin ghosts the frame before it.</span></li>
+      <li><b>3</b><span>Watch the live preview loop. Slide FPS to change the speed.</span></li>
+      <li><b>4</b><span>Download a sprite sheet PNG with all six frames side by side.</span></li>
+    </ol>
+  </header>
+
+  <main class="desk">
+    <section class="card" aria-labelledby="ed-h">
+      <div class="section-head">
+        <h2 id="ed-h">Drawing desk</h2>
+        <span class="hint">Arrow keys move · Space paints</span>
+      </div>
+      <div class="stage">
+        <canvas id="editor" tabindex="0" role="application"
+          aria-label="Pixel grid, 16 by 16. Use arrow keys to move the cursor, Space or Enter to paint with the current tool, Shift plus arrows to paint while moving."
+          aria-describedby="status"></canvas>
+        <span class="frame-badge" id="badge" aria-hidden="true">F1/6</span>
+      </div>
+
+      <div class="tools" role="toolbar" aria-label="Drawing tools">
+        <button class="btn" id="t-pen" aria-pressed="true" title="Pen (B)"><span class="ico"><span class="dot" id="pen-dot"></span></span>Pen</button>
+        <button class="btn" id="t-eraser" aria-pressed="false" title="Eraser (E)"><span class="ico">⌫</span>Erase</button>
+        <button class="btn" id="t-fill" aria-pressed="false" title="Fill (F)"><span class="ico">▣</span>Fill</button>
+        <button class="btn" id="t-undo" title="Undo (Z or Ctrl/Cmd+Z)"><span class="ico">↶</span>Undo</button>
+        <button class="btn" id="t-onion" aria-pressed="true" title="Onion skin (O)"><span class="ico">◐</span>Onion</button>
+      </div>
+
+      <div class="palette" id="palette" role="group" aria-label="Colour palette"></div>
+
+      <div class="frames" id="frames" role="group" aria-label="Frames 1 to 6"></div>
+
+      <div class="row">
+        <button class="btn" id="copy-prev" title="Copy previous frame (C)"><span class="ico">⧉</span>Copy previous</button>
+        <button class="btn" id="clear-frame"><span class="ico">□</span>Clear frame</button>
+        <button class="btn warn" id="reset" aria-expanded="false" aria-controls="confirm"><span class="ico">↺</span>Reset…</button>
+      </div>
+
+      <div class="confirm" id="confirm" hidden role="group" aria-labelledby="confirm-q">
+        <p id="confirm-q">Replace all six frames? You can use Undo to restore them.</p>
+        <div class="row">
+          <button class="btn warn" id="reset-blank">Yes, start blank</button>
+          <button class="btn" id="reset-demo">Yes, reload demo</button>
+          <button class="btn" id="reset-cancel">Keep my loop</button>
+        </div>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <div class="side">
+      <section class="card" aria-labelledby="pv-h">
+        <div class="section-head">
+          <h2 id="pv-h">Live loop</h2>
+          <span class="hint" id="pv-state">playing</span>
+        </div>
+        <div class="preview-box">
+          <canvas id="preview" width="192" height="192" role="img" aria-label="Animated preview of your six-frame loop"></canvas>
+        </div>
+        <div class="pv-meta"><span id="pv-frame">frame 1</span><span id="pv-len">6 frames · 0.75 s loop</span></div>
+        <div class="row">
+          <button class="btn primary" id="play" aria-pressed="true" title="Start/Stop (P)"><span class="ico" id="play-ico">■</span><span id="play-txt">Stop</span></button>
+        </div>
+        <div class="fps">
+          <label for="fps">Speed</label>
+          <input type="range" id="fps" min="1" max="15" step="1" value="8">
+          <output id="fps-out" for="fps">8 fps</output>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="ex-h">
+        <div class="section-head">
+          <h2 id="ex-h">Sprite sheet</h2>
+          <span class="hint">6 frames in a row, transparent PNG</span>
+        </div>
+        <div class="field">
+          <label for="scale">Pixel size</label>
+          <select id="scale">
+            <option value="1">1× · 96 × 16 px</option>
+            <option value="4">4× · 384 × 64 px</option>
+            <option value="8" selected>8× · 768 × 128 px</option>
+            <option value="16">16× · 1536 × 256 px</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="download"><span class="ico">⇩</span>Download PNG</button>
+          <button class="btn" id="show-img" aria-expanded="false" aria-controls="fallback"><span class="ico">◫</span>Show image</button>
+        </div>
+        <div class="fallback" id="fallback" hidden>
+          <p id="fallback-msg">If the download didn’t start, long-press (phone) or right-click (desktop) the image and choose “Save image”.</p>
+          <img id="sheet-img" alt="Sprite sheet: your six frames side by side">
+        </div>
+        <details>
+          <summary>Keyboard shortcuts</summary>
+          <ul>
+            <li><kbd>B</kbd> pen · <kbd>E</kbd> eraser · <kbd>F</kbd> fill</li>
+            <li><kbd>1</kbd>–<kbd>6</kbd> jump to frame · <kbd>,</kbd> / <kbd>.</kbd> prev / next frame</li>
+            <li><kbd>C</kbd> copy previous frame · <kbd>O</kbd> onion skin</li>
+            <li><kbd>Z</kbd> or <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd> undo · <kbd>P</kbd> start/stop</li>
+            <li>On the grid: arrows move, <kbd>Space</kbd>/<kbd>Enter</kbd> paint, <kbd>Shift</kbd>+arrows paint a line</li>
+          </ul>
+        </details>
+      </section>
+    </div>
+  </main>
+  <footer>Loop Desk · everything stays in this page (and your browser’s local storage). No network needed.</footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const N = 16, FRAMES = 6, CELL = 24, PV = 12;
+  const PALETTE = [null, '#1d1a2f', '#ffffff', '#ff5d73', '#ff9f43', '#ffd166', '#7ae582',
+                   '#2ec4b6', '#3a86ff', '#8338ec', '#ff8fab', '#8d6e63', '#9aa5b1'];
+  const NAMES = ['Transparent', 'Ink', 'White', 'Coral', 'Orange', 'Butter', 'Mint',
+                 'Teal', 'Blue', 'Violet', 'Pink', 'Cocoa', 'Pebble'];
+  const STORE = 'loop-desk-v1';
+  const UNDO_MAX = 100;
+
+  const $ = (id) => document.getElementById(id);
+  const ed = $('editor'), ectx = ed.getContext('2d');
+  const pv = $('preview'), pctx = pv.getContext('2d');
+  const logo = $('logo'), lctx = logo.getContext('2d');
+  ed.width = ed.height = N * CELL;
+  pv.width = pv.height = N * PV;
+
+  let frames = [];
+  let cur = 0, color = 7, tool = 'pen', onion = true;
+  let undoStack = [];
+  let playing = false, fps = 8, playIdx = 0, timer = null;
+  let cursor = { x: 7, y: 7 }, kbd = false;
+
+  // ---------- starter demo: a hopping blob ----------
+  const BLOB = ['..aaaaaa..', '.aaaaaaaa.', 'aawwaawwaa', 'aawkaawkaa',
+                'aaaaaaaaaa', 'aaaappaaaa', '.aaaaaaaa.', '..a....a..'];
+  const SQUASH = ['.aaaaaaaaaa.', 'aaawwaawwaaa', 'aaawkaawkaaa', 'aaaaappaaaaa', '.aaaaaaaaaa.'];
+  const MAP = { a: 7, w: 2, k: 1, p: 10 };
+  function stamp(f, rows, ox, oy) {
+    rows.forEach((r, y) => [...r].forEach((ch, x) => {
+      const v = MAP[ch], X = ox + x, Y = oy + y;
+      if (v && X >= 0 && X < N && Y >= 0 && Y < N) f[Y * N + X] = v;
+    }));
+  }
+  function demoFrames() {
+    const lifts = [0, -2, -4, -5, -4, -2];
+    return lifts.map((lift, i) => {
+      const f = new Uint8Array(N * N);
+      for (let x = 0; x < N; x++) f[15 * N + x] = 11;
+      const sw = lift === 0 ? 5 : lift > -3 ? 4 : 3;
+      for (let x = 8 - sw; x < 8 + sw; x++) f[14 * N + x] = 12;
+      if (i === 0) stamp(f, SQUASH, 2, 9);
+      else stamp(f, BLOB, 3, 6 + lift);
+      if (i === 3) { f[1 * N + 14] = 5; f[2 * N + 13] = 5; f[2 * N + 15] = 5; f[3 * N + 14] = 5; f[2 * N + 14] = 2; }
+      if (i === 2 || i === 4) f[2 * N + 14] = 5;
+      return f;
+    });
+  }
+  const blankFrames = () => Array.from({ length: FRAMES }, () => new Uint8Array(N * N));
+
+  // ---------- persistence ----------
+  function save() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        f: frames.map((f) => Array.from(f, (v) => v.toString(16)).join('')), fps, color
+      }));
+    } catch (e) { /* storage may be blocked; the loop still works for this visit */ }
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (!raw) return false;
+      const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.f) || d.f.length !== FRAMES) return false;
+      const out = d.f.map((s) => {
+        if (typeof s !== 'string' || s.length !== N * N) throw new Error('bad');
+        return Uint8Array.from(s, (c) => { const v = parseInt(c, 16); return v >= 0 && v < PALETTE.length ? v : 0; });
+      });
+      frames = out;
+      if (d.fps >= 1 && d.fps <= 15) fps = d.fps | 0;
+      if (d.color >= 1 && d.color < PALETTE.length) color = d.color | 0;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // ---------- drawing helpers ----------
+  function paintFrame(c, f, s, ox = 0) {
+    for (let i = 0; i < N * N; i++) {
+      const v = f[i];
+      if (v) { c.fillStyle = PALETTE[v]; c.fillRect(ox + (i % N) * s, ((i / N) | 0) * s, s, s); }
+    }
+  }
+  const prevIndex = (i) => (i + FRAMES - 1) % FRAMES;
+
+  function drawEditor() {
+    const c = ectx, S = CELL;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      c.fillStyle = (x + y) % 2 ? '#efe5d3' : '#f9f3e8';
+      c.fillRect(x * S, y * S, S, S);
+    }
+    if (onion) {
+      c.globalAlpha = 0.28;
+      paintFrame(c, frames[prevIndex(cur)], S);
+      c.globalAlpha = 1;
+    }
+    paintFrame(c, frames[cur], S);
+    c.lineWidth = 1;
+    for (let i = 1; i < N; i++) {
+      c.strokeStyle = i % 4 === 0 ? 'rgba(29,26,47,.22)' : 'rgba(29,26,47,.09)';
+      c.beginPath(); c.moveTo(i * S + .5, 0); c.lineTo(i * S + .5, N * S); c.stroke();
+      c.beginPath(); c.moveTo(0, i * S + .5); c.lineTo(N * S, i * S + .5); c.stroke();
+    }
+    if (kbd) {
+      c.lineWidth = 3; c.strokeStyle = '#3a86ff';
+      c.strokeRect(cursor.x * S + 1.5, cursor.y * S + 1.5, S - 3, S - 3);
+      c.lineWidth = 1; c.strokeStyle = '#fff';
+      c.strokeRect(cursor.x * S + 4.5, cursor.y * S + 4.5, S - 9, S - 9);
+    }
+    $('badge').textContent = `F${cur + 1}/${FRAMES}${onion ? ' · onion ' + (prevIndex(cur) + 1) : ''}`;
+  }
+
+  const thumbs = [];
+  function buildFrames() {
+    const box = $('frames');
+    for (let i = 0; i < FRAMES; i++) {
+      const b = document.createElement('button');
+      b.className = 'frame-btn';
+      b.type = 'button';
+      b.setAttribute('aria-label', `Frame ${i + 1}`);
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = N;
+      cv.setAttribute('aria-hidden', 'true');
+      const lab = document.createElement('span');
+      lab.textContent = i + 1;
+      lab.setAttribute('aria-hidden', 'true');
+      b.append(cv, lab);
+      b.addEventListener('click', () => selectFrame(i));
+      box.appendChild(b);
+      thumbs.push({ b, c: cv.getContext('2d') });
+    }
+  }
+  function drawThumbs() {
+    thumbs.forEach((t, i) => {
+      t.c.clearRect(0, 0, N, N);
+      paintFrame(t.c, frames[i], 1);
+      t.b.setAttribute('aria-pressed', String(i === cur));
+      t.b.classList.toggle('playing', playing && i === playIdx);
+    });
+  }
+  function drawPreview() {
+    const i = playing ? playIdx : cur;
+    pctx.clearRect(0, 0, pv.width, pv.height);
+    paintFrame(pctx, frames[i], PV);
+    lctx.clearRect(0, 0, N, N);
+    paintFrame(lctx, frames[i], 1);
+    $('pv-frame').textContent = `frame ${i + 1}`;
+  }
+  function renderAll() { drawEditor(); drawThumbs(); drawPreview(); }
+
+  // ---------- palette & tools ----------
+  const swatches = [];
+  function buildPalette() {
+    const box = $('palette');
+    for (let v = 1; v < PALETTE.length; v++) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch';
+      b.style.background = PALETTE[v];
+      b.setAttribute('aria-label', NAMES[v]);
+      b.title = NAMES[v];
+      b.addEventListener('click', () => { color = v; if (tool === 'eraser') setTool('pen'); syncUI(); say(`Colour: ${NAMES[v]}`); save(); });
+      box.appendChild(b);
+      swatches.push(b);
+    }
+  }
+  function setTool(t) {
+    tool = t;
+    syncUI();
+    say(`Tool: ${t === 'pen' ? 'pen' : t === 'eraser' ? 'eraser' : 'fill bucket'}`);
+  }
+  function syncUI() {
+    $('t-pen').setAttribute('aria-pressed', String(tool === 'pen'));
+    $('t-eraser').setAttribute('aria-pressed', String(tool === 'eraser'));
+    $('t-fill').setAttribute('aria-pressed', String(tool === 'fill'));
+    $('t-onion').setAttribute('aria-pressed', String(onion));
+    $('pen-dot').style.background = PALETTE[color];
+    swatches.forEach((b, i) => b.setAttribute('aria-pressed', String(i + 1 === color)));
+    $('t-undo').disabled = undoStack.length === 0;
+    $('copy-prev').title = `Copy frame ${prevIndex(cur) + 1} into frame ${cur + 1} (C)`;
+  }
+  function say(msg) { $('status').textContent = msg; }
+
+  // ---------- undo ----------
+  function pushUndo(entry) {
+    undoStack.push(entry);
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+  }
+  const snapFrame = (i) => ({ i, data: frames[i].slice() });
+  function undo() {
+    const u = undoStack.pop();
+    if (!u) { say('Nothing to undo.'); return; }
+    if (u.all) frames = u.all.map((f) => f.slice());
+    else { frames[u.i] = u.data; cur = u.i; }
+    say(u.all ? 'Undid: all frames restored.' : `Undid a change on frame ${cur + 1}.`);
+    commit();
+  }
+  function commit() { renderAll(); syncUI(); save(); }
+
+  // ---------- painting ----------
+  const valueForTool = () => (tool === 'eraser' ? 0 : color);
+  function plot(x, y) {
+    const f = frames[cur], i = y * N + x, v = valueForTool();
+    if (f[i] === v) return false;
+    f[i] = v; return true;
+  }
+  function line(a, b) {
+    let x0 = a.x, y0 = a.y; const x1 = b.x, y1 = b.y;
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy, changed = false;
+    for (;;) {
+      changed = plot(x0, y0) || changed;
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x0 += sx; }
+      if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+    return changed;
+  }
+  function fill(x, y) {
+    const f = frames[cur], target = f[y * N + x], v = color;
+    if (target === v) return false;
+    const stack = [[x, y]];
+    while (stack.length) {
+      const [cx, cy] = stack.pop();
+      if (cx < 0 || cy < 0 || cx >= N || cy >= N) continue;
+      const i = cy * N + cx;
+      if (f[i] !== target) continue;
+      f[i] = v;
+      stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+    return true;
+  }
+  function applyAt(x, y) {
+    const before = snapFrame(cur);
+    const changed = tool === 'fill' ? fill(x, y) : plot(x, y);
+    if (changed) { pushUndo(before); commit(); }
+    return changed;
+  }
+
+  // pointer drawing (mouse, pen, touch)
+  let drawing = null;
+  function cellAt(e) {
+    const r = ed.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    const x = Math.floor(((e.clientX - r.left) / r.width) * N);
+    const y = Math.floor(((e.clientY - r.top) / r.height) * N);
+    return { x: Math.max(0, Math.min(N - 1, x)), y: Math.max(0, Math.min(N - 1, y)) };
+  }
+  ed.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    const p = cellAt(e);
+    if (!p) return;
+    kbd = false;
+    cursor = p;
+    if (tool === 'fill') { applyAt(p.x, p.y); return; }
+    try { ed.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    drawing = { id: e.pointerId, last: p, before: snapFrame(cur), changed: plot(p.x, p.y) };
+    drawEditor(); drawPreview();
+  });
+  ed.addEventListener('pointermove', (e) => {
+    if (!drawing || e.pointerId !== drawing.id) return;
+    e.preventDefault();
+    const p = cellAt(e);
+    if (!p || (p.x === drawing.last.x && p.y === drawing.last.y)) return;
+    if (line(drawing.last, p)) { drawing.changed = true; drawEditor(); drawPreview(); }
+    drawing.last = p;
+  });
+  function endStroke(e) {
+    if (!drawing || (e && e.pointerId !== drawing.id)) return;
+    if (drawing.changed) pushUndo(drawing.before);
+    drawing = null;
+    commit();
+  }
+  ed.addEventListener('pointerup', endStroke);
+  ed.addEventListener('pointercancel', endStroke);
+  ed.addEventListener('lostpointercapture', endStroke);
+  ed.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // keyboard drawing on the grid
+  ed.addEventListener('focus', () => { kbd = true; drawEditor(); });
+  ed.addEventListener('blur', () => { kbd = false; drawEditor(); });
+  ed.addEventListener('keydown', (e) => {
+    const moves = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const m = moves[e.key];
+    if (m) {
+      e.preventDefault();
+      kbd = true;
+      cursor = { x: Math.max(0, Math.min(N - 1, cursor.x + m[0])), y: Math.max(0, Math.min(N - 1, cursor.y + m[1])) };
+      if (e.shiftKey && tool !== 'fill') applyAt(cursor.x, cursor.y);
+      drawEditor();
+      say(`Cursor row ${cursor.y + 1}, column ${cursor.x + 1}`);
+      return;
+    }
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      kbd = true;
+      const changed = applyAt(cursor.x, cursor.y);
+      drawEditor();
+      say(changed ? `Painted row ${cursor.y + 1}, column ${cursor.x + 1}` : 'Already that colour.');
+    }
+  });
+
+  // ---------- frames ----------
+  function selectFrame(i) {
+    cur = (i + FRAMES) % FRAMES;
+    renderAll(); syncUI();
+    say(`Editing frame ${cur + 1}${onion ? ` (onion shows frame ${prevIndex(cur) + 1})` : ''}.`);
+  }
+  function copyPrev() {
+    const p = prevIndex(cur);
+    pushUndo(snapFrame(cur));
+    frames[cur] = frames[p].slice();
+    commit();
+    say(`Copied frame ${p + 1} into frame ${cur + 1}. Nudge a few pixels to make it move.`);
+  }
+  function clearFrame() {
+    if (!frames[cur].some((v) => v)) { say('Frame is already empty.'); return; }
+    pushUndo(snapFrame(cur));
+    frames[cur].fill(0);
+    commit();
+    say(`Cleared frame ${cur + 1}. Undo brings it back.`);
+  }
+
+  // reset with confirmation
+  function openConfirm(open) {
+    $('confirm').hidden = !open;
+    $('reset').setAttribute('aria-expanded', String(open));
+    if (open) $('reset-cancel').focus();
+  }
+  function doReset(useDemo) {
+    pushUndo({ all: frames.map((f) => f.slice()) });
+    frames = useDemo ? demoFrames() : blankFrames();
+    cur = 0;
+    openConfirm(false);
+    commit();
+    $('reset').focus();
+    say(useDemo ? 'Demo reloaded. Undo restores your previous loop.' : 'Fresh desk: six blank frames. Undo restores your previous loop.');
+  }
+
+  // ---------- playback ----------
+  function updateLen() {
+    $('pv-len').textContent = `${FRAMES} frames · ${(FRAMES / fps).toFixed(2).replace(/\.?0+$/, '')} s loop`;
+  }
+  function tick() {
+    playIdx = (playIdx + 1) % FRAMES;
+    drawPreview(); drawThumbs();
+    timer = setTimeout(tick, 1000 / fps);
+  }
+  function setPlaying(on) {
+    playing = on;
+    clearTimeout(timer); timer = null;
+    if (on) { playIdx = cur; timer = setTimeout(tick, 1000 / fps); }
+    $('play').setAttribute('aria-pressed', String(on));
+    $('play-ico').textContent = on ? '■' : '▶';
+    $('play-txt').textContent = on ? 'Stop' : 'Start';
+    $('pv-state').textContent = on ? 'playing' : 'stopped — showing frame you edit';
+    drawPreview(); drawThumbs();
+  }
+
+  // ---------- export ----------
+  function buildSheet(scale) {
+    const cv = document.createElement('canvas');
+    cv.width = N * FRAMES * scale;
+    cv.height = N * scale;
+    const c = cv.getContext('2d');
+    if (!c) throw new Error('no canvas context');
+    c.imageSmoothingEnabled = false;
+    frames.forEach((f, k) => paintFrame(c, f, scale, k * N * scale));
+    return cv;
+  }
+  function showFallback(cv, msg) {
+    let url = '';
+    try { url = cv.toDataURL('image/png'); } catch (e) { url = ''; }
+    const box = $('fallback');
+    box.hidden = false;
+    $('show-img').setAttribute('aria-expanded', 'true');
+    if (url) {
+      $('sheet-img').src = url;
+      $('sheet-img').hidden = false;
+      $('fallback-msg').textContent = msg || 'Long-press (phone) or right-click (desktop) the image and choose “Save image”.';
+    } else {
+      $('sheet-img').hidden = true;
+      $('fallback-msg').textContent = 'This browser blocked image export. Try a different browser, or screenshot the live preview.';
+    }
+  }
+  function download() {
+    const scale = parseInt($('scale').value, 10) || 8;
+    const name = `loop-desk-sprite-sheet-${N * FRAMES * scale}x${N * scale}.png`;
+    let cv;
+    try { cv = buildSheet(scale); } catch (e) { say('Could not build the sprite sheet in this browser.'); return; }
+    const fallback = (why) => { showFallback(cv, why); say('Download blocked — the sprite sheet is shown below to save by hand.'); };
+    if (!cv.toBlob) { fallback(); return; }
+    try {
+      cv.toBlob((blob) => {
+        if (!blob) { fallback(); return; }
+        try {
+          const a = document.createElement('a');
+          if (!('download' in a)) { fallback(); return; }
+          const url = URL.createObjectURL(blob);
+          a.href = url; a.download = name; a.rel = 'noopener';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          say(`Saved ${name}. No file? Tap “Show image” to save it by hand.`);
+        } catch (e) { fallback(); }
+      }, 'image/png');
+    } catch (e) { fallback(); }
+  }
+  function toggleImage() {
+    const box = $('fallback');
+    if (!box.hidden) { box.hidden = true; $('show-img').setAttribute('aria-expanded', 'false'); return; }
+    try { showFallback(buildSheet(parseInt($('scale').value, 10) || 8)); }
+    catch (e) { say('Could not build the sprite sheet in this browser.'); }
+  }
+
+  // ---------- wiring ----------
+  $('t-pen').addEventListener('click', () => setTool('pen'));
+  $('t-eraser').addEventListener('click', () => setTool('eraser'));
+  $('t-fill').addEventListener('click', () => setTool('fill'));
+  $('t-undo').addEventListener('click', undo);
+  $('t-onion').addEventListener('click', () => { onion = !onion; renderAll(); syncUI(); say(`Onion skin ${onion ? 'on' : 'off'}.`); });
+  $('copy-prev').addEventListener('click', copyPrev);
+  $('clear-frame').addEventListener('click', clearFrame);
+  $('reset').addEventListener('click', () => openConfirm($('confirm').hidden));
+  $('reset-cancel').addEventListener('click', () => { openConfirm(false); $('reset').focus(); say('Kept your loop.'); });
+  $('reset-blank').addEventListener('click', () => doReset(false));
+  $('reset-demo').addEventListener('click', () => doReset(true));
+  $('play').addEventListener('click', () => setPlaying(!playing));
+  $('fps').addEventListener('input', (e) => {
+    fps = parseInt(e.target.value, 10) || 8;
+    $('fps-out').textContent = `${fps} fps`;
+    updateLen(); save();
+  });
+  $('download').addEventListener('click', download);
+  $('show-img').addEventListener('click', toggleImage);
+  $('scale').addEventListener('change', () => {
+    if ($('fallback').hidden) return;
+    try { showFallback(buildSheet(parseInt($('scale').value, 10) || 8)); } catch (e) { /* keep old image */ }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.altKey) return;
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey) return;
+    if (k === 'escape' && !$('confirm').hidden) { openConfirm(false); $('reset').focus(); return; }
+    const acts = {
+      b: () => setTool('pen'), e: () => setTool('eraser'), f: () => setTool('fill'),
+      z: undo, c: copyPrev, p: () => setPlaying(!playing),
+      o: () => $('t-onion').click(),
+      ',': () => selectFrame(cur - 1), '.': () => selectFrame(cur + 1)
+    };
+    if (k >= '1' && k <= '6' && k.length === 1) { e.preventDefault(); selectFrame(+k - 1); return; }
+    if (acts[k]) { e.preventDefault(); acts[k](); }
+  });
+
+  // ---------- boot ----------
+  buildPalette();
+  buildFrames();
+  const restored = load();
+  if (!restored) frames = demoFrames();
+  $('fps').value = fps;
+  $('fps-out').textContent = `${fps} fps`;
+  updateLen();
+  renderAll(); syncUI();
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setPlaying(!reduce);
+  say(restored ? 'Welcome back — your last loop was restored.' : 'A hopping blob is loaded. Draw over it, or Reset for a blank desk.');
+
+  // test hook for automated sanity checks (harmless in normal use)
+  window.__loopDesk = { get frames() { return frames; }, get cur() { return cur; }, buildSheet, undo, selectFrame, copyPrev, setTool, applyAt, setPlaying, get playing() { return playing; } };
+})();
+</script>
+</body>
+</html>
