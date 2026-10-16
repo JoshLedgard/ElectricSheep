@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Afterimage Arcade</title>
+<style>
+:root{
+  --bg:#0d0618;--panel:#170b2a;--line:#3a2160;--ink:#f3eaff;--dim:#b7a3d6;
+  --cyan:#38f2ff;--pink:#ff4fd8;--lime:#b6ff5c;--red:#ff4d5e;--gold:#ffd447;--tile:#221338;
+}
+*{box-sizing:border-box}
+html{overflow-x:hidden}
+body{
+  margin:0;min-height:100vh;color:var(--ink);
+  background:radial-gradient(120% 70% at 50% 0%,#2c0f4e 0%,var(--bg) 62%) fixed,var(--bg);
+  font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px)}
+.app{max-width:480px;margin:0 auto;padding:14px 14px 32px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:clamp(1.55rem,7.2vw,2.15rem);margin:0;letter-spacing:.03em;line-height:1.1;
+  text-shadow:-2px 0 var(--pink),2px 0 var(--cyan)}
+.tag{color:var(--dim);margin:4px 0 12px;font-size:.93rem}
+button{font:inherit;color:inherit}
+.icon-btn{min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);font-size:1.15rem;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.pips{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;list-style:none;padding:0;margin:0 0 12px}
+.pip{border:1px solid var(--line);border-radius:10px;padding:5px 2px;text-align:center;background:var(--panel);
+  font-size:.78rem;color:var(--dim);min-width:0}
+.pip b{display:block;font-size:1rem;color:var(--ink)}
+.pip .st{letter-spacing:1px;color:var(--gold);min-height:1.1em;display:block;font-size:.72rem}
+.pip.now{border-color:var(--cyan);box-shadow:0 0 12px rgba(56,242,255,.35)}
+.pip.done{border-color:#5b3a8f}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.kicker{margin:0;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.card h2{margin:2px 0 4px;font-size:1.3rem}
+.brief{margin:0;color:var(--ink);line-height:1.4}
+.twist{display:inline-block;margin-top:8px;padding:3px 9px;border-radius:999px;font-size:.8rem;
+  background:#2a1748;border:1px solid #5b3a8f;color:var(--gold)}
+
+.stage{position:relative;overflow:hidden;padding:4px 0}
+.timer{height:6px;border-radius:3px;background:#2a1748;overflow:hidden;margin:0 auto 10px;max-width:400px}
+.timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--pink),var(--cyan));
+  transform-origin:left;transform:scaleX(0)}
+.board{--n:4;display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;max-width:400px;margin:0 auto;
+  padding:10px;border-radius:18px;background:#120822;border:1px solid var(--line);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.6),0 0 0 4px #1b0d31}
+.tile{aspect-ratio:1;min-width:44px;min-height:44px;width:100%;border-radius:10px;border:1px solid #33204f;
+  background:var(--tile);cursor:pointer;position:relative;padding:0;
+  transition:background-color .15s,box-shadow .25s,border-color .15s}
+.board.live{border-color:#6a44a8}
+.board.live .tile:hover{border-color:#8c66cc}
+.board:not(.live) .tile{cursor:default}
+.t-a{--glow:var(--cyan);--after:#ff6f7d}
+.t-b{--glow:var(--lime);--after:#c46bff}
+.t-p{--glow:var(--pink);--after:#5dff9a}
+.t-c{--glow:var(--cyan);--after:#ff8a5c}
+.tile.lit{background:var(--glow);border-color:#fff;box-shadow:0 0 18px var(--glow),inset 0 0 10px rgba(255,255,255,.6)}
+.board[data-kind="filter"] .tile.lit::after{content:"✦";position:absolute;inset:0;display:grid;place-items:center;color:#281038;font-size:1.5rem;font-weight:900}
+.board[data-kind="filter"] .tile.lit.t-c::after{content:"○";font-size:1.9rem}
+.tile.after{animation:after .95s ease-out forwards}
+@keyframes after{0%{background:var(--after);box-shadow:0 0 16px var(--after);opacity:.55}
+  100%{background:var(--tile);box-shadow:none;opacity:1}}
+.tile.hit{background:var(--cyan);border-color:#fff;box-shadow:0 0 14px var(--cyan)}
+.board[data-kind="filter"] .tile.hit{background:var(--pink);box-shadow:0 0 14px var(--pink)}
+.tile.hit.pop{animation:pop .25s ease-out}
+@keyframes pop{50%{transform:scale(1.12)}}
+.tile.wrong{background:#3b0f1e;border-color:var(--red);box-shadow:inset 0 0 12px rgba(255,77,94,.5)}
+.tile.wrong::after{content:"✕";position:absolute;inset:0;display:grid;place-items:center;color:var(--red);
+  font-size:1.35rem;font-weight:800}
+.tile.wrong.shake{animation:shake .32s}
+@keyframes shake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.tile.bump{animation:bump .2s}
+@keyframes bump{50%{transform:scale(.92)}}
+.tile.ghost{background:transparent;border:2px dashed var(--gold);animation:ghost 1.2s ease-in-out infinite}
+.tile.ghost::after{content:"";position:absolute;inset:22%;border-radius:6px;background:rgba(255,212,71,.22)}
+@keyframes ghost{50%{box-shadow:0 0 14px rgba(255,212,71,.55)}}
+.board.flip{animation:flip .7s ease-in-out}
+@keyframes flip{0%{transform:perspective(700px) rotateY(0)}100%{transform:perspective(700px) rotateY(180deg)}}
+.board.spin{animation:spin .75s ease-in-out}
+@keyframes spin{0%{transform:rotate(0)}50%{transform:rotate(45deg) scale(.7)}100%{transform:rotate(90deg)}}
+
+.status{display:flex;justify-content:space-between;align-items:center;gap:10px;max-width:400px;margin:10px auto 0;
+  font-size:.95rem;color:var(--dim);min-height:24px}
+.status strong{color:var(--ink)}
+.lives{display:inline-flex;gap:5px;vertical-align:middle;margin-left:4px}
+.lives i{width:12px;height:12px;border-radius:50%;border:2px solid var(--red);display:inline-block}
+.lives i.used{background:var(--red);box-shadow:0 0 8px var(--red)}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px;max-width:400px;margin:12px auto 0}
+.btn{flex:1 1 140px;min-height:48px;border-radius:14px;border:1px solid var(--line);background:#24113f;
+  font-weight:700;font-size:1rem;cursor:pointer;padding:8px 12px}
+.btn.primary{background:linear-gradient(135deg,#ff4fd8,#7b5cff 55%,#38f2ff);border:0;color:#140626;
+  box-shadow:0 0 18px rgba(255,79,216,.35)}
+.btn:disabled{opacity:.5;cursor:default;box-shadow:none}
+.btn[hidden]{display:none}
+.btn kbd{font:inherit;font-size:.72rem;opacity:.75;border:1px solid currentColor;border-radius:5px;padding:0 4px;margin-left:6px}
+
+.result{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px}
+.result[hidden]{display:none}
+.result h3{margin:0 0 4px;font-size:1.25rem}
+.result .stars{color:var(--gold);font-size:1.4rem;letter-spacing:3px}
+.result p{margin:6px 0;line-height:1.4}
+.compare{display:flex;gap:14px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
+.mini-wrap{flex:0 0 auto}
+.mini-wrap figcaption{font-size:.78rem;color:var(--dim);margin-bottom:4px;max-width:132px}
+.mini{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:3px;width:120px;padding:5px;border-radius:8px;background:#120822;border:1px solid var(--line)}
+.mini span{aspect-ratio:1;border-radius:3px;background:var(--tile)}
+.mini span.on{background:var(--glow);box-shadow:0 0 5px var(--glow)}
+.mini span.on.t-p::after,.mini span.on.t-c::after{content:"✦";display:grid;place-items:center;height:100%;color:#281038;font-size:.7rem;font-weight:900}
+.mini span.on.t-c::after{content:"○"}
+.legend{list-style:none;padding:0;margin:0;font-size:.85rem;color:var(--dim);flex:1 1 150px}
+.legend li{display:flex;align-items:center;gap:8px;margin:4px 0}
+.sw{width:18px;height:18px;border-radius:5px;flex:0 0 auto;position:relative}
+.sw.h{background:var(--cyan)}
+.result.filter .sw.h{background:var(--pink)}
+.sw.g{border:2px dashed var(--gold)}
+.sw.w{background:#3b0f1e;border:1px solid var(--red)}
+.sw.w::after{content:"✕";position:absolute;inset:0;display:grid;place-items:center;color:var(--red);font-size:.7rem;font-weight:800}
+.final-list{list-style:none;padding:0;margin:8px 0}
+.final-list li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #2a1748}
+.final-list span:last-child{color:var(--gold);white-space:nowrap}
+.rank{font-size:1.1rem;color:var(--cyan);font-weight:800}
+.keys{max-width:400px;margin:14px auto 0;color:var(--dim);font-size:.8rem;text-align:center;line-height:1.6}
+.keys kbd{font-family:inherit;border:1px solid #5b3a8f;border-radius:5px;padding:0 5px;background:#1b0d31;color:var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  .board.flip,.board.spin,.tile.shake,.tile.pop,.tile.bump{animation:none}
+  .tile.ghost{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>Afterimage Arcade</h1>
+    <button class="icon-btn" id="mute" type="button" aria-pressed="false" aria-label="Sound on (press to mute)">🔊</button>
+  </div>
+  <p class="tag">A glow flashes. Your eyes keep a ghost of it. Rebuild what you saw.</p>
+
+  <ol class="pips" id="pips" aria-label="Round progress"></ol>
+
+  <section class="card" aria-live="polite">
+    <p class="kicker" id="kicker">Round 1 of 5</p>
+    <h2 id="rname">Warm Glow</h2>
+    <p class="brief" id="brief"></p>
+    <span class="twist" id="twist"></span>
+  </section>
+
+  <div class="stage" id="stage">
+    <div class="timer" aria-hidden="true"><i id="bar"></i></div>
+    <div class="board" id="board" role="group" aria-label="Tile board"></div>
+    <div class="status">
+      <span>Found <strong id="found">0/0</strong></span>
+      <span>Strays<span class="lives" id="lives" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr" id="livesSr"></span></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="primary" type="button">Flash pattern</button>
+    <button class="btn" id="secondary" type="button" hidden>Retry round</button>
+  </div>
+
+  <section class="result" id="result" hidden aria-live="polite"></section>
+
+  <p class="keys"><kbd>F</kbd> flash · <kbd>←↑→↓</kbd> move · <kbd>Space</kbd>/<kbd>Enter</kbd> tap · <kbd>G</kbd> reveal now · <kbd>N</kbd> next · <kbd>R</kbd> retry · <kbd>M</kbd> sound</p>
+  <p class="sr" id="say" aria-live="assertive"></p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const MAX_STRAYS = 3;
+
+// Five deliberate rounds. '#'/a/b/c/p mark lit tiles; '.' is dark.
+const ROUNDS = [
+  { name:'Warm Glow', kind:'plain', n:4, view:3000, twist:'No twist — just remember',
+    brief:'Memorise the lit tiles. When the glow fades, tap them back in.',
+    caption:'What flashed',
+    patterns:[
+      ['.#..','###.','.#..','...#'],
+      ['#...','.#..','..#.','..##'],
+      ['##..','#...','....','..##'] ] },
+  { name:'Mirror Cabinet', kind:'mirror', n:5, view:3000, twist:'Twist: mirror ⇋',
+    brief:'Rebuild it flipped left-to-right, as if the cabinet glass were a mirror.',
+    caption:'What flashed (before the mirror)',
+    patterns:[
+      ['#....','##...','..#..','....#','...#.'],
+      ['..##.','...#.','#....','#....','.#...'],
+      ['#.#..','.....','.#...','...##','#....'] ] },
+  { name:'Decoy Neon', kind:'filter', n:5, view:3200, twist:'Twist: pink only',
+    brief:'Pink star tiles and cyan ring tiles both flash. Only stars count — rings are decoys.',
+    caption:'What flashed (decoys included)',
+    patterns:[
+      ['p..c.','.p...','c.p.c','...p.','c..pp'],
+      ['c.p..','pp..c','..c..','p...p','.c.p.'],
+      ['.p.p.','c...c','..p..','p.c.p','.p..c'] ] },
+  { name:'Quarter Turn', kind:'rotate', n:5, view:3200, twist:'Twist: rotate ↻ 90°',
+    brief:'The cabinet turns. Rebuild the pattern rotated a quarter turn clockwise.',
+    caption:'What flashed (before the turn)',
+    patterns:[
+      ['###..','#....','#....','..#..','....#'],
+      ['.#...','##...','.#...','....#','...##'],
+      ['#...#','.#...','..#..','...#.','##...'] ] },
+  { name:'Double Exposure', kind:'double', n:6, view:1600, twist:'Twist: two flashes',
+    brief:'Two quick flashes, cyan then lime. Rebuild both layered together.',
+    caption:'Both flashes, layered',
+    patterns:[
+      ['a....b','.a..b.','......','..b...','a.....','...a.b'],
+      ['..a...','b....a','.b....','...a..','b.....','....ab'],
+      ['a.a...','......','...b.b','..b...','a.....','...b.a'] ] }
+];
+
+const board = $('#board'), bar = $('#bar'), primary = $('#primary'), secondary = $('#secondary'),
+      result = $('#result'), stage = $('#stage');
+let ri = 0, state = 'idle', cur = null, cursor = 0, tiles = [], timers = [];
+let variant = [0,0,0,0,0], best = [null,null,null,null,null];
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- sound ----------
+let ac = null, muted = false;
+function ensureAudio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function beep(freq, dur = .12, type = 'square', vol = .045, delay = 0){
+  if (muted || !ac) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + .02);
+}
+$('#mute').addEventListener('click', toggleMute);
+function toggleMute(){
+  muted = !muted;
+  const m = $('#mute');
+  m.textContent = muted ? '🔇' : '🔊';
+  m.setAttribute('aria-pressed', String(muted));
+  m.setAttribute('aria-label', muted ? 'Sound off (press to unmute)' : 'Sound on (press to mute)');
+}
+
+// ---------- helpers ----------
+function later(fn, ms){ const t = setTimeout(fn, ms); timers.push(t); return t; }
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+function say(msg){ const s = $('#say'); s.textContent = ''; requestAnimationFrame(() => { s.textContent = msg; }); }
+function starStr(k){ return '★'.repeat(k) + '☆'.repeat(3 - k); }
+
+// Turn a pattern into what flashes and which tiles must be rebuilt.
+function build(round, rows){
+  const n = round.n, shown = [], target = new Set();
+  rows.forEach((row, r) => [...row].forEach((ch, c) => {
+    if (ch === '.') return;
+    const tone = ch === '#' ? 'a' : ch;
+    shown.push({ i: r * n + c, tone });
+    if (round.kind === 'mirror') target.add(r * n + (n - 1 - c));
+    else if (round.kind === 'rotate') target.add(c * n + (n - 1 - r));
+    else if (round.kind === 'filter') { if (tone === 'p') target.add(r * n + c); }
+    else target.add(r * n + c);
+  }));
+  return { n, shown, target, hit: new Set(), wrong: new Set() };
+}
+
+// ---------- rendering ----------
+function renderPips(){
+  const ol = $('#pips'); ol.innerHTML = '';
+  ROUNDS.forEach((r, i) => {
+    const li = document.createElement('li');
+    li.className = 'pip' + (i === ri && state !== 'final' ? ' now' : '') + (best[i] !== null ? ' done' : '');
+    li.innerHTML = `<b>${i + 1}</b><span class="st">${best[i] !== null ? starStr(best[i]) : ''}</span>`;
+    li.setAttribute('aria-label', `Round ${i + 1}: ${r.name}` + (best[i] !== null ? `, best ${best[i]} of 3 stars` : '') + (i === ri ? ', current' : ''));
+    if (i === ri && state !== 'final') li.setAttribute('aria-current', 'step');
+    ol.append(li);
+  });
+}
+function renderBoard(){
+  board.innerHTML = '';
+  board.style.setProperty('--n', cur.n);
+  board.dataset.kind = ROUNDS[ri].kind;
+  tiles = [];
+  for (let i = 0; i < cur.n * cur.n; i++){
+    const t = document.createElement('button');
+    t.type = 'button'; t.className = 'tile';
+    t.tabIndex = i === cursor ? 0 : -1;
+    t.setAttribute('aria-label', `Row ${Math.floor(i / cur.n) + 1}, column ${i % cur.n + 1}`);
+    t.addEventListener('click', () => tap(i));
+    board.append(t); tiles.push(t);
+  }
+}
+function roving(focus){
+  tiles.forEach((t, i) => { t.tabIndex = i === cursor ? 0 : -1; });
+  if (focus) tiles[cursor].focus({ preventScroll: true });
+}
+function updateStatus(){
+  $('#found').textContent = `${cur.hit.size}/${cur.target.size}`;
+  [...$('#lives').children].forEach((d, k) => d.classList.toggle('used', k < cur.wrong.size));
+  $('#livesSr').textContent = `${cur.wrong.size} of ${MAX_STRAYS} stray taps used`;
+}
+function setButtons(){
+  const last = ri === ROUNDS.length - 1;
+  primary.disabled = false; secondary.hidden = true;
+  if (state === 'idle') primary.innerHTML = 'Flash pattern<kbd>F</kbd>';
+  else if (state === 'showing') { primary.textContent = 'Watch closely…'; primary.disabled = true; }
+  else if (state === 'input') primary.innerHTML = 'Reveal now<kbd>G</kbd>';
+  else if (state === 'settling') { primary.textContent = 'Developing…'; primary.disabled = true; }
+  else if (state === 'reveal') {
+    primary.innerHTML = (last ? 'See results' : 'Next round') + '<kbd>N</kbd>';
+    secondary.hidden = false; secondary.innerHTML = 'Retry round<kbd>R</kbd>';
+  }
+  else if (state === 'final') primary.innerHTML = 'Play again<kbd>N</kbd>';
+}
+
+// ---------- flow ----------
+function loadRound(i){
+  clearTimers();
+  ri = i; state = 'idle'; cursor = 0;
+  const r = ROUNDS[i];
+  cur = build(r, r.patterns[variant[i] % r.patterns.length]);
+  $('#kicker').textContent = `Round ${i + 1} of ${ROUNDS.length}`;
+  $('#rname').textContent = r.name;
+  $('#brief').textContent = r.brief;
+  $('#twist').textContent = r.twist;
+  stage.hidden = false; result.hidden = true;
+  board.classList.remove('live', 'flip', 'spin');
+  bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)';
+  renderBoard(); updateStatus(); setButtons(); renderPips();
+}
+
+function runBar(ms){
+  bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+  void bar.offsetWidth;
+  bar.style.transition = `transform ${ms}ms linear`; bar.style.transform = 'scaleX(0)';
+}
+function light(list){ list.forEach(s => tiles[s.i].classList.add('lit', 't-' + s.tone)); }
+function fade(list){
+  list.forEach(s => {
+    const t = tiles[s.i];
+    t.classList.remove('lit'); t.classList.add('after');
+    later(() => t.classList.remove('after', 't-' + s.tone), 1000);
+  });
+}
+
+function flash(){
+  if (state !== 'idle') return;
+  ensureAudio();
+  state = 'showing'; setButtons();
+  const r = ROUNDS[ri];
+  say(`Watch. ${r.brief}`);
+  if (r.kind === 'double'){
+    const A = cur.shown.filter(s => s.tone === 'a'), B = cur.shown.filter(s => s.tone === 'b');
+    light(A); runBar(r.view); beep(660, .1);
+    later(() => {
+      fade(A);
+      later(() => {
+        light(B); runBar(r.view); beep(880, .1);
+        later(() => { fade(B); afterglow(); }, r.view);
+      }, 350);
+    }, r.view);
+  } else {
+    light(cur.shown); runBar(r.view); beep(660, .1);
+    later(() => { fade(cur.shown); afterglow(); }, r.view);
+  }
+}
+
+// Let the afterimage linger, play the round's visual cue, then hand over the board.
+function afterglow(){
+  const kind = ROUNDS[ri].kind;
+  later(() => {
+    const cue = kind === 'mirror' ? 'flip' : kind === 'rotate' ? 'spin' : null;
+    if (cue && !reduceMotion){
+      board.classList.add(cue); beep(330, .25, 'sawtooth', .03);
+      later(() => { board.classList.remove(cue); startInput(); }, 800);
+    } else startInput();
+  }, 950);
+}
+
+function startInput(){
+  state = 'input'; setButtons();
+  board.classList.add('live');
+  roving(true);
+  const r = ROUNDS[ri];
+  say(`Your turn. Tap ${cur.target.size} tiles.` + (r.kind === 'mirror' ? ' Mirrored.' : r.kind === 'rotate' ? ' Rotated clockwise.' : r.kind === 'filter' ? ' Pink only.' : ''));
+}
+
+function tap(i){
+  if (state !== 'input') return;
+  cursor = i; roving(false);
+  const t = tiles[i];
+  if (cur.hit.has(i) || cur.wrong.has(i)){
+    t.classList.remove('bump'); void t.offsetWidth; t.classList.add('bump');
+    return;
+  }
+  if (cur.target.has(i)){
+    cur.hit.add(i);
+    t.classList.add('hit', 'pop'); t.setAttribute('aria-pressed', 'true');
+    t.setAttribute('aria-label', t.getAttribute('aria-label') + ', correct');
+    beep(520 * Math.pow(1.122, cur.hit.size), .12, 'triangle', .07);
+    say(`Correct. ${cur.hit.size} of ${cur.target.size}.`);
+  } else {
+    cur.wrong.add(i);
+    t.classList.add('wrong', 'shake'); t.setAttribute('aria-pressed', 'true');
+    t.setAttribute('aria-label', t.getAttribute('aria-label') + ', stray');
+    beep(140, .22, 'sawtooth', .05);
+    say(`Stray tap. ${MAX_STRAYS - cur.wrong.size} left.`);
+  }
+  updateStatus();
+  if (cur.hit.size === cur.target.size){ state = 'settling'; setButtons(); later(() => finish(), 380); }
+  else if (cur.wrong.size >= MAX_STRAYS){ state = 'settling'; setButtons(); later(() => finish(), 480); }
+}
+
+function scoreOf(c){
+  const all = c.hit.size === c.target.size;
+  if (all && c.wrong.size === 0) return 3;
+  if (all) return 2;
+  if (c.hit.size >= Math.ceil(c.target.size / 2)) return 1;
+  return 0;
+}
+
+function finish(){
+  if (state !== 'input' && state !== 'settling') return;
+  clearTimers();
+  state = 'reveal';
+  board.classList.remove('live');
+  cur.target.forEach(i => { if (!cur.hit.has(i)) tiles[i].classList.add('ghost'); });
+  tiles.forEach((t, i) => {
+    t.tabIndex = -1;
+    if (cur.target.has(i) && !cur.hit.has(i)) t.setAttribute('aria-label', t.getAttribute('aria-label') + ', missed');
+  });
+  const k = scoreOf(cur);
+  best[ri] = best[ri] === null ? k : Math.max(best[ri], k);
+  const missed = cur.target.size - cur.hit.size;
+  const heads = ['Faded out', 'Half-developed', 'Picture complete', 'Perfect afterimage!'];
+  const r = ROUNDS[ri];
+  const mini = cur.shown.reduce((m, s) => (m[s.i] = s.tone, m), {});
+  let cells = '';
+  for (let i = 0; i < cur.n * cur.n; i++) cells += mini[i] ? `<span class="on t-${mini[i]}"></span>` : '<span></span>';
+  result.innerHTML = `
+    <h3>${heads[k]}</h3>
+    <div class="stars" aria-label="${k} of 3 stars">${starStr(k)}</div>
+    <p>Matched <strong>${cur.hit.size} of ${cur.target.size}</strong>` +
+      (missed ? ` · ${missed} missed` : '') +
+      (cur.wrong.size ? ` · ${cur.wrong.size} stray` : ' · no strays') + `.</p>
+    <div class="compare">
+      <figure class="mini-wrap" style="margin:0">
+        <figcaption>${r.caption}</figcaption>
+        <div class="mini" style="--n:${cur.n}" aria-hidden="true">${cells}</div>
+      </figure>
+      <ul class="legend">
+        <li><span class="sw h"></span>Matched from memory</li>
+        <li><span class="sw g"></span>Missed — the ghost you forgot</li>
+        <li><span class="sw w"></span>Stray tap</li>
+      </ul>
+    </div>`;
+  result.className = 'result' + (r.kind === 'filter' ? ' filter' : '');
+  result.hidden = false;
+  beep(k >= 2 ? 784 : 392, .14, 'triangle', .06); if (k === 3) { beep(988, .14, 'triangle', .06, .12); beep(1319, .2, 'triangle', .06, .24); }
+  say(`${heads[k]} ${k} of 3 stars. Matched ${cur.hit.size} of ${cur.target.size}, ${missed} missed, ${cur.wrong.size} stray.`);
+  setButtons(); renderPips();
+  primary.focus({ preventScroll: true });
+}
+
+function next(){
+  if (state === 'final'){ playAgain(); return; }
+  if (state !== 'reveal') return;
+  if (ri < ROUNDS.length - 1) loadRound(ri + 1);
+  else showFinal();
+  primary.focus({ preventScroll: true });
+}
+function retry(){
+  if (state !== 'reveal') return;
+  variant[ri]++;
+  loadRound(ri);
+  primary.focus({ preventScroll: true });
+}
+function revealNow(){
+  if (state !== 'input') return;
+  state = 'settling'; setButtons(); finish();
+}
+
+function showFinal(){
+  clearTimers();
+  state = 'final';
+  stage.hidden = true;
+  const total = best.reduce((a, b) => a + (b || 0), 0);
+  const rank = total === 15 ? 'Perfect Afterimage' : total >= 12 ? 'Neon Savant' : total >= 8 ? 'Arcade Regular' : total >= 4 ? 'Bright Beginner' : 'Glow Rookie';
+  $('#kicker').textContent = 'Game over';
+  $('#rname').textContent = 'Cabinet ticket';
+  $('#brief').textContent = 'Every round you played, kept at its best score.';
+  $('#twist').textContent = `${total} / 15 stars`;
+  result.innerHTML = `
+    <p class="rank">${rank}</p>
+    <ul class="final-list">${ROUNDS.map((r, i) => `<li><span>${i + 1}. ${r.name}</span><span aria-label="${best[i] || 0} of 3 stars">${starStr(best[i] || 0)}</span></li>`).join('')}</ul>
+    <p>Play again with another pattern in each round.</p>`;
+  result.className = 'result';
+  result.hidden = false;
+  setButtons(); renderPips();
+  say(`Game over. ${total} of 15 stars. Rank: ${rank}.`);
+}
+function playAgain(){
+  variant = variant.map(v => v + 1);
+  best = [null,null,null,null,null];
+  loadRound(0);
+}
+
+primary.addEventListener('click', () => {
+  if (state === 'idle') flash();
+  else if (state === 'input') revealNow();
+  else if (state === 'reveal' || state === 'final') next();
+});
+secondary.addEventListener('click', retry);
+
+board.addEventListener('keydown', e => {
+  if (state !== 'input') return;
+  const n = cur.n, r = Math.floor(cursor / n), c = cursor % n;
+  let to = null;
+  if (e.key === 'ArrowLeft') to = r * n + Math.max(0, c - 1);
+  else if (e.key === 'ArrowRight') to = r * n + Math.min(n - 1, c + 1);
+  else if (e.key === 'ArrowUp') to = Math.max(0, r - 1) * n + c;
+  else if (e.key === 'ArrowDown') to = Math.min(n - 1, r + 1) * n + c;
+  else if (e.key === 'Home') to = r * n;
+  else if (e.key === 'End') to = r * n + n - 1;
+  if (to !== null){ e.preventDefault(); cursor = to; roving(true); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'f' && state === 'idle') flash();
+  else if (k === 'g' && state === 'input') revealNow();
+  else if (k === 'n' && (state === 'reveal' || state === 'final')) next();
+  else if (k === 'r' && state === 'reveal') retry();
+  else if (k === 'm') toggleMute();
+});
+
+loadRound(0);
+})();
+</script>
+</body>
+</html>
