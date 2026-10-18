@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Lag Lens — cohort milestone maturity</title>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f3f2ed;
+  --surface: #fcfcfb;
+  --raised: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #7c7b76;
+  --rule: #e2e1db;
+  --grid: #ecebe6;
+  --obs: #2a78d6;
+  --miss: #e87ba4;
+  --imm: #eda100;
+  --imm-ink: #b07800;
+  --imm-bg: #fbefd2;
+  --ghost: #b9b8b1;
+  --bad: #b3261e;
+  --warn-bg: #fff6e0;
+  --bad-bg: #fdeceb;
+  --focus: #2a78d6;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #121211;
+    --surface: #1a1a19;
+    --raised: #222220;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #8f8e86;
+    --rule: #34342f;
+    --grid: #2a2a27;
+    --obs: #3987e5;
+    --miss: #d55181;
+    --imm: #c98500;
+    --imm-ink: #e0a83a;
+    --imm-bg: #3a2f15;
+    --ghost: #5a5a54;
+    --bad: #ff8a80;
+    --warn-bg: #2f2814;
+    --bad-bg: #3a1d1b;
+    --focus: #6da7ec;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--sans);
+  padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 48px max(14px, env(safe-area-inset-left));
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+h1, h2 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+h1 { font-size: clamp(30px, 6vw, 46px); line-height: 1.05; }
+h2 { font-size: 20px; }
+p { margin: 0; }
+.lede { color: var(--ink-2); max-width: 62ch; margin-top: 8px; font-size: 16px; }
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin: 8px 0 18px; }
+.lens-mark { display: inline-block; width: 0.82em; height: 0.82em; border-radius: 50%; margin-right: 0.18em; vertical-align: -0.06em;
+  background: conic-gradient(var(--obs) 0 52%, var(--miss) 52% 70%, var(--imm) 70% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 39%); mask: radial-gradient(circle, transparent 38%, #000 39%); }
+
+.badge { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 12px; border-radius: 999px;
+  font: 600 12px/1.2 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); }
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ghost); }
+.badge[data-source="demo"] { border-color: var(--imm); color: var(--imm-ink); background: var(--imm-bg); }
+.badge[data-source="demo"]::before { background: var(--imm); }
+.badge[data-source="user"] { border-color: var(--obs); color: var(--ink); }
+.badge[data-source="user"]::before { background: var(--obs); }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 12px; }
+.sub { color: var(--ink-2); font-size: 13px; }
+
+.data-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .data-grid { grid-template-columns: minmax(0, 1fr); } }
+.data-grid > *, .format { min-width: 0; }
+label.field { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+textarea {
+  width: 100%; min-height: 200px; resize: vertical; padding: 12px; border-radius: 10px; border: 1px solid var(--rule);
+  background: var(--raised); color: var(--ink); font: 13px/1.45 var(--mono); tab-size: 4;
+}
+textarea:focus-visible, button:focus-visible, input:focus-visible, .seg-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+button {
+  min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--rule);
+  background: var(--raised); color: var(--ink); font: 600 14px/1 var(--sans); cursor: pointer; touch-action: manipulation;
+}
+button:hover { border-color: var(--ink-3); }
+button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+button.primary:hover { opacity: 0.88; }
+button[disabled] { opacity: 0.45; cursor: not-allowed; }
+.format { font-size: 13px; color: var(--ink-2); }
+.format h3 { font: 600 13px/1.3 var(--sans); color: var(--ink); margin: 0 0 6px; }
+.format code, .format pre { font-family: var(--mono); font-size: 12px; }
+.format pre { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0 10px; color: var(--ink); }
+.format ul { margin: 4px 0 10px; padding-left: 18px; }
+.format li { margin: 2px 0; }
+.privacy { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+
+.messages { margin-top: 12px; font-size: 13px; }
+.messages:empty { display: none; }
+.msg { border-radius: 8px; padding: 9px 12px; margin-top: 6px; }
+.msg.ok { background: var(--raised); border: 1px solid var(--rule); }
+.msg.warn { background: var(--warn-bg); border: 1px solid var(--imm); }
+.msg.err { background: var(--bad-bg); border: 1px solid var(--bad); }
+.msg ul { margin: 6px 0 0; padding-left: 18px; }
+.msg li { margin: 2px 0; word-break: break-word; }
+
+/* controls */
+.ms-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.seg-btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.seg-btn small { font-weight: 500; opacity: 0.75; margin-left: 6px; font-size: 12px; }
+.scrub { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+.scrub-date { font: 600 22px/1.1 var(--serif); }
+.scrub-date small { display: block; font: 500 12px/1.3 var(--sans); color: var(--ink-3); margin-top: 2px; }
+input[type="range"] { width: 100%; height: 44px; accent-color: var(--ink); margin: 0; touch-action: none; }
+input[type="date"] { min-height: 44px; border: 1px solid var(--rule); border-radius: 10px; background: var(--raised); color: var(--ink); padding: 0 10px; font: 14px var(--sans); }
+.step-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.step-row .spacer { flex: 1; }
+@media (max-width: 560px) {
+  .scrub { grid-template-columns: 1fr; }
+  .step-row button { flex: 1 1 auto; padding: 0 10px; }
+  .step-row .spacer { display: none; }
+  .step-row input[type="date"] { flex: 1 1 100%; }
+}
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 16px 0 12px; }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats .stat:last-child { grid-column: 1 / -1; } }
+.stat { background: var(--raised); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.stat .v { font: 600 24px/1.15 var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat .v small { font: 500 12px var(--sans); color: var(--ink-3); margin-left: 4px; }
+.chip { width: 12px; height: 12px; border-radius: 3px; flex: none; display: inline-block; }
+.chip.obs { background: var(--obs); }
+.chip.miss { background: var(--miss); }
+.chip.reached { background: var(--imm); }
+.chip.open { background: repeating-linear-gradient(135deg, var(--imm) 0 2px, var(--imm-bg) 2px 5px); box-shadow: inset 0 0 0 1px var(--imm); }
+.chip.ghost { border: 1.5px dashed var(--ghost); }
+.insight { font-family: var(--serif); font-size: 17px; line-height: 1.45; max-width: 75ch; }
+.insight strong { font-weight: 600; }
+.gapnote { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); margin: 4px 0 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* stream */
+.stream-wrap { position: relative; margin-top: 4px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.stream-wrap svg { display: block; width: 100%; height: auto; overflow: visible; cursor: ew-resize; }
+.axis text { fill: var(--ink-3); font: 11px var(--sans); font-variant-numeric: tabular-nums; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--ink-3); stroke-width: 1; }
+.cursor-line { stroke: var(--ink); stroke-width: 2; }
+.cursor-knob { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
+.hover-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* ribbons */
+.ribbons { margin-top: 6px; }
+.rib-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 92px; align-items: center; gap: 12px; padding: 4px 0; border-top: 1px solid var(--grid); }
+.rib-row:first-child { border-top: 0; }
+.rib-name {
+  min-height: 44px; text-align: left; padding: 4px 10px; font: 600 13px/1.25 var(--sans); background: transparent; border-color: transparent;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; width: 100%;
+}
+.rib-name small { display: block; font-weight: 500; color: var(--ink-3); font-size: 11px; }
+.rib-name[aria-expanded="true"] { border-color: var(--ink-3); background: var(--raised); }
+.rib-track { position: relative; height: 30px; }
+.rib-frame { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; overflow: hidden; transition: width 380ms cubic-bezier(.2,.7,.2,1); }
+.seg { position: absolute; top: 0; bottom: 0; transition: left 380ms cubic-bezier(.2,.7,.2,1), width 380ms cubic-bezier(.2,.7,.2,1); box-shadow: inset -2px 0 0 var(--surface); }
+.seg.obs { background: var(--obs); }
+.seg.miss { background: var(--miss); }
+.seg.reached { background: var(--imm); }
+.seg.open { background: repeating-linear-gradient(135deg, var(--imm) 0 2px, var(--imm-bg) 2px 6px); }
+.seg.ghost { background: transparent; border: 1.5px dashed var(--ghost); border-left: 0; border-radius: 0 4px 4px 0; box-shadow: none; }
+.seg.zero { box-shadow: none; }
+.seg.hot { filter: brightness(1.08); outline: 2px solid var(--ink); outline-offset: -2px; z-index: 1; }
+.rib-rate { text-align: right; font: 600 15px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.rib-rate small { display: block; font: 500 11px/1.3 var(--sans); color: var(--ink-3); }
+.rib-rate.na { color: var(--imm-ink); }
+@media (max-width: 560px) {
+  .rib-row { grid-template-columns: minmax(0, 1fr) 84px; gap: 4px 10px; padding: 6px 0; }
+  .rib-name { grid-column: 1 / 2; padding: 4px 6px; }
+  .rib-rate { grid-column: 2 / 3; grid-row: 1; }
+  .rib-track { grid-column: 1 / -1; }
+}
+.empty { padding: 28px 12px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1.5px dashed var(--rule); border-radius: 12px; }
+
+/* tooltip */
+.tip {
+  position: fixed; z-index: 30; pointer-events: none; max-width: min(300px, calc(100vw - 24px));
+  background: var(--raised); color: var(--ink); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.16); font-size: 13px; line-height: 1.4; opacity: 0; transform: translateY(4px); transition: opacity 120ms, transform 120ms;
+}
+.tip.show { opacity: 1; transform: none; }
+.tip .t-title { font-weight: 700; margin-bottom: 4px; }
+.tip .t-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 1px 0; }
+.tip .t-row b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tip .t-row.hot { font-weight: 700; }
+.tip .t-foot { margin-top: 6px; color: var(--ink-2); font-size: 12px; }
+
+details.table-view { margin-top: 14px; }
+details.table-view summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+.tbl-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--ink-2); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer { color: var(--ink-3); font-size: 12px; text-align: center; margin-top: 24px; }
+@media (prefers-reduced-motion: reduce) { .seg, .rib-frame, .tip { transition: none; } }
+@media (forced-colors: active) { .seg, .chip { forced-color-adjust: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><span class="lens-mark" aria-hidden="true"></span>Lag Lens</h1>
+      <p class="lede">A milestone with a lag can't be judged the day someone starts. Paste cohort milestone rows, then scrub the observation date to see who is <em>eligible</em> to be judged, who was <em>observed</em> hitting the milestone, and who is still <em>immature</em>.</p>
+    </div>
+    <span class="badge" id="sourceBadge" data-source="none" role="status">No data loaded</span>
+  </header>
+
+  <section class="panel" aria-labelledby="dataTitle">
+    <div class="panel-head">
+      <h2 id="dataTitle">1 · Data</h2>
+      <span class="sub">Comma, tab or semicolon separated. Nothing leaves this tab.</span>
+    </div>
+    <div class="data-grid">
+      <div>
+        <label class="field" for="csv">CSV rows</label>
+        <textarea id="csv" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="cohort,entered,milestone,lag_days,reached,count&#10;Group A,2026-03-02,first_return,14,2026-03-09,3&#10;Group A,2026-03-02,first_return,14,,5"></textarea>
+        <div class="btns">
+          <button class="primary" id="btnApply" type="button">Visualize pasted CSV</button>
+          <button id="btnDemo" type="button">Load fictional demo</button>
+          <button id="btnReset" type="button">Reset</button>
+        </div>
+        <p class="privacy">Local only: no network, no storage, no uploads. Reset clears the text and chart from this page.</p>
+        <div class="messages" id="messages" aria-live="polite"></div>
+      </div>
+      <div class="format">
+        <h3>Format</h3>
+        <p>One row per member (or per group of members) per milestone. A header row is required; column order doesn't matter.</p>
+        <pre>cohort,entered,milestone,lag_days,reached,count
+Spring,2026-03-02,first_return,14,2026-03-09,1
+Spring,2026-03-02,first_return,14,,1</pre>
+        <ul>
+          <li><code>cohort</code> — group label (required)</li>
+          <li><code>entered</code> — start date, <code>YYYY-MM-DD</code> (required)</li>
+          <li><code>lag_days</code> — days allowed to reach the milestone (required, whole number)</li>
+          <li><code>reached</code> — date the milestone happened; blank if not yet</li>
+          <li><code>milestone</code> — optional name; several milestones become tabs</li>
+          <li><code>count</code> — optional weight for grouped rows (default 1)</li>
+        </ul>
+        <p>On an observation date <em>T</em>, a row is <strong>immature</strong> while <code>T &lt; entered + lag_days</code>. Once mature it is <strong>eligible</strong>: <strong>observed</strong> if reached within the lag, otherwise not observed. Bad rows are skipped and listed — the rest still draw.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="vizPanel" aria-labelledby="vizTitle">
+    <div class="panel-head">
+      <h2 id="vizTitle">2 · Scrub the observation date</h2>
+      <span class="sub" id="vizCaption">Load the demo or paste rows to begin.</span>
+    </div>
+
+    <div id="vizBody" hidden>
+      <div class="ms-row" id="msRow" role="group" aria-label="Milestone"></div>
+
+      <div class="scrub">
+        <div class="scrub-date" id="dateLabel" aria-hidden="true">—</div>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Observation date">
+        <div class="sub" id="dayLabel" aria-hidden="true"></div>
+      </div>
+      <div class="step-row">
+        <button type="button" id="back7" aria-label="Back 7 days">−7d</button>
+        <button type="button" id="back1" aria-label="Back 1 day">−1d</button>
+        <button type="button" id="play" aria-label="Play maturation">▶ Play</button>
+        <button type="button" id="fwd1" aria-label="Forward 1 day">+1d</button>
+        <button type="button" id="fwd7" aria-label="Forward 7 days">+7d</button>
+        <span class="spacer"></span>
+        <input type="date" id="datePick" aria-label="Jump to observation date">
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k"><span class="chip ghost"></span>Entered by date</div><div class="v" id="sEntered">0</div></div>
+        <div class="stat"><div class="k"><span class="chip obs"></span>Observed</div><div class="v" id="sObs">0</div></div>
+        <div class="stat"><div class="k"><span class="chip miss"></span>Eligible, not observed</div><div class="v" id="sMiss">0</div></div>
+        <div class="stat"><div class="k"><span class="chip open"></span>Immature</div><div class="v" id="sImm">0</div></div>
+        <div class="stat"><div class="k">Matured rate</div><div class="v" id="sRate">—</div></div>
+      </div>
+      <p class="insight" id="insight"></p>
+      <p class="sr" id="live" aria-live="polite"></p>
+      <p class="gapnote" id="gapnote"></p>
+
+      <h3 class="sr">Totals over every observation date</h3>
+      <div class="legend" aria-label="Legend">
+        <span><i class="chip obs"></i>Observed (eligible, hit within lag)</span>
+        <span><i class="chip miss"></i>Eligible, not observed</span>
+        <span><i class="chip reached"></i>Immature, already hit</span>
+        <span><i class="chip open"></i>Immature, window open</span>
+        <span><i class="chip ghost"></i>Not entered yet</span>
+      </div>
+      <div class="stream-wrap" id="streamWrap" aria-hidden="true"></div>
+
+      <h3 style="font: 600 14px var(--sans); margin: 18px 0 2px;">Cohort ribbons <span class="sub" style="font-weight:500">· tap or focus a cohort for its breakdown</span></h3>
+      <div class="ribbons" id="ribbons"></div>
+
+      <details class="table-view">
+        <summary>Table view at this date</summary>
+        <div class="tbl-scroll">
+          <table>
+            <caption class="sr">Counts per cohort at the selected observation date</caption>
+            <thead><tr><th scope="col">Cohort</th><th scope="col">Entered</th><th scope="col">Observed</th><th scope="col">Not observed</th><th scope="col">Immature (hit)</th><th scope="col">Immature (open)</th><th scope="col">Not yet entered</th><th scope="col">Matured rate</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    <div class="empty" id="emptyState">No rows yet. Choose <strong>Load fictional demo</strong> to explore invented sample data, or paste your own CSV above.</div>
+  </section>
+
+  <footer>Lag Lens · single file, works offline · demo data is invented</footer>
+</div>
+<div class="tip" id="tip" aria-hidden="true"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DAY = 86400000;
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var MAX_TEXT = 3000000, MAX_ROWS = 50000, MAX_COHORTS = 150, MAX_SPAN = 3660, MAX_COUNT = 10000000;
+  var STATES = ["obs", "miss", "reached", "open"];
+  var LABELS = { obs: "Observed", miss: "Eligible, not observed", reached: "Immature, already hit", open: "Immature, window open", ghost: "Not entered yet" };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = function (tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var sv = function (tag, attrs) {
+    var n = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) n.setAttribute(k, attrs[k]);
+    return n;
+  };
+
+  // ---------- dates ----------
+  function parseDate(s) {
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    var t = Date.UTC(y, mo - 1, d);
+    var dt = new Date(t);
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+    if (y < 1900 || y > 2200) return null;
+    return Math.round(t / DAY);
+  }
+  function iso(dn) { return new Date(dn * DAY).toISOString().slice(0, 10); }
+  function fmt(dn, withYear) {
+    var d = new Date(dn * DAY);
+    return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + (withYear === false ? "" : ", " + d.getUTCFullYear());
+  }
+  function num(n) { return Math.round(n).toLocaleString("en-US"); }
+  function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) + "%" : "—"; }
+  function clip(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+  // ---------- CSV ----------
+  function detectDelimiter(text) {
+    var line = text.split(/\r?\n/)[0] || "";
+    var counts = { ",": 0, "\t": 0, ";": 0 }, q = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') q = !q;
+      else if (!q && counts.hasOwnProperty(c)) counts[c]++;
+    }
+    var best = ",";
+    if (counts["\t"] > counts[best]) best = "\t";
+    if (counts[";"] > counts[best]) best = ";";
+    return best;
+  }
+  function parseCSV(text, delim) {
+    var rows = [], row = [], field = "", i = 0, q = false, n = text.length, lineStarts = [1], line = 1;
+    while (i < n) {
+      var c = text[i];
+      if (q) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+          q = false; i++; continue;
+        }
+        if (c === "\n") line++;
+        field += c; i++; continue;
+      }
+      if (c === '"' && field === "") { q = true; i++; continue; }
+      if (c === delim) { row.push(field); field = ""; i++; continue; }
+      if (c === "\r") { i++; continue; }
+      if (c === "\n") {
+        row.push(field); rows.push(row); row = []; field = ""; i++; line++; lineStarts.push(line); continue;
+      }
+      field += c; i++;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return { rows: rows, lines: lineStarts, unterminated: q };
+  }
+
+  var ALIASES = {
+    cohort: ["cohort", "group", "cohort_name", "segment"],
+    entered: ["entered", "start", "start_date", "entered_on", "joined", "joined_on", "entry_date", "cohort_date"],
+    milestone: ["milestone", "event", "milestone_name"],
+    lag: ["lag_days", "lag", "window_days", "window", "lag_day", "days"],
+    reached: ["reached", "reached_on", "milestone_date", "observed_on", "hit", "hit_on", "event_date"],
+    count: ["count", "n", "weight", "members", "qty"]
+  };
+  function normHeader(h) { return String(h).replace(/^﻿/, "").trim().toLowerCase().replace(/[\s\-]+/g, "_"); }
+
+  function parseData(text) {
+    var res = { rows: [], errors: [], warnings: [], fatal: null, totalLines: 0 };
+    if (typeof text !== "string") text = "";
+    if (text.length > MAX_TEXT) { res.fatal = "That paste is larger than 3 MB. Aggregate rows with a count column and try again."; return res; }
+    if (!text.trim()) { res.fatal = "Paste some CSV rows first (or load the fictional demo)."; return res; }
+    var delim = detectDelimiter(text.replace(/^\s+/, ""));
+    var parsed = parseCSV(text, delim);
+    var raw = parsed.rows;
+    // drop fully blank lines but keep line numbers
+    var items = [];
+    for (var r = 0; r < raw.length; r++) {
+      var joined = raw[r].join("").trim();
+      if (joined === "" || joined.charAt(0) === "#") continue;
+      items.push({ cells: raw[r], line: parsed.lines[r] || r + 1 });
+    }
+    if (!items.length) { res.fatal = "No rows found."; return res; }
+    if (parsed.unterminated) res.warnings.push("A quoted field was never closed; the last row may be incomplete.");
+    var header = items[0].cells.map(normHeader), idx = {};
+    Object.keys(ALIASES).forEach(function (key) {
+      for (var a = 0; a < ALIASES[key].length; a++) {
+        var p = header.indexOf(ALIASES[key][a]);
+        if (p !== -1) { idx[key] = p; break; }
+      }
+    });
+    var missing = [];
+    if (idx.cohort == null) missing.push("cohort");
+    if (idx.entered == null) missing.push("entered");
+    if (idx.lag == null) missing.push("lag_days");
+    if (missing.length) {
+      var looksLikeData = parseDate(String(items[0].cells[1] || "").trim()) != null || parseDate(String(items[0].cells[0] || "").trim()) != null;
+      res.fatal = "Missing required column" + (missing.length > 1 ? "s" : "") + ": " + missing.join(", ") + "." +
+        (looksLikeData ? " The first line looks like data — add a header row such as cohort,entered,milestone,lag_days,reached,count." : " Found headers: " + clip(header.filter(Boolean).join(", ") || "(none)", 120) + ".");
+      return res;
+    }
+    if (idx.reached == null) res.warnings.push("No reached column found, so nobody counts as observed yet — every mature row shows as not observed.");
+    var body = items.slice(1);
+    res.totalLines = body.length;
+    if (body.length > MAX_ROWS) {
+      res.warnings.push("Only the first " + num(MAX_ROWS) + " rows were read (of " + num(body.length) + "). Use a count column to group rows.");
+      body = body.slice(0, MAX_ROWS);
+    }
+    var lagsByMs = Object.create(null);
+    function bad(line, msg) { res.errors.push({ line: line, msg: msg }); }
+    body.forEach(function (it) {
+      var c = it.cells, line = it.line;
+      var get = function (k) { return idx[k] == null ? "" : String(c[idx[k]] == null ? "" : c[idx[k]]).trim(); };
+      var cohort = get("cohort");
+      if (!cohort) return bad(line, "cohort is blank.");
+      var eS = get("entered"), e = parseDate(eS);
+      if (e == null) return bad(line, eS ? "entered “" + clip(eS, 24) + "” isn't a real YYYY-MM-DD date." : "entered date is blank.");
+      var lS = get("lag"), L = Number(lS);
+      if (lS === "" || !isFinite(L) || L < 0 || Math.floor(L) !== L) return bad(line, "lag_days “" + clip(lS || "blank", 16) + "” must be a whole number ≥ 0.");
+      if (L > MAX_SPAN) return bad(line, "lag_days " + clip(lS, 10) + " is longer than 10 years.");
+      var rS = get("reached"), rd = null;
+      if (rS && !/^(n\/?a|null|none|-|—)$/i.test(rS)) {
+        rd = parseDate(rS);
+        if (rd == null) return bad(line, "reached “" + clip(rS, 24) + "” isn't a real YYYY-MM-DD date (leave blank if not reached).");
+        if (rd < e) return bad(line, "reached " + clip(rS, 12) + " is before entered " + clip(eS, 12) + ".");
+      }
+      var w = 1, cS = get("count");
+      if (idx.count != null && cS !== "") {
+        w = Number(cS.replace(/[_,](?=\d{3}\b)/g, ""));
+        if (!isFinite(w) || w <= 0 || Math.floor(w) !== w || w > MAX_COUNT) return bad(line, "count “" + clip(cS, 16) + "” must be a whole number from 1 to 10,000,000.");
+      }
+      var ms = get("milestone") || "milestone";
+      cohort = clip(cohort, 60); ms = clip(ms, 40);
+      (lagsByMs[ms] = lagsByMs[ms] || Object.create(null))[L] = true;
+      res.rows.push({ cohort: cohort, e: e, L: L, r: rd, w: w, ms: ms });
+    });
+    Object.keys(lagsByMs).forEach(function (ms) {
+      var lags = Object.keys(lagsByMs[ms]).map(Number).sort(function (a, b) { return a - b; });
+      if (lags.length > 1) res.warnings.push("“" + ms + "” uses several lags (" + clip(lags.join(", "), 40) + " days); each row matures on its own lag.");
+    });
+    if (!res.rows.length && !res.fatal) res.fatal = "None of the rows could be used. See the issues below.";
+    return res;
+  }
+
+  // ---------- model ----------
+  function buildModel(rows, ms) {
+    var sel = rows.filter(function (r) { return r.ms === ms; });
+    if (!sel.length) return null;
+    var minD = Infinity, maxD = -Infinity, cohortMap = Object.create(null), order = [], lags = {};
+    sel.forEach(function (r) {
+      if (r.e < minD) minD = r.e;
+      var end = r.e + r.L;
+      if (end > maxD) maxD = end;
+      if (r.r != null && r.r > maxD) maxD = r.r;
+      lags[r.L] = true;
+      if (!cohortMap[r.cohort]) { cohortMap[r.cohort] = { name: r.cohort, first: r.e, total: 0 }; order.push(cohortMap[r.cohort]); }
+      var c = cohortMap[r.cohort];
+      if (r.e < c.first) c.first = r.e;
+      c.total += r.w;
+    });
+    maxD += 3;
+    var warn = null;
+    if (maxD - minD > MAX_SPAN) {
+      warn = "The dates span more than 10 years; showing the first 10.";
+      maxD = minD + MAX_SPAN;
+    }
+    order.sort(function (a, b) { return a.first - b.first || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
+    if (order.length > MAX_COHORTS) {
+      warn = "Showing the earliest " + MAX_COHORTS + " of " + order.length + " cohorts.";
+      order = order.slice(0, MAX_COHORTS);
+    }
+    var n = maxD - minD + 1;
+    order.forEach(function (c, i) {
+      c.i = i;
+      c.d = {};
+      STATES.concat(["entered", "anyHit"]).forEach(function (s) { c.d[s] = new Float64Array(n + 1); });
+    });
+    function add(arr, from, to, w) { // [from, to) in day indexes, clamped
+      from = Math.max(0, from); to = Math.min(n, to);
+      if (to <= from) return;
+      arr[from] += w; arr[to] -= w;
+    }
+    sel.forEach(function (r) {
+      var c = cohortMap[r.cohort];
+      if (c.i == null || order[c.i] !== c) return;
+      var e0 = r.e - minD, m0 = r.e + r.L - minD;
+      var within = r.r != null && r.r - r.e <= r.L;
+      add(c.d.entered, e0, n, r.w);
+      if (r.r != null) add(c.d.anyHit, r.r - minD, n, r.w);
+      if (within) {
+        var r0 = r.r - minD;
+        add(c.d.open, e0, Math.min(r0, m0), r.w);
+        add(c.d.reached, r0, m0, r.w);
+        add(c.d.obs, m0, n, r.w);
+      } else {
+        add(c.d.open, e0, m0, r.w);
+        add(c.d.miss, m0, n, r.w);
+      }
+    });
+    var tot = {};
+    STATES.concat(["entered", "anyHit"]).forEach(function (s) { tot[s] = new Float64Array(n); });
+    order.forEach(function (c) {
+      Object.keys(c.d).forEach(function (s) {
+        var a = c.d[s], run = 0, out = new Float64Array(n);
+        for (var i = 0; i < n; i++) { run += a[i]; out[i] = run; tot[s][i] += run; }
+        c.d[s] = out;
+      });
+    });
+    var lagList = Object.keys(lags).map(Number).sort(function (a, b) { return a - b; });
+    var grand = 0; order.forEach(function (c) { grand += c.total; });
+    return { ms: ms, minD: minD, maxD: maxD, n: n, cohorts: order, tot: tot, lags: lagList, warn: warn, grand: grand,
+      lastEntry: Math.max.apply(null, sel.map(function (r) { return r.e; })) };
+  }
+  function at(model, arrs, day) {
+    var i = Math.max(0, Math.min(model.n - 1, day - model.minD));
+    return { obs: arrs.obs[i], miss: arrs.miss[i], reached: arrs.reached[i], open: arrs.open[i], entered: arrs.entered[i], anyHit: arrs.anyHit[i] };
+  }
+
+  // ---------- demo (fictional) ----------
+  function demoCSV() {
+    var seed = 20261018;
+    function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+    var lines = ["# Fictional demo: an invented community pottery studio's class sign-ups.",
+      "# Every name, date and number below is made up for illustration.",
+      "cohort,entered,milestone,lag_days,reached,count"];
+    var start = parseDate("2026-05-04");
+    var specs = [
+      { ms: "first_glaze", lag: 14, base: 0.58, mean: 6 },
+      { ms: "returned_for_term_2", lag: 45, base: 0.36, mean: 24 }
+    ];
+    for (var wk = 0; wk < 10; wk++) {
+      var name = "Week " + (wk < 9 ? "0" : "") + (wk + 1) + " intake";
+      [0, 3].forEach(function (off) {
+        var e = start + wk * 7 + off;
+        var size = 6 + Math.floor(rnd() * 9);
+        specs.forEach(function (sp) {
+          var p = sp.base + (wk - 4) * 0.018 + (rnd() - 0.5) * 0.1;
+          var hits = {}, none = 0;
+          for (var k = 0; k < size; k++) {
+            if (rnd() < p) {
+              var lagHit = Math.min(Math.round(-Math.log(1 - rnd() * 0.97) * sp.mean * 0.75) + 1, sp.lag + 10);
+              var bucket = lagHit <= 3 ? 2 : Math.round(lagHit / 3) * 3;
+              hits[bucket] = (hits[bucket] || 0) + 1;
+            } else none++;
+          }
+          Object.keys(hits).map(Number).sort(function (a, b) { return a - b; }).forEach(function (b) {
+            lines.push(name + "," + iso(e) + "," + sp.ms + "," + sp.lag + "," + iso(e + b) + "," + hits[b]);
+          });
+          if (none) lines.push(name + "," + iso(e) + "," + sp.ms + "," + sp.lag + ",," + none);
+        });
+      });
+    }
+    return lines.join("\n");
+  }
+  var DEMO = demoCSV();
+  var DEMO_T = parseDate("2026-07-03");
+
+  // ---------- state ----------
+  var S = { rows: [], milestones: [], ms: null, model: null, T: null, source: "none", playing: null, openCohort: null };
+
+  function setSource(src) {
+    S.source = src;
+    var b = $("sourceBadge");
+    b.setAttribute("data-source", src);
+    b.textContent = src === "demo" ? "Fictional demo data" : src === "user" ? "Your pasted data · local only" : "No data loaded";
+  }
+
+  function showMessages(res, extra) {
+    var box = $("messages");
+    box.textContent = "";
+    if (res.fatal) {
+      var m = el("div", "msg err"); m.appendChild(el("strong", null, "Couldn't draw yet. ")); m.appendChild(document.createTextNode(res.fatal));
+      box.appendChild(m);
+    } else {
+      var cohorts = Object.create(null), w = 0;
+      res.rows.forEach(function (r) { cohorts[r.cohort] = 1; w += r.w; });
+      var ok = el("div", "msg ok");
+      ok.textContent = "Read " + num(res.rows.length) + " row" + (res.rows.length === 1 ? "" : "s") + " (" + num(w) + " members) across " +
+        num(Object.keys(cohorts).length) + " cohort" + (Object.keys(cohorts).length === 1 ? "" : "s") + " and " +
+        num(S.milestones.length) + " milestone" + (S.milestones.length === 1 ? "" : "s") + "." +
+        (res.errors.length ? " Skipped " + num(res.errors.length) + "." : "");
+      box.appendChild(ok);
+    }
+    var warns = res.warnings.slice();
+    if (extra) warns.push(extra);
+    if (warns.length) {
+      var wv = el("div", "msg warn"), ul = el("ul");
+      wv.appendChild(el("strong", null, "Heads up"));
+      warns.forEach(function (t) { ul.appendChild(el("li", null, t)); });
+      wv.appendChild(ul); box.appendChild(wv);
+    }
+    if (res.errors.length) {
+      var ev = el("div", "msg err"), ul2 = el("ul");
+      ev.appendChild(el("strong", null, num(res.errors.length) + " row" + (res.errors.length === 1 ? "" : "s") + " skipped"));
+      res.errors.slice(0, 12).forEach(function (e) { ul2.appendChild(el("li", null, "Line " + e.line + ": " + e.msg)); });
+      if (res.errors.length > 12) ul2.appendChild(el("li", null, "…and " + num(res.errors.length - 12) + " more."));
+      ev.appendChild(ul2); box.appendChild(ev);
+    }
+  }
+
+  function load(text, source, preferT) {
+    stopPlay();
+    var res = parseData(text);
+    S.rows = res.rows;
+    var seen = Object.create(null);
+    S.milestones = [];
+    res.rows.forEach(function (r) { if (!seen[r.ms]) { seen[r.ms] = 1; S.milestones.push(r.ms); } });
+    if (res.fatal || !res.rows.length) {
+      S.model = null; S.ms = null;
+      showMessages(res);
+      setSource(S.rows.length ? source : "none");
+      renderEmpty(true);
+      return res;
+    }
+    setSource(source);
+    selectMilestone(S.milestones[0], preferT);
+    showMessages(res, S.model && S.model.warn);
+    return res;
+  }
+
+  function selectMilestone(ms, preferT) {
+    S.ms = ms;
+    S.model = buildModel(S.rows, ms);
+    S.openCohort = null;
+    hideTip();
+    if (!S.model) { renderEmpty(true); return; }
+    renderEmpty(false);
+    var M = S.model;
+    var T = preferT != null ? preferT : (S.T != null ? S.T : M.lastEntry);
+    S.T = Math.max(M.minD, Math.min(M.maxD, T));
+    var sc = $("scrub");
+    sc.min = 0; sc.max = M.n - 1;
+    $("datePick").min = iso(M.minD); $("datePick").max = iso(M.maxD);
+    renderMilestones();
+    buildStream();
+    buildRibbons();
+    update();
+  }
+
+  function renderEmpty(empty) {
+    $("vizBody").hidden = empty;
+    $("emptyState").hidden = !empty;
+    $("vizCaption").textContent = empty ? "Load the demo or paste rows to begin." :
+      (S.source === "demo" ? "Showing invented sample data." : "Showing your pasted rows (local only).");
+  }
+
+  function lagText(M) {
+    if (!M) return "";
+    return M.lags.length === 1 ? M.lags[0] + "-day window" : "windows of " + M.lags[0] + "–" + M.lags[M.lags.length - 1] + " days";
+  }
+
+  function renderMilestones() {
+    var row = $("msRow");
+    row.textContent = "";
+    if (S.milestones.length < 2 && S.milestones[0] === "milestone") { row.hidden = true; return; }
+    row.hidden = false;
+    S.milestones.forEach(function (ms) {
+      var b = el("button", "seg-btn");
+      b.type = "button";
+      b.setAttribute("aria-pressed", ms === S.ms ? "true" : "false");
+      b.appendChild(document.createTextNode(ms.replace(/_/g, " ")));
+      var m = buildLagsFor(ms);
+      b.appendChild(el("small", null, m));
+      b.addEventListener("click", function () { stopPlay(); selectMilestone(ms); });
+      row.appendChild(b);
+    });
+  }
+  function buildLagsFor(ms) {
+    var l = {};
+    S.rows.forEach(function (r) { if (r.ms === ms) l[r.L] = 1; });
+    var ks = Object.keys(l).map(Number).sort(function (a, b) { return a - b; });
+    return ks.length === 1 ? ks[0] + "d" : ks[0] + "–" + ks[ks.length - 1] + "d";
+  }
+
+  // ---------- stream chart ----------
+  var G = {}; // geometry of stream
+  function buildStream() {
+    var M = S.model, wrap = $("streamWrap");
+    wrap.textContent = "";
+    var W = Math.max(300, Math.round(wrap.clientWidth || 600));
+    var H = W < 520 ? 190 : 230;
+    var pad = { l: 40, r: 12, t: 12, b: 26 };
+    var iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    var maxY = 0;
+    for (var i = 0; i < M.n; i++) maxY = Math.max(maxY, M.tot.entered[i]);
+    var yMax = niceMax(maxY || 1);
+    var x = function (dIdx) { return pad.l + (M.n <= 1 ? 0 : (dIdx / (M.n - 1)) * iw); };
+    var y = function (v) { return pad.t + ih - (v / yMax) * ih; };
+    G = { W: W, H: H, pad: pad, iw: iw, ih: ih, x: x, y: y };
+    var svg = sv("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img" });
+    var defs = sv("defs", {});
+    var pat = sv("pattern", { id: "hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    pat.appendChild(sv("rect", { width: 6, height: 6, fill: "var(--imm-bg)" }));
+    pat.appendChild(sv("rect", { width: 2, height: 6, fill: "var(--imm)" }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+    // grid
+    var g = sv("g", { "class": "axis" });
+    for (var k = 0; k <= 4; k++) {
+      var v = (yMax / 4) * k, yy = Math.round(y(v)) + 0.5;
+      g.appendChild(sv("line", { x1: pad.l, x2: W - pad.r, y1: yy, y2: yy, "class": k === 0 ? "baseline" : "gridline" }));
+      var t = sv("text", { x: pad.l - 6, y: yy + 4, "text-anchor": "end" }); t.textContent = num(v); g.appendChild(t);
+    }
+    // x ticks
+    var ticks = xTicks(M, iw);
+    ticks.forEach(function (d) {
+      var xx = Math.round(x(d - M.minD)) + 0.5;
+      g.appendChild(sv("line", { x1: xx, x2: xx, y1: pad.t + ih, y2: pad.t + ih + 4, "class": "baseline" }));
+      var t = sv("text", { x: xx, y: H - 8, "text-anchor": "middle" }); t.textContent = fmt(d, false); g.appendChild(t);
+    });
+    svg.appendChild(g);
+    // stacked areas: obs, miss, reached, open (bottom -> top)
+    var fills = { obs: "var(--obs)", miss: "var(--miss)", reached: "var(--imm)", open: "url(#hatch)" };
+    var base = new Float64Array(M.n);
+    var step = Math.max(1, Math.floor(M.n / Math.max(1, iw)));
+    STATES.forEach(function (s) {
+      var top = new Float64Array(M.n), up = [], down = [];
+      for (var i = 0; i < M.n; i++) top[i] = base[i] + M.tot[s][i];
+      for (var j = 0; j < M.n; j += step) up.push(x(j).toFixed(1) + "," + y(top[j]).toFixed(1));
+      if ((M.n - 1) % step) up.push(x(M.n - 1).toFixed(1) + "," + y(top[M.n - 1]).toFixed(1));
+      for (var j2 = M.n - 1; j2 >= 0; j2 -= step) down.push(x(j2).toFixed(1) + "," + y(base[j2]).toFixed(1));
+      if (down.length && (M.n - 1) % step) down.push(x(0).toFixed(1) + "," + y(base[0]).toFixed(1));
+      var p = sv("path", { d: "M" + up.join("L") + "L" + down.join("L") + "Z", fill: fills[s] });
+      if (s === "open") p.setAttribute("stroke", "var(--imm)"), p.setAttribute("stroke-width", "1");
+      svg.appendChild(p);
+      // surface separator line along top edge
+      svg.appendChild(sv("path", { d: "M" + up.join("L"), fill: "none", stroke: "var(--surface)", "stroke-width": 1.5, "stroke-opacity": s === "open" ? 0 : 0.9 }));
+      base = top;
+    });
+    var hover = sv("line", { "class": "hover-line", y1: pad.t, y2: pad.t + ih, x1: -10, x2: -10, visibility: "hidden" });
+    svg.appendChild(hover);
+    var cur = sv("g", {});
+    cur.appendChild(sv("line", { "class": "cursor-line", y1: pad.t - 4, y2: pad.t + ih, x1: 0, x2: 0 }));
+    cur.appendChild(sv("circle", { "class": "cursor-knob", cx: 0, cy: pad.t - 4, r: 6 }));
+    svg.appendChild(cur);
+    // hit area
+    var hit = sv("rect", { x: pad.l - 8, y: 0, width: iw + 16, height: H, fill: "transparent" });
+    svg.appendChild(hit);
+    wrap.appendChild(svg);
+    G.svg = svg; G.cursor = cur; G.hover = hover;
+    wireStream(svg);
+  }
+  function niceMax(v) {
+    var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+    var nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 4 ? 4 : f <= 5 ? 5 : 10;
+    return Math.max(4, nf * p);
+  }
+  function xTicks(M, iw) {
+    var maxTicks = Math.max(2, Math.floor(iw / 74)), span = M.n;
+    var cands = [1, 2, 7, 14, 28, 61, 91, 182, 365];
+    var stepDays = cands[cands.length - 1];
+    for (var i = 0; i < cands.length; i++) if (span / cands[i] <= maxTicks) { stepDays = cands[i]; break; }
+    var out = [];
+    if (stepDays >= 28) { // month-aligned
+      var months = Math.round(stepDays / 30.4);
+      var d = new Date(M.minD * DAY), y = d.getUTCFullYear(), m = d.getUTCMonth() + 1;
+      while (true) {
+        var dn = Math.round(Date.UTC(y, m, 1) / DAY);
+        if (dn > M.maxD) break;
+        if (m % months === 0 || months === 1) out.push(dn);
+        m++; if (m > 11) { m = 0; y++; }
+        if (out.length > 40) break;
+      }
+      if (!out.length) out.push(M.minD);
+    } else {
+      // align to Mondays when step is weekly
+      var first = M.minD;
+      if (stepDays % 7 === 0) { var dow = new Date(first * DAY).getUTCDay(); first += (8 - dow) % 7; }
+      for (var t = first; t <= M.maxD; t += stepDays) out.push(t);
+    }
+    return out;
+  }
+  function dayFromClientX(cx) {
+    var rect = G.svg.getBoundingClientRect(), scale = G.W / rect.width;
+    var px = (cx - rect.left) * scale;
+    var f = (px - G.pad.l) / G.iw;
+    return S.model.minD + Math.max(0, Math.min(S.model.n - 1, Math.round(f * (S.model.n - 1))));
+  }
+  function wireStream(svg) {
+    var dragging = false;
+    svg.addEventListener("pointerdown", function (ev) {
+      dragging = true; stopPlay();
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+      setT(dayFromClientX(ev.clientX));
+      streamTip(ev.clientX, ev.clientY);
+    });
+    svg.addEventListener("pointermove", function (ev) {
+      if (dragging) { setT(dayFromClientX(ev.clientX)); streamTip(ev.clientX, ev.clientY); }
+      else if (ev.pointerType === "mouse") streamTip(ev.clientX, ev.clientY);
+    });
+    var end = function (ev) {
+      dragging = false;
+      if (ev.pointerType !== "mouse") setTimeout(hideTipIfStream, 1600);
+    };
+    svg.addEventListener("pointerup", end);
+    svg.addEventListener("pointercancel", end);
+    svg.addEventListener("pointerleave", function (ev) { if (!dragging && ev.pointerType === "mouse") hideTipIfStream(); });
+  }
+  function streamTip(cx, cy) {
+    var M = S.model, d = dayFromClientX(cx), v = at(M, M.tot, d);
+    var xx = G.x(d - M.minD);
+    G.hover.setAttribute("x1", xx); G.hover.setAttribute("x2", xx); G.hover.setAttribute("visibility", "visible");
+    showTip(cx, cy, fmt(d), v, null, "stream", "Matured rate " + pct(v.obs, v.obs + v.miss) + (d === S.T ? " · selected date" : " · tap or drag to select"));
+  }
+  function hideTipIfStream() {
+    if (TIP.kind === "stream") hideTip();
+    if (G.hover) G.hover.setAttribute("visibility", "hidden");
+  }
+
+  // ---------- ribbons ----------
+  var RIB = [];
+  function buildRibbons() {
+    var M = S.model, box = $("ribbons");
+    box.textContent = "";
+    RIB = [];
+    var maxTotal = 0;
+    M.cohorts.forEach(function (c) { maxTotal = Math.max(maxTotal, c.total); });
+    M.cohorts.forEach(function (c) {
+      var row = el("div", "rib-row");
+      var name = el("button", "rib-name");
+      name.type = "button";
+      name.setAttribute("aria-expanded", "false");
+      name.appendChild(document.createTextNode(c.name));
+      name.appendChild(el("small", null, "from " + fmt(c.first, false) + " · " + num(c.total)));
+      name.title = c.name;
+      var track = el("div", "rib-track");
+      var frame = el("div", "rib-frame");
+      frame.style.width = ((c.total / maxTotal) * 100).toFixed(2) + "%";
+      var segs = {};
+      STATES.concat(["ghost"]).forEach(function (s) {
+        var sg = el("div", "seg " + s);
+        sg.setAttribute("data-state", s);
+        frame.appendChild(sg);
+        segs[s] = sg;
+      });
+      track.appendChild(frame);
+      var rate = el("div", "rib-rate");
+      row.appendChild(name); row.appendChild(track); row.appendChild(rate);
+      box.appendChild(row);
+      var rec = { c: c, row: row, name: name, segs: segs, rate: rate, track: track };
+      RIB.push(rec);
+      var focusAt = 0;
+      name.addEventListener("click", function () {
+        if (Date.now() - focusAt > 400 && S.openCohort === c.i && TIP.kind === "cohort") { closeCohort(); return; }
+        openCohort(rec, null);
+      });
+      name.addEventListener("focus", function () { focusAt = Date.now(); openCohort(rec, null); });
+      name.addEventListener("blur", function () { setTimeout(function () { if (document.activeElement !== name && TIP.kind === "cohort" && S.openCohort === c.i && !TIP.pinnedByPointer) closeCohort(); }, 0); });
+      track.addEventListener("pointermove", function (ev) {
+        if (ev.pointerType !== "mouse") return;
+        openCohort(rec, segAt(rec, ev.clientX), ev.clientX, ev.clientY);
+      });
+      track.addEventListener("pointerleave", function (ev) { if (ev.pointerType === "mouse" && document.activeElement !== name) closeCohort(); });
+      track.addEventListener("pointerdown", function (ev) {
+        openCohort(rec, segAt(rec, ev.clientX), ev.clientX, ev.clientY);
+        TIP.pinnedByPointer = true;
+      });
+    });
+  }
+  function segAt(rec, cx) {
+    var hit = null;
+    STATES.concat(["ghost"]).forEach(function (s) {
+      var r = rec.segs[s].getBoundingClientRect();
+      if (r.width > 0 && cx >= r.left && cx <= r.right) hit = s;
+    });
+    return hit;
+  }
+  function cohortValues(c) { return at(S.model, c.d, S.T); }
+  function openCohort(rec, hot, cx, cy) {
+    RIB.forEach(function (r) { r.name.setAttribute("aria-expanded", r === rec ? "true" : "false"); });
+    STATES.concat(["ghost"]).forEach(function (s) {
+      RIB.forEach(function (r) { r.segs[s].classList.toggle("hot", r === rec && s === hot); });
+    });
+    S.openCohort = rec.c.i;
+    var v = cohortValues(rec.c);
+    var rect = rec.track.getBoundingClientRect();
+    var px = cx != null ? cx : rect.left + Math.min(rect.width, 160) / 2;
+    var py = cy != null ? cy : rect.top;
+    showTip(px, py, rec.c.name + " · " + fmt(S.T), v, hot, "cohort", cohortFoot(rec.c, v), rec.c.total);
+  }
+  function closeCohort() {
+    S.openCohort = null;
+    TIP.pinnedByPointer = false;
+    RIB.forEach(function (r) {
+      r.name.setAttribute("aria-expanded", "false");
+      STATES.concat(["ghost"]).forEach(function (s) { r.segs[s].classList.remove("hot"); });
+    });
+    if (TIP.kind === "cohort") hideTip();
+  }
+  function cohortFoot(c, v) {
+    var elig = v.obs + v.miss, imm = v.open + v.reached;
+    if (v.entered === 0) return "Nobody from this cohort has entered yet.";
+    if (elig === 0) return "No one is mature yet — judging now would be guesswork.";
+    if (imm === 0) return "Fully mature: " + pct(v.obs, elig) + " observed within the " + lagText(S.model) + ".";
+    return pct(elig, v.entered) + " mature · matured rate " + pct(v.obs, elig) + " (may shift as " + num(imm) + " more mature).";
+  }
+
+  // ---------- tooltip ----------
+  var TIP = { kind: null, pinnedByPointer: false };
+  function showTip(cx, cy, title, v, hot, kind, foot, total) {
+    var tip = $("tip");
+    tip.textContent = "";
+    tip.appendChild(el("div", "t-title", title));
+    var rowsDef = [["obs", v.obs], ["miss", v.miss], ["reached", v.reached], ["open", v.open]];
+    if (total != null) rowsDef.push(["ghost", Math.max(0, total - v.entered)]);
+    rowsDef.forEach(function (pair) {
+      var r = el("div", "t-row" + (pair[0] === hot ? " hot" : ""));
+      r.appendChild(el("i", "chip " + pair[0]));
+      r.appendChild(el("span", null, LABELS[pair[0]]));
+      r.appendChild(el("b", null, num(pair[1])));
+      tip.appendChild(r);
+    });
+    if (foot) tip.appendChild(el("div", "t-foot", foot));
+    TIP.kind = kind;
+    tip.classList.add("show");
+    tip.setAttribute("aria-hidden", "false");
+    var tw = tip.offsetWidth, th = tip.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+    var left = Math.min(vw - tw - 12, Math.max(12, cx - tw / 2));
+    var top = cy - th - 14;
+    if (top < 8) top = Math.min(vh - th - 8, cy + 22);
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  function hideTip() { TIP.kind = null; TIP.pinnedByPointer = false; $("tip").classList.remove("show"); $("tip").setAttribute("aria-hidden", "true"); }
+
+  // ---------- update at T ----------
+  var liveTimer = null;
+  function setT(day) {
+    var M = S.model;
+    if (!M) return;
+    day = Math.max(M.minD, Math.min(M.maxD, Math.round(day)));
+    if (day === S.T) return;
+    S.T = day;
+    update();
+  }
+  function update() {
+    var M = S.model, T = S.T;
+    if (!M) return;
+    var i = T - M.minD;
+    $("scrub").value = i;
+    $("scrub").setAttribute("aria-valuetext", fmt(T));
+    $("datePick").value = iso(T);
+    $("dateLabel").textContent = fmt(T);
+    var dl = $("dateLabel"); dl.appendChild(el("small", null, "observation date"));
+    $("dayLabel").textContent = "day " + (i + 1) + " of " + M.n;
+    var v = at(M, M.tot, T), elig = v.obs + v.miss, imm = v.open + v.reached;
+    $("sEntered").textContent = num(v.entered);
+    $("sObs").textContent = num(v.obs);
+    $("sMiss").textContent = num(v.miss);
+    $("sImm").textContent = num(imm);
+    var rate = $("sRate"); rate.textContent = pct(v.obs, elig);
+    if (elig) rate.appendChild(el("small", null, "of " + num(elig)));
+    // cursor
+    var xx = G.x(i);
+    G.cursor.setAttribute("transform", "translate(" + xx.toFixed(1) + ",0)");
+    // ribbons
+    RIB.forEach(function (rec) {
+      var cv = at(M, rec.c.d, T), tot = rec.c.total, left = 0;
+      var parts = { obs: cv.obs, miss: cv.miss, reached: cv.reached, open: cv.open, ghost: Math.max(0, tot - cv.entered) };
+      ["obs", "miss", "reached", "open", "ghost"].forEach(function (s) {
+        var w = tot ? (parts[s] / tot) * 100 : 0, sg = rec.segs[s];
+        sg.style.left = left.toFixed(3) + "%";
+        sg.style.width = w.toFixed(3) + "%";
+        sg.classList.toggle("zero", w === 0);
+        sg.style.visibility = w === 0 ? "hidden" : "visible";
+        left += w;
+      });
+      // rounded corners on the actual first/last visible solid segment
+      var e2 = cv.obs + cv.miss;
+      rec.rate.textContent = "";
+      rec.rate.classList.toggle("na", e2 === 0);
+      if (cv.entered === 0) { rec.rate.textContent = "—"; rec.rate.appendChild(el("small", null, "not started")); }
+      else if (e2 === 0) { rec.rate.textContent = "immature"; rec.rate.appendChild(el("small", null, "0% mature")); }
+      else { rec.rate.textContent = pct(cv.obs, e2); rec.rate.appendChild(el("small", null, pct(e2, cv.entered) + " mature")); }
+      rec.name.setAttribute("aria-label", rec.c.name + ". At " + fmt(T) + ": " + num(cv.entered) + " entered of " + num(tot) + "; " +
+        num(cv.obs) + " observed, " + num(cv.miss) + " eligible not observed, " + num(cv.reached + cv.open) + " immature (" + num(cv.reached) + " already hit). Matured rate " + pct(cv.obs, e2) + ".");
+    });
+    // reopen tooltip for open cohort so numbers stay live
+    if (S.openCohort != null && TIP.kind === "cohort") {
+      var rec = RIB[S.openCohort];
+      if (rec) {
+        var hot = null;
+        STATES.concat(["ghost"]).forEach(function (s) { if (rec.segs[s].classList.contains("hot")) hot = s; });
+        var tipEl = $("tip"), r = tipEl.getBoundingClientRect();
+        showTip(r.left + r.width / 2, r.bottom + 14, rec.c.name + " · " + fmt(T), at(M, rec.c.d, T), hot, "cohort", cohortFoot(rec.c, at(M, rec.c.d, T)), rec.c.total);
+      }
+    }
+    renderTable();
+    renderInsight(v, elig, imm);
+  }
+
+  function renderInsight(v, elig, imm) {
+    var M = S.model, T = S.T, box = $("insight"), note = $("gapnote");
+    box.textContent = ""; note.textContent = "";
+    var msName = M.ms.replace(/_/g, " ");
+    var add = function (t, strong) { box.appendChild(strong ? el("strong", null, t) : document.createTextNode(t)); };
+    if (v.entered === 0) { add("On " + fmt(T) + " nobody has entered yet, so there is nothing to judge."); return; }
+    if (elig === 0) {
+      add("On " + fmt(T) + ", "); add(num(v.entered) + " have entered", true);
+      add(" but none has had the full " + lagText(M) + ". "); add("Any “" + msName + "” rate today would be guesswork.", true);
+    } else {
+      add("On " + fmt(T) + ", "); add(num(elig) + " of " + num(v.entered), true);
+      add(" entrants are mature enough to judge for “" + msName + "” (" + lagText(M) + "). ");
+      if (imm > 0) {
+        add(num(imm) + " are still immature", true);
+        add(v.reached > 0 ? " — " + num(v.reached) + " of them already hit it early, but their peers haven't had time yet." : " — their window is still open.");
+      } else add("Every entrant is mature; this rate won't move.", true);
+    }
+    var naive = v.entered ? v.anyHit / v.entered : 0, matured = elig ? v.obs / elig : null;
+    var naiveTxt = "Naive “reached so far ÷ entered” would read " + Math.round(naive * 100) + "%";
+    if (matured == null) note.textContent = naiveTxt + " — dragged down by people who simply haven't had time.";
+    else {
+      var gap = Math.round(matured * 100) - Math.round(naive * 100);
+      note.textContent = naiveTxt + " vs the matured rate of " + Math.round(matured * 100) + "%" +
+        (Math.abs(gap) >= 2 ? " — a " + Math.abs(gap) + "-point gap that comes from counting immature rows" + (v.anyHit > v.obs + v.reached ? " and late hits" : "") + "." : ".");
+    }
+    clearTimeout(liveTimer);
+    var summary = fmt(T) + ": " + num(elig) + " eligible, " + num(v.obs) + " observed, " + num(imm) + " immature. Matured rate " + pct(v.obs, elig) + ".";
+    liveTimer = setTimeout(function () { $("live").textContent = summary; }, 600);
+  }
+
+  function renderTable() {
+    var M = S.model, tb = $("tbody");
+    tb.textContent = "";
+    var addRow = function (name, v, total, isTotal) {
+      var tr = el("tr");
+      var cells = [name, num(v.entered), num(v.obs), num(v.miss), num(v.reached), num(v.open), num(Math.max(0, total - v.entered)), pct(v.obs, v.obs + v.miss)];
+      cells.forEach(function (t, k) {
+        var c = el(k === 0 ? "th" : "td", null, t);
+        if (k === 0) c.setAttribute("scope", "row");
+        if (isTotal) c.style.fontWeight = "700";
+        tr.appendChild(c);
+      });
+      tb.appendChild(tr);
+    };
+    M.cohorts.forEach(function (c) { addRow(c.name, at(M, c.d, S.T), c.total); });
+    addRow("All cohorts", at(M, M.tot, S.T), M.grand, true);
+  }
+
+  // ---------- playback ----------
+  function stopPlay() {
+    if (S.playing) { clearInterval(S.playing); S.playing = null; }
+    var p = $("play"); p.textContent = "▶ Play"; p.setAttribute("aria-label", "Play maturation");
+  }
+  function togglePlay() {
+    var M = S.model;
+    if (!M) return;
+    if (S.playing) { stopPlay(); return; }
+    if (S.T >= M.maxD) S.T = M.minD, update();
+    var stepDays = Math.max(1, Math.round(M.n / 140));
+    var p = $("play"); p.textContent = "❚❚ Pause"; p.setAttribute("aria-label", "Pause maturation");
+    S.playing = setInterval(function () {
+      if (S.T >= S.model.maxD) { stopPlay(); return; }
+      setT(S.T + stepDays);
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 350 : 70);
+  }
+
+  // ---------- wiring ----------
+  $("btnApply").addEventListener("click", function () {
+    var txt = $("csv").value;
+    var src = txt.trim() === DEMO.trim() ? "demo" : "user";
+    load(txt, src, src === "demo" ? DEMO_T : null);
+  });
+  $("btnDemo").addEventListener("click", function () {
+    $("csv").value = DEMO;
+    S.T = null;
+    load(DEMO, "demo", DEMO_T);
+  });
+  $("btnReset").addEventListener("click", function () {
+    stopPlay(); hideTip();
+    $("csv").value = "";
+    S.rows = []; S.milestones = []; S.ms = null; S.model = null; S.T = null; S.openCohort = null;
+    $("messages").textContent = "";
+    $("ribbons").textContent = ""; $("streamWrap").textContent = ""; $("tbody").textContent = "";
+    RIB = [];
+    setSource("none");
+    renderEmpty(true);
+    $("csv").focus();
+  });
+  $("scrub").addEventListener("input", function () { stopPlay(); setT(S.model.minD + Number(this.value)); });
+  $("datePick").addEventListener("change", function () {
+    var d = parseDate(this.value);
+    if (d != null) { stopPlay(); setT(d); }
+  });
+  [["back7", -7], ["back1", -1], ["fwd1", 1], ["fwd7", 7]].forEach(function (p) {
+    $(p[0]).addEventListener("click", function () { stopPlay(); setT(S.T + p[1]); });
+  });
+  $("play").addEventListener("click", togglePlay);
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") { closeCohort(); hideTip(); }
+  });
+  document.addEventListener("pointerdown", function (ev) {
+    var t = ev.target;
+    if (TIP.kind && !(t.closest && (t.closest(".rib-track") || t.closest(".rib-name") || t.closest("#streamWrap")))) { closeCohort(); hideTip(); }
+  });
+  window.addEventListener("scroll", function () { if (TIP.kind) { closeCohort(); hideTip(); } }, { passive: true });
+  var rzTimer = null, lastW = 0;
+  window.addEventListener("resize", function () {
+    clearTimeout(rzTimer);
+    rzTimer = setTimeout(function () {
+      var w = $("streamWrap").clientWidth;
+      if (S.model && Math.abs(w - lastW) > 4) { lastW = w; hideTip(); buildStream(); update(); }
+    }, 120);
+  });
+
+  renderEmpty(true);
+
+  // ---------- self-test (console: __lagLensTest()) ----------
+  window.__lagLensTest = function () {
+    var out = [], ok = function (name, cond) { out.push((cond ? "PASS " : "FAIL ") + name); return cond; };
+    var csv = "cohort,entered,milestone,lag_days,reached,count\n" +
+      "A,2026-01-01,m,10,2026-01-03,2\n" +   // hit early
+      "A,2026-01-01,m,10,,3\n" +             // never
+      "A,2026-01-01,m,10,2026-01-20,1\n" +   // late hit
+      "B,2026-01-05,m,10,2026-01-06,4\n" +
+      "B,2026-02-30,m,10,,1\n" +             // bad date
+      "B,2026-01-05,m,-2,,1\n" +             // bad lag
+      "C,2026-01-09,m,10,2026-01-02,1\n";    // reached before entered
+    var res = parseData(csv);
+    ok("parses valid rows", res.rows.length === 4);
+    ok("reports 3 bad rows", res.errors.length === 3);
+    var M = buildModel(res.rows, "m");
+    var a = at(M, M.cohorts[0].d, parseDate("2026-01-05"));
+    ok("A immature on Jan 5", a.open === 4 && a.reached === 2 && a.obs === 0 && a.entered === 6);
+    a = at(M, M.cohorts[0].d, parseDate("2026-01-11"));
+    ok("A mature on Jan 11 (lag boundary)", a.obs === 2 && a.miss === 4 && a.open === 0);
+    var b = at(M, M.cohorts[1].d, parseDate("2026-01-04"));
+    ok("B not entered on Jan 4", b.entered === 0);
+    var t = at(M, M.tot, parseDate("2026-01-12"));
+    ok("totals on Jan 12", t.obs === 2 && t.miss === 4 && t.reached === 4 && t.entered === 10);
+    ok("naive counts late hit after it happens", at(M, M.tot, parseDate("2026-01-21")).anyHit === 7);
+    ok("tab-delimited", parseData("cohort\tentered\tlag_days\nX\t2026-03-01\t7").rows.length === 1);
+    ok("quoted comma cohort", parseData('cohort,entered,lag_days\n"Hello, world",2026-03-01,7').rows[0].cohort === "Hello, world");
+    ok("missing header is fatal", !!parseData("2026-01-01,5").fatal);
+    var evil = '<img src=x onerror=alert(1)>';
+    var r2 = parseData("cohort,entered,lag_days\n" + evil + ",2026-03-01,7");
+    ok("html kept as plain text", r2.rows[0].cohort === evil);
+    return out.join("\n");
+  };
+  window.__lagLens = { load: load, setT: setT, state: S, DEMO: function () { return DEMO; } };
+})();
+</script>
+</body>
+</html>
