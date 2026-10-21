@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Redaction Desk · Daily Surprise</title>
+<style>
+:root{
+  color-scheme:light;
+  --mat:#2f5b4c;
+  --mat-deep:#23463a;
+  --mat-line:rgba(255,255,255,.075);
+  --paper:#f4f2ec;
+  --paper-edge:#d9d5c8;
+  --ink:#141516;
+  --ink-soft:#4e5651;
+  --ink-faint:#8a918c;
+  --marker:#ffd34d;
+  --focus:#ffd34d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;max-width:100%;overflow-x:hidden}
+body{
+  background:
+    linear-gradient(var(--mat-line) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(90deg,var(--mat-line) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(180deg,var(--mat),var(--mat-deep));
+  background-attachment:fixed;
+  color:var(--paper);
+  font:16px/1.5 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  min-height:100vh;
+}
+main{max-width:1120px;margin:0 auto;padding:22px 16px 64px}
+header{margin-bottom:18px;max-width:640px}
+h1{
+  font:700 clamp(2.4rem,9vw,4.4rem)/1 "American Typewriter","Courier Prime","Courier New",Courier,monospace;
+  letter-spacing:-.01em;margin:0 0 10px;color:var(--paper);
+}
+.lede{margin:0;font-size:1.08rem;color:#dfe7e1;max-width:56ch}
+.lede strong{color:#fff;font-weight:600}
+
+.desk{display:grid;grid-template-columns:1fr;gap:18px;align-items:start}
+@media(min-width:860px){.desk{grid-template-columns:minmax(0,1fr) 312px}.rail{position:sticky;top:16px}}
+
+.sheet{
+  background:var(--paper);padding:10px;border-radius:4px;
+  box-shadow:0 1px 0 var(--paper-edge) inset,0 14px 34px rgba(0,0,0,.35),0 2px 6px rgba(0,0,0,.25);
+  min-width:0;
+}
+.sheet canvas{
+  display:block;width:100%;height:auto;max-width:100%;
+  touch-action:none;cursor:crosshair;background:#e4e1d8;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+.sheet canvas:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.sheet-hint{margin:8px 2px 0;font-size:.86rem;color:var(--ink-soft)}
+
+.rail{display:flex;flex-direction:column;gap:12px;min-width:0}
+.group{background:var(--paper);color:var(--ink);border-radius:4px;padding:14px}
+.group h2{font:600 .95rem/1.3 inherit;margin:0 0 10px;color:var(--ink-soft)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{
+  font:inherit;font-weight:600;min-height:46px;padding:10px 16px;border-radius:6px;cursor:pointer;
+  border:1.5px solid var(--ink);background:transparent;color:var(--ink);flex:1 1 auto;
+}
+button:hover:not(:disabled){background:#e8e5dc}
+button:disabled{opacity:.42;cursor:not-allowed}
+button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);width:100%}
+button.primary:hover:not(:disabled){background:#000}
+button:focus-visible,summary:focus-visible{outline:3px solid #1b6ea6;outline-offset:2px}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+.small{font-size:.86rem;color:var(--ink-soft);margin:8px 0 0}
+.status{font-size:.92rem;margin:0}
+.status b{font-weight:600;word-break:break-word}
+.status .dim{color:var(--ink-soft)}
+.msg{font-size:.9rem;margin:8px 0 0;min-height:1.3em;color:var(--ink-soft)}
+.msg.warn{color:#8a3b12}
+
+.about{margin-top:26px;color:var(--paper);max-width:66ch}
+.about h2{font:600 1.15rem/1.3 inherit;margin:22px 0 6px}
+.about p,.about li{color:#dfe7e1}
+.about ol{padding-left:22px}
+details{background:rgba(0,0,0,.18);border-radius:4px;padding:4px 14px;margin-top:10px}
+summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+kbd{font:.85em "American Typewriter","Courier New",monospace;background:rgba(255,255,255,.12);padding:1px 6px;border-radius:3px}
+.group kbd{background:#e3e0d6}
+footer{margin-top:34px;font-size:.86rem;color:#c5d3c9;max-width:66ch}
+
+.drop-overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(20,21,22,.82);color:var(--paper);z-index:9;pointer-events:none;
+  font:700 clamp(1.6rem,6vw,3rem) "American Typewriter","Courier New",monospace;text-align:center;padding:24px;
+}
+body.dragging .drop-overlay{display:flex}
+@media(prefers-reduced-motion:no-preference){.sheet{transition:transform .15s ease}body.dragging .sheet{transform:scale(.985)}}
+</style>
+</head>
+<body>
+<div class="drop-overlay" aria-hidden="true">Drop the image to open it</div>
+<main>
+  <header>
+    <h1>Redaction Desk</h1>
+    <p class="lede">Black out parts of a picture before you share it. <strong>Nothing leaves this page.</strong> The image stays on your device, and you download a new flattened PNG with solid black boxes baked into the pixels.</p>
+  </header>
+
+  <div class="desk">
+    <section class="sheet" aria-label="Image being redacted">
+      <canvas id="sheet" width="1280" height="900" role="img" aria-label="Demo image. Drag on the image to draw a black box." tabindex="0"></canvas>
+      <p class="sheet-hint" id="hint">Drag anywhere on the image to draw a box. Lift to commit it. Scroll the page from outside the sheet.</p>
+    </section>
+
+    <aside class="rail">
+      <div class="group">
+        <h2>Image</h2>
+        <div class="row">
+          <button type="button" id="open">Open image</button>
+          <button type="button" id="demo">Use demo image</button>
+        </div>
+        <input type="file" id="file" accept="image/*" aria-label="Choose an image file">
+        <p class="small">You can also drop a file anywhere on this page, or paste one with <kbd>Ctrl</kbd> or <kbd>Cmd</kbd> + V.</p>
+      </div>
+
+      <div class="group">
+        <h2>Boxes</h2>
+        <div class="row">
+          <button type="button" id="undo" disabled>Undo last box</button>
+          <button type="button" id="clear" disabled>Clear all</button>
+        </div>
+        <p class="small"><kbd>Esc</kbd> cancels a box while dragging. <kbd>Cmd</kbd> or <kbd>Ctrl</kbd> + Z undoes.</p>
+      </div>
+
+      <div class="group">
+        <h2>Export</h2>
+        <button type="button" class="primary" id="save" disabled>Download flattened PNG</button>
+        <p class="status" id="status" aria-live="polite"></p>
+        <p class="msg" id="msg" aria-live="polite"></p>
+        <p class="small">Same pixel size as the original. Boxes become opaque black pixels, not a layer. Camera metadata is not carried over. Your original file is not changed.</p>
+      </div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <h2>What this does</h2>
+    <p>It is a small offline tool for sharing screenshots, scans, or photos without leaking the parts that are nobody's business: a notification, a reflection, an address on a parcel, a tab you forgot was open. Draw a box, it turns solid black, download the result.</p>
+
+    <h2>Why black boxes and not blur</h2>
+    <p>Blur and pixelation can sometimes be reversed or guessed from context. A solid opaque rectangle removes the information. On export each box is snapped outward to whole pixels so no half-covered edge pixel survives.</p>
+
+    <details>
+      <summary>Check it yourself</summary>
+      <ol>
+        <li>Open the page with your device in airplane mode or the network switched off. Everything still works, including the demo image and the download.</li>
+        <li>Open your browser's developer tools, Network tab, then open an image and download the result. No requests appear.</li>
+        <li>Open the downloaded PNG in any image viewer. It should have the same width and height as the original, and the boxes should be pure black with nothing visible underneath, even at high brightness.</li>
+        <li>Search this page's source for "fetch", "XMLHttpRequest", "http://", or "https://". None are present.</li>
+      </ol>
+    </details>
+  </section>
+
+  <footer>Offline and local. No analytics, accounts, cookies, external fonts, or scripts. The demo image is drawn on this page from nothing but shapes; it contains no real content.</footer>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+const canvas = document.getElementById('sheet');
+const ctx = canvas.getContext('2d');
+const fileInput = document.getElementById('file');
+const btnOpen = document.getElementById('open');
+const btnDemo = document.getElementById('demo');
+const btnUndo = document.getElementById('undo');
+const btnClear = document.getElementById('clear');
+const btnSave = document.getElementById('save');
+const statusEl = document.getElementById('status');
+const msgEl = document.getElementById('msg');
+
+const DISPLAY_CAP = 2200;      // long side of the on-screen canvas, in pixels
+const MIN_BOX = 3;             // smaller drags in image pixels are treated as taps
+const SAFARI_PIXEL_LIMIT = 16777216;
+
+let source = null;             // { image, width, height, name, isDemo }
+let base = null;               // offscreen canvas holding the display-sized image
+let rects = [];                // committed boxes in image pixel coordinates
+let draft = null;              // box being dragged: { x0, y0, x1, y1 } in image pixels
+let activePointer = null;
+let scale = 1;                 // display pixels per image pixel
+let loadVersion = 0;           // a slower decode must not replace a newer choice
+
+function say(text, warn) {
+  msgEl.textContent = text || '';
+  msgEl.classList.toggle('warn', !!warn);
+}
+
+function setSource(src) {
+  const s = Math.min(1, DISPLAY_CAP / Math.max(src.width, src.height));
+  const w = Math.max(1, Math.round(src.width * s));
+  const h = Math.max(1, Math.round(src.height * s));
+  const nextBase = document.createElement('canvas');
+  nextBase.width = w;
+  nextBase.height = h;
+  const nextContext = nextBase.getContext('2d');
+  if (!nextContext) throw new Error('canvas unavailable');
+  nextContext.drawImage(src.image, 0, 0, w, h);
+  if (source && source.image && typeof source.image.close === 'function' && source.image !== src.image) {
+    try { source.image.close(); } catch (e) {}
+  }
+  source = src;
+  rects = [];
+  draft = null;
+  canvas.width = w;
+  canvas.height = h;
+  scale = w / src.width;
+  base = nextBase;
+  canvas.setAttribute('aria-label', (src.isDemo ? 'Demo image' : 'Your image') + '. Drag on the image to draw a black box.');
+  say('');
+  draw();
+  updateControls();
+}
+
+function draw() {
+  if (!base) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(base, 0, 0);
+  ctx.fillStyle = '#000';
+  for (const r of rects) {
+    ctx.fillRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+  }
+  if (draft) {
+    const r = normalize(draft);
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    ctx.fillRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+    ctx.save();
+    ctx.strokeStyle = '#ffd34d';
+    ctx.lineWidth = Math.max(2, canvas.width / 400);
+    ctx.setLineDash([ctx.lineWidth * 3, ctx.lineWidth * 2]);
+    ctx.strokeRect(r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+    ctx.restore();
+  }
+}
+
+function normalize(d) {
+  const x = Math.min(d.x0, d.x1), y = Math.min(d.y0, d.y1);
+  return { x, y, w: Math.abs(d.x1 - d.x0), h: Math.abs(d.y1 - d.y0) };
+}
+
+function updateControls() {
+  const has = rects.length > 0;
+  btnUndo.disabled = !has;
+  btnClear.disabled = !has;
+  btnSave.disabled = !has;
+  if (!source) { statusEl.textContent = ''; return; }
+  const boxes = has ? (rects.length === 1 ? '1 box' : rects.length + ' boxes') : 'no boxes yet';
+  statusEl.innerHTML = '';
+  const name = document.createElement('b');
+  name.textContent = source.isDemo ? 'Demo image, generated on this page' : source.name;
+  const dim = document.createElement('span');
+  dim.className = 'dim';
+  dim.textContent = ' ' + source.width + ' by ' + source.height + ' pixels, ' + boxes + '.';
+  statusEl.append(name, document.createElement('br'), dim);
+  if (!has) btnSave.title = 'Draw at least one box first'; else btnSave.title = '';
+}
+
+function toImage(e) {
+  const b = canvas.getBoundingClientRect();
+  const x = (e.clientX - b.left) / b.width * source.width;
+  const y = (e.clientY - b.top) / b.height * source.height;
+  return { x: Math.max(0, Math.min(source.width, x)), y: Math.max(0, Math.min(source.height, y)) };
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (!source || activePointer !== null) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  activePointer = e.pointerId;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  const p = toImage(e);
+  draft = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+  draw();
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!draft || e.pointerId !== activePointer) return;
+  e.preventDefault();
+  const p = toImage(e);
+  draft.x1 = p.x; draft.y1 = p.y;
+  draw();
+});
+
+function finish(e, commit) {
+  if (e.pointerId !== activePointer) return;
+  activePointer = null;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+  if (!draft) return;
+  if (commit) {
+    const p = toImage(e);
+    draft.x1 = p.x; draft.y1 = p.y;
+    const r = normalize(draft);
+    if (r.w >= MIN_BOX && r.h >= MIN_BOX) {
+      rects.push(r);
+      say('');
+    } else {
+      say('That was a tap. Drag to draw a box.');
+    }
+  }
+  draft = null;
+  draw();
+  updateControls();
+}
+canvas.addEventListener('pointerup', e => finish(e, true));
+canvas.addEventListener('pointercancel', e => finish(e, false));
+canvas.addEventListener('lostpointercapture', e => { if (draft && e.pointerId === activePointer) finish(e, false); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+btnUndo.addEventListener('click', () => { rects.pop(); draw(); updateControls(); say(rects.length ? '' : 'All boxes removed.'); });
+btnClear.addEventListener('click', () => { rects = []; draw(); updateControls(); say('All boxes removed.'); });
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === 'Escape' && draft) { draft = null; activePointer = null; draw(); say('Box cancelled.'); return; }
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z') && rects.length) {
+    e.preventDefault(); rects.pop(); draw(); updateControls();
+  }
+});
+
+/* ---------- loading ---------- */
+
+btnOpen.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]); fileInput.value = ''; });
+
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+document.addEventListener('dragover', e => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
+document.addEventListener('dragleave', e => { e.preventDefault(); dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
+document.addEventListener('drop', e => {
+  e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) loadFile(f); else say('Drop an image file from your device.', true);
+});
+document.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.kind === 'file' && it.type.indexOf('image/') === 0) {
+      const f = it.getAsFile();
+      if (f) { e.preventDefault(); loadFile(f); return; }
+    }
+  }
+});
+
+async function loadFile(file) {
+  const version = ++loadVersion;
+  if (file.type && file.type.indexOf('image/') !== 0) {
+    say('That file is not an image. Choose a PNG, JPEG, WebP, GIF, or similar.', true);
+    return;
+  }
+  say('Opening…');
+  let img = null;
+  if (typeof createImageBitmap === 'function') {
+    try { img = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e1) { try { img = await createImageBitmap(file); } catch (e2) { img = null; } }
+  }
+  if (!img) {
+    try { img = await loadViaImageElement(file); }
+    catch (e) {
+      if (version === loadVersion) say('This image could not be decoded by your browser.', true);
+      return;
+    }
+  }
+  if (version !== loadVersion) { if (typeof img.close === 'function') img.close(); return; }
+  const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+  if (!w || !h) { say('This image could not be decoded by your browser.', true); return; }
+  if (w * h > SAFARI_PIXEL_LIMIT || Math.max(w, h) > 8192) {
+    if (typeof img.close === 'function') img.close();
+    say('This image is too large to export reliably here. Resize it below 16 megapixels and 8192 pixels on either side, then try again.', true);
+    return;
+  }
+  const name = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+  try { setSource({ image: img, width: w, height: h, name: name, isDemo: false }); }
+  catch (e) { say('This image could not be displayed. Try a smaller image.', true); return; }
+  canvas.focus({ preventScroll: true });
+}
+
+function loadViaImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    im.src = url;
+  });
+}
+
+/* ---------- export ---------- */
+
+btnSave.addEventListener('click', () => {
+  if (!source || !rects.length) return;
+  const out = document.createElement('canvas');
+  out.width = source.width;
+  out.height = source.height;
+  const c = out.getContext('2d');
+  if (!c) { say('Export failed: your browser cannot allocate this image. Try a smaller one.', true); return; }
+  try {
+    c.drawImage(source.image, 0, 0, source.width, source.height);
+  } catch (e) {
+    say('Export failed: the image could not be drawn at full size in this browser.', true);
+    return;
+  }
+  c.globalAlpha = 1;
+  c.globalCompositeOperation = 'source-over';
+  c.fillStyle = '#000000';
+  for (const r of rects) {
+    const x0 = Math.max(0, Math.floor(r.x)), y0 = Math.max(0, Math.floor(r.y));
+    const x1 = Math.min(source.width, Math.ceil(r.x + r.w)), y1 = Math.min(source.height, Math.ceil(r.y + r.h));
+    if (x1 > x0 && y1 > y0) c.fillRect(x0, y0, x1 - x0, y1 - y0);
+  }
+  const fileName = (source.isDemo ? 'demo' : source.name) + '-redacted.png';
+  const deliver = blob => {
+    if (!blob) { say('Export failed: your browser returned an empty image. Try a smaller picture.', true); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    say('Saved ' + fileName + ' with ' + rects.length + (rects.length === 1 ? ' box' : ' boxes') + ' flattened in.');
+  };
+  try {
+    out.toBlob(deliver, 'image/png');
+  } catch (e) {
+    say('Export failed in this browser.', true);
+  }
+});
+
+/* ---------- demo image, drawn from shapes only ---------- */
+
+function makeDemo() {
+  const W = 1280, H = 900;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  let seed = 20261021;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+
+  // desktop backdrop
+  const bg = g.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#5f7fa3'); bg.addColorStop(1, '#2b3d5c');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = 'rgba(255,255,255,' + (0.03 + rnd() * 0.05).toFixed(3) + ')';
+    g.beginPath(); g.arc(rnd() * W, rnd() * H, 40 + rnd() * 160, 0, Math.PI * 2); g.fill();
+  }
+
+  // a window with a title bar
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 40; g.shadowOffsetY = 18;
+  g.fillStyle = '#f6f7f8'; rr(90, 80, 1100, 740, 14); g.fill();
+  g.restore();
+  g.fillStyle = '#e6e8eb'; rr(90, 80, 1100, 54, 14); g.fill(); g.fillRect(90, 110, 1100, 24);
+  ['#ec6a5e', '#f4bf4f', '#61c554'].forEach((col, i) => { g.fillStyle = col; g.beginPath(); g.arc(118 + i * 24, 107, 7, 0, Math.PI * 2); g.fill(); });
+  g.fillStyle = '#cfd3d8'; rr(380, 95, 520, 24, 12); g.fill();
+
+  // sidebar list
+  g.fillStyle = '#eef0f2'; g.fillRect(90, 134, 260, 686);
+  for (let i = 0; i < 11; i++) {
+    const y = 160 + i * 58;
+    g.fillStyle = i === 2 ? '#d5dcf5' : 'transparent'; rr(104, y - 10, 232, 48, 8); g.fill();
+    g.fillStyle = '#b4bcc6'; g.beginPath(); g.arc(128, y + 14, 12, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#8f98a3'; rr(152, y + 4, 90 + rnd() * 90, 10, 5); g.fill();
+    g.fillStyle = '#c3cad2'; rr(152, y + 20, 60 + rnd() * 110, 7, 3); g.fill();
+  }
+
+  // paragraphs of "text" as bars
+  const col = ['#5a6472', '#6b7684', '#7d8794'];
+  let y = 176;
+  for (let p = 0; p < 4; p++) {
+    g.fillStyle = '#2f3741'; rr(390, y, 160 + rnd() * 240, 16, 6); g.fill(); y += 34;
+    const lines = 4 + Math.floor(rnd() * 4);
+    for (let l = 0; l < lines; l++) {
+      let x = 390;
+      const end = l === lines - 1 ? 390 + 200 + rnd() * 300 : 1150;
+      while (x < end) {
+        const w = Math.min(end - x, 24 + rnd() * 90);
+        g.fillStyle = col[Math.floor(rnd() * col.length)]; rr(x, y, w, 11, 4); g.fill();
+        x += w + 10;
+      }
+      y += 22;
+    }
+    y += 18;
+  }
+
+  // a photo-like panel with soft shapes
+  const ph = g.createLinearGradient(820, 170, 1150, 420);
+  ph.addColorStop(0, '#f2a65a'); ph.addColorStop(0.55, '#d85a6a'); ph.addColorStop(1, '#4f3f7a');
+  g.save(); rr(820, 170, 330, 250, 10); g.clip(); g.fillStyle = ph; g.fillRect(820, 170, 330, 250);
+  for (let i = 0; i < 9; i++) {
+    g.fillStyle = 'rgba(255,255,255,' + (0.08 + rnd() * 0.2).toFixed(3) + ')';
+    g.beginPath(); g.arc(820 + rnd() * 330, 170 + rnd() * 250, 20 + rnd() * 70, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = 'rgba(30,20,40,.5)'; g.fillRect(820, 370, 330, 50);
+  g.fillStyle = '#fff'; rr(836, 388, 150, 12, 5); g.fill();
+  g.restore();
+
+  // small chart
+  g.fillStyle = '#ffffff'; rr(820, 445, 330, 180, 10); g.fill();
+  g.strokeStyle = '#e1e5ea'; g.lineWidth = 1;
+  for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(836, 470 + i * 36); g.lineTo(1134, 470 + i * 36); g.stroke(); }
+  for (let i = 0; i < 12; i++) {
+    const h = 30 + rnd() * 100;
+    g.fillStyle = i % 3 === 1 ? '#4c7bd9' : '#9fb9ec'; rr(840 + i * 24, 606 - h, 16, h, 3); g.fill();
+  }
+
+  // badges and a highlighted pill, the kind of thing worth hiding
+  const pills = [['#ffe08a', '#6b4e00'], ['#c8f0d4', '#1d5a33'], ['#ffd1d1', '#7a1f1f']];
+  pills.forEach((pc, i) => { g.fillStyle = pc[0]; rr(836 + i * 104, 650, 92, 32, 16); g.fill(); g.fillStyle = pc[1]; rr(852 + i * 104, 662, 60, 8, 4); g.fill(); });
+  g.fillStyle = '#fff3b0'; rr(820, 700, 330, 100, 8); g.fill();
+  g.fillStyle = '#9a7b1a';
+  for (let i = 0; i < 3; i++) { rr(836, 718 + i * 24, 120 + rnd() * 170, 10, 4); g.fill(); }
+
+  // a floating notification over the window
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 24; g.shadowOffsetY = 8;
+  g.fillStyle = '#1f2630'; rr(960, 40, 290, 86, 14); g.fill();
+  g.restore();
+  g.fillStyle = '#5dd39e'; g.beginPath(); g.arc(992, 83, 16, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ffffff'; rr(1020, 62, 160, 11, 5); g.fill();
+  g.fillStyle = '#9aa5b5'; rr(1020, 84, 210, 9, 4); g.fill(); rr(1020, 100, 130, 9, 4); g.fill();
+
+  return cv;
+}
+
+btnDemo.addEventListener('click', () => {
+  ++loadVersion;
+  const cv = makeDemo();
+  setSource({ image: cv, width: cv.width, height: cv.height, name: 'demo', isDemo: true });
+  say('Demo image loaded. Try hiding the notification in the top right.');
+});
+
+const first = makeDemo();
+setSource({ image: first, width: first.width, height: first.height, name: 'demo', isDemo: true });
+})();
+</script>
+</body>
+</html>
