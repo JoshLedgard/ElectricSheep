@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3ecdf">
+<title>Revision Bench · Daily Surprise</title>
+<style>
+:root{
+  --paper:#f3ecdf;
+  --paper-deep:#e9dfcc;
+  --sheet:#fbf7ef;
+  --ink:#2b2520;
+  --ink-soft:#6b6054;
+  --rule:#d6c9b2;
+  --rule-strong:#b9a98c;
+  --a:#a94a25;
+  --a-ink:#7f3416;
+  --a-wash:#f6dfd2;
+  --a-wash-strong:#eec3ae;
+  --b:#226b70;
+  --b-ink:#174d51;
+  --b-wash:#d6e9e7;
+  --b-wash-strong:#b6d8d5;
+  --final:#3b3a5a;
+  --focus:#ffbf3a;
+  --shadow:0 1px 0 rgba(255,255,255,.6) inset,0 1px 2px rgba(60,40,20,.12);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Charter","Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Avenir Next","Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#1f1b17;
+    --paper-deep:#17140f;
+    --sheet:#28231d;
+    --ink:#efe7da;
+    --ink-soft:#b3a797;
+    --rule:#443c33;
+    --rule-strong:#5e5346;
+    --a:#e38a63;
+    --a-ink:#ffb48f;
+    --a-wash:#4a2b1d;
+    --a-wash-strong:#6a3a25;
+    --b:#6fbfc2;
+    --b-ink:#a6e0e2;
+    --b-wash:#1d3a3c;
+    --b-wash-strong:#255256;
+    --final:#c9c6ec;
+    --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 1px 2px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;max-width:100%;overflow-x:hidden}
+body{
+  background:
+    linear-gradient(180deg,var(--paper) 0,var(--paper) 220px,var(--paper-deep) 100%);
+  color:var(--ink);
+  font:16px/1.5 var(--sans);
+  -webkit-text-size-adjust:100%;
+  min-height:100vh;
+  padding:0 0 env(safe-area-inset-bottom);
+}
+button,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.wrap{max-width:1080px;margin:0 auto;padding:14px 14px 48px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+
+/* Masthead */
+header{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;
+  padding:10px 2px 14px;
+  border-bottom:2px solid var(--ink);
+  margin-bottom:18px;
+}
+header h1{
+  margin:0;font:700 1.9rem/1.05 var(--serif);letter-spacing:-.01em;
+}
+header h1 em{font-style:normal;color:var(--a)}
+header h1 em.b{color:var(--b)}
+header p{margin:0;color:var(--ink-soft);font-size:.92rem}
+header .meta{margin-left:auto;font:.74rem/1.3 var(--mono);color:var(--ink-soft);letter-spacing:.04em;text-transform:uppercase}
+
+/* Stages */
+.stage{
+  margin:0 0 22px;
+  background:var(--sheet);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.stage-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
+  padding:10px 12px;
+  border-bottom:1px solid var(--rule);
+  background:linear-gradient(180deg,rgba(0,0,0,.015),transparent);
+}
+.stage-head h2{
+  margin:0;display:flex;align-items:center;gap:9px;
+  font:600 1rem/1.2 var(--sans);letter-spacing:.01em;
+}
+.num{
+  display:inline-grid;place-items:center;
+  width:26px;height:26px;border-radius:50%;
+  background:var(--ink);color:var(--sheet);
+  font:700 .82rem/1 var(--mono);
+}
+.stage-head .spacer{flex:1 1 auto}
+.stage-body{padding:12px}
+
+/* Toolbar buttons */
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.btn{
+  min-height:44px;min-width:44px;
+  padding:0 14px;
+  border-radius:9px;
+  border:1px solid var(--rule-strong);
+  background:var(--sheet);
+  box-shadow:var(--shadow);
+  font-weight:600;font-size:.92rem;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  white-space:nowrap;
+}
+.btn:hover{border-color:var(--ink-soft)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn.primary{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.btn.tone-a{border-color:var(--a);color:var(--a-ink);background:var(--a-wash)}
+.btn.tone-b{border-color:var(--b);color:var(--b-ink);background:var(--b-wash)}
+.btn.quiet{border-color:transparent;box-shadow:none;background:transparent;color:var(--ink-soft)}
+.btn.quiet:hover{color:var(--ink);border-color:var(--rule)}
+
+/* Drafts */
+.drafts{display:grid;grid-template-columns:1fr;gap:14px}
+@media (min-width:760px){.drafts{grid-template-columns:1fr 1fr}}
+.draft{display:flex;flex-direction:column;gap:6px}
+.draft label{
+  display:flex;align-items:center;gap:8px;
+  font-weight:700;font-size:.9rem;letter-spacing:.02em;
+}
+.draft label .count{margin-left:auto;font:.74rem/1 var(--mono);color:var(--ink-soft);font-weight:400}
+.swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+.draft.a .swatch{background:var(--a)}
+.draft.b .swatch{background:var(--b)}
+.draft.a label{color:var(--a-ink)}
+.draft.b label{color:var(--b-ink)}
+textarea{
+  width:100%;min-height:200px;
+  resize:vertical;
+  padding:12px 14px;
+  border-radius:10px;
+  border:1px solid var(--rule-strong);
+  background:var(--sheet);
+  font:1rem/1.55 var(--serif);
+  color:var(--ink);
+  overflow-wrap:anywhere;
+  box-shadow:inset 0 1px 3px rgba(60,40,20,.08);
+}
+.draft.a textarea{border-left:4px solid var(--a)}
+.draft.b textarea{border-left:4px solid var(--b)}
+textarea:focus{border-color:var(--ink-soft)}
+#final{border-left:4px solid var(--final);min-height:240px}
+
+/* Tally */
+.tally{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+  font-size:.86rem;color:var(--ink-soft);
+}
+.tally b{color:var(--ink);font-weight:700}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 9px;border-radius:999px;
+  font:600 .78rem/1.4 var(--mono);letter-spacing:.02em;
+  border:1px solid var(--rule);
+}
+.pill.pa{background:var(--a-wash);color:var(--a-ink);border-color:var(--a-wash-strong)}
+.pill.pb{background:var(--b-wash);color:var(--b-ink);border-color:var(--b-wash-strong)}
+.pill.pu{background:transparent;color:var(--ink-soft);border-style:dashed}
+
+/* Diff sheet */
+.diff{
+  font:1.02rem/1.75 var(--serif);
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  padding:10px 2px 4px;
+  min-height:60px;
+}
+.diff.empty{color:var(--ink-soft);font:italic .95rem/1.5 var(--serif);text-align:center;padding:28px 10px}
+.diff.identical{color:var(--ink-soft);font-style:italic}
+.eq{color:var(--ink)}
+.hunk{
+  display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;
+  vertical-align:middle;
+  margin:2px 1px;
+  padding:3px;
+  border-radius:12px;
+  background:rgba(0,0,0,.035);
+  max-width:100%;
+}
+@media (prefers-color-scheme:dark){.hunk{background:rgba(255,255,255,.05)}}
+.hunk.decided{background:transparent}
+.opt{
+  position:relative;
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:44px;min-width:44px;
+  max-width:100%;
+  padding:0 12px 0 9px;
+  border-radius:9px;
+  border:1.5px solid;
+  background:var(--sheet);
+  font:1rem/1.3 var(--serif);
+  text-align:left;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  box-shadow:var(--shadow);
+  transition:background .12s,opacity .12s,transform .08s;
+}
+.opt:active{transform:translateY(1px)}
+.opt .tag{
+  flex:none;
+  font:700 .68rem/1 var(--mono);
+  padding:3px 5px;border-radius:5px;
+  letter-spacing:.04em;
+}
+.opt.a{border-color:var(--a);color:var(--a-ink)}
+.opt.a .tag{background:var(--a);color:#fff}
+.opt.b{border-color:var(--b);color:var(--b-ink)}
+.opt.b .tag{background:var(--b);color:#fff}
+@media (prefers-color-scheme:dark){.opt.a .tag,.opt.b .tag{color:#1a1410}}
+.opt[aria-pressed="true"].a{background:var(--a-wash);box-shadow:0 0 0 2px var(--a-wash-strong),var(--shadow)}
+.opt[aria-pressed="true"].b{background:var(--b-wash);box-shadow:0 0 0 2px var(--b-wash-strong),var(--shadow)}
+.hunk.decided .opt[aria-pressed="false"]{opacity:.5;border-style:dashed;box-shadow:none}
+.hunk.decided .opt[aria-pressed="false"] .txt{text-decoration:line-through;text-decoration-thickness:1.5px}
+.opt .txt{min-width:0}
+.opt .txt.ws{font:.86rem/1 var(--mono);letter-spacing:.08em;color:var(--ink-soft)}
+.opt .txt.none{font:italic .86rem/1 var(--serif);color:var(--ink-soft)}
+.opt .mark{opacity:.55;font-family:var(--mono);font-size:.85em}
+
+/* Final */
+.final-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:8px;font-size:.86rem;color:var(--ink-soft)}
+.badge{
+  font:600 .74rem/1.4 var(--mono);letter-spacing:.03em;
+  padding:3px 8px;border-radius:6px;
+  border:1px solid var(--rule);color:var(--ink-soft);
+}
+.badge.live{border-color:var(--final);color:var(--final)}
+.badge.edited{border-color:var(--a);color:var(--a-ink)}
+.toast{
+  position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));
+  transform:translate(-50%,20px);
+  background:var(--ink);color:var(--sheet);
+  padding:10px 16px;border-radius:10px;
+  font-size:.9rem;font-weight:600;
+  opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;
+  max-width:calc(100% - 32px);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.hint{color:var(--ink-soft);font-size:.86rem;margin:0 0 10px}
+.hint kbd{font:.78rem var(--mono);border:1px solid var(--rule-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--sheet)}
+footer{color:var(--ink-soft);font-size:.8rem;text-align:center;margin-top:28px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Revision <em>Bench</em></h1>
+  <p>Two drafts in. Pick each change by hand. One final draft out.</p>
+  <div class="meta">Daily Surprise · Oct 23, 2026 · works offline</div>
+</header>
+
+<!-- Stage 1: drafts -->
+<section class="stage" aria-labelledby="h-drafts">
+  <div class="stage-head">
+    <h2 id="h-drafts"><span class="num" aria-hidden="true">1</span>Drafts</h2>
+    <span class="spacer"></span>
+    <div class="tools">
+      <button class="btn" id="btn-example" type="button">Load example</button>
+      <button class="btn" id="btn-swap" type="button" title="Swap A and B">⇄ Swap</button>
+      <button class="btn quiet" id="btn-clear" type="button">Clear</button>
+    </div>
+  </div>
+  <div class="stage-body">
+    <p class="hint">Paste or type two versions of the same passage. Differences are found word by word, including punctuation and spacing, and update as you type.</p>
+    <div class="drafts">
+      <div class="draft a">
+        <label for="draft-a"><span class="swatch" aria-hidden="true"></span>Draft A <span class="count" id="count-a">0 words</span></label>
+        <textarea id="draft-a" spellcheck="false" placeholder="Earlier draft…"></textarea>
+      </div>
+      <div class="draft b">
+        <label for="draft-b"><span class="swatch" aria-hidden="true"></span>Draft B <span class="count" id="count-b">0 words</span></label>
+        <textarea id="draft-b" spellcheck="false" placeholder="Revised draft…"></textarea>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stage 2: differences -->
+<section class="stage" aria-labelledby="h-diff">
+  <div class="stage-head">
+    <h2 id="h-diff"><span class="num" aria-hidden="true">2</span>Differences</h2>
+    <span class="spacer"></span>
+    <div class="tools">
+      <button class="btn tone-a" id="btn-all-a" type="button">All A</button>
+      <button class="btn tone-b" id="btn-all-b" type="button">All B</button>
+      <button class="btn quiet" id="btn-reset" type="button">Reset choices</button>
+    </div>
+  </div>
+  <div class="stage-body">
+    <div class="tally" id="tally" aria-live="polite"></div>
+    <p class="hint" style="margin-top:8px">Tap a chip to keep that version. Tap it again to unpick. Undecided changes fall back to Draft A. Keyboard: <kbd>Tab</kbd> to a chip, <kbd>←</kbd> <kbd>→</kbd> to move, <kbd>A</kbd> / <kbd>B</kbd> or <kbd>Enter</kbd> to choose.</p>
+    <div class="diff" id="diff" role="group" aria-label="Word-level differences"></div>
+  </div>
+</section>
+
+<!-- Stage 3: final -->
+<section class="stage" aria-labelledby="h-final">
+  <div class="stage-head">
+    <h2 id="h-final"><span class="num" aria-hidden="true">3</span>Final draft</h2>
+    <span class="spacer"></span>
+    <div class="tools">
+      <button class="btn" id="btn-rebuild" type="button" disabled>↺ Rebuild from choices</button>
+      <button class="btn" id="btn-copy" type="button">Copy</button>
+      <button class="btn primary" id="btn-download" type="button">Download .txt</button>
+    </div>
+  </div>
+  <div class="stage-body">
+    <div class="final-head">
+      <span class="badge live" id="final-badge">LIVE · follows your choices</span>
+      <span id="count-final">0 words</span>
+    </div>
+    <label class="sr" for="final">Final draft, editable</label>
+    <textarea id="final" spellcheck="true" placeholder="Your assembled draft appears here. Edit freely."></textarea>
+  </div>
+</section>
+
+<footer>Everything stays in this page. Nothing is sent anywhere. Drafts are kept in this browser only so you can come back to them.</footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- Example text (fictional) ---------- */
+var EXAMPLE_A =
+"The Tide Clock of Marrow Quay\n\n" +
+"Built in 1811 by a clockmaker whose name the parish ledger never recorded, the tide clock kept time for the ferrymen of Marrow Quay for nearly a century. Its single hand does not mark hours. It marks the water: high at the top, low at the bottom, and the long slack between.\n\n" +
+"Fishermen trusted it more than the almanac, because the almanac could not see the river. When the quay was closed in 1903, the clock was carried uphill to the chapel, where it ran for another forty years before the mainspring finally gave out.\n\n" +
+"It was restored in 2019. The hand still turns, though there is no longer any water below it to describe.";
+
+var EXAMPLE_B =
+"The Tide Clock of Marrow Quay\n\n" +
+"Built in 1811 by a clockmaker the parish ledger never named, the tide clock kept time for the ferrymen of Marrow Quay for almost a century. Its single hand does not mark hours; it marks the water — high at the top, low at the bottom, and the long slack between.\n" +
+"Fishermen trusted it over the almanac, because the almanac could not see the river. When the quay closed in 1903, the clock was carried uphill to the chapel and ran there for another forty years, until the mainspring gave out.\n\n" +
+"It was restored in 2019.  The hand still turns, though there is no longer any water beneath it to describe.";
+
+/* ---------- DOM ---------- */
+var $ = function(id){ return document.getElementById(id); };
+var taA = $('draft-a'), taB = $('draft-b'), taF = $('final');
+var diffEl = $('diff'), tallyEl = $('tally'), toastEl = $('toast');
+var badge = $('final-badge'), btnRebuild = $('btn-rebuild');
+
+/* ---------- State ---------- */
+var segments = [];      // [{type:'eq',text} | {type:'hunk',a,b,idx}]
+var hunkCount = 0;
+var choices = [];       // per hunk: 'a' | 'b' | null
+var finalDirty = false; // user hand-edited the final
+var debounceTimer = null;
+var TOO_LONG_CELLS = 16000000;
+
+/* ---------- Tokenizer ----------
+   words (letters, digits, marks, in-word apostrophes/hyphens) | whitespace runs | single other char */
+var TOKEN_RE;
+try {
+  TOKEN_RE = new RegExp("[\\p{L}\\p{N}\\p{M}'’_-]+|\\s+|[^\\s\\p{L}\\p{N}\\p{M}'’_-]", "gu");
+} catch(e) {
+  TOKEN_RE = /[A-Za-z0-9À-ɏЀ-ӿ'’_-]+|\s+|[^\sA-Za-z0-9À-ɏЀ-ӿ'’_-]/g;
+}
+function tokenize(s){
+  var out = [], m;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(s)) !== null) {
+    out.push(m[0]);
+    if (m[0].length === 0) TOKEN_RE.lastIndex++;
+  }
+  return out;
+}
+function isWS(t){ return /^\s+$/.test(t); }
+function countWords(s){
+  var n = 0, toks = tokenize(s);
+  for (var i=0;i<toks.length;i++) if (/[\p{L}\p{N}]/u.test(toks[i])) n++;
+  return n;
+}
+
+/* ---------- Diff (LCS with prefix/suffix trimming) ----------
+   Returns ops: [{t:'=',v}|{t:'-',v}|{t:'+',v}] */
+function diffTokens(A, B){
+  var n = A.length, m = B.length, pre = 0, suf = 0;
+  while (pre < n && pre < m && A[pre] === B[pre]) pre++;
+  while (suf < n-pre && suf < m-pre && A[n-1-suf] === B[m-1-suf]) suf++;
+  var a = A.slice(pre, n-suf), b = B.slice(pre, m-suf);
+  var la = a.length, lb = b.length;
+  if ((la+1)*(lb+1) > TOO_LONG_CELLS) return null;
+
+  var ops = [], i, j;
+  for (i=0;i<pre;i++) ops.push({t:'=',v:A[i]});
+
+  if (la === 0) { for (j=0;j<lb;j++) ops.push({t:'+',v:b[j]}); }
+  else if (lb === 0) { for (i=0;i<la;i++) ops.push({t:'-',v:a[i]}); }
+  else {
+    var W = lb+1;
+    var L = new Uint32Array((la+1)*W);
+    for (i=la-1;i>=0;i--) {
+      for (j=lb-1;j>=0;j--) {
+        if (a[i] === b[j]) L[i*W+j] = L[(i+1)*W+j+1] + 1;
+        else { var d = L[(i+1)*W+j], r = L[i*W+j+1]; L[i*W+j] = d > r ? d : r; }
+      }
+    }
+    i = 0; j = 0;
+    while (i < la && j < lb) {
+      if (a[i] === b[j]) { ops.push({t:'=',v:a[i]}); i++; j++; }
+      else if (L[(i+1)*W+j] >= L[i*W+j+1]) { ops.push({t:'-',v:a[i]}); i++; }
+      else { ops.push({t:'+',v:b[j]}); j++; }
+    }
+    while (i < la) { ops.push({t:'-',v:a[i++]}); }
+    while (j < lb) { ops.push({t:'+',v:b[j++]}); }
+  }
+  for (i=n-suf;i<n;i++) ops.push({t:'=',v:A[i]});
+  return ops;
+}
+
+/* Group ops into segments; coalesce hunks separated only by a short whitespace run. */
+function buildSegments(ops){
+  var raw = [], cur = null, k;
+  for (k=0;k<ops.length;k++) {
+    var op = ops[k];
+    if (op.t === '=') {
+      if (cur && cur.type === 'eq') cur.text += op.v;
+      else { cur = {type:'eq', text:op.v}; raw.push(cur); }
+    } else {
+      if (!cur || cur.type !== 'hunk') { cur = {type:'hunk', a:'', b:''}; raw.push(cur); }
+      if (op.t === '-') cur.a += op.v; else cur.b += op.v;
+    }
+  }
+  // coalesce: hunk, eq(whitespace only, no newline), hunk  ->  one hunk
+  var out = [];
+  for (k=0;k<raw.length;k++) {
+    var s = raw[k];
+    if (s.type === 'eq' && out.length && out[out.length-1].type === 'hunk' &&
+        k+1 < raw.length && raw[k+1].type === 'hunk' &&
+        isWS(s.text) && s.text.indexOf('\n') === -1) {
+      var h = out[out.length-1], nx = raw[k+1];
+      h.a += s.text + nx.a; h.b += s.text + nx.b;
+      k++; continue;
+    }
+    if (s.type === 'hunk' && out.length && out[out.length-1].type === 'hunk') {
+      out[out.length-1].a += s.a; out[out.length-1].b += s.b; continue;
+    }
+    out.push(s);
+  }
+  var idx = 0;
+  for (k=0;k<out.length;k++) if (out[k].type === 'hunk') out[k].idx = idx++;
+  return {segments:out, count:idx};
+}
+
+/* ---------- Choice memory across recomputes ---------- */
+function hunkKey(h){ return h.a + '\u0000' + h.b; }
+
+function recompute(){
+  var textA = taA.value, textB = taB.value;
+  var oldKeys = {};
+  for (var k=0;k<segments.length;k++) {
+    var s = segments[k];
+    if (s.type === 'hunk') {
+      var key = hunkKey(s);
+      if (!oldKeys[key]) oldKeys[key] = [];
+      // Preserve undecided slots too, so repeated identical changes keep their positions.
+      oldKeys[key].push(choices[s.idx] || null);
+    }
+  }
+  var ops = diffTokens(tokenize(textA), tokenize(textB));
+  if (ops === null) {
+    segments = []; hunkCount = 0; choices = [];
+    diffEl.className = 'diff empty';
+    diffEl.textContent = 'These drafts are too long to compare in one go. Try a chapter or a few pages at a time.';
+    renderTally(); updateFinal(); return;
+  }
+  var built = buildSegments(ops);
+  segments = built.segments; hunkCount = built.count;
+  choices = new Array(hunkCount);
+  for (k=0;k<segments.length;k++) {
+    s = segments[k];
+    if (s.type === 'hunk') {
+      var list = oldKeys[hunkKey(s)];
+      choices[s.idx] = (list && list.length) ? list.shift() : null;
+    }
+  }
+  renderDiff(); renderTally(); updateFinal(); save();
+}
+
+/* ---------- Rendering ---------- */
+function visible(text){
+  // Returns {node, cls}: a text node (or fragment) that shows whitespace changes visibly
+  if (text === '') return {text:'nothing', cls:'txt none'};
+  if (isWS(text)) {
+    var v = text.replace(/\n/g,'¶').replace(/\t/g,'⇥').replace(/ /g,'␣');
+    return {text:v, cls:'txt ws'};
+  }
+  // mixed: show newlines and double-spaces as marks, keep words readable
+  var frag = document.createDocumentFragment();
+  var re = /\n|\t| {2,}/g, last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    var mk = document.createElement('span'); mk.className = 'mark';
+    mk.textContent = m[0] === '\n' ? '¶' : m[0] === '\t' ? '⇥' : m[0].replace(/ /g,'␣');
+    frag.appendChild(mk);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  return {frag:frag, cls:'txt'};
+}
+
+function describe(text){
+  if (text === '') return 'nothing';
+  if (isWS(text)) {
+    var nl = (text.match(/\n/g)||[]).length, sp = text.length - nl;
+    var parts = [];
+    if (nl) parts.push(nl + (nl===1?' line break':' line breaks'));
+    if (sp) parts.push(sp + (sp===1?' space':' spaces'));
+    return parts.join(' and ');
+  }
+  return text.replace(/\n/g,' [line break] ');
+}
+
+function makeOpt(side, text, hunk){
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'opt ' + side;
+  btn.setAttribute('data-h', hunk.idx);
+  btn.setAttribute('data-side', side);
+  btn.setAttribute('aria-pressed', String(choices[hunk.idx] === side));
+  btn.setAttribute('aria-label', 'Draft ' + side.toUpperCase() + ': ' + describe(text) + '. Change ' + (hunk.idx+1) + ' of ' + hunkCount);
+  var tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = side.toUpperCase(); tag.setAttribute('aria-hidden','true');
+  var vis = visible(text);
+  var txt = document.createElement('span'); txt.className = vis.cls;
+  if (vis.frag) txt.appendChild(vis.frag); else txt.textContent = vis.text;
+  btn.appendChild(tag); btn.appendChild(txt);
+  return btn;
+}
+
+function renderDiff(){
+  diffEl.textContent = '';
+  if (!taA.value && !taB.value) {
+    diffEl.className = 'diff empty';
+    diffEl.textContent = 'Add two drafts above, or load the example, and the differences will appear here.';
+    return;
+  }
+  if (hunkCount === 0) {
+    diffEl.className = 'diff identical';
+    diffEl.textContent = 'The two drafts are identical, word for word.';
+    return;
+  }
+  diffEl.className = 'diff';
+  var frag = document.createDocumentFragment();
+  for (var k=0;k<segments.length;k++) {
+    var s = segments[k];
+    if (s.type === 'eq') {
+      var sp = document.createElement('span'); sp.className = 'eq'; sp.textContent = s.text; frag.appendChild(sp);
+    } else {
+      var h = document.createElement('span');
+      h.className = 'hunk' + (choices[s.idx] ? ' decided' : '');
+      h.setAttribute('role','group');
+      h.setAttribute('aria-label','Change ' + (s.idx+1) + ' of ' + hunkCount);
+      h.setAttribute('data-h', s.idx);
+      h.appendChild(makeOpt('a', s.a, s));
+      h.appendChild(makeOpt('b', s.b, s));
+      frag.appendChild(h);
+    }
+  }
+  diffEl.appendChild(frag);
+}
+
+function refreshHunk(idx){
+  var h = diffEl.querySelector('.hunk[data-h="'+idx+'"]');
+  if (!h) return;
+  h.className = 'hunk' + (choices[idx] ? ' decided' : '');
+  var opts = h.querySelectorAll('.opt');
+  for (var i=0;i<opts.length;i++) opts[i].setAttribute('aria-pressed', String(choices[idx] === opts[i].getAttribute('data-side')));
+}
+
+function renderTally(){
+  tallyEl.textContent = '';
+  if (hunkCount === 0) {
+    tallyEl.textContent = (taA.value || taB.value) ? 'No differences to choose from.' : 'Waiting for two drafts.';
+    return;
+  }
+  var na=0, nb=0, nu=0;
+  for (var i=0;i<hunkCount;i++) { if (choices[i]==='a') na++; else if (choices[i]==='b') nb++; else nu++; }
+  var lead = document.createElement('span');
+  lead.innerHTML = '<b>' + hunkCount + '</b> ' + (hunkCount===1?'change':'changes');
+  tallyEl.appendChild(lead);
+  function pill(cls, label){ var p = document.createElement('span'); p.className='pill '+cls; p.textContent = label; tallyEl.appendChild(p); }
+  pill('pa', na + ' from A');
+  pill('pb', nb + ' from B');
+  pill('pu', nu + ' undecided');
+}
+
+/* ---------- Final assembly ---------- */
+function assemble(){
+  var out = '';
+  for (var k=0;k<segments.length;k++) {
+    var s = segments[k];
+    if (s.type === 'eq') out += s.text;
+    else out += (choices[s.idx] === 'b') ? s.b : s.a;
+  }
+  return out;
+}
+function updateFinal(force){
+  if (finalDirty && !force) { btnRebuild.disabled = false; return; }
+  var text = (segments.length || hunkCount) ? assemble() : (taA.value || taB.value || '');
+  if (taF.value !== text) taF.value = text;
+  finalDirty = false;
+  btnRebuild.disabled = true;
+  badge.className = 'badge live'; badge.textContent = 'LIVE · follows your choices';
+  $('count-final').textContent = countWords(taF.value) + ' words';
+}
+
+/* ---------- Choices ---------- */
+function choose(idx, side, toggle){
+  if (idx < 0 || idx >= hunkCount) return;
+  choices[idx] = (toggle && choices[idx] === side) ? null : side;
+  refreshHunk(idx); renderTally(); updateFinal(); save();
+}
+function chooseAll(side){
+  for (var i=0;i<hunkCount;i++) choices[i] = side;
+  renderDiff(); renderTally(); updateFinal(); save();
+}
+
+/* ---------- Persistence (local only) ---------- */
+var KEY = 'revision-bench-v1';
+function save(){
+  try {
+    localStorage.setItem(KEY, JSON.stringify({a:taA.value, b:taB.value, c:choices, f:finalDirty ? taF.value : null}));
+  } catch(e){}
+}
+function load(){
+  try {
+    var raw = localStorage.getItem(KEY); if (!raw) return false;
+    var d = JSON.parse(raw);
+    if (typeof d.a !== 'string' || typeof d.b !== 'string') return false;
+    if (!d.a && !d.b) return false;
+    taA.value = d.a; taB.value = d.b;
+    updateCounts();
+    var ops = diffTokens(tokenize(d.a), tokenize(d.b));
+    if (ops) {
+      var built = buildSegments(ops);
+      segments = built.segments; hunkCount = built.count;
+      choices = new Array(hunkCount);
+      for (var i=0;i<hunkCount;i++) choices[i] = (Array.isArray(d.c) && (d.c[i]==='a'||d.c[i]==='b')) ? d.c[i] : null;
+      renderDiff(); renderTally();
+      if (typeof d.f === 'string') { taF.value = d.f; markDirty(); }
+      else updateFinal();
+    } else recompute();
+    return true;
+  } catch(e){ return false; }
+}
+
+/* ---------- Helpers ---------- */
+function updateCounts(){
+  $('count-a').textContent = countWords(taA.value) + ' words';
+  $('count-b').textContent = countWords(taB.value) + ' words';
+}
+function markDirty(){
+  finalDirty = true;
+  btnRebuild.disabled = false;
+  badge.className = 'badge edited'; badge.textContent = 'EDITED · rebuild to follow choices again';
+  $('count-final').textContent = countWords(taF.value) + ' words';
+}
+var toastTimer;
+function toast(msg){
+  toastEl.textContent = msg; toastEl.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
+}
+function scheduleRecompute(){
+  updateCounts();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(recompute, 220);
+}
+
+/* ---------- Events ---------- */
+taA.addEventListener('input', scheduleRecompute);
+taB.addEventListener('input', scheduleRecompute);
+taF.addEventListener('input', function(){ markDirty(); save(); });
+
+diffEl.addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.opt') : null;
+  if (!btn) return;
+  choose(+btn.getAttribute('data-h'), btn.getAttribute('data-side'), true);
+});
+diffEl.addEventListener('keydown', function(e){
+  var btn = e.target.closest ? e.target.closest('.opt') : null;
+  if (!btn) return;
+  var idx = +btn.getAttribute('data-h');
+  var all = diffEl.querySelectorAll('.opt');
+  var pos = Array.prototype.indexOf.call(all, btn);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); if (all[pos+1]) all[pos+1].focus(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); if (all[pos-1]) all[pos-1].focus(); }
+  else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); choose(idx,'a',false); }
+  else if (e.key === 'b' || e.key === 'B') { e.preventDefault(); choose(idx,'b',false); }
+  else if (e.key === 'Home') { e.preventDefault(); if (all[0]) all[0].focus(); }
+  else if (e.key === 'End') { e.preventDefault(); if (all.length) all[all.length-1].focus(); }
+});
+
+$('btn-all-a').addEventListener('click', function(){ chooseAll('a'); });
+$('btn-all-b').addEventListener('click', function(){ chooseAll('b'); });
+$('btn-reset').addEventListener('click', function(){ chooseAll(null); toast('Choices reset'); });
+
+$('btn-example').addEventListener('click', function(){
+  taA.value = EXAMPLE_A; taB.value = EXAMPLE_B;
+  finalDirty = false; segments = []; choices = [];
+  updateCounts(); recompute();
+  toast('Example loaded');
+});
+$('btn-swap').addEventListener('click', function(){
+  var t = taA.value; taA.value = taB.value; taB.value = t;
+  // swap choices too: a<->b
+  var swapped = {};
+  for (var k=0;k<segments.length;k++) { var s = segments[k]; if (s.type==='hunk' && choices[s.idx]) swapped[s.b+'\u0000'+s.a] = choices[s.idx]==='a'?'b':'a'; }
+  segments = []; choices = [];
+  updateCounts();
+  // recompute then re-apply swapped choices
+  var ops = diffTokens(tokenize(taA.value), tokenize(taB.value));
+  if (ops) {
+    var built = buildSegments(ops); segments = built.segments; hunkCount = built.count; choices = new Array(hunkCount);
+    for (k=0;k<segments.length;k++) { s = segments[k]; if (s.type==='hunk') choices[s.idx] = swapped[hunkKey(s)] || null; }
+    renderDiff(); renderTally(); updateFinal(); save();
+  } else recompute();
+});
+$('btn-clear').addEventListener('click', function(){
+  taA.value = ''; taB.value = ''; taF.value = '';
+  finalDirty = false; segments = []; choices = []; hunkCount = 0;
+  updateCounts(); renderDiff(); renderTally(); updateFinal(true);
+  try { localStorage.removeItem(KEY); } catch(e){}
+});
+btnRebuild.addEventListener('click', function(){ updateFinal(true); save(); toast('Rebuilt from choices'); });
+
+$('btn-copy').addEventListener('click', function(){
+  var text = taF.value;
+  if (!text) { toast('Nothing to copy yet'); return; }
+  function fallback(){
+    taF.focus(); taF.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e){}
+    taF.setSelectionRange(0,0);
+    toast(ok ? 'Copied final draft' : 'Select the text and copy manually');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast('Copied final draft'); }, fallback);
+  } else fallback();
+});
+$('btn-download').addEventListener('click', function(){
+  var text = taF.value;
+  if (!text) { toast('Nothing to download yet'); return; }
+  var blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'revision-bench-final.txt';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  toast('Downloading final draft');
+});
+
+/* ---------- Boot ---------- */
+if (!load()) {
+  taA.value = EXAMPLE_A; taB.value = EXAMPLE_B;
+  updateCounts(); recompute();
+}
+
+// expose a tiny test hook (harmless; no network)
+window.__bench = { tokenize:tokenize, diffTokens:diffTokens, buildSegments:buildSegments, assemble:assemble, getChoices:function(){ return choices.slice(); } };
+})();
+</script>
+</body>
+</html>
