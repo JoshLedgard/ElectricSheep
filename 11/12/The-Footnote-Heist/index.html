@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Footnote Heist</title>
+<meta name="description" content="An evidence detective mini-game: one sentence in each AI-style answer is wearing a footnote it didn't earn. Find it.">
+<style>
+  :root{
+    --paper:#f4eee1; --paper2:#ebe3d0; --ink:#1d1a16; --ink2:#4a443b; --rule:#c9bea6;
+    --red:#b3261e; --red-soft:#f3d9d3; --green:#2f6b3a; --green-soft:#dbe9d6;
+    --clip:#fffdf6; --ai:#e6ecef; --ai-ink:#22313a; --focus:#1f4fd1;
+    --serif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    background-image:repeating-linear-gradient(0deg,transparent 0 27px,rgba(120,100,60,.06) 27px 28px);
+    color:var(--ink); font-family:var(--serif); font-size:17px; line-height:1.5;
+    overflow-x:hidden; min-height:100vh;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:18px 16px 56px}
+  header.mast{border-bottom:3px double var(--ink);padding-bottom:10px;margin-bottom:16px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin:0}
+  h1{font-size:clamp(30px,7.5vw,54px);line-height:1;margin:6px 0 6px;font-weight:700;letter-spacing:-.01em}
+  h1 sup{font-size:.42em;color:var(--red);vertical-align:super;margin-left:2px}
+  .dek{margin:0;color:var(--ink2);font-style:italic;font-size:16px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-family:var(--mono);font-size:13px;margin-top:12px;color:var(--ink2)}
+  .bar b{color:var(--ink);font-size:15px}
+  .pips{display:flex;gap:4px;flex-wrap:wrap}
+  .pip{width:14px;height:14px;border:1.5px solid var(--ink);border-radius:50%;background:transparent}
+  .pip.now{background:var(--paper2);box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
+  .pip.ok{background:var(--green);border-color:var(--green)}
+  .pip.bad{background:var(--red);border-color:var(--red)}
+
+  .case-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin:4px 0 12px}
+  .case-no{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+  h2{margin:0;font-size:clamp(22px,5vw,30px);line-height:1.15}
+  .question{margin:4px 0 0;color:var(--ink2);font-size:15.5px}
+
+  .board{display:grid;grid-template-columns:1fr;gap:18px}
+  @media (min-width:820px){ .board{grid-template-columns:5fr 6fr;align-items:start} }
+
+  .label{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .label::after{content:"";flex:1;border-top:1px solid var(--rule)}
+
+  .receipts{display:flex;flex-direction:column;gap:12px}
+  .receipt{
+    position:relative;background:var(--clip);border:1px solid var(--rule);
+    padding:12px 14px 12px 46px;box-shadow:2px 3px 0 rgba(60,45,20,.12);
+    transform:rotate(var(--tilt,0deg));
+  }
+  .receipt .num{position:absolute;left:12px;top:11px;width:24px;height:24px;border-radius:50%;
+    background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:13px;display:grid;place-items:center}
+  .receipt .src{font-family:var(--mono);font-size:11.5px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em;margin:0 0 3px}
+  .receipt p.q{margin:0;font-size:16px}
+  .receipt.hl{outline:3px solid var(--red);outline-offset:2px}
+
+  .answer{background:var(--ai);color:var(--ai-ink);border-radius:14px 14px 14px 4px;padding:14px 14px 10px;border:1px solid #c5d1d7;position:relative}
+  .answer .who{font-family:var(--sans);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:8px;color:#3b5361}
+  .answer .who .dot{width:18px;height:18px;border-radius:5px;background:conic-gradient(#6d8fa3,#a8c1cf,#6d8fa3);display:inline-block}
+  .sents{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .sent{
+    width:100%;min-height:44px;text-align:left;font:inherit;font-family:var(--sans);font-size:16px;line-height:1.45;
+    color:inherit;background:rgba(255,255,255,.55);border:2px solid transparent;border-radius:8px;
+    padding:9px 10px 9px 38px;cursor:pointer;position:relative;touch-action:manipulation;
+  }
+  .sent .k{position:absolute;left:9px;top:10px;width:21px;height:21px;border-radius:4px;border:1px solid #9fb2bd;
+    font-family:var(--mono);font-size:12px;display:grid;place-items:center;color:#4b6271;background:#fff}
+  .sent sup{font-family:var(--mono);font-size:11px;color:#365a8c;margin-left:2px}
+  .sent:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  .sent[aria-pressed="true"]{border-color:var(--ink);background:#fff;box-shadow:3px 3px 0 var(--ink)}
+  .sent[aria-pressed="true"] .k{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .sent.dim{opacity:.55}
+  .sent.dim::after{content:"cleared by hint";position:absolute;right:8px;bottom:4px;font-family:var(--mono);font-size:10px;color:var(--ink2)}
+  .sent.dim{padding-bottom:18px}
+  .sent[disabled]{cursor:default}
+  .sent.is-culprit{background:var(--red-soft);border-color:var(--red)}
+  .sent.is-culprit .txt{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
+  .sent.is-ok{background:var(--green-soft);border-color:transparent}
+  .verdict-note{display:block;font-family:var(--mono);font-size:12px;margin-top:4px;color:var(--ink2)}
+  .is-culprit .verdict-note{color:var(--red);font-weight:600}
+  .is-ok .verdict-note{color:var(--green)}
+
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  button.btn{
+    min-height:44px;min-width:44px;padding:10px 18px;font-family:var(--mono);font-size:14px;letter-spacing:.04em;
+    border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:4px;cursor:pointer;touch-action:manipulation;
+  }
+  button.btn.primary{background:var(--ink);color:var(--paper)}
+  button.btn.stamp{background:var(--red);border-color:var(--red);color:#fff}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  button.btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+  .feedback{margin-top:16px;border-left:5px solid var(--ink);background:var(--clip);padding:12px 14px;display:none}
+  .feedback.show{display:block}
+  .feedback.win{border-color:var(--green)}
+  .feedback.lose{border-color:var(--red)}
+  .feedback h3{margin:0 0 4px;font-size:19px}
+  .feedback p{margin:0;font-size:16px}
+  .stampmark{display:inline-block;font-family:var(--mono);font-size:12px;letter-spacing:.14em;border:2px solid currentColor;padding:1px 7px;transform:rotate(-4deg);margin-right:8px;vertical-align:2px}
+  .win .stampmark{color:var(--green)} .lose .stampmark{color:var(--red)}
+
+  .how{margin-top:28px;border-top:1px solid var(--rule);padding-top:12px;font-size:15px;color:var(--ink2)}
+  .how summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+  .how summary:focus-visible{outline:3px solid var(--focus)}
+  kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--ink2);border-bottom-width:2px;border-radius:3px;padding:0 4px;background:var(--clip)}
+
+  .end{display:none;text-align:center;padding:24px 8px}
+  .end.show{display:block}
+  .end .big{font-size:clamp(44px,13vw,84px);line-height:1;margin:8px 0;font-weight:700}
+  .end .title{font-style:italic;font-size:20px;margin:0 0 6px}
+  .end ol{text-align:left;max-width:560px;margin:18px auto;padding-left:22px;font-size:15.5px}
+  .end ol li{margin:4px 0}
+  .end .acts{justify-content:center}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  footer{margin-top:32px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);text-align:center}
+  @media (prefers-reduced-motion:no-preference){
+    .feedback.show{animation:slide .25s ease-out}
+    @keyframes slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <p class="kicker">Evidence desk · Fictional case files</p>
+    <h1>The Footnote Heist<sup>[?]</sup></h1>
+    <p class="dek">Somebody has been slipping claims into these answers wearing footnotes they never earned. Read the receipts. Tap the sentence the receipts don't back up.</p>
+    <div class="bar" aria-label="Progress">
+      <span>Case <b id="caseNum">1</b>/<span id="caseTotal">8</span></span>
+      <span>Score <b id="score">0</b></span>
+      <span>Streak <b id="streak">0</b></span>
+      <div class="pips" id="pips" aria-hidden="true"></div>
+    </div>
+  </header>
+
+  <main id="game">
+    <section id="play">
+      <div class="case-head">
+        <div>
+          <div class="case-no" id="caseFile">Case file</div>
+          <h2 id="caseTitle">…</h2>
+          <p class="question" id="caseQ"></p>
+        </div>
+      </div>
+      <div class="board">
+        <section aria-labelledby="rlab">
+          <p class="label" id="rlab">Receipts on file</p>
+          <div class="receipts" id="receipts"></div>
+        </section>
+        <section aria-labelledby="alab">
+          <p class="label" id="alab">The answer under suspicion</p>
+          <div class="answer">
+            <div class="who"><span class="dot" aria-hidden="true"></span>Generated answer</div>
+            <ul class="sents" id="sents" aria-label="Sentences — choose the unsupported one"></ul>
+          </div>
+          <div class="actions">
+            <button class="btn stamp" id="accuse" disabled>Stamp it unsupported</button>
+            <button class="btn" id="hint">Hint (−50)</button>
+            <button class="btn primary" id="next" hidden>Next case →</button>
+          </div>
+          <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="end" id="end" aria-live="polite">
+      <p class="kicker">Case log closed</p>
+      <div class="big" id="endScore">0</div>
+      <p class="title" id="endTitle"></p>
+      <p id="endLine"></p>
+      <ol id="endList"></ol>
+      <div class="actions acts">
+        <button class="btn primary" id="replay">Shuffle &amp; replay</button>
+      </div>
+    </section>
+
+    <details class="how">
+      <summary>How to play &amp; controls</summary>
+      <p>Each case gives you 2–3 receipts (the only evidence that counts) and an answer split into sentences. Exactly one sentence is either <em>not supported</em> by any receipt or <em>contradicts</em> one. Its little footnote is a decoy — check what the receipt actually says.</p>
+      <p><strong>Touch/mouse:</strong> tap a sentence, then tap <em>Stamp it unsupported</em>. <strong>Keyboard:</strong> <kbd>1</kbd>–<kbd>4</kbd> pick a sentence, <kbd>Enter</kbd> stamps it, <kbd>H</kbd> hint, <kbd>N</kbd> next case. <kbd>Tab</kbd> works everywhere too.</p>
+      <p>Scoring: 100 per case, +25 for each case of current streak beyond the first, −50 if you used a hint. Everything here is invented; nothing describes real places, people or facts.</p>
+    </details>
+  </main>
+  <footer>All case files are fiction. No data leaves this page.</footer>
+</div>
+<p class="sr" id="announce" aria-live="assertive"></p>
+
+<script>
+/* Each case: receipts (2–3), sentences (3–4). Exactly one sentence has bad:true.
+   cite = the footnote the answer *claims*; note = what the evidence really says. */
+const CASES = [
+  {
+    id:"lantern", title:"The Lantern Walk of Vellmoor",
+    q:"“When and where does Vellmoor’s Lantern Walk start this year?”",
+    receipts:[
+      {src:"Vellmoor Harbor Almanac", text:"The Lantern Walk begins at dusk on the first Saturday of the thaw month."},
+      {src:"Town notice board", text:"This year the walk will start from the Old Ropeworks, not the pier, while the pier is under repair."}
+    ],
+    sents:[
+      {t:"The Lantern Walk begins at dusk.", cite:[1], note:"Supported by receipt 1."},
+      {t:"It is held on the first Saturday of the thaw month.", cite:[1], note:"Supported by receipt 1."},
+      {t:"This year it leaves from the pier, as it always has.", cite:[2], bad:true, note:"Contradicts receipt 2: it starts from the Old Ropeworks this year."},
+      {t:"The usual starting point is closed for repairs.", cite:[2], note:"Supported by receipt 2."}
+    ],
+    why:"Receipt 2 moves the start to the Old Ropeworks because the pier is being repaired. “As it always has” gets that backwards."
+  },
+  {
+    id:"quillbark", title:"The Quillbark Sapling",
+    q:"“How do I care for a young quillbark tree?”",
+    receipts:[
+      {src:"Greenhollow survey, field note", text:"Quillbark saplings need two full winters before they first flower."},
+      {src:"Nursery plant tag", text:"Water weekly through summer. Tolerates light frost."}
+    ],
+    sents:[
+      {t:"Quillbark handles light frost without trouble.", cite:[2], note:"Supported by receipt 2."},
+      {t:"Its blossoms are pollinated mainly by night moths, so avoid outdoor lights nearby.", cite:[1], bad:true, note:"Not in any receipt. Receipt 1 only says when it flowers."},
+      {t:"Expect the first flowers after two winters.", cite:[1], note:"Supported by receipt 1."},
+      {t:"Give it water once a week in summer.", cite:[2], note:"Supported by receipt 2."}
+    ],
+    why:"Nothing on file mentions pollinators or lighting. The footnote points at receipt 1, but that one is only about flowering time. Sounds plausible, but nothing backs it."
+  },
+  {
+    id:"bramble", title:"The Bramblecup Open",
+    q:"“Who won the Bramblecup Open chess tournament?”",
+    receipts:[
+      {src:"Club bulletin", text:"The Bramblecup Open is played over five rounds. Ties on points are broken by fewest losses."},
+      {src:"Final standings sheet", text:"Player Lark: 4 points, 0 losses. Player Quince: 4 points, 1 loss. Everyone else: 3 points or fewer."}
+    ],
+    sents:[
+      {t:"The Open was played over five rounds.", cite:[1], note:"Supported by receipt 1."},
+      {t:"Lark and Quince finished level on four points.", cite:[2], note:"Supported by receipt 2."},
+      {t:"Quince took the title on the tiebreak, having lost fewer games.", cite:[1,2], bad:true, note:"Contradicts receipts 1 + 2: Lark had 0 losses, Quince had 1."}
+    ],
+    why:"Ties go to the player with fewer losses. Lark lost none, Quince lost one, so Lark wins the tiebreak. The answer cites the right receipts and still gets it wrong."
+  },
+  {
+    id:"ferry", title:"The Glasswing Ferry",
+    q:"“Can I take the afternoon Glasswing Ferry on a Tuesday?”",
+    receipts:[
+      {src:"Posted timetable", text:"Departs Orlen Quay at 08:10 and 13:40. Crossing time: 50 minutes."},
+      {src:"Service alert", text:"The 13:40 sailing does not run on Tuesdays until further notice."}
+    ],
+    sents:[
+      {t:"The morning ferry leaves Orlen Quay at 08:10.", cite:[1], note:"Supported by receipt 1."},
+      {t:"Yes, on Tuesdays you can still catch the 13:40 afternoon sailing.", cite:[1], bad:true, note:"Contradicts receipt 2: no 13:40 sailing on Tuesdays."},
+      {t:"The 08:10 sailing should reach the far side around 09:00.", cite:[1], note:"Supported by receipt 1 (08:10 + 50 min)."},
+      {t:"Either way, the crossing takes under an hour.", cite:[1], note:"Supported by receipt 1."}
+    ],
+    why:"The timetable lists 13:40, but the service alert cancels it on Tuesdays. The answer cited the timetable and skipped the alert."
+  },
+  {
+    id:"glaze", title:"The Pell-Glaze Kiln Log",
+    q:"“How should I use Pell-glaze on a mug?”",
+    receipts:[
+      {src:"Studio Marrow kiln log", text:"Pell-glaze fires at cone 6. It turns blue in an oxidation firing and green in reduction."},
+      {src:"Glaze card", text:"Food-safe once fully fired. Never apply more than two coats; thicker layers run and crawl."}
+    ],
+    sents:[
+      {t:"Pell-glaze is fired at cone 6.", cite:[1], note:"Supported by receipt 1."},
+      {t:"In a reduction firing it comes out green.", cite:[1], note:"Supported by receipt 1."},
+      {t:"After a full firing it’s safe for food.", cite:[2], note:"Supported by receipt 2."},
+      {t:"For the richest color, brush on three generous coats.", cite:[2], bad:true, note:"Contradicts receipt 2: never more than two coats."}
+    ],
+    why:"The glaze card caps it at two coats, because thicker layers run. Three generous coats is exactly what it warns against."
+  },
+  {
+    id:"teasel", title:"The Teasel Row Lending Desk",
+    q:"“How long can I keep a book from Teasel Row Library?”",
+    receipts:[
+      {src:"Lending policy", text:"Members may borrow up to 6 items at once. Each loan lasts 21 days."},
+      {src:"Renewal policy", text:"A loan may be renewed once, for 14 more days, unless another member has reserved the item."}
+    ],
+    sents:[
+      {t:"You can have up to six items out at a time.", cite:[1], note:"Supported by receipt 1."},
+      {t:"With its single renewal, a loan can stretch to 35 days.", cite:[1,2], note:"Supported by receipts 1 + 2 (21 + 14)."},
+      {t:"You can’t renew an item someone else has reserved.", cite:[2], note:"Supported by receipt 2."},
+      {t:"Any overdue item blocks you from borrowing more until it’s returned.", cite:[1], bad:true, note:"Not in any receipt. Neither policy says what happens when an item is overdue."}
+    ],
+    why:"The two policies cover limits, loan length and renewals. Neither mentions overdue items. The 35-day line looks like a trap but it’s just 21 + 14."
+  },
+  {
+    id:"murmur", title:"The Murmur Caves Tour",
+    q:"“Can I bring my six-year-old on the Murmur Caves tour?”",
+    receipts:[
+      {src:"Ranger sheet", text:"Tours are limited to 12 visitors and last 90 minutes."},
+      {src:"Safety card", text:"Children under 8 may not enter the Lower Gallery. Helmets are provided at the entrance."},
+      {src:"Tour route", text:"Every tour passes through the Lower Gallery."}
+    ],
+    sents:[
+      {t:"Each tour runs about an hour and a half.", cite:[1], note:"Supported by receipt 1."},
+      {t:"Helmets are handed out at the entrance.", cite:[2], note:"Supported by receipt 2."},
+      {t:"A six-year-old is welcome on the full tour with an adult.", cite:[2], bad:true, note:"Contradicts receipts 2 + 3: every tour enters the Lower Gallery, which is closed to under-8s."},
+      {t:"Groups are capped at twelve visitors.", cite:[1], note:"Supported by receipt 1."}
+    ],
+    why:"Put receipts 2 and 3 together: every tour goes through the Lower Gallery, and children under 8 can’t go in. So a six-year-old can’t do the full tour."
+  },
+  {
+    id:"tidewhistle", title:"The Tidewhistle Marsh Count",
+    q:"“How did reed-warblers do in this year’s Tidewhistle count?”",
+    receipts:[
+      {src:"Count summary", text:"40 volunteers logged 212 sightings across 9 marsh plots."},
+      {src:"Coordinator’s note", text:"Reed-warblers turned up in 3 of the 9 plots, the fewest of any species we tracked."}
+    ],
+    sents:[
+      {t:"The count covered nine marsh plots.", cite:[1], note:"Supported by receipt 1."},
+      {t:"Reed-warblers were spotted in most of them.", cite:[2], bad:true, note:"Contradicts receipt 2: only 3 of 9 plots."},
+      {t:"Volunteers logged more than two hundred sightings in total.", cite:[1], note:"Supported by receipt 1."}
+    ],
+    why:"Three plots out of nine is a third, not most. Receipt 2 even says no tracked species was found in fewer plots."
+  }
+];
+
+const $ = id => document.getElementById(id);
+const state = {order:[], i:0, score:0, streak:0, best:0, picked:-1, done:false, hinted:false, log:[]};
+
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function start(shuffled){
+  state.order = shuffled ? shuffle(CASES.map((_,k)=>k)) : CASES.map((_,k)=>k);
+  Object.assign(state,{i:0,score:0,streak:0,best:0,log:[]});
+  $("end").classList.remove("show"); $("play").hidden=false;
+  $("caseTotal").textContent = CASES.length;
+  render();
+}
+
+function cur(){ return CASES[state.order[state.i]]; }
+
+function render(){
+  const c = cur();
+  state.picked=-1; state.done=false; state.hinted=false;
+  $("caseNum").textContent = state.i+1;
+  $("caseFile").textContent = "Case file " + String(state.i+1).padStart(2,"0");
+  $("caseTitle").textContent = c.title;
+  $("caseQ").textContent = "Asked: " + c.q;
+  const R = $("receipts"); R.innerHTML="";
+  c.receipts.forEach((r,k)=>{
+    const d=document.createElement("article"); d.className="receipt"; d.id="rc"+(k+1);
+    d.style.setProperty("--tilt", ((k%2?1:-1)*(0.4+k*0.25))+"deg");
+    d.innerHTML='<span class="num" aria-hidden="true">'+(k+1)+'</span><p class="src"></p><p class="q"></p>';
+    d.querySelector(".src").textContent="Receipt "+(k+1)+" · "+r.src;
+    d.querySelector(".q").textContent=r.text;
+    R.appendChild(d);
+  });
+  const S=$("sents"); S.innerHTML="";
+  c.sents.forEach((s,k)=>{
+    const li=document.createElement("li");
+    const b=document.createElement("button"); b.type="button"; b.className="sent"; b.dataset.k=k;
+    b.setAttribute("aria-pressed","false");
+    b.innerHTML='<span class="k" aria-hidden="true">'+(k+1)+'</span><span class="txt"></span><sup></sup>';
+    b.querySelector(".txt").textContent=s.t;
+    b.querySelector("sup").textContent=s.cite.map(n=>"["+n+"]").join("");
+    b.setAttribute("aria-label","Sentence "+(k+1)+": "+s.t+" Cites receipt "+s.cite.join(" and "));
+    b.addEventListener("click",()=>pick(k));
+    li.appendChild(b); S.appendChild(li);
+  });
+  $("accuse").disabled=true; $("accuse").hidden=false;
+  $("hint").disabled=false; $("hint").hidden=false;
+  $("next").hidden=true;
+  const fb=$("feedback"); fb.className="feedback"; fb.innerHTML="";
+  updateBar();
+}
+
+function updateBar(){
+  $("score").textContent=state.score; $("streak").textContent=state.streak;
+  const P=$("pips"); P.innerHTML="";
+  for(let k=0;k<CASES.length;k++){
+    const p=document.createElement("span"); p.className="pip";
+    const l=state.log[k]; if(l) p.classList.add(l.ok?"ok":"bad"); else if(k===state.i) p.classList.add("now");
+    P.appendChild(p);
+  }
+}
+
+function sentBtns(){ return [...document.querySelectorAll("#sents .sent")]; }
+
+function pick(k){
+  if(state.done) return;
+  const btn=sentBtns()[k]; if(!btn || btn.classList.contains("dim")) return;
+  state.picked=k;
+  sentBtns().forEach((b,j)=>b.setAttribute("aria-pressed", j===k?"true":"false"));
+  $("accuse").disabled=false;
+  $("announce").textContent="Sentence "+(k+1)+" selected. Press Enter or Stamp to accuse.";
+}
+
+function hint(){
+  if(state.done||state.hinted) return;
+  const c=cur();
+  const btns=sentBtns();
+  const goods=c.sents.map((s,k)=>k).filter(k=>!c.sents[k].bad && k!==state.picked);
+  const k=goods[Math.floor(Math.random()*goods.length)];
+  state.hinted=true;
+  btns[k].classList.add("dim"); btns[k].disabled=true;
+  btns[k].setAttribute("aria-label",btns[k].getAttribute("aria-label")+" (cleared by hint)");
+  $("hint").disabled=true;
+  $("announce").textContent="Hint: sentence "+(k+1)+" is supported.";
+}
+
+function accuse(){
+  if(state.done||state.picked<0) return;
+  const c=cur(); state.done=true;
+  const culprit=c.sents.findIndex(s=>s.bad);
+  const ok = state.picked===culprit;
+  let gained=0;
+  if(ok){ state.streak++; state.best=Math.max(state.best,state.streak); gained=100+25*(state.streak-1)-(state.hinted?50:0); state.score+=gained; }
+  else state.streak=0;
+  state.log[state.i]={ok,title:c.title,gained};
+  sentBtns().forEach((b,j)=>{
+    b.disabled=true;
+    b.classList.remove("dim");
+    b.classList.add(c.sents[j].bad?"is-culprit":"is-ok");
+    const n=document.createElement("span"); n.className="verdict-note";
+    n.textContent=(c.sents[j].bad?"✗ ":"✓ ")+c.sents[j].note; b.appendChild(n);
+  });
+  const fb=$("feedback");
+  fb.className="feedback show "+(ok?"win":"lose");
+  fb.innerHTML='<h3><span class="stampmark"></span><span class="hd"></span></h3><p></p>';
+  fb.querySelector(".stampmark").textContent= ok?"CAUGHT":"ESCAPED";
+  fb.querySelector(".hd").textContent= ok ? ("Sentence "+(culprit+1)+" stole its footnote. +"+gained) : ("You flagged sentence "+(state.picked+1)+". The real culprit was sentence "+(culprit+1)+".");
+  fb.querySelector("p").textContent=c.why;
+  $("accuse").hidden=true; $("hint").hidden=true;
+  const nx=$("next"); nx.hidden=false;
+  nx.textContent = state.i===CASES.length-1 ? "Close the case log →" : "Next case →";
+  updateBar();
+  nx.focus({preventScroll:true});
+  fb.scrollIntoView({block:"nearest",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+}
+
+function next(){
+  if(!state.done) return;
+  if(state.i<CASES.length-1){ state.i++; render(); $("caseTitle").scrollIntoView({block:"start"}); const f=sentBtns()[0]; f&&f.focus({preventScroll:true}); }
+  else finish();
+}
+
+function finish(){
+  $("play").hidden=true;
+  const right=state.log.filter(l=>l&&l.ok).length;
+  $("endScore").textContent=state.score;
+  const titles=["Rookie on the receipts desk","Junior footnote sleuth","Sharp-eyed sentence inspector","Senior evidence detective","Chief of the Footnote Squad"];
+  const t = right===CASES.length?4: right>=CASES.length-1?3: right>=Math.ceil(CASES.length/2)?2: right>=2?1:0;
+  $("endTitle").textContent=titles[t];
+  $("endLine").textContent=right+" of "+CASES.length+" culprits caught · best streak "+state.best+".";
+  const L=$("endList"); L.innerHTML="";
+  state.log.forEach(l=>{ const li=document.createElement("li"); li.textContent=(l.ok?"✓ ":"✗ ")+l.title+(l.ok?" (+"+l.gained+")":" (escaped)"); L.appendChild(li); });
+  $("end").classList.add("show");
+  updateBar(); $("caseNum").textContent=CASES.length;
+  $("replay").focus();
+}
+
+$("accuse").addEventListener("click",accuse);
+$("hint").addEventListener("click",hint);
+$("next").addEventListener("click",next);
+$("replay").addEventListener("click",()=>{start(true); window.scrollTo(0,0);});
+
+document.addEventListener("keydown",e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const t=e.target; if(t && (t.tagName==="SUMMARY")) return;
+  if(!$("play").hidden){
+    if(/^[1-4]$/.test(e.key)){ const k=+e.key-1; if(k<cur().sents.length){ pick(k); const b=sentBtns()[k]; b && !b.disabled && b.focus(); e.preventDefault(); } }
+    else if(e.key==="Enter" && !state.done && state.picked>=0 && !(t && t.id==="hint")){
+      /* Enter on a different, unselected sentence just selects it (native click); otherwise stamp. */
+      if(t && t.classList && t.classList.contains("sent") && +t.dataset.k!==state.picked) return;
+      e.preventDefault(); accuse();
+    }
+    else if((e.key==="h"||e.key==="H") && !state.done){ hint(); }
+    else if((e.key==="n"||e.key==="N") && state.done){ next(); }
+    else if((e.key==="ArrowDown"||e.key==="ArrowUp") && t && t.classList && t.classList.contains("sent")){
+      const bs=sentBtns().filter(b=>!b.disabled); const ix=bs.indexOf(t);
+      const nb=bs[(ix+(e.key==="ArrowDown"?1:-1)+bs.length)%bs.length]; nb&&nb.focus(); e.preventDefault();
+    }
+  }
+});
+
+window.__FH = {CASES, state, pick, accuse, next, hint, start};
+start(false);
+</script>
+</body>
+</html>
