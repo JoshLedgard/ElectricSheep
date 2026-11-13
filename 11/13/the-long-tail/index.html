@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Long Tail · a latency lab</title>
+<meta name="description" content="A small, self-contained latency lab. Change stage timings, run tool tasks in sequence or in parallel, and see how the median and the slow tail move. All data is synthetic.">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f3f2ee; --surface:#fcfcfb; --surface-2:#f0efea; --line:#dcdad3; --grid:#e7e5df;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-3:#6f6d68;
+  --a:#2a78d6; --b:#eb6834;
+  --a-soft:rgba(42,120,214,.16); --b-soft:rgba(235,104,52,.16);
+  --a-mid:rgba(42,120,214,.55); --b-mid:rgba(235,104,52,.55);
+  --note:#fff6d8; --note-line:#e8d48a;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#111110; --surface:#1a1a19; --surface-2:#232321; --line:#37362f; --grid:#2b2b28;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#9a998f;
+    --a:#3987e5; --b:#d95926;
+    --a-soft:rgba(57,135,229,.24); --b-soft:rgba(217,89,38,.24);
+    --a-mid:rgba(57,135,229,.6); --b-mid:rgba(217,89,38,.6);
+    --note:#2a2616; --note-line:#5d5223;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans);overflow-x:hidden}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:6px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* header */
+header.top{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.brand{display:flex;gap:14px;align-items:center;min-width:0}
+.brand svg{flex:none}
+h1{font-size:clamp(30px,6vw,46px);line-height:1;margin:0;letter-spacing:-.03em;font-weight:800}
+.kicker{font:600 12px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+.lede{margin:10px 0 0;color:var(--ink-2);max-width:62ch}
+.disclaimer{display:flex;gap:10px;align-items:flex-start;background:var(--note);border:1px solid var(--note-line);border-radius:12px;padding:10px 14px;margin:14px 0 16px;font-size:14px;color:var(--ink)}
+.disclaimer b{white-space:nowrap}
+
+/* toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.toolbar .lbl{font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:4px}
+button{font:inherit;color:inherit}
+.btn{min-height:44px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px;font-weight:600;touch-action:manipulation}
+.btn:hover{border-color:var(--ink-3)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.ghost{background:transparent}
+.spacer{flex:1 1 auto}
+.preset-note{margin:4px 0 16px;color:var(--ink-2);font-size:15px;min-height:1.5em;max-width:80ch}
+.preset-note strong{color:var(--ink)}
+
+/* layout */
+.layout{display:grid;gap:16px;grid-template-columns:minmax(0,1fr);
+  grid-template-areas:"stats" "hist" "controls" "timeline" "fan" "how"}
+.layout>*{min-width:0}
+@media (min-width:980px){
+  .layout{grid-template-columns:360px minmax(0,1fr);
+    grid-template-areas:"controls stats" "controls hist" "controls timeline" "fan fan" "how how"}
+  .controls{position:sticky;top:12px;align-self:start}
+  .minibar{display:none!important}
+}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card h2{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}
+.card .sub{margin:0 0 12px;color:var(--ink-2);font-size:14px}
+
+/* minibar (mobile sticky summary) */
+.minibar{position:sticky;top:0;z-index:5;margin:0 -16px 12px;padding:8px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;gap:10px;font-size:13px;justify-content:space-between;flex-wrap:wrap}
+.minibar span{white-space:nowrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.dot.a{background:var(--a)} .dot.b{background:var(--b)}
+
+/* stats */
+.stats{grid-area:stats;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stat{padding:14px 14px 12px;border-top:4px solid var(--a)}
+.stat.b{border-top-color:var(--b)}
+.stat h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;gap:6px;align-items:baseline;flex-wrap:wrap}
+.stat h3 small{font-weight:500;color:var(--ink-3);font-size:12px}
+.stat dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+.stat dt{font:600 11px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.stat dd{margin:0 0 4px;font:700 clamp(18px,4.6vw,24px)/1.15 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat dd.small{font-size:16px}
+.delta{font:500 12px/1.3 var(--mono);color:var(--ink-2);display:block}
+
+/* chart shared */
+.hist{grid-area:hist}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 8px;padding:0;list-style:none;font-size:13px;color:var(--ink-2)}
+.legend li{display:flex;align-items:center;gap:6px}
+.sw{width:18px;height:12px;border-radius:3px;display:inline-block}
+.sw.a{background:var(--a)}
+.sw.b{background:var(--b-soft);border:2px solid var(--b)}
+.sw.l50{width:20px;height:0;border-top:2px dashed var(--ink-2);border-radius:0}
+.sw.l95{width:20px;height:0;border-top:2px solid var(--ink-2);border-radius:0}
+.chartbox{position:relative;width:100%}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--sans);fill:var(--ink-2);font-size:11px}
+svg .tick{fill:var(--ink-3);font-family:var(--mono);font-size:10.5px}
+svg .grid{stroke:var(--grid);stroke-width:1}
+svg .axis{stroke:var(--line);stroke-width:1}
+svg .fa{fill:var(--a)} svg .fb{fill:var(--b)}
+svg .sa{stroke:var(--a)} svg .sb{stroke:var(--b)}
+svg .fsoftb{fill:var(--b-soft)} svg .fsofta{fill:var(--a-soft)}
+svg .pill{fill:var(--surface);stroke-width:1.5}
+svg .pilltxt{fill:var(--ink);font-family:var(--mono);font-size:10.5px;font-weight:600}
+svg .hl{fill:var(--ink);opacity:.06}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--surface);font:500 12px/1.4 var(--mono);padding:6px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-100%);opacity:0;transition:opacity .12s;z-index:3}
+.tip.on{opacity:1}
+.foot{margin:8px 0 0;font-size:13px;color:var(--ink-3)}
+details.table{margin-top:10px}
+details summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;font-size:14px;color:var(--ink-2)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.reading{margin:12px 0 0;padding:12px 14px;background:var(--surface-2);border-radius:10px;font-size:15px}
+.reading p{margin:0 0 6px}.reading p:last-child{margin:0}
+
+/* controls */
+.controls{grid-area:controls}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface-2);padding:4px;border-radius:12px;margin-bottom:12px}
+.tab{min-height:44px;border:0;border-radius:9px;background:transparent;cursor:pointer;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;gap:6px}
+.tab[aria-selected="true"],.tab[aria-checked="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.panel[hidden]{display:none}
+.ctl{margin-bottom:10px}
+.ctl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ctl label,.ctl legend{font-weight:650;font-size:15px}
+.ctl output{font:700 14px/1.2 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hint{margin:0;font-size:12.5px;color:var(--ink-3);line-height:1.35}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0;cursor:pointer;touch-action:pan-y;--c:var(--a)}
+.panel.b input[type=range]{--c:var(--b)}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:linear-gradient(to right,var(--c) 0 var(--p,50%),var(--line) var(--p,50%) 100%)}
+input[type=range]::-moz-range-track{height:8px;border-radius:99px;background:var(--line)}
+input[type=range]::-moz-range-progress{height:8px;border-radius:99px;background:var(--c)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--surface);border:3px solid var(--c);margin-top:-10px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--surface);border:3px solid var(--c);box-shadow:0 1px 4px rgba(0,0,0,.25)}
+input[type=range]:focus-visible{outline:none}
+input[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid var(--ink);outline-offset:2px}
+input[type=range]:focus-visible::-moz-range-thumb{outline:3px solid var(--ink);outline-offset:2px}
+fieldset{border:0;padding:0;margin:0 0 12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label{min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-weight:650;font-size:14px;padding:4px 6px;text-align:center;line-height:1.2}
+.seg label small{font-weight:400;color:var(--ink-3);font-size:11.5px}
+.seg input:checked+label{border:2px solid var(--a);background:var(--a-soft)}
+.panel.b .seg input:checked+label{border-color:var(--b);background:var(--b-soft)}
+.seg input:focus-visible+label{outline:3px solid var(--ink);outline-offset:2px}
+.panel-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
+.panel-actions .btn{flex:1 1 auto;font-size:14px}
+
+/* timeline */
+.timeline{grid-area:timeline}
+.tl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.tl-head .btn{flex:none}
+
+/* fan-out */
+.fan{grid-area:fan}
+.fan-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:860px){.fan-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}}
+.facts{display:grid;gap:10px;align-content:start}
+.fact{background:var(--surface-2);border-radius:10px;padding:12px 14px}
+.fact .big{font:700 26px/1.1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.fact p{margin:4px 0 0;font-size:14px;color:var(--ink-2)}
+.formula{font-family:var(--mono);font-size:14px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:6px 8px;display:inline-block;margin-top:6px;overflow-wrap:anywhere}
+
+/* how */
+.how{grid-area:how}
+.how ol{padding-left:1.3em;margin:8px 0}
+.how li{margin-bottom:8px;max-width:75ch}
+.how code{font-family:var(--mono);font-size:.92em;background:var(--surface-2);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+footer{margin-top:24px;font-size:13px;color:var(--ink-3);text-align:center}
+@media (max-width:420px){
+  .wrap{padding:14px 12px 40px}
+  .minibar{margin:0 -12px 12px;padding:8px 12px}
+  .card{padding:14px 12px}
+  .stat{padding:12px 10px 10px}
+  .disclaimer{font-size:13.5px}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+@media (forced-colors: active){ .sw,.dot{forced-color-adjust:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="minibar" aria-hidden="true">
+  <span><span class="dot a"></span>A <b class="num" id="mbA">–</b></span>
+  <span><span class="dot b"></span>B <b class="num" id="mbB">–</b></span>
+  <span style="color:var(--ink-3)">P50 · P95</span>
+</div>
+
+<header class="top">
+  <div>
+    <p class="kicker">Daily Surprise · Nov 13, 2026 · latency lab</p>
+    <div class="brand">
+      <svg width="54" height="40" viewBox="0 0 54 40" aria-hidden="true"><path d="M2 38 C8 38 9 4 15 4 S22 30 30 34 S46 37 52 37.5" fill="none" stroke="var(--a)" stroke-width="3" stroke-linecap="round"/><path d="M38 36 L52 37.5" stroke="var(--b)" stroke-width="3" stroke-linecap="round"/></svg>
+      <h1>The Long Tail</h1>
+    </div>
+    <p class="lede">An assistant answer is a short pipeline: look something up, think, call a few tools. Change how long each step takes, run the tools one after another or all at once, and watch what happens to the <em>typical</em> request versus the <em>slow</em> ones.</p>
+  </div>
+</header>
+
+<div class="disclaimer" role="note">
+  <span aria-hidden="true">⚗︎</span>
+  <span><b>Synthetic data.</b> Every duration on this page comes from a seeded random model running in your browser. None of it is a measurement of any real product, model or service. The numbers show how the model behaves; they don't say how fast any real system is.</span>
+</div>
+
+<div class="toolbar" role="group" aria-label="Examples and reset">
+  <span class="lbl">Examples</span>
+  <button class="btn" data-preset="fan" aria-pressed="true">Chain vs. fan-out</button>
+  <button class="btn" data-preset="helpers" aria-pressed="false">More helpers</button>
+  <button class="btn" data-preset="steady" aria-pressed="false">Steady vs. spiky</button>
+  <span class="spacer"></span>
+  <button class="btn ghost" id="reseed" title="Draw a different set of random requests">New sample <span class="num" id="seedLbl" style="font-weight:500;color:var(--ink-3)"></span></button>
+  <button class="btn ghost" id="reset">Reset</button>
+</div>
+<p class="preset-note" id="presetNote" aria-live="polite"></p>
+
+<main class="layout">
+
+  <!-- STATS -->
+  <section class="stats" aria-label="Summary percentiles">
+    <div class="card stat a" id="statA"></div>
+    <div class="card stat b" id="statB"></div>
+  </section>
+
+  <!-- HISTOGRAM -->
+  <section class="card hist" aria-labelledby="histH">
+    <h2 id="histH">How long 5,000 simulated requests took</h2>
+    <p class="sub">Each bar is the share of requests that finished in that time slice. Both scenarios use the <em>same</em> random draws, so any difference comes from the settings and not from luck.</p>
+    <ul class="legend">
+      <li><span class="sw a"></span>Scenario A</li>
+      <li><span class="sw b"></span>Scenario B</li>
+      <li><span class="sw l50"></span>P50 (median)</li>
+      <li><span class="sw l95"></span>P95</li>
+    </ul>
+    <div class="chartbox" id="hist"><div class="tip" id="histTip"></div></div>
+    <p class="foot" id="histFoot"></p>
+    <div class="reading" id="reading" aria-live="polite"></div>
+    <details class="table">
+      <summary>Show the numbers as a table</summary>
+      <div style="overflow-x:auto"><table id="numTable"></table></div>
+    </details>
+  </section>
+
+  <!-- CONTROLS -->
+  <section class="card controls" aria-labelledby="ctlH">
+    <h2 id="ctlH">Scenario settings</h2>
+    <p class="sub">Medians for each stage. Pick a scenario, then drag or use the arrow keys.</p>
+    <div class="tabs" role="tablist" aria-label="Scenario to edit">
+      <button class="tab" role="tab" id="tab-A" aria-controls="panel-A" aria-selected="true"><span class="dot a"></span>Scenario A</button>
+      <button class="tab" role="tab" id="tab-B" aria-controls="panel-B" aria-selected="false" tabindex="-1"><span class="dot b"></span>Scenario B</button>
+    </div>
+    <div class="panel a" role="tabpanel" id="panel-A" aria-labelledby="tab-A"></div>
+    <div class="panel b" role="tabpanel" id="panel-B" aria-labelledby="tab-B" hidden></div>
+    <div class="panel-actions">
+      <button class="btn" id="copyAB">Copy A → B</button>
+      <button class="btn" id="swap">Swap A ⇄ B</button>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="card timeline" aria-labelledby="tlH">
+    <div class="tl-head">
+      <div>
+        <h2 id="tlH">Request timelines</h2>
+        <p class="sub" style="margin-bottom:8px">Three real rows from the sample for each scenario: the median request, the P95 request and the P99 request. In parallel mode each tool task gets its own thin lane, and the request ends when the <strong>slowest lane</strong> finishes.</p>
+      </div>
+      <button class="btn" id="play" aria-describedby="playHint">▶ Race them</button>
+    </div>
+    <ul class="legend">
+      <li><svg width="18" height="12" aria-hidden="true"><rect width="18" height="12" rx="3" fill="url(#hatchLegend)" stroke="var(--ink-3)"/><defs><pattern id="hatchLegend" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface-2)"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--ink-3)" stroke-width="2"/></pattern></defs></svg>Retrieval</li>
+      <li><span class="sw" style="background:var(--ink-2)"></span>Reasoning</li>
+      <li><span class="sw" style="background:var(--ink-2);opacity:.45"></span>Tool tasks</li>
+      <li><span class="sw" style="background:var(--ink-2);outline:2px solid var(--ink);outline-offset:1px"></span>Slowest tool</li>
+    </ul>
+    <div class="chartbox" id="tl"></div>
+    <p class="foot" id="playHint">Playback compresses time so every race lasts about 3½ seconds on screen. The bars keep their true proportions.</p>
+  </section>
+
+  <!-- FAN-OUT -->
+  <section class="card fan" aria-labelledby="fanH">
+    <h2 id="fanH">Tail amplification: why waiting for everyone is slow</h2>
+    <p class="sub">Take one scenario's tool settings and run 1 to 12 tool tasks <em>in parallel</em>. Only the tool phase is shown. The typical task barely changes, but the request has to wait for the slowest one.</p>
+    <div class="tabs" role="radiogroup" aria-label="Use tool settings from" style="max-width:360px">
+      <button class="tab" role="radio" data-fan="A" aria-checked="true"><span class="dot a"></span>A's tools</button>
+      <button class="tab" role="radio" data-fan="B" aria-checked="false" tabindex="-1"><span class="dot b"></span>B's tools</button>
+    </div>
+    <div class="fan-grid">
+      <div>
+        <div class="chartbox" id="fanChart"><div class="tip" id="fanTip"></div></div>
+      </div>
+      <div class="facts" id="fanFacts" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section class="card how" aria-labelledby="howH">
+    <h2 id="howH">How the numbers are made</h2>
+    <ol>
+      <li><strong>A fixed, seeded sample.</strong> A small deterministic random generator (seed <span class="num" id="seedHow"></span>) draws 5,000 synthetic requests. The same seed always gives the same page. <em>New sample</em> changes the seed.</li>
+      <li><strong>Each stage is lognormal.</strong> A stage with median <code>m</code> and variability <code>σ</code> takes <code>m × e<sup>σ·z</sup></code>, where <code>z</code> is a standard normal draw. That gives a right-skewed shape: most calls land near the median and a few run long. With hiccup chance <code>h</code>, a stage independently stalls and takes 4× as long.</li>
+      <li><strong>Stages add up.</strong> <code>request = retrieval + reasoning + tools</code>. Sequential tools: <code>tools = t₁ + t₂ + … + tₖ</code>. Parallel tools: <code>tools = max(t₁ … tₖ)</code>, because the answer waits for the last one.</li>
+      <li><strong>Percentiles by nearest rank.</strong> Sort the 5,000 totals. P50 is the 2,500th, P95 the 4,750th and P99 the 4,950th. A and B reuse the same <code>z</code> and hiccup draws (common random numbers), so comparisons aren't muddied by sampling noise.</li>
+      <li><strong>Tail amplification.</strong> If each task independently has a 5% chance of running past its own P95, then the chance that at least one of <code>k</code> parallel tasks does is <code>1 − 0.95<sup>k</sup></code>. At 4 tasks that's about 19%. At 12 it's about 46%. A rare event per task becomes a common one per request.</li>
+      <li><strong>What it leaves out.</strong> Real systems have queues, retries, timeouts, rate limits, caching and correlated slowdowns, where one busy dependency slows every task at once. None of that is modeled here. Use the lab to build intuition about shapes and ratios, not to predict real numbers.</li>
+    </ol>
+  </section>
+</main>
+
+<div class="sr" aria-live="polite" id="live"></div>
+<footer>The Long Tail · self-contained, offline, stores nothing · illustrative synthetic data only</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const N = 5000, MAXT = 12, W = 2 + MAXT, HICCUP = 4, DEFAULT_SEED = 1113;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+
+/* ---------- presets ---------- */
+const PRESETS = {
+  fan: {
+    note: '<strong>Same work, different shape.</strong> Both scenarios make 4 identical tool calls. A runs them one after another and B runs them all at once. B is much faster at the median, but compare the P95 ratio: B now waits for its slowest call every time.',
+    A: {retr:400, reason:1800, tool:700, tasks:4, mode:'seq', vari:0.45, hiccup:2},
+    B: {retr:400, reason:1800, tool:700, tasks:4, mode:'par', vari:0.45, hiccup:2}
+  },
+  helpers: {
+    note: '<strong>Extra parallel helpers aren\'t free.</strong> Both run tools in parallel. A uses 2 tasks and B uses 10. Compare how the median, P95, and P99 each move. Then drag B\'s task count down and watch the distributions shift.',
+    A: {retr:300, reason:1500, tool:900, tasks:2, mode:'par', vari:0.6, hiccup:3},
+    B: {retr:300, reason:1500, tool:900, tasks:10, mode:'par', vari:0.6, hiccup:3}
+  },
+  steady: {
+    note: '<strong>Faster on average isn\'t the same as feeling fast.</strong> A\'s tools have a lower median but are erratic. B\'s are a bit slower but consistent. Check which scenario wins at P50, then at P95 and P99.',
+    A: {retr:400, reason:1600, tool:500, tasks:3, mode:'seq', vari:0.9, hiccup:6},
+    B: {retr:400, reason:1600, tool:650, tasks:3, mode:'seq', vari:0.25, hiccup:0}
+  }
+};
+const FIELDS = [
+  {id:'retr', label:'Retrieval', hint:'Median time to look up context before answering.', min:0, max:3000, step:50, unit:'ms'},
+  {id:'reason', label:'Reasoning', hint:'Median time spent thinking and writing the answer.', min:200, max:12000, step:100, unit:'ms'},
+  {id:'tool', label:'Tool task', hint:'Median time for one tool call: a search, a lookup or a code run.', min:0, max:5000, step:50, unit:'ms'},
+  {id:'tasks', label:'Tool tasks per request', hint:'How many tool calls each request makes.', min:1, max:12, step:1, unit:'count'},
+  {id:'mode'},
+  {id:'vari', label:'Variability (σ)', hint:'', min:0, max:1.2, step:0.05, unit:'sigma'},
+  {id:'hiccup', label:'Hiccup chance', hint:'Chance that any single stage stalls and takes 4× as long.', min:0, max:10, step:0.5, unit:'pct'}
+];
+
+let state = clone(PRESETS.fan);
+let seed = DEFAULT_SEED;
+let activePreset = 'fan';
+let fanKey = 'A';
+let Z, Hc, SA, SB;
+
+function clone(p){ return {A:{...p.A}, B:{...p.B}}; }
+
+/* ---------- formatting ---------- */
+function fmt(ms){
+  if (ms < 1) return '0 ms';
+  if (ms < 1000) return Math.round(ms) + ' ms';
+  const s = ms/1000;
+  return (s < 10 ? s.toFixed(2) : s < 100 ? s.toFixed(1) : s.toFixed(0)) + ' s';
+}
+function fmtSigned(ms){ return (ms > 0 ? '+' : ms < 0 ? '−' : '±') + fmt(Math.abs(ms)); }
+function pctStr(x){ return (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x).toFixed(0) + '%'; }
+function fieldText(f, v){
+  switch (f.unit){
+    case 'ms': return v === 0 ? 'skipped' : fmt(v);
+    case 'count': return String(v);
+    case 'sigma': return v.toFixed(2);
+    case 'pct': return (v % 1 ? v.toFixed(1) : v) + '%';
+  }
+}
+function variHint(v){
+  if (v === 0) return 'No lognormal variability; hiccups can still make a stage slow.';
+  return 'How unpredictable each stage is. At this setting, 1 in 20 calls takes at least ×' + Math.exp(1.645*v).toFixed(1) + ' its median.';
+}
+
+/* ---------- deterministic randomness ---------- */
+function mulberry32(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function draw(){
+  const r = mulberry32(seed);
+  Z = new Float64Array(N*W); Hc = new Float64Array(N*W);
+  for (let i = 0; i < N*W; i++){
+    let u = r(); if (u < 1e-12) u = 1e-12;
+    Z[i] = Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*r());
+    Hc[i] = r();
+  }
+}
+function stage(med, sig, hp, idx){
+  if (med <= 0) return 0;
+  return med * Math.exp(sig * Z[idx]) * (Hc[idx] < hp ? HICCUP : 1);
+}
+function detail(p, i){
+  const hp = p.hiccup/100, b = i*W;
+  const r = stage(p.retr, p.vari, hp, b), q = stage(p.reason, p.vari, hp, b+1);
+  const tools = [];
+  for (let k = 0; k < p.tasks; k++) tools.push(stage(p.tool, p.vari, hp, b+2+k));
+  const tsum = p.mode === 'seq' ? tools.reduce((a,c)=>a+c,0) : Math.max(...tools);
+  return {r, q, tools, tphase:tsum, total:r+q+tsum};
+}
+function simulate(p){
+  const tot = new Float64Array(N), hp = p.hiccup/100, s = p.vari, seq = p.mode === 'seq';
+  let sum = 0, rs = 0, qs = 0, ts = 0;
+  for (let i = 0; i < N; i++){
+    const b = i*W;
+    const r = stage(p.retr, s, hp, b), q = stage(p.reason, s, hp, b+1);
+    let t = 0;
+    for (let k = 0; k < p.tasks; k++){ const x = stage(p.tool, s, hp, b+2+k); t = seq ? t + x : (x > t ? x : t); }
+    tot[i] = r + q + t; sum += tot[i]; rs += r; qs += q; ts += t;
+  }
+  const order = Array.from({length:N}, (_, i) => i).sort((a, b) => tot[a] - tot[b]);
+  const sorted = order.map(i => tot[i]);
+  const P = q => sorted[Math.max(0, Math.ceil(q*N) - 1)];
+  return {tot, sorted, order, p50:P(.5), p95:P(.95), p99:P(.99), mean:sum/N, share:{r:rs/sum, q:qs/sum, t:ts/sum},
+          rowAt: q => order[Math.max(0, Math.ceil(q*N) - 1)]};
+}
+
+/* ---------- controls ---------- */
+function buildPanel(key){
+  const el = $('#panel-' + key);
+  let h = '';
+  for (const f of FIELDS){
+    const id = key + '-' + f.id;
+    if (f.id === 'mode'){
+      h += `<fieldset class="ctl"><legend>Tool tasks run…</legend><div class="seg">
+        <input type="radio" name="${key}-mode" id="${id}-seq" value="seq"><label for="${id}-seq">In sequence<small>one after another</small></label>
+        <input type="radio" name="${key}-mode" id="${id}-par" value="par"><label for="${id}-par">In parallel<small>all at once</small></label>
+      </div></fieldset>`;
+      continue;
+    }
+    h += `<div class="ctl">
+      <div class="ctl-top"><label for="${id}">${f.label}</label><output id="${id}-out" for="${id}"></output></div>
+      <input type="range" id="${id}" min="${f.min}" max="${f.max}" step="${f.step}" aria-describedby="${id}-hint">
+      <p class="hint" id="${id}-hint">${f.hint}</p></div>`;
+  }
+  el.innerHTML = h;
+  for (const f of FIELDS){
+    if (f.id === 'mode'){
+      el.querySelectorAll(`input[name="${key}-mode"]`).forEach(r => r.addEventListener('change', () => { state[key].mode = r.value; changed(); }));
+      continue;
+    }
+    const inp = $('#' + key + '-' + f.id);
+    inp.addEventListener('input', () => { state[key][f.id] = Number(inp.value); syncField(key, f); changed(); });
+  }
+}
+function syncField(key, f){
+  const inp = $('#' + key + '-' + f.id), v = state[key][f.id];
+  inp.value = v;
+  inp.style.setProperty('--p', ((v - f.min)/(f.max - f.min)*100) + '%');
+  const t = fieldText(f, v);
+  $('#' + key + '-' + f.id + '-out').textContent = t;
+  inp.setAttribute('aria-valuetext', f.unit === 'sigma' ? 'sigma ' + t : t);
+  if (f.unit === 'sigma') $('#' + key + '-' + f.id + '-hint').textContent = variHint(v);
+}
+function syncAll(){
+  for (const key of ['A','B']) for (const f of FIELDS){
+    if (f.id === 'mode'){ $('#' + key + '-mode-' + state[key].mode).checked = true; continue; }
+    syncField(key, f);
+  }
+}
+function setTab(key, focus){
+  for (const k of ['A','B']){
+    const t = $('#tab-' + k), on = k === key;
+    t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
+    $('#panel-' + k).hidden = !on;
+  }
+  if (focus) $('#tab-' + key).focus();
+}
+
+/* ---------- update loop ---------- */
+let pending = false, liveTimer = 0;
+function changed(fromPreset){
+  if (!fromPreset && activePreset){ activePreset = null; markPreset(); }
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; recompute(true); });
+}
+function recompute(animate){
+  SA = simulate(state.A); SB = simulate(state.B);
+  renderStats(); renderHist(animate); buildTimeline(); renderFan();
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(() => {
+    $('#live').textContent = `Scenario A: median ${fmt(SA.p50)}, P95 ${fmt(SA.p95)}, P99 ${fmt(SA.p99)}. Scenario B: median ${fmt(SB.p50)}, P95 ${fmt(SB.p95)}, P99 ${fmt(SB.p99)}.`;
+  }, 700);
+}
+function markPreset(){
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', b.dataset.preset === activePreset));
+  $('#presetNote').innerHTML = activePreset ? PRESETS[activePreset].note : '<strong>Custom settings.</strong> Pick an example or press Reset to start over.';
+}
+function applyPreset(name){
+  activePreset = name; state = clone(PRESETS[name]);
+  syncAll(); markPreset(); recompute(true); playTimeline();
+}
+
+/* ---------- stats ---------- */
+function statHTML(key, S, O){
+  const name = key === 'A' ? 'Scenario A' : 'Scenario B';
+  const p = state[key];
+  const d = (v, o) => key === 'B' ? `<span class="delta">${fmtSigned(v - o)} vs A (${pctStr((v-o)/o*100)})</span>` : '';
+  return `<h3><span><span class="dot ${key.toLowerCase()}"></span>${name}</span><small>${p.tasks} tool task${p.tasks>1?'s':''}, ${p.mode === 'seq' ? 'in sequence' : 'in parallel'}</small></h3>
+  <dl>
+    <div><dt>P50 · median</dt><dd>${fmt(S.p50)}</dd>${d(S.p50, O.p50)}</div>
+    <div><dt>P95</dt><dd>${fmt(S.p95)}</dd>${d(S.p95, O.p95)}</div>
+    <div><dt>P99</dt><dd class="small">${fmt(S.p99)}</dd>${d(S.p99, O.p99)}</div>
+    <div><dt>P95 ÷ P50</dt><dd class="small">×${(S.p95/S.p50).toFixed(2)}</dd></div>
+  </dl>`;
+}
+function renderStats(){
+  $('#statA').innerHTML = statHTML('A', SA, SB);
+  $('#statB').innerHTML = statHTML('B', SB, SA);
+  $('#mbA').textContent = fmt(SA.p50) + ' · ' + fmt(SA.p95);
+  $('#mbB').textContent = fmt(SB.p50) + ' · ' + fmt(SB.p95);
+  // table
+  const rows = [['P50 (median)','p50'],['P95','p95'],['P99','p99'],['Mean','mean']];
+  let t = '<thead><tr><th scope="col">Statistic</th><th scope="col">A</th><th scope="col">B</th><th scope="col">B − A</th></tr></thead><tbody>';
+  for (const [l, k] of rows) t += `<tr><th scope="row">${l}</th><td>${fmt(SA[k])}</td><td>${fmt(SB[k])}</td><td>${fmtSigned(SB[k]-SA[k])}</td></tr>`;
+  t += `<tr><th scope="row">P95 ÷ P50</th><td>×${(SA.p95/SA.p50).toFixed(2)}</td><td>×${(SB.p95/SB.p50).toFixed(2)}</td><td></td></tr>`;
+  for (const [l, k] of [['Share: retrieval','r'],['Share: reasoning','q'],['Share: tools','t']])
+    t += `<tr><th scope="row">${l}</th><td>${(SA.share[k]*100).toFixed(0)}%</td><td>${(SB.share[k]*100).toFixed(0)}%</td><td></td></tr>`;
+  $('#numTable').innerHTML = t + '</tbody>';
+  // reading
+  const dm = (SB.p50 - SA.p50)/SA.p50*100, dt = (SB.p95 - SA.p95)/SA.p95*100;
+  const rA = SA.p95/SA.p50, rB = SB.p95/SB.p50;
+  let lines = [];
+  if (Math.abs(dm) < 0.5 && Math.abs(dt) < 0.5) lines.push('A and B behave the same. Change one setting in B to see what it does.');
+  else {
+    const word = (x) => x < 0 ? 'faster' : 'slower';
+    lines.push(`B is <strong>${Math.abs(dm).toFixed(0)}% ${word(dm)}</strong> at the median and <strong>${Math.abs(dt).toFixed(0)}% ${word(dt)}</strong> at P95.`);
+    if (Math.sign(dm) !== Math.sign(dt) && Math.abs(dm) > 1 && Math.abs(dt) > 1)
+      lines.push('They move in <strong>opposite directions</strong>. Which one is "faster" depends on whether you care about the typical request or the unlucky one.');
+    else if (dm < -1 && dt > dm + 5) lines.push('The change helps the typical request more than the slow ones. Part of the slowness has moved into the tail.');
+    else if (dt < -1 && dt < dm - 5) lines.push('The change trims the slow tail more than the middle. Users would notice fewer bad waits more than they\'d notice faster typical replies.');
+  }
+  lines.push(`Tail stretch: P95 is ×${rA.toFixed(2)} the median in A and ×${rB.toFixed(2)} in B. ${rB > rA + 0.05 ? 'B\'s distribution has a longer tail.' : rA > rB + 0.05 ? 'A\'s distribution has a longer tail.' : 'The tails are about equally stretched.'}`);
+  $('#reading').innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+}
+
+/* ---------- histogram ---------- */
+let histAnim = 0, histCur = null;
+function niceStep(max, count){
+  const raw = max / count, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+function niceCeil(v, count){ const s = niceStep(v, count); return Math.ceil(v / s) * s; }
+function axisLbl(v, xmax){
+  if (xmax < 2000) return Math.round(v) + (v === 0 ? '' : ' ms');
+  const s = v/1000; return (Number.isInteger(s) ? s : s.toFixed(1)) + (v === 0 ? '' : ' s');
+}
+function histTarget(){
+  const box = $('#hist'), w = box.clientWidth;
+  const bins = w < 520 ? 30 : 48;
+  const xmax = niceCeil(Math.max(SA.p99, SB.p99) * 1.1, 6), bw = xmax / bins;
+  const cnt = (S) => { const c = new Float64Array(bins); let over = 0; for (const v of S.tot){ const i = Math.floor(v / bw); if (i >= bins) over++; else c[i]++; } for (let i = 0; i < bins; i++) c[i] = c[i]/N*100; return {c, over: over/N*100}; };
+  const a = cnt(SA), b = cnt(SB);
+  let m = 0; for (let i = 0; i < bins; i++) m = Math.max(m, a.c[i], b.c[i]);
+  return {bins, xmax, ymax: niceCeil(m * 1.08, 4), ca:a.c, cb:b.c, overA:a.over, overB:b.over, a50:SA.p50, a95:SA.p95, b50:SB.p50, b95:SB.p95};
+}
+function lerpState(p, t, k){
+  if (!p || p.bins !== t.bins) return t;
+  const L = (x, y) => x + (y - x) * k, o = {...t, ca:new Float64Array(t.bins), cb:new Float64Array(t.bins)};
+  for (const f of ['xmax','ymax','a50','a95','b50','b95']) o[f] = L(p[f], t[f]);
+  for (let i = 0; i < t.bins; i++){ o.ca[i] = L(p.ca[i], t.ca[i]); o.cb[i] = L(p.cb[i], t.cb[i]); }
+  return o;
+}
+function renderHist(animate){
+  const target = histTarget();
+  const from = histCur;
+  cancelAnimationFrame(histAnim);
+  $('#histFoot').textContent = footText(target);
+  if (!animate || reduceMotion || !from || from.bins !== target.bins){ drawHist(target); return; }
+  const t0 = performance.now(), D = 260;
+  const step = (now) => {
+    const k = Math.min(1, (now - t0)/D), e = 1 - Math.pow(1 - k, 3);
+    drawHist(lerpState(from, target, e));
+    if (k < 1) histAnim = requestAnimationFrame(step);
+  };
+  histAnim = requestAnimationFrame(step);
+}
+function footText(s){
+  const parts = [];
+  if (s.overA >= 0.05 || s.overB >= 0.05) parts.push(`Off the right edge (slower than ${axisLbl(s.xmax, s.xmax)}): ${s.overA.toFixed(1)}% of A, ${s.overB.toFixed(1)}% of B.`);
+  parts.push('Hover or tap the chart to read a time slice.');
+  return parts.join(' ');
+}
+function drawHist(s){
+  histCur = s;
+  const box = $('#hist'), w = Math.max(280, box.clientWidth), narrow = w < 520;
+  const h = narrow ? 250 : 300, m = {l:40, r:12, t:54, b:30};
+  const pw = w - m.l - m.r, ph = h - m.t - m.b, base = m.t + ph;
+  const X = v => m.l + v / s.xmax * pw, Y = v => base - v / s.ymax * ph;
+  let o = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Histogram of request durations. Scenario A median ${fmt(SA.p50)}, P95 ${fmt(SA.p95)}. Scenario B median ${fmt(SB.p50)}, P95 ${fmt(SB.p95)}.">`;
+  o += `<defs><clipPath id="hclip"><rect x="${m.l}" y="${m.t - 2}" width="${pw}" height="${ph + 2}"/></clipPath></defs>`;
+  const ys = niceStep(s.ymax, 4);
+  for (let v = 0; v <= s.ymax + 1e-9; v += ys){
+    o += `<line class="grid" x1="${m.l}" x2="${m.l+pw}" y1="${Y(v)}" y2="${Y(v)}"/>`;
+    o += `<text class="tick" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${+v.toFixed(2)}%</text>`;
+  }
+  const xs = niceStep(s.xmax, narrow ? 4 : 7);
+  for (let v = 0; v <= s.xmax + 1e-9; v += xs){
+    o += `<line class="axis" x1="${X(v)}" x2="${X(v)}" y1="${base}" y2="${base + 4}"/>`;
+    o += `<text class="tick" x="${X(v)}" y="${base + 17}" text-anchor="middle">${axisLbl(v, s.xmax)}</text>`;
+  }
+  const bwpx = pw / s.bins, gap = Math.min(2, bwpx * 0.18);
+  o += `<g clip-path="url(#hclip)">`;
+  if (hover != null && hover < s.bins) o += `<rect class="hl" x="${m.l + hover*bwpx}" y="${m.t}" width="${bwpx}" height="${ph}"/>`;
+  for (let i = 0; i < s.bins; i++){
+    const hh = s.ca[i] / s.ymax * ph; if (hh < 0.2) continue;
+    const r = Math.min(3, (bwpx - gap)/2, hh);
+    const x = m.l + i*bwpx + gap/2, bw = bwpx - gap, y = base - hh;
+    o += `<path class="fa" d="M${x},${base}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${base}Z"/>`;
+  }
+  let d = `M${m.l},${base}`;
+  for (let i = 0; i < s.bins; i++){ const y = Y(s.cb[i]); d += `L${m.l + i*bwpx},${y}L${m.l + (i+1)*bwpx},${y}`; }
+  d += `L${m.l + pw},${base}Z`;
+  o += `<path d="${d}" class="fsoftb" style="stroke:var(--surface);stroke-width:4;stroke-linejoin:round;fill:none"/>`;
+  o += `<path d="${d}" class="fsoftb sb" style="stroke-width:2;stroke-linejoin:round"/>`;
+  o += `</g><line class="axis" x1="${m.l}" x2="${m.l + pw}" y1="${base}" y2="${base}" style="stroke:var(--ink-3)"/>`;
+  // markers
+  const mk = [
+    {v:s.a50, k:'a', t:'P50', row:0, dash:true}, {v:s.a95, k:'a', t:'P95', row:0},
+    {v:s.b50, k:'b', t:'P50', row:1, dash:true}, {v:s.b95, k:'b', t:'P95', row:1}
+  ];
+  for (const r of [0, 1]){
+    const pair = mk.filter(q => q.row === r);
+    for (const q of pair){ q.txt = (r ? 'B ' : 'A ') + q.t + ' ' + fmt(q.v); q.w = q.txt.length * 6.4 + 12; q.x = Math.max(m.l, Math.min(X(q.v) - q.w/2, m.l + pw - q.w)); }
+    const [p, n] = pair;
+    if (n.x < p.x + p.w + 4){
+      n.x = Math.min(p.x + p.w + 4, m.l + pw - n.w);
+      if (n.x < p.x + p.w + 4) p.x = Math.max(0, n.x - p.w - 4);
+    }
+  }
+  for (const q of mk){
+    const x = Math.min(X(q.v), m.l + pw), ly = 6 + q.row * 22;
+    o += `<line x1="${x}" x2="${x}" y1="${ly + 17}" y2="${base}" class="s${q.k}" style="stroke-width:${q.dash ? 1.5 : 2};${q.dash ? 'stroke-dasharray:4 3' : ''}"/>`;
+    o += `<rect class="pill s${q.k}" x="${q.x}" y="${ly}" width="${q.w}" height="17" rx="8.5"/>`;
+    o += `<text class="pilltxt" x="${q.x + q.w/2}" y="${ly + 12}" text-anchor="middle">${q.txt}</text>`;
+  }
+  o += `<rect id="histHit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="transparent"/>`;
+  o += '</svg>';
+  const tip = $('#histTip');
+  box.innerHTML = o; box.appendChild(tip);
+  box._geom = {m, pw, ph, s, bwpx, w};
+}
+let hover = null;
+function histPointer(e){
+  const box = $('#hist'), g = box._geom; if (!g) return;
+  const rect = box.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const i = Math.floor((x - g.m.l) / g.bwpx);
+  const tip = $('#histTip');
+  if (x < g.m.l || x > g.m.l + g.pw || y < g.m.t - 10 || y > g.m.t + g.ph + 20 || i < 0 || i >= g.s.bins){ hover = null; tip.classList.remove('on'); drawHist(histCur); return; }
+  if (hover !== i){ hover = i; drawHist(histCur); }
+  const bw = g.s.xmax / g.s.bins;
+  tip.innerHTML = `${fmt(i*bw)} – ${fmt((i+1)*bw)}<br>A ${g.s.ca[i].toFixed(1)}% · B ${g.s.cb[i].toFixed(1)}% of requests`;
+  tip.style.left = Math.max(90, Math.min(g.w - 90, g.m.l + (i + .5) * g.bwpx)) + 'px';
+  tip.style.top = (g.m.t + 4) + 'px';
+  tip.classList.add('on');
+}
+function histLeave(){ hover = null; $('#histTip').classList.remove('on'); if (histCur) drawHist(histCur); }
+
+/* ---------- timeline ---------- */
+let TL = null, tlAnim = 0, tlT = Infinity;
+function buildTimeline(){
+  const rows = [];
+  for (const [q, lbl] of [[.5,'median request (P50)'], [.95,'P95 request'], [.99,'P99 request']]){
+    for (const key of ['A','B']){
+      const S = key === 'A' ? SA : SB, p = state[key], idx = S.rowAt(q), dt = detail(p, idx);
+      const segs = [{k:'r', s:0, e:dt.r}, {k:'q', s:dt.r, e:dt.r + dt.q}];
+      const t0 = dt.r + dt.q;
+      let slow = 0; dt.tools.forEach((x, j) => { if (x > dt.tools[slow]) slow = j; });
+      if (p.mode === 'seq'){ let c = t0; dt.tools.forEach((x, j) => { segs.push({k:'t', s:c, e:c + x, lane:0, slow:false}); c += x; }); }
+      else dt.tools.forEach((x, j) => segs.push({k:'t', s:t0, e:t0 + x, lane:j, slow:j === slow && dt.tools.length > 1}));
+      rows.push({key, lbl, q, segs, total:dt.total, lanes: p.mode === 'seq' ? 1 : p.tasks, tasks:p.tasks});
+    }
+  }
+  const tmax = Math.max(...rows.map(r => r.total)) * 1.02 || 1;
+  TL = {rows, tmax};
+  if (!tlAnim) drawTimeline(Infinity);
+}
+function drawTimeline(t){
+  tlT = t;
+  const box = $('#tl'), w = Math.max(280, box.clientWidth), narrow = w < 520;
+  const m = {l:2, r:narrow ? 58 : 70, t:4, b:26};
+  const pw = w - m.l - m.r;
+  const X = v => m.l + v / TL.tmax * pw;
+  let y = m.t, body = '';
+  const rowsDone = [];
+  TL.rows.forEach((row, ri) => {
+    if (ri % 2 === 0 && ri > 0) y += 10;
+    const barH = row.lanes > 1 ? Math.max(26, row.lanes * 3.6 + 2) : 26;
+    const ly = y + 12, by = y + 18;
+    const k = row.key.toLowerCase();
+    body += `<text x="${m.l}" y="${ly}" style="font-weight:650;fill:var(--ink)"><tspan class="f${k}">■</tspan> ${row.key} · ${row.lbl}</text>`;
+    body += `<rect x="${m.l}" y="${by}" width="${pw}" height="${barH}" rx="4" style="fill:var(--surface-2)"/>`;
+    for (const sg of row.segs){
+      if (t <= sg.s) continue;
+      const e = Math.min(sg.e, t), x0 = X(sg.s), x1 = X(e), ww = Math.max(0, x1 - x0 - (sg.k === 't' && row.lanes === 1 ? 1 : 0));
+      if (ww <= 0) continue;
+      if (sg.k === 'r') body += `<rect x="${x0}" y="${by}" width="${ww}" height="${barH}" fill="url(#hatch${k})" class="s${k}" style="stroke-width:1"/>`;
+      else if (sg.k === 'q') body += `<rect x="${x0}" y="${by}" width="${ww}" height="${barH}" class="f${k}"/>`;
+      else {
+        const lh = row.lanes > 1 ? (barH - (row.lanes - 1)) / row.lanes : barH;
+        const yy = by + sg.lane * (lh + 1);
+        body += `<rect x="${x0}" y="${yy}" width="${ww}" height="${lh}" class="f${k}" style="opacity:${sg.slow ? 1 : .45}${sg.slow ? ';stroke:var(--ink);stroke-width:1.2' : ''}"/>`;
+      }
+    }
+    if (t >= row.total){
+      body += `<text class="num" x="${X(row.total) + 6}" y="${by + barH/2 + 4}" style="font-family:var(--mono);font-weight:700;fill:var(--ink);font-size:12px">${fmt(row.total)}</text>`;
+      rowsDone.push(row);
+    }
+    y = by + barH + 8;
+  });
+  const h = y + m.b;
+  let ax = '';
+  const xs = niceStep(TL.tmax, narrow ? 4 : 7);
+  for (let v = 0; v <= TL.tmax + 1e-9; v += xs){
+    ax += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${y}" style="stroke-dasharray:2 4"/>`;
+    ax += `<text class="tick" x="${X(v)}" y="${y + 16}" text-anchor="middle">${axisLbl(v, TL.tmax)}</text>`;
+  }
+  let ph = '';
+  if (isFinite(t) && t < TL.tmax){
+    ph = `<line x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${y}" style="stroke:var(--ink);stroke-width:1.5"/>`;
+    ph += `<text x="${Math.min(X(t) + 4, w - 50)}" y="${y + 16}" style="font-family:var(--mono);font-weight:700;fill:var(--ink);font-size:11px">${fmt(t)}</text>`;
+  }
+  const pat = k => `<pattern id="hatch${k}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="fsoft${k}"/><line x1="0" y1="0" x2="0" y2="6" class="s${k}" style="stroke-width:2.5"/></pattern>`;
+  const desc = TL.rows.map(r => `${r.key} ${r.lbl}: ${fmt(r.total)}`).join('; ');
+  box.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Request timelines. ${desc}."><defs>${pat('a')}${pat('b')}</defs>${ax}${body}${ph}</svg>`;
+}
+function playTimeline(){
+  cancelAnimationFrame(tlAnim); tlAnim = 0;
+  if (reduceMotion || !TL){ drawTimeline(Infinity); return; }
+  const D = 3500, t0 = performance.now();
+  const btn = $('#play'); btn.textContent = '■ Stop';
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D);
+    drawTimeline(k * TL.tmax);
+    if (k < 1) tlAnim = requestAnimationFrame(step);
+    else { tlAnim = 0; drawTimeline(Infinity); btn.textContent = '↻ Race again'; }
+  };
+  tlAnim = requestAnimationFrame(step);
+}
+function stopTimeline(){ cancelAnimationFrame(tlAnim); tlAnim = 0; drawTimeline(Infinity); $('#play').textContent = '↻ Race again'; }
+
+/* ---------- fan-out ---------- */
+function fanData(p){
+  const hp = p.hiccup/100, single = new Float64Array(N);
+  const mx = Array.from({length:MAXT}, () => new Float64Array(N));
+  for (let i = 0; i < N; i++){
+    let m = 0;
+    for (let k = 0; k < MAXT; k++){ const x = stage(p.tool, p.vari, hp, i*W + 2 + k); if (k === 0) single[i] = x; if (x > m) m = x; mx[k][i] = m; }
+  }
+  const P = (arr, q) => { const s = Float64Array.from(arr).sort(); return s[Math.max(0, Math.ceil(q*N) - 1)]; };
+  const s95 = P(single, .95);
+  const pts = mx.map((arr, k) => {
+    let hit = 0; for (let i = 0; i < N; i++) if (arr[i] > s95) hit++;
+    return {k:k+1, p50:P(arr, .5), p95:P(arr, .95), hit:hit/N};
+  });
+  return {s95, s50:P(single, .5), pts};
+}
+let FAN = null;
+function renderFan(){
+  const p = state[fanKey];
+  FAN = fanData(p); FAN.cur = p.tasks; FAN.key = fanKey;
+  drawFan();
+  const cur = FAN.pts[p.tasks - 1], one = FAN.pts[0];
+  const formula = (1 - Math.pow(0.95, p.tasks)) * 100;
+  const kName = fanKey === 'A' ? 'A' : 'B';
+  if (p.tool <= 0){
+    $('#fanFacts').innerHTML = `<div class="fact"><p>${kName}'s tool task is set to 0 ms, so there's nothing to fan out. Raise <em>Tool task</em> in Scenario ${kName} to explore.</p></div>`;
+    return;
+  }
+  $('#fanFacts').innerHTML = `
+    <div class="fact"><div class="big">${formula.toFixed(1)}%</div>
+      <p>chance that at least one of <strong>${p.tasks}</strong> parallel task${p.tasks>1?'s':''} lands in its own slowest 5% (${kName}'s current task count).</p>
+      <span class="formula">1 − 0.95<sup>${p.tasks}</sup> = ${formula.toFixed(1)}%</span>
+      <p>Measured in this sample: <strong class="num">${(cur.hit*100).toFixed(1)}%</strong> of requests.</p></div>
+    <div class="fact"><div class="big">×${(cur.p95 / one.p95).toFixed(2)}</div>
+      <p>Tool-phase P95 grows from <strong class="num">${fmt(one.p95)}</strong> with 1 task to <strong class="num">${fmt(cur.p95)}</strong> with ${p.tasks} in parallel. Its median grows from ${fmt(one.p50)} to ${fmt(cur.p50)}.</p></div>
+    <div class="fact"><p><strong>Why:</strong> a parallel request is only as fast as its slowest task. Every extra task is another draw that can come up slow, so per-task bad luck piles up per request. Try raising <em>Variability</em> or <em>Hiccup chance</em> and watch the P95 line get steeper.</p></div>`;
+}
+function drawFan(){
+  const box = $('#fanChart'), w = Math.max(280, box.clientWidth), narrow = w < 520;
+  const h = narrow ? 230 : 270, m = {l:46, r:narrow ? 44 : 58, t:16, b:34};
+  const pw = w - m.l - m.r, ph = h - m.t - m.b, base = m.t + ph;
+  const ymax = niceCeil(Math.max(...FAN.pts.map(q => q.p95)) * 1.08 || 1, 4);
+  const X = k => m.l + (k - 1) / (MAXT - 1) * pw, Y = v => base - v / ymax * ph;
+  const k = FAN.key.toLowerCase();
+  let o = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Tool phase duration versus number of parallel tasks, using ${FAN.key}'s tool settings. With 1 task P95 is ${fmt(FAN.pts[0].p95)}; with 12 tasks P95 is ${fmt(FAN.pts[MAXT-1].p95)}.">`;
+  const ys = niceStep(ymax, 4);
+  for (let v = 0; v <= ymax + 1e-9; v += ys){
+    o += `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${axisLbl(v, ymax)}</text>`;
+  }
+  for (let kk = 1; kk <= MAXT; kk++) if (!narrow || kk % 2 === 1 || kk === MAXT) o += `<text class="tick" x="${X(kk)}" y="${base + 16}" text-anchor="middle">${kk}</text>`;
+  o += `<text x="${m.l + pw/2}" y="${h - 2}" text-anchor="middle" style="font-size:11px">parallel tool tasks (k)</text>`;
+  o += `<line class="axis" x1="${m.l}" x2="${m.l + pw}" y1="${base}" y2="${base}" style="stroke:var(--ink-3)"/>`;
+  // reference
+  o += `<line x1="${m.l}" x2="${m.l + pw}" y1="${Y(FAN.s95)}" y2="${Y(FAN.s95)}" style="stroke:var(--ink-3);stroke-dasharray:2 4;stroke-width:1.5"/>`;
+  o += `<text x="${m.l + 4}" y="${Y(FAN.s95) - 5}" style="font-size:10.5px;fill:var(--ink-3)">one task's P95</text>`;
+  const line = key => FAN.pts.map((q, i) => (i ? 'L' : 'M') + X(q.k) + ',' + Y(q[key])).join('');
+  o += `<rect x="${X(FAN.cur) - 12}" y="${m.t}" width="24" height="${ph}" rx="6" class="hl" style="opacity:.07"/>`;
+  o += `<path d="${line('p50')}" fill="none" class="s${k}" style="stroke-width:2;stroke-dasharray:5 4"/>`;
+  o += `<path d="${line('p95')}" fill="none" class="s${k}" style="stroke-width:2.5"/>`;
+  const last = FAN.pts[MAXT - 1];
+  o += `<text x="${X(MAXT) + 6}" y="${Y(last.p95) + 4}" style="font-weight:700;fill:var(--ink)">P95</text>`;
+  o += `<text x="${X(MAXT) + 6}" y="${Y(last.p50) + 4}" style="font-weight:600">P50</text>`;
+  const c = FAN.pts[FAN.cur - 1];
+  for (const key of ['p50','p95']) o += `<circle cx="${X(c.k)}" cy="${Y(c[key])}" r="5.5" class="f${k}" style="stroke:var(--surface);stroke-width:2"/>`;
+  o += `<rect id="fanHit" x="${m.l - 10}" y="${m.t}" width="${pw + 20}" height="${ph}" fill="transparent"/>`;
+  o += '</svg>';
+  const tip = $('#fanTip');
+  box.innerHTML = o; box.appendChild(tip);
+  box._geom = {m, pw, X, Y};
+}
+function fanPointer(e){
+  const box = $('#fanChart'), g = box._geom; if (!g || !FAN) return;
+  const rect = box.getBoundingClientRect(), x = e.clientX - rect.left;
+  const kk = Math.round((x - g.m.l) / g.pw * (MAXT - 1)) + 1;
+  const tip = $('#fanTip');
+  if (kk < 1 || kk > MAXT){ tip.classList.remove('on'); return; }
+  const q = FAN.pts[kk - 1];
+  tip.innerHTML = `k = ${kk}: P50 ${fmt(q.p50)} · P95 ${fmt(q.p95)}<br>${(q.hit*100).toFixed(1)}% have a slow task`;
+  tip.style.left = Math.max(110, Math.min(box.clientWidth - 110, g.X(kk))) + 'px';
+  tip.style.top = (g.Y(q.p95) - 8) + 'px';
+  tip.classList.add('on');
+}
+
+/* ---------- wiring ---------- */
+function init(){
+  draw();
+  buildPanel('A'); buildPanel('B'); syncAll(); markPreset();
+  $('#seedLbl').textContent = '#' + seed; $('#seedHow').textContent = seed;
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+  $('#reset').addEventListener('click', () => { seed = DEFAULT_SEED; draw(); $('#seedLbl').textContent = '#' + seed; $('#seedHow').textContent = seed; histCur = null; fanKey = 'A'; syncFanTabs(); setTab('A'); applyPreset('fan'); });
+  $('#reseed').addEventListener('click', () => { seed = (Math.imul(seed, 2654435761) >>> 0) % 100000 || 7; draw(); $('#seedLbl').textContent = '#' + seed; $('#seedHow').textContent = seed; recompute(true); playTimeline(); });
+  $('#copyAB').addEventListener('click', () => { state.B = {...state.A}; syncAll(); changed(); });
+  $('#swap').addEventListener('click', () => { const t = state.A; state.A = state.B; state.B = t; syncAll(); changed(); });
+  for (const k of ['A','B']){
+    const t = $('#tab-' + k);
+    t.addEventListener('click', () => setTab(k));
+    t.addEventListener('keydown', e => {
+      if (['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){ e.preventDefault(); setTab(e.key === 'Home' ? 'A' : e.key === 'End' ? 'B' : (k === 'A' ? 'B' : 'A'), true); }
+    });
+  }
+  document.querySelectorAll('[data-fan]').forEach(b => {
+    b.addEventListener('click', () => { fanKey = b.dataset.fan; syncFanTabs(); renderFan(); });
+    b.addEventListener('keydown', e => {
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){ e.preventDefault(); fanKey = fanKey === 'A' ? 'B' : 'A'; syncFanTabs(); renderFan(); document.querySelector(`[data-fan="${fanKey}"]`).focus(); }
+    });
+  });
+  $('#play').addEventListener('click', () => tlAnim ? stopTimeline() : playTimeline());
+  const hb = $('#hist');
+  hb.addEventListener('pointermove', histPointer); hb.addEventListener('pointerdown', histPointer); hb.addEventListener('pointerleave', histLeave);
+  const fb = $('#fanChart');
+  fb.addEventListener('pointermove', fanPointer); fb.addEventListener('pointerdown', fanPointer); fb.addEventListener('pointerleave', () => $('#fanTip').classList.remove('on'));
+  let lastW = 0;
+  new ResizeObserver(() => {
+    const w = $('#hist').clientWidth; if (Math.abs(w - lastW) < 1) return; lastW = w;
+    if (!SA) return; histCur = null; renderHist(false); if (!tlAnim) drawTimeline(Infinity); drawFan();
+  }).observe(document.querySelector('main'));
+  recompute(false);
+  playTimeline();
+}
+function syncFanTabs(){
+  document.querySelectorAll('[data-fan]').forEach(b => { const on = b.dataset.fan === fanKey; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1; });
+}
+syncFanTabs();
+init();
+// test hook (read-only)
+window.__longTail = { get A(){ return SA && {p50:SA.p50, p95:SA.p95, p99:SA.p99}; }, get B(){ return SB && {p50:SB.p50, p95:SB.p95, p99:SB.p99}; }, get state(){ return JSON.parse(JSON.stringify(state)); }, get seed(){ return seed; } };
+})();
+</script>
+</body>
+</html>
