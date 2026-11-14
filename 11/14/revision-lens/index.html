@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Revision Lens · word-level draft compare</title>
+<style>
+:root{
+  --paper:#f5f0e6; --card:#fffdf8; --ink:#1d1b18; --muted:#5f594f; --rule:#d9d0bf;
+  --del:#a8231b; --del-bg:#fbe1dc; --ins:#17643a; --ins-bg:#d9f0df;
+  --accent:#2f43a3; --accent-ink:#fff; --focus:#2f43a3; --warn-bg:#fff2cc; --warn:#6b4d00;
+  --err-bg:#fde2e1; --err:#8a1c14;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#16151a; --card:#201f26; --ink:#ece8df; --muted:#aaa397; --rule:#3a3842;
+    --del:#ff9c92; --del-bg:#4a1f1c; --ins:#8fe0a8; --ins-bg:#173a26;
+    --accent:#9fb0ff; --accent-ink:#11131f; --focus:#9fb0ff; --warn-bg:#3d3216; --warn:#f3d68a;
+    --err-bg:#4a1f1c; --err:#ffb4ab;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--sans)}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 64px}
+header{display:flex;gap:14px;align-items:center;margin:6px 0 14px}
+header svg{flex:none}
+h1{font:600 1.7rem/1.1 var(--serif);margin:0;letter-spacing:.01em}
+.tag{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+h2{font:600 1.1rem/1.2 var(--serif);margin:0}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:12px}
+.drafts{display:grid;gap:12px;grid-template-columns:1fr}
+@media (min-width:760px){.drafts{grid-template-columns:1fr 1fr}}
+.draft label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:600;margin-bottom:6px}
+.draft label small{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+textarea{width:100%;min-height:190px;resize:vertical;font:16px/1.5 var(--serif);color:var(--ink);background:var(--paper);
+  border:1px solid var(--rule);border-radius:8px;padding:10px}
+button,select,.chk,.seg label{min-height:44px;font:inherit;font-size:.95rem}
+button,select{border-radius:8px;border:1px solid var(--rule);background:var(--card);color:var(--ink);padding:0 14px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.toolbar .grow{flex:1 1 auto}
+.chk{display:inline-flex;align-items:center;gap:8px;padding:0 10px;border-radius:8px;cursor:pointer;user-select:none}
+.chk input{width:22px;height:22px;margin:0;accent-color:var(--accent)}
+.status{margin:0 0 12px;padding:10px 12px;border-radius:8px;display:none;align-items:center;gap:10px;flex-wrap:wrap}
+.status.show{display:flex}
+.status.warn{background:var(--warn-bg);color:var(--warn)}
+.status.err{background:var(--err-bg);color:var(--err)}
+.status.info{background:var(--card);border:1px solid var(--rule)}
+.status button{min-height:44px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.chip{border:1px solid var(--rule);border-radius:999px;padding:4px 12px;font-size:.9rem;font-variant-numeric:tabular-nums;background:var(--card)}
+.chip b{font-weight:700}
+.chip.ins b{color:var(--ins)} .chip.del b{color:var(--del)}
+.nav{position:sticky;top:0;z-index:5;background:var(--paper);padding:8px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--rule)}
+.counter{min-width:84px;text-align:center;font-variant-numeric:tabular-nums;font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;margin:0;padding:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:inline-flex;align-items:center;padding:0 12px;cursor:pointer;background:var(--card)}
+.seg label+input+label,.seg input+label~label{border-left:1px solid var(--rule)}
+.seg input:checked+label{background:var(--ink);color:var(--paper)}
+.seg input:focus-visible+label{outline:3px solid var(--focus);outline-offset:-3px}
+.detail{margin:10px 0;padding:10px 12px;border-left:4px solid var(--accent);background:var(--card);border-radius:0 8px 8px 0;font-size:.95rem;min-height:44px}
+.detail .was{color:var(--del)} .detail .now{color:var(--ins)}
+.detail q{font-family:var(--serif)}
+#out{font:1.08rem/1.75 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;min-height:120px}
+#out:focus-visible{outline-offset:-3px}
+del,ins{text-decoration-thickness:2px;border-radius:3px;padding:0 1px}
+del{color:var(--del);background:var(--del-bg);text-decoration:line-through}
+ins{color:var(--ins);background:var(--ins-bg);text-decoration:underline;text-underline-offset:3px}
+del+ins{margin-left:3px}
+.pil{opacity:.75;font-family:var(--sans);font-size:.8em}
+.hunk{cursor:pointer;border-radius:4px;scroll-margin:96px 0 30vh}
+.hunk.current{outline:3px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 18%,transparent)}
+.gap{color:var(--del);font-family:var(--sans);font-weight:700;padding:0 2px}
+.fold{display:inline;min-height:0;padding:2px 10px;margin:2px 0;border-style:dashed;border-radius:999px;font:italic .85rem/1.6 var(--sans);color:var(--muted);background:transparent}
+@media (pointer:coarse){.fold{min-height:44px;padding:8px 14px}}
+.empty{text-align:center;padding:28px 12px;color:var(--muted)}
+.empty p{margin:0 0 12px}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.list button{width:100%;text-align:left;padding:8px 12px;display:flex;gap:10px;align-items:baseline;line-height:1.35}
+.list button .n{font-variant-numeric:tabular-nums;color:var(--muted);flex:none;min-width:2.2em}
+.list button[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.list .k{flex:none;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:4.6em}
+.list .t{font-family:var(--serif);overflow-wrap:anywhere}
+.list del,.list ins{font-size:.95em}
+section{margin-top:16px}
+.sechead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:18px 0 8px;flex-wrap:wrap}
+details summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+#summaryText{width:100%;min-height:160px;font:.9rem/1.45 var(--mono)}
+.keys{color:var(--muted);font-size:.88rem;margin-top:22px}
+kbd{font:.85em var(--mono);border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--card)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media (max-width:480px){
+  h1{font-size:1.45rem}
+  .nav .counter{min-width:64px}
+  .nav{gap:6px}
+  .seg label{padding:0 10px}
+  #out{padding:12px;font-size:1.02rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="3"/>
+    <line x1="30.5" y1="30.5" x2="44" y2="44" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    <rect x="11" y="14" width="10" height="4" rx="2" fill="#c0392b"/>
+    <rect x="14" y="22" width="13" height="4" rx="2" fill="#27864b"/>
+  </svg>
+  <div>
+    <h1>Revision Lens</h1>
+    <p class="tag">Paste two drafts. Explore their edits inline. Everything stays on this device.</p>
+  </div>
+</header>
+
+<main>
+<div class="drafts">
+  <div class="card draft">
+    <label for="a">Draft A · before <small id="countA" aria-live="off">0 words</small></label>
+    <textarea id="a" spellcheck="false" placeholder="Paste the earlier version here…"></textarea>
+  </div>
+  <div class="card draft">
+    <label for="b">Draft B · after <small id="countB" aria-live="off">0 words</small></label>
+    <textarea id="b" spellcheck="false" placeholder="Paste the revised version here…"></textarea>
+  </div>
+</div>
+
+<div class="toolbar" role="group" aria-label="Draft tools">
+  <label class="vh" for="sample">Load a sample pair</label>
+  <select id="sample">
+    <option value="">Load a sample…</option>
+    <option value="story">Sample: story opening</option>
+    <option value="notes">Sample: release notes</option>
+    <option value="label">Sample: museum label</option>
+  </select>
+  <button id="swap" type="button" title="Swap Draft A and Draft B">⇄ Swap</button>
+  <button id="clear" type="button">Clear</button>
+  <label class="chk"><input type="checkbox" id="optCase"> Ignore case</label>
+  <label class="chk"><input type="checkbox" id="optWs" checked> Ignore spacing</label>
+  <span class="grow"></span>
+  <button id="compare" type="button" class="primary">Compare</button>
+</div>
+
+<div id="status" class="status" role="status" aria-live="polite"></div>
+
+<section id="results" aria-labelledby="resHead">
+  <h2 id="resHead" class="vh">Differences</h2>
+  <div class="stats" id="stats"></div>
+
+  <div class="nav" role="toolbar" aria-label="Change navigation and view">
+    <button id="prev" type="button" aria-label="Previous change (P)">◀ Prev</button>
+    <span class="counter" id="counter" aria-hidden="true">– / –</span>
+    <button id="next" type="button" aria-label="Next change (N)">Next ▶</button>
+    <fieldset class="seg" id="view">
+      <legend class="vh">View</legend>
+      <input type="radio" name="view" id="vInline" value="inline" checked><label for="vInline">Inline</label>
+      <input type="radio" name="view" id="vBefore" value="before"><label for="vBefore">Before</label>
+      <input type="radio" name="view" id="vAfter" value="after"><label for="vAfter">After</label>
+    </fieldset>
+    <label class="chk"><input type="checkbox" id="optFold" checked> Fold unchanged</label>
+    <button id="copy" type="button">Copy summary</button>
+  </div>
+
+  <div class="detail" id="detail" aria-live="polite"></div>
+  <div class="card" id="out" tabindex="0" role="region" aria-label="Inline differences. Deleted words are struck through, inserted words underlined."></div>
+
+  <div class="sechead">
+    <h2 id="listHead">Change list</h2>
+  </div>
+  <ol class="list" id="list" aria-labelledby="listHead"></ol>
+
+  <details id="summaryBox">
+    <summary>Summary preview (this is what “Copy summary” copies)</summary>
+    <label class="vh" for="summaryText">Change summary text</label>
+    <textarea id="summaryText" readonly></textarea>
+  </details>
+</section>
+
+<p class="keys">Keyboard: <kbd>N</kbd>/<kbd>J</kbd> next change · <kbd>P</kbd>/<kbd>K</kbd> previous · <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> compare from a draft · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view. Nothing you paste is uploaded or saved.</p>
+</main>
+</div>
+<div class="toast" id="toast" aria-hidden="true"></div>
+
+<script id="core">
+/* Revision Lens core: tokenizer + Myers O(ND) word diff + hunk grouping + summary. Pure functions, no DOM. */
+var RL = (function(){
+  var TOKEN_RE = /\n|[^\S\n]+|[\p{L}\p{M}\p{N}]+(?:['’][\p{L}\p{M}\p{N}]+)*|[^\s]/gu;
+  var WORD_RE = /[\p{L}\p{N}]/u;
+  var now = (typeof performance !== 'undefined' && performance.now) ? function(){return performance.now();} : function(){return Date.now();};
+
+  function normalize(s){ return String(s).replace(/\r\n?/g, '\n'); }
+  function tokenize(s){ return normalize(s).match(TOKEN_RE) || []; }
+  function isWord(t){ return WORD_RE.test(t); }
+  function wordCount(s){ var t = tokenize(s), c = 0; for (var i=0;i<t.length;i++) if (isWord(t[i])) c++; return c; }
+
+  function keyer(opts){
+    return function(t){
+      if (opts.ignoreWhitespace && t !== '\n' && /^\s+$/.test(t)) return ' ';
+      return opts.ignoreCase ? t.toLowerCase() : t;
+    };
+  }
+
+  // Myers shortest-edit-script on integer arrays. Returns array of codes (0 eq, 1 del, 2 ins) or null if over budget.
+  function myers(a, b, maxD, deadline){
+    var n = a.length, m = b.length;
+    if (n === 0 && m === 0) return [];
+    var lim = Math.min(n + m, maxD), off = lim + 1;
+    var v = new Int32Array(2 * lim + 3), trace = [];
+    for (var d = 0; d <= lim; d++){
+      if (d > 0 && (d & 31) === 0 && now() > deadline) return null;
+      for (var k = -d; k <= d; k += 2){
+        var x;
+        if (k === -d || (k !== d && v[off + k - 1] < v[off + k + 1])) x = v[off + k + 1];
+        else x = v[off + k - 1] + 1;
+        var y = x - k;
+        while (x < n && y < m && a[x] === b[y]){ x++; y++; }
+        v[off + k] = x;
+        if (x >= n && y >= m) return backtrack(trace, d, n, m);
+      }
+      trace.push(v.slice(off - d, off + d + 1));
+    }
+    return null;
+  }
+  function backtrack(trace, D, n, m){
+    var ops = [], x = n, y = m;
+    for (var d = D; d > 0; d--){
+      var pv = trace[d - 1], po = d - 1, k = x - y, pk;
+      if (k === -d || (k !== d && pv[k - 1 + po] < pv[k + 1 + po])) pk = k + 1; else pk = k - 1;
+      var px = pv[pk + po], py = px - pk;
+      while (x > px && y > py){ ops.push(0); x--; y--; }
+      if (x === px){ ops.push(2); y--; } else { ops.push(1); x--; }
+    }
+    while (x > 0 && y > 0){ ops.push(0); x--; y--; }
+    return ops.reverse();
+  }
+
+  // Diff two key arrays with common prefix/suffix trimmed. Returns full op array or null.
+  function diffKeys(ka, kb, maxD, deadline){
+    var n = ka.length, m = kb.length, p = 0, s = 0;
+    while (p < n && p < m && ka[p] === kb[p]) p++;
+    while (s < n - p && s < m - p && ka[n - 1 - s] === kb[m - 1 - s]) s++;
+    var ids = new Map(), ia = new Int32Array(n - p - s), ib = new Int32Array(m - p - s), i;
+    function id(key){ var v = ids.get(key); if (v === undefined){ v = ids.size; ids.set(key, v); } return v; }
+    for (i = 0; i < ia.length; i++) ia[i] = id(ka[p + i]);
+    for (i = 0; i < ib.length; i++) ib[i] = id(kb[p + i]);
+    var mid = myers(ia, ib, maxD, deadline);
+    if (!mid) return null;
+    var ops = new Array(p).fill(0);
+    for (i = 0; i < mid.length; i++) ops.push(mid[i]);
+    for (i = 0; i < s; i++) ops.push(0);
+    return ops;
+  }
+
+  // Fallback for very different large drafts: diff by line first, then refine each changed block at word level.
+  function lineThenWord(ka, kb, deadline){
+    function lines(keys){
+      var out = [], start = 0;
+      for (var i = 0; i < keys.length; i++) if (keys[i] === '\n'){ out.push([start, i + 1]); start = i + 1; }
+      if (start < keys.length) out.push([start, keys.length]);
+      return out;
+    }
+    var la = lines(ka), lb = lines(kb);
+    var lka = la.map(function(r){ return ka.slice(r[0], r[1]).join('\u0001'); });
+    var lkb = lb.map(function(r){ return kb.slice(r[0], r[1]).join('\u0001'); });
+    var lops = diffKeys(lka, lkb, Math.max(lka.length + lkb.length, 1), deadline + 1500);
+    if (!lops){ lops = []; for (var q = 0; q < la.length; q++) lops.push(1); for (q = 0; q < lb.length; q++) lops.push(2); }
+    var ops = [], li = 0, lj = 0, refined = 0, wholesale = 0;
+    function block(i0, i1, j0, j1){
+      var a0 = i0 < la.length ? la[i0][0] : ka.length, a1 = i1 > i0 ? la[i1 - 1][1] : a0;
+      var b0 = j0 < lb.length ? lb[j0][0] : kb.length, b1 = j1 > j0 ? lb[j1 - 1][1] : b0;
+      var sub = null;
+      if ((a1 - a0) + (b1 - b0) <= 8000) sub = diffKeys(ka.slice(a0, a1), kb.slice(b0, b1), 1500, now() + 150);
+      if (sub){ refined++; for (var z = 0; z < sub.length; z++) ops.push(sub[z]); }
+      else { wholesale++; for (z = a0; z < a1; z++) ops.push(1); for (z = b0; z < b1; z++) ops.push(2); }
+    }
+    var x = 0;
+    while (x < lops.length){
+      if (lops[x] === 0){ var r = la[li]; for (var t = r[0]; t < r[1]; t++) ops.push(0); li++; lj++; x++; continue; }
+      var i0 = li, j0 = lj;
+      while (x < lops.length && lops[x] !== 0){ if (lops[x] === 1) li++; else lj++; x++; }
+      block(i0, li, j0, lj);
+    }
+    return { ops: ops, refined: refined, wholesale: wholesale };
+  }
+
+  function clip(s, max){
+    max = max || 46;
+    var t = s.replace(/\n+/g, ' ¶ ').replace(/\s+/g, ' ').trim();
+    if (t.length <= max) return t;
+    var h = Math.ceil(max * 0.55), tl = max - h - 1;
+    return t.slice(0, h).trim() + ' … ' + t.slice(t.length - tl).trim();
+  }
+
+  function diff(textA, textB, opts){
+    opts = opts || {};
+    var t0 = now();
+    var A = tokenize(textA), B = tokenize(textB);
+    var key = keyer(opts), ka = A.map(key), kb = B.map(key);
+    var coarse = null;
+    var ops = diffKeys(ka, kb, opts.maxD || 6000, t0 + (opts.budgetMs || 700));
+    if (!ops){ var lw = lineThenWord(ka, kb, now()); ops = lw.ops; coarse = lw; }
+
+    // ops -> token-range runs
+    var runs = [], i = 0, j = 0, cur = null;
+    for (var o = 0; o < ops.length; o++){
+      var c = ops[o], type = c === 0 ? 'eq' : c === 1 ? 'del' : 'ins';
+      if (!cur || cur.t !== type){ cur = { t: type, a0: i, a1: i, b0: j, b1: j }; runs.push(cur); }
+      if (c !== 2) cur.a1 = ++i;
+      if (c !== 1) cur.b1 = ++j;
+    }
+    // Boundary shift: a pure insert/delete run separated from a preceding change by a short equal run
+    // is slid left (when token keys allow) so the two changes merge instead of leaving a stray fragment.
+    for (var r = 1; r + 1 < runs.length; r++){
+      var E = runs[r], R = runs[r + 1], P = runs[r - 1];
+      if (E.t !== 'eq' || P.t === 'eq' || R.t === 'eq' || (runs[r + 2] && runs[r + 2].t !== 'eq')) continue;
+      var L = E.a1 - E.a0; if (L > 8) continue;
+      var okShift = true, t2;
+      if (R.t === 'ins'){ if (R.b1 - R.b0 < L) continue; for (t2 = 0; t2 < L && okShift; t2++) okShift = ka[E.a0 + t2] === kb[R.b1 - L + t2]; }
+      else { if (R.a1 - R.a0 < L) continue; for (t2 = 0; t2 < L && okShift; t2++) okShift = kb[E.b0 + t2] === ka[R.a1 - L + t2]; }
+      if (!okShift) continue;
+      var nR, nE;
+      if (R.t === 'ins'){ nR = { t: 'ins', a0: E.a0, a1: E.a0, b0: E.b0, b1: E.b0 + (R.b1 - R.b0) }; nE = { t: 'eq', a0: E.a0, a1: E.a1, b0: nR.b1, b1: R.b1 }; }
+      else { nR = { t: 'del', a0: E.a0, a1: E.a0 + (R.a1 - R.a0), b0: E.b0, b1: E.b0 }; nE = { t: 'eq', a0: nR.a1, a1: R.a1, b0: E.b0, b1: E.b1 }; }
+      runs.splice(r, 2, nR, nE);
+    }
+    var segs = runs.map(function(u){ return { t: u.t, a: A.slice(u.a0, u.a1).join(''), b: B.slice(u.b0, u.b1).join('') }; });
+
+    // segments -> items (eq runs and change hunks). Absorb whitespace-only or tiny sandwiched equal runs into hunks.
+    var items = [], h = null;
+    function pushEq(a, b){
+      var last = items[items.length - 1];
+      if (last && last.t === 'eq'){ last.a += a; last.b += b; } else items.push({ t: 'eq', a: a, b: b });
+    }
+    function closeHunk(){
+      if (!h) return;
+      if (opts.ignoreWhitespace && !h.del.trim() && !h.ins.trim() && h.del.indexOf('\n') < 0 && h.ins.indexOf('\n') < 0) pushEq(h.del, h.ins);
+      else items.push(h);
+      h = null;
+    }
+    for (var s = 0; s < segs.length; s++){
+      var g = segs[s];
+      if (g.t === 'eq'){
+        var nx = segs[s + 1];
+        if (h && nx && nx.t !== 'eq'){
+          var wsOnly = !g.b.trim() && g.b.indexOf('\n') < 0;
+          var tiny = wordCount(g.b) === 1 && g.b.trim().length <= 4 && (wordCount(h.del) + wordCount(h.ins)) >= 3 && wordCount(nx.a + nx.b) >= 2;
+          if (wsOnly || tiny){ h.del += g.a; h.ins += g.b; continue; }
+        }
+        closeHunk(); pushEq(g.a, g.b);
+      } else {
+        if (!h) h = { t: 'hunk', del: '', ins: '' };
+        if (g.t === 'del') h.del += g.a; else h.ins += g.b;
+      }
+    }
+    closeHunk();
+
+    // annotate hunks
+    var hunks = [], lineB = 1, lineA = 1, added = 0, removed = 0, kept = 0;
+    for (var it = 0; it < items.length; it++){
+      var x = items[it];
+      if (x.t === 'eq'){
+        kept += wordCount(x.a);
+        lineA += (x.a.match(/\n/g) || []).length; lineB += (x.b.match(/\n/g) || []).length;
+        continue;
+      }
+      var hasD = !!x.del.trim(), hasI = !!x.ins.trim();
+      x.kind = hasD && hasI ? 'replace' : hasI ? 'insert' : hasD ? 'delete' : 'spacing';
+      x.lineA = lineA; x.lineB = lineB; x.index = hunks.length;
+      x.wDel = wordCount(x.del); x.wIns = wordCount(x.ins);
+      added += x.wIns; removed += x.wDel;
+      lineA += (x.del.match(/\n/g) || []).length; lineB += (x.ins.match(/\n/g) || []).length;
+      hunks.push(x);
+    }
+    var wordsA = 0, wordsB = 0, k2;
+    for (k2 = 0; k2 < A.length; k2++) if (isWord(A[k2])) wordsA++;
+    for (k2 = 0; k2 < B.length; k2++) if (isWord(B[k2])) wordsB++;
+    return {
+      items: items, hunks: hunks, coarse: coarse,
+      stats: { wordsA: wordsA, wordsB: wordsB, added: added, removed: removed,
+        keptPct: wordsA ? Math.round(100 * kept / wordsA) : 100,
+        tokensA: A.length, tokensB: B.length, ms: Math.max(0, now() - t0) }
+    };
+  }
+
+  function describe(hk){
+    var kind = { replace: 'replaced', insert: 'added', delete: 'removed', spacing: 'changed spacing' }[hk.kind];
+    if (hk.kind === 'replace') return kind + ' “' + clip(hk.del) + '” → “' + clip(hk.ins) + '”';
+    if (hk.kind === 'insert') return kind + ' “' + clip(hk.ins) + '”';
+    if (hk.kind === 'delete') return kind + ' “' + clip(hk.del) + '”';
+    return hk.ins.indexOf('\n') >= 0 || hk.del.indexOf('\n') >= 0 ? 'changed a line/paragraph break' : kind;
+  }
+
+  function summary(res, limit){
+    limit = limit || 30;
+    var st = res.stats, hs = res.hunks, by = { replace: 0, insert: 0, delete: 0, spacing: 0 };
+    hs.forEach(function(h){ by[h.kind]++; });
+    var parts = [];
+    if (by.replace) parts.push(by.replace + ' replaced');
+    if (by.insert) parts.push(by.insert + ' added');
+    if (by.delete) parts.push(by.delete + ' removed');
+    if (by.spacing) parts.push(by.spacing + ' spacing/break');
+    var lines = ['Revision summary', hs.length + (hs.length === 1 ? ' change' : ' changes') + (parts.length ? ': ' + parts.join(', ') : ''),
+      'Words: ' + st.wordsA + ' → ' + st.wordsB + ' (+' + st.added + ' / −' + st.removed + ') · ' + st.keptPct + '% of original wording kept'];
+    if (hs.length) lines.push('');
+    hs.slice(0, limit).forEach(function(h, i){ lines.push((i + 1) + '. Line ' + h.lineB + ': ' + describe(h)); });
+    if (hs.length > limit) lines.push('…and ' + (hs.length - limit) + ' more changes');
+    return lines.join('\n');
+  }
+
+  return { tokenize: tokenize, wordCount: wordCount, diff: diff, summary: summary, describe: describe, clip: clip, myers: myers };
+})();
+if (typeof module !== 'undefined') module.exports = RL;
+</script>
+
+<script id="app">
+(function(){
+  if (typeof document === 'undefined') return;
+  var $ = function(id){ return document.getElementById(id); };
+  var A = $('a'), B = $('b'), out = $('out'), list = $('list'), statusEl = $('status');
+  var AUTO_LIMIT = 150000, HARD_LIMIT = 1000000;
+  var state = { res: null, cur: -1, folds: new Set(), undo: null, timer: 0, stale: false };
+
+  var SAMPLES = {
+    story: [
+      "The keeper climbed the spiral stairs at dusk, counting each step out loud the way she always did. Below, the harbor was a sheet of hammered pewter, and the gulls had gone quiet.\n\nAt the top, the great lens waited under its canvas hood. She pulled the cover away and wiped the glass with a soft cloth until the brass frame shone.\n\nWhen the lamp caught, the beam swung out across the water, slow and patient, and somewhere far off a small boat turned toward home.",
+      "The keeper climbed the spiral stairs at dusk, counting each step under her breath the way she always had. Below, the harbor was a sheet of hammered pewter, and even the gulls had gone quiet.\n\nAt the top, the great lens waited beneath its canvas hood. She drew the cover back and polished the glass with a soft cloth until every prism caught the last light.\n\nWhen the lamp caught, the beam swept out across the water, slow and patient.\n\nSomewhere far off, a small boat turned toward home."
+    ],
+    notes: [
+      "Quillbox 2.4\n\nNew\n- Search now matches words inside attachments.\n- You can pin up to five notebooks to the sidebar.\n\nFixed\n- The editor no longer jumps to the top when you paste a table.\n- Dark mode colors are applied to the settings screen.\n\nKnown issues\n- Exporting very long notes can take a while.",
+      "Quillbox 2.5\n\nNew\n- Search now matches words inside attachments and image captions.\n- You can pin up to ten notebooks to the sidebar.\n- Notebooks can be reordered by dragging.\n\nFixed\n- The editor no longer jumps to the top when you paste a table or a list.\n- Dark mode colors are now applied consistently across the settings screen.\n\nKnown issues\n- Exporting very long notes is faster, but may still pause briefly."
+    ],
+    label: [
+      "Weather Bell, replica\n\nThis bell was cast from a mold taken of a cracked original found in a hillside workshop. Its bronze is new, but the pattern of spirals around the rim is copied exactly. Makers in the region rang similar bells when storms approached.\n\nPlease do not touch the display.",
+      "Weather Bell, replica\n\nThis bell was cast from a mold taken from a cracked original discovered in an abandoned hillside workshop. Its bronze is new, but the band of spirals around the rim is copied line for line. Makers once rang bells like this one to warn of approaching storms.\n\nPlease do not touch the bell; oils from skin dull the surface."
+    ]
+  };
+
+  function esc(s){ return s.replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function fmt(n){ return n.toLocaleString('en-US'); }
+  function opts(){ return { ignoreCase: $('optCase').checked, ignoreWhitespace: $('optWs').checked }; }
+  function view(){ var r = document.querySelector('input[name=view]:checked'); return r ? r.value : 'inline'; }
+
+  function setStatus(kind, html, actions){
+    statusEl.className = 'status' + (kind ? ' show ' + kind : '');
+    statusEl.innerHTML = html || '';
+    (actions || []).forEach(function(a){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = a.label; b.onclick = a.run; statusEl.appendChild(b);
+    });
+  }
+  function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function(){ t.classList.remove('show'); }, 1800); }
+
+  function counts(){
+    [[A, 'countA'], [B, 'countB']].forEach(function(p){
+      var v = p[0].value, chars = v.length;
+      var words = chars > AUTO_LIMIT ? '~' + fmt(Math.round(chars / 5.8)) : fmt(RL.wordCount(v));
+      $(p[1]).textContent = words + ' words · ' + fmt(chars) + ' chars';
+    });
+  }
+
+  function setControls(on){ ['prev', 'next', 'copy'].forEach(function(id){ $(id).disabled = !on; }); }
+
+  function showEmpty(html){
+    state.res = null; state.cur = -1;
+    $('stats').innerHTML = ''; list.innerHTML = ''; $('summaryText').value = '';
+    $('detail').textContent = 'No changes to navigate yet.';
+    $('counter').textContent = '– / –';
+    out.innerHTML = '<div class="empty">' + html + '</div>';
+    var ls = out.querySelector('[data-sample]');
+    if (ls) ls.onclick = function(){ loadSample('story'); };
+    setControls(false);
+  }
+
+  function compare(){
+    clearTimeout(state.timer);
+    var a = A.value, b = B.value;
+    state.stale = false;
+    if (a.length > HARD_LIMIT || b.length > HARD_LIMIT){
+      setStatus('err', '<span>That draft is too large to compare here (limit ' + fmt(HARD_LIMIT) + ' characters per side). Try comparing one section at a time.</span>');
+      showEmpty('<p>Input too large.</p>');
+      return;
+    }
+    if (!a.trim() && !b.trim()){
+      setStatus('', '');
+      showEmpty('<p><strong>Paste two drafts</strong> to explore their edits inline.</p><button type="button" data-sample>Try a sample pair</button>');
+      return;
+    }
+    if (!a.trim() || !b.trim()){
+      setStatus('info', '<span>' + (!a.trim() ? 'Draft A (before)' : 'Draft B (after)') + ' is empty — paste the other version to compare.</span>');
+      showEmpty('<p>Waiting for ' + (!a.trim() ? 'the earlier draft' : 'the revised draft') + '.</p>');
+      return;
+    }
+    var res;
+    try { res = RL.diff(a, b, opts()); }
+    catch (e){
+      setStatus('err', '<span>Something went wrong while comparing: ' + esc(String(e && e.message || e)) + '</span>');
+      showEmpty('<p>Comparison failed.</p>');
+      return;
+    }
+    state.res = res; state.folds = new Set(); state.cur = -1;
+    var st = res.stats, notes = [];
+    if (res.coarse) notes.push('These drafts differ a lot, so Revision Lens matched them line by line first, then refined ' + res.coarse.refined + ' changed block' + (res.coarse.refined === 1 ? '' : 's') + ' word by word' + (res.coarse.wholesale ? ' (' + res.coarse.wholesale + ' very large block' + (res.coarse.wholesale === 1 ? ' is' : 's are') + ' shown whole)' : '') + '.');
+    if (a.length + b.length > AUTO_LIMIT) notes.push('Large drafts: live updating is paused; press Compare after edits.');
+    if (notes.length) setStatus('warn', '<span>' + notes.join(' ') + '</span>');
+    else setStatus('', '');
+    if (!res.hunks.length){
+      var o = opts(), ign = [o.ignoreCase && 'case', o.ignoreWhitespace && 'spacing'].filter(Boolean);
+      showEmpty('<p><strong>No differences found.</strong></p><p>The drafts match word for word' + (ign.length ? ' (ignoring ' + ign.join(' and ') + ')' : '') + '.</p>');
+      $('stats').innerHTML = chip('', fmt(st.wordsA), 'words in both');
+      return;
+    }
+    $('stats').innerHTML =
+      chip('', fmt(res.hunks.length), res.hunks.length === 1 ? 'change' : 'changes') +
+      chip('ins', '+' + fmt(st.added), 'words added') +
+      chip('del', '−' + fmt(st.removed), 'removed') +
+      chip('', st.keptPct + '%', 'original wording kept') +
+      chip('', fmt(st.wordsA) + ' → ' + fmt(st.wordsB), 'words') +
+      chip('', st.ms < 1 ? '<1' : fmt(Math.round(st.ms)), 'ms');
+    $('summaryText').value = RL.summary(res);
+    setControls(true);
+    renderOut(); renderList();
+    setCurrent(0, false);
+  }
+  function chip(cls, b, t){ return '<span class="chip ' + cls + '"><b>' + b + '</b> ' + t + '</span>'; }
+
+  function insHtml(s){ return esc(s).replace(/\n/g, '<span class="pil" aria-hidden="true">¶</span>\n'); }
+  function delHtml(s){ return esc(s).replace(/\n/g, '<span class="pil">¶</span>'); }
+
+  function renderOut(){
+    var res = state.res; if (!res) return;
+    var v = view(), fold = $('optFold').checked, html = [];
+    res.items.forEach(function(it, idx){
+      if (it.t === 'eq'){
+        var text = v === 'before' ? it.a : it.b;
+        var toks = RL.tokenize(text), words = 0;
+        for (var i = 0; i < toks.length; i++) if (/[\p{L}\p{N}]/u.test(toks[i])) words++;
+        if (fold && words > 60 && !state.folds.has(idx)){
+          var keep = 14, w = 0, hEnd = 0, tStart = toks.length;
+          for (i = 0; i < toks.length && w < keep; i++){ if (/[\p{L}\p{N}]/u.test(toks[i])) w++; hEnd = i + 1; }
+          w = 0;
+          for (i = toks.length - 1; i >= 0 && w < keep; i--){ if (/[\p{L}\p{N}]/u.test(toks[i])) w++; tStart = i; }
+          var hidden = words - 2 * keep;
+          if (idx === 0) { hEnd = 0; hidden = words - keep; }
+          if (idx === res.items.length - 1) { tStart = toks.length; hidden = words - (hEnd ? keep : 0); }
+          html.push(esc(toks.slice(0, hEnd).join('')) +
+            '<button type="button" class="fold" data-fold="' + idx + '">⋯ ' + fmt(hidden) + ' unchanged words · show ⋯</button>' +
+            esc(toks.slice(tStart).join('')));
+        } else html.push(esc(text));
+      } else {
+        var inner = '';
+        if (v !== 'after' && it.del) inner += '<del>' + delHtml(it.del) + '</del>';
+        if (v !== 'before' && it.ins) inner += '<ins>' + insHtml(it.ins) + '</ins>';
+        if (!inner || (v === 'after' && !it.ins.trim() && it.del.trim()) || (v === 'before' && !it.del.trim() && it.ins.trim()))
+          inner += '<span class="gap" title="' + (v === 'after' ? 'Text removed here' : 'Text added here') + '">‸</span>';
+        html.push('<span class="hunk" data-h="' + it.index + '" id="h' + it.index + '">' + inner + '</span>');
+      }
+    });
+    out.innerHTML = html.join('');
+    out.setAttribute('aria-label', v === 'inline' ? 'Inline differences. Deleted words are struck through, inserted words underlined.' : v === 'before' ? 'Before view with removed words highlighted.' : 'After view with added words highlighted.');
+    if (state.cur >= 0) markCurrent(false);
+  }
+
+  function renderList(){
+    var hs = state.res.hunks, max = 300, parts = [];
+    hs.slice(0, max).forEach(function(h, i){
+      var body = h.kind === 'replace' ? '<del>' + esc(RL.clip(h.del, 60)) + '</del> → <ins>' + esc(RL.clip(h.ins, 60)) + '</ins>'
+        : h.kind === 'insert' ? '<ins>' + esc(RL.clip(h.ins, 90)) + '</ins>'
+        : h.kind === 'delete' ? '<del>' + esc(RL.clip(h.del, 90)) + '</del>' : 'line or paragraph break';
+      parts.push('<li><button type="button" data-go="' + i + '"><span class="n">' + (i + 1) + '.</span><span class="k">' + h.kind + '</span><span class="t">' + body + '</span></button></li>');
+    });
+    if (hs.length > max) parts.push('<li class="empty">…' + fmt(hs.length - max) + ' more — use Next to keep stepping.</li>');
+    list.innerHTML = parts.join('');
+  }
+
+  function markCurrent(scroll){
+    var prev = out.querySelector('.hunk.current'); if (prev) prev.classList.remove('current');
+    var el = $('h' + state.cur);
+    if (el){
+      el.classList.add('current');
+      if (scroll){
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+      }
+    }
+    var lp = list.querySelector('[aria-current="true"]'); if (lp) lp.removeAttribute('aria-current');
+    var li = list.querySelector('[data-go="' + state.cur + '"]'); if (li) li.setAttribute('aria-current', 'true');
+  }
+
+  function setCurrent(i, scroll){
+    var hs = state.res && state.res.hunks; if (!hs || !hs.length) return;
+    i = (i + hs.length) % hs.length;
+    state.cur = i;
+    var h = hs[i];
+    $('counter').textContent = (i + 1) + ' / ' + hs.length;
+    var d = '<strong>Change ' + (i + 1) + ' of ' + hs.length + '</strong> · line ' + h.lineB + ' · ';
+    if (h.kind === 'replace') d += 'replaced <q class="was">' + esc(RL.clip(h.del, 70)) + '</q> with <q class="now">' + esc(RL.clip(h.ins, 70)) + '</q>';
+    else if (h.kind === 'insert') d += 'added <q class="now">' + esc(RL.clip(h.ins, 90)) + '</q>';
+    else if (h.kind === 'delete') d += 'removed <q class="was">' + esc(RL.clip(h.del, 90)) + '</q>';
+    else d += 'changed a line or paragraph break';
+    $('detail').innerHTML = d;
+    // make sure the target isn't hidden inside a fold (folds never contain hunks, so just mark)
+    markCurrent(scroll !== false);
+  }
+
+  function step(dir){ if (state.res && state.res.hunks.length) setCurrent(state.cur + dir, true); }
+
+  function copySummary(){
+    var text = $('summaryText').value; if (!text) return;
+    function fallback(){
+      var box = $('summaryBox'); box.open = true;
+      var ta = $('summaryText'); ta.focus(); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e){}
+      toast(ok ? 'Summary copied' : 'Select the text below and copy it manually');
+    }
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(function(){ toast('Summary copied (' + state.res.hunks.length + ' changes)'); }, fallback);
+    } else fallback();
+  }
+
+  function loadSample(key){
+    var s = SAMPLES[key]; if (!s) return;
+    A.value = s[0]; B.value = s[1]; counts(); compare();
+    toast('Sample loaded — edit either draft freely');
+  }
+
+  function schedule(){
+    counts();
+    clearTimeout(state.timer);
+    if (A.value.length + B.value.length > AUTO_LIMIT){
+      state.stale = true;
+      setStatus('warn', '<span>Large drafts (' + fmt(A.value.length + B.value.length) + ' characters): live updating is paused.</span>', [{ label: 'Compare now', run: compare }]);
+      return;
+    }
+    state.timer = setTimeout(compare, 220);
+  }
+
+  // wiring
+  A.addEventListener('input', schedule); B.addEventListener('input', schedule);
+  $('compare').onclick = compare;
+  $('sample').onchange = function(){ loadSample(this.value); this.value = ''; };
+  $('swap').onclick = function(){ var t = A.value; A.value = B.value; B.value = t; counts(); compare(); toast('Swapped drafts'); };
+  $('clear').onclick = function(){
+    if (!A.value && !B.value) return;
+    state.undo = [A.value, B.value]; A.value = ''; B.value = ''; counts(); compare();
+    setStatus('info', '<span>Both drafts cleared.</span>', [{ label: 'Undo', run: function(){ A.value = state.undo[0]; B.value = state.undo[1]; counts(); compare(); } }]);
+    A.focus();
+  };
+  $('optCase').onchange = compare; $('optWs').onchange = compare;
+  $('optFold').onchange = function(){ renderOut(); };
+  document.querySelectorAll('input[name=view]').forEach(function(r){ r.onchange = function(){ renderOut(); if (state.cur >= 0) markCurrent(true); }; });
+  $('prev').onclick = function(){ step(-1); }; $('next').onclick = function(){ step(1); };
+  $('copy').onclick = copySummary;
+  out.addEventListener('click', function(e){
+    var f = e.target.closest('[data-fold]');
+    if (f){ state.folds.add(+f.getAttribute('data-fold')); renderOut(); return; }
+    var h = e.target.closest('.hunk'); if (h) setCurrent(+h.getAttribute('data-h'), false);
+  });
+  list.addEventListener('click', function(e){ var b = e.target.closest('[data-go]'); if (b) setCurrent(+b.getAttribute('data-go'), true); });
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target.tagName || '').toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter'){ e.preventDefault(); compare(); return; }
+    if (tag === 'textarea' || tag === 'select' || (tag === 'input' && e.target.type === 'text') || e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key.toLowerCase();
+    if (k === 'n' || k === 'j'){ e.preventDefault(); step(1); }
+    else if (k === 'p' || k === 'k'){ e.preventDefault(); step(-1); }
+    else if (k === '1' || k === '2' || k === '3'){ var r = $(['vInline', 'vBefore', 'vAfter'][+k - 1]); r.checked = true; r.onchange(); }
+  });
+
+  loadSample('story');
+})();
+</script>
+</body>
+</html>
