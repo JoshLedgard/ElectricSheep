@@ -34,6 +34,10 @@ body{background:var(--road);color:var(--ink);font-family:var(--body);font-weight
 #heat i{display:inline-block;width:15px;height:15px;background:var(--dim);
   clip-path:polygon(50% 0,63% 32%,98% 35%,71% 57%,80% 92%,50% 72%,20% 92%,29% 57%,2% 35%,37% 32%)}
 #heat i.on{background:var(--pink)}
+#drama{background:var(--pink);color:#fff;font-size:18px;display:flex;gap:6px;align-items:center}
+#drama i{display:inline-block;width:15px;height:15px;background:rgba(20,16,31,.4);
+  clip-path:polygon(50% 100%,5% 52%,0 26%,12% 6%,32% 0,50% 16%,68% 0,88% 6%,100% 26%,95% 52%)}
+#drama i.on{background:#fff}
 #goal{font-family:var(--marker);color:var(--paper);font-size:15px;text-shadow:2px 2px 0 var(--ink),-1px -1px 0 var(--ink),1px -1px 0 var(--ink),-1px 1px 0 var(--ink);max-width:260px}
 #side{top:0;right:0;display:flex;flex-direction:column;gap:8px;align-items:flex-end;
   padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -105,6 +109,7 @@ body{background:var(--road);color:var(--ink);font-family:var(--body);font-weight
     <div id="cash" class="tag">$0</div>
     <div id="cloutbox" class="tag"><span id="clouttxt">CLOUT 0 / 50</span><div id="cloutbar"><div id="cloutfill"></div></div></div>
     <div id="heat" class="tag">SEC <i></i><i></i><i></i><i></i><i></i></div>
+    <div id="drama" class="tag">DRAMA <i></i><i></i><i></i><i></i><i></i></div>
     <div id="goal"></div>
   </div>
   <div id="side" class="layer">
@@ -119,17 +124,19 @@ body{background:var(--road);color:var(--ink);font-family:var(--body);font-weight
     <button class="btn" id="tF" type="button">Harass</button>
     <button class="btn" id="tR" type="button">Ride</button>
     <button class="btn" id="tL" type="button">Post</button>
+    <button class="btn" id="tG" type="button">Flirt</button>
   </div>
 
   <div id="title" class="modal">
     <div class="card">
       <div id="logo">White<br><em>Collar</em><br>Crimes</div>
       <p class="sub">A top-down climb up the corporate ladder. Nobody goes to jail.</p>
-      <p>You are <strong>Jet Wong</strong>: unpaid intern, black leather jacket, zero remorse. Commit crimes around the city to earn clout, return to Synergex Tower for promotions, and outrun the SEC.</p>
+      <p>You are <strong>Jet Wong</strong>: unpaid intern, black leather jacket, zero remorse. Commit crimes, bribe City Hall, sell secrets to spies and cheat on your wife to earn clout. Return to Synergex Tower for promotions. Outrun the SEC, your wife and your exes.</p>
       <div class="keys">
         <b>WASD</b><span>Walk, scoot, glide or be driven</span>
         <b>E</b><span>Enter a building and do crimes</span>
         <b>F</b><span>Harass the nearest employee</span>
+        <b>G</b><span>Start an affair (your wife will find out)</span>
         <b>R</b><span>Hop on or off a ride</span>
         <b>L</b><span>Post to LinkedOut</span>
       </div>
@@ -193,6 +200,8 @@ const POIS=[
  {id:'startup',s:'STARTUP',b:[0,0],name:'PIVOT.LY',col:'#19d3f3',k:.14,sub:'Nine founders, one beanbag, no revenue.'},
  {id:'pension',s:'PENSION',b:[1,5],name:'TEACHERS PENSION FUND',col:'#a6ff3d',k:.2,sub:'Forty years of savings, one weak password.'},
  {id:'charity',s:'CHARITY',b:[4,0],name:'THE JET WONG FOUNDATION',col:'#ff2e88',k:.2,sub:'A registered nonprofit, technically.'},
+ {id:'hall',s:'CITY HALL',b:[3,4],name:'CITY HALL',col:'#f6f1e7',k:.26,sub:'Of the people, by the people, for a fee.'},
+ {id:'jewel',s:'JEWELS',b:[1,3],name:'TIFFANNI & GUILT JEWELERS',col:'#19d3f3',k:.14,sub:'Every kiss begins with a cover-up.'},
  {id:'factory',s:'DEPOT',b:[2,5],name:'FULFILLMENT CENTER 7',col:'#b9b2cc',k:.18,sub:'"Our people are our greatest line item."'}
 ];
 const A=(p,n,d,r,cash,cl,h,cd,hits,post)=>({p,n,d,r,cash,cl,h,cd,hits,post,t:0});
@@ -216,6 +225,17 @@ const ACTIONS=[
  A('pension','Borrow from the pension fund','Teachers love a surprise.',7,3e7,140,2.1,60,4),
  A('charity','Donate to your own foundation','Its sole program is your yacht. Lowers SEC heat.',4,5e4,45,-1,45,2,'Giving back is in my DNA.\n\nToday I donated $1M to the Jet Wong Foundation, which fights the problem of me not having a second yacht.')
 ];
+ACTIONS.push(
+ Object.assign(A('hq','Photocopy the trade secrets','The copier is the only honest worker in the building. Sell these to the spy.',2,0,10,.35,25,2),{sec:1}),
+ Object.assign(A('hall','Bribe a councilman','He calls it a "consulting fee." So does his wife.',1,0,32,.3,35,2),{cost:3000}),
+ Object.assign(A('hall','Buy the mayor a boat','The boat is named "Zoning Variance." The SEC can\'t touch you for 60 seconds.',4,0,65,.2,60,3,'Proud to support local leadership.\n\nThe mayor and I share a vision. And, as of today, a boat.'),{cost:15e4,imm:60}),
+ Object.assign(A('hall','Fund the district attorney\'s re-election','Justice is blind. Also for sale. Clears heat, 100 seconds of immunity.',7,0,120,-5,70,3),{cost:5e6,imm:100}));
+const WOMEN=['Vanessa','Chloe','Margaux','Bianca','Simone','Ingrid','Paloma','Delphine','Sloane','Anastasia','Kiki','Odette','Brigitte','Noor'];
+const FLIRT=['Told her you\'re "basically separated"','Said "my wife and I have an understanding" (you don\'t)','Took off the ring. The tan line remains.','Promised her a ride in the towncar','Said you\'re "between marriages"','Invited her to a "conference" in Cabo','Told her she\'s "not like other shareholders"','Showed her your LinkedOut follower count'];
+const SWOON=['Call me 💋','Wait, you\'re married?','Is that real leather?','My ex was a CEO too.','Fine. One drink.','You seem like a mistake.'];
+const AFFAIR_POST='My wife is my rock. My everything. My Chief Home Officer.\n\nUnrelated: if you receive screenshots from an unknown number, that is AI.';
+const SPY_POST='Had a wonderful coffee with a gentleman named "Definitely Not Boris."\n\nGreat conversations happen when you stay open.\n\nAnd when they pay cash.';
+const DIVORCE_POST='Some personal news: my wife and I are consciously uncoupling our assets.\n\nI\'m told I\'m the brave one.\n\nOpen to work (on myself).';
 const POSTS=[
  'I fired 400 people over a calendar invite this morning.\n\nThen I cried in a towncar.\n\nI realized: I am the real victim.\n\nHere\'s what it taught me about B2B sales 🧵',
  'I\'m humbled to announce that I am, once again, the most humble person in my industry.',
@@ -275,18 +295,22 @@ const mmBase=document.createElement('canvas');mmBase.width=mmBase.height=112;
   for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const t=map[y*MW+x];if(!t)continue;g.fillStyle=t===1?'#8d84a8':t===3?'#5fc23f':'#1c182b';g.fillRect(x*2,y*2,2,2)}
   for(const b of blds){g.fillStyle=b.poi?b.col:shade(b.col,.55);g.fillRect(b.x/TS*2,b.y/TS*2,b.w/TS*2,b.h/TS*2)}})();
 
+const SPY={id:'spy',s:'SPY',name:'A MAN WHO IS "NOT A SPY"',sub:'Trench coat. Newspaper with eye holes. Accent: vague.',x:0,y:0};POIS.push(SPY);
+function moveSpy(){const[tx,ty]=randTile((t,x,y)=>(t===1||t===3)&&Math.hypot((x+.5)*TS-P.x,(y+.5)*TS-P.y)>700&&!POIS.some(q=>q!==SPY&&Math.hypot((x+.5)*TS-q.x,(y+.5)*TS-q.y)<200));SPY.x=(tx+.5)*TS;SPY.y=(ty+.5)*TS}
 /* ---------- state ---------- */
 const HQ=POIS[0];
 let mode='title',time=0,shake=0;
 const P={x:HQ.x,y:HQ.y+30,ang:PI/2,ph:0,veh:null,moving:false,boost:0};
-const S={cash:0,clout:0,rank:0,heat:0,followers:12,postCd:0,harassed:0,tips:0,noTips:0,posts:0,fines:0,crimes:0,busts:0,promoTold:false};
+const S={cash:0,clout:0,rank:0,heat:0,followers:12,postCd:0,harassed:0,tips:0,noTips:0,posts:0,fines:0,crimes:0,busts:0,promoTold:false,drama:0,affairs:0,secrets:0,immune:0,divorces:0,alimony:0,exes:[]};
 let npcs=[],agents=[],vehicles=[],floaters=[],feed=[],ctxPosts=[];
 function randTile(ok){for(let i=0;i<400;i++){const tx=Math.random()*MW|0,ty=Math.random()*MH|0;if(ok(tile(tx,ty),tx,ty))return[tx,ty]}return[1,1]}
 function spawn(){
   npcs=[];for(let i=0;i<85;i++){const[tx,ty]=randTile(t=>t===1||t===3);
     npcs.push({x:(tx+.5)*TS,y:(ty+.5)*TS,tx:(tx+.5)*TS,ty:(ty+.5)*TS,dx:0,dy:0,ang:0,ph:Math.random()*9,sp:38+Math.random()*30,
       col:pick(BCOL),hair:pick(['#2a1d14','#5b3a1e','#111','#c98b2b','#8a3b12','#ddd','#ff2e88']),skin:pick(['#f6d2b0','#e0ac7e','#b9794a','#8a5530','#ffe0c4']),
-      emp:Math.random()<.7,name:pick(NAMES),state:'walk',t:0,cd:0,hc:0,bub:'',bt:0});}
+      emp:Math.random()<.7,name:pick(NAMES),state:'walk',t:0,cd:0,hc:0,bub:'',bt:0,fl:false,had:false});
+    const n=npcs[i];if(!n.emp&&Math.random()<.8){n.fl=true;n.name=pick(WOMEN);n.hair=pick(['#c98b2b','#8a3b12','#111','#5b3a1e','#ff2e88'])}}
+  moveSpy();
   vehicles=[];
   const add=(type,x,y,a)=>vehicles.push({type,x,y,ang:a,spd:0});
   for(let i=0;i<9;i++){const[tx,ty]=i?randTile(t=>t===1):[HQ.x/TS-1.5|0,HQ.y/TS|0];add('scooter',(tx+.5)*TS,(ty+.5)*TS,Math.random()*TAU)}
@@ -327,7 +351,8 @@ function fl(x,y,txt,col,size){floaters.push({x,y,txt,col:col||YEL,t:0,s:size||24
 function setMode(m){mode=m;for(const id of['title','menu','mini','tip','phone','info'])$(id).hidden=id!==m;keys={};joy.on=false}
 function addClout(n){S.clout=Math.max(0,S.clout+n);if(!S.promoTold&&S.clout>=NEED[S.rank]){S.promoTold=true;sfx('promo');
   toast(S.rank===9?'GOLDEN PARACHUTE READY: GO TO HQ':'PROMOTION READY: GO TO HQ','y')}}
-function addHeat(h){const before=Math.floor(S.heat);S.heat=clamp(S.heat+h,0,5);if(Math.floor(S.heat)>before){sfx('siren');toast(before===0?'THE SEC IS ONTO YOU':'SEC HEAT RISING')}}
+function addDrama(d){S.drama=clamp(S.drama+d,0,5)}
+function addHeat(h){if(h>0&&S.immune>0){fl(P.x,P.y-86,'CITY HALL LOOKS AWAY',CYAN,18);return}const before=Math.floor(S.heat);S.heat=clamp(S.heat+h,0,5);if(Math.floor(S.heat)>before){sfx('siren');toast(before===0?'THE SEC IS ONTO YOU':'SEC HEAT RISING')}}
 let infoCb=null;
 function showInfo(t,html,btn,cb){$('info-t').textContent=t;$('info-b').innerHTML=html;$('info-ok').textContent=btn;infoCb=cb;setMode('info');$('info-ok').focus()}
 $('info-ok').onclick=()=>{const c=infoCb;infoCb=null;setMode('play');if(c)c()};
@@ -345,12 +370,18 @@ function openMenu(p){curPoi=p;sfx('blip');
       else add('Deploy the golden parachute','The board wants a word. So does your lawyer.','RETIRE IN DISGRACE (AND LUXURY)',false,win)}
   }
   if(p.id==='lobby'){const cost=Math.max(500,Math.floor(S.cash*.3));
-    add('Make a "campaign contribution"','Your SEC troubles vanish. Democracy works.','COSTS '+fmt(cost)+' · CLEARS ALL HEAT',S.cash<cost||S.heat<.3,()=>{S.cash-=cost;S.heat=0;agents=[];addClout(8);sfx('cash');setMode('play');toast('HEAT CLEARED. GOD BLESS AMERICA','c')});
+    add('Make a "campaign contribution"','Your SEC troubles vanish. Democracy works.','COSTS '+fmt(cost)+' · CLEARS ALL HEAT',S.cash<cost||S.heat<.3,()=>{S.cash-=cost;S.heat=0;agents=agents.filter(a=>a.kind!=='sec');addClout(8);sfx('cash');setMode('play');toast('HEAT CLEARED. GOD BLESS AMERICA','c')});
     if(S.cash<cost)add('Come back with money','A lobbyist looks through you as if you were a public school.','YOU NEED '+fmt(cost),true,null)}
-  for(const a of ACTIONS){if(a.p!==p.id)continue;const lock=S.rank<a.r,cool=a.t>0;
+  if(p.id==='jewel'){const cost=Math.max(2000,Math.floor(S.cash*.2));
+    add('Buy apology jewelry','A tennis bracelet. The card reads: "Sorry you feel that way."','COSTS '+fmt(cost)+' · CLEARS ALL DRAMA',S.cash<cost||S.drama<.3,()=>{S.cash-=cost;S.drama=0;agents=agents.filter(a=>a.kind==='sec');sfx('cash');setMode('play');toast('FORGIVEN. FOR NOW','c')});
+    if(S.drama<.3)add('Nobody is mad at you (yet)','Come back when your wife finds the second phone.','NO DRAMA TO CLEAR',true,null)}
+  if(p.id==='spy'){const cash=1e4*Math.pow(2.4,S.rank),cl=30+S.rank*5;
+    add('Sell a trade secret','He pays in unmarked bills and exactly one compliment.',S.secrets?'+'+fmt(cash)+' · +'+cl+' CLOUT · HEAT ▲▲ · YOU HOLD '+S.secrets:'YOU HOLD NO SECRETS. PHOTOCOPY SOME AT HQ'+(S.rank<2?' (SENIOR ASSOCIATE)':''),!S.secrets,
+      ()=>startMini({n:'Sell a trade secret',d:'Slide the folder across the bench. Do not make eye contact.',cash,cl,h:1.4,cd:0,hits:3,spy:true,t:0,post:SPY_POST}))}
+  for(const a of ACTIONS){if(a.p!==p.id)continue;const lock=S.rank<a.r,cool=a.t>0,poor=S.cash<(a.cost||0);
     const chips=lock?'REQUIRES: '+RANKS[a.r].toUpperCase():cool?'LYING LOW FOR '+Math.ceil(a.t)+'s':
-      (a.cash?'+'+fmt(a.cash)+' · ':'')+'+'+a.cl+' CLOUT · '+(a.h<0?'HEAT ▼':'HEAT '+'▲'.repeat(Math.ceil(a.h)));
-    add(a.n,a.d,chips,lock||cool,()=>startMini(a))}
+      (a.cost?'COSTS '+fmt(a.cost)+(poor?' (YOU ARE TOO POOR)':'')+' · ':'')+(a.sec?'+1 TRADE SECRET · ':'')+(a.cash?'+'+fmt(a.cash)+' · ':'')+'+'+a.cl+' CLOUT · '+(a.h<0?'HEAT ▼':'HEAT '+'▲'.repeat(Math.ceil(a.h)));
+    add(a.n,a.d,chips,lock||cool||poor,()=>startMini(a))}
   setMode('menu');const f=box.querySelector('button:not(:disabled)');if(f)f.focus()}
 $('mclose').onclick=()=>setMode('play');
 
@@ -363,11 +394,13 @@ function miniHit(){if(!mini||mini.lock>0)return;const ok=mini.pos>=mini.z0&&mini
   if(ok){mini.hits++;sfx('hit');$('mres').textContent=pick(['NAILED IT','SMOOTH','ALLEGEDLY!','NO PAPER TRAIL','KA-CHING','TOTALLY LEGAL']);$('mres').style.color=PUR}
   else{sfx('bad');$('mres').textContent=pick(['SLOPPY','THAT LEFT A PAPER TRAIL','COMPLIANCE SAW THAT','YIKES']);$('mres').style.color=PINK}
   mini.lock=.55;if(mini.done<mini.need)newZone();else mini.finish=true}
-function finishMini(){const a=mini.a,q=mini.hits/mini.need;mini=null;setMode('play');a.t=a.cd;
+function finishMini(){const a=mini.a,q=mini.hits/mini.need;mini=null;setMode('play');a.t=a.cd;if(a.cost)S.cash-=a.cost;if(a.spy){S.secrets--;moveSpy()}
   if(q===0){if(a.h>=0)addHeat(Math.max(.7,a.h*1.4));toast('BOTCHED IT. COMPLIANCE NOTICED');shake=.4;return}
   const cash=a.cash*q,cl=Math.round(a.cl*q);S.cash+=cash;S.crimes++;addClout(cl);addHeat(a.h<0?a.h*q:a.h+(1-q)*.5);
   sfx('cash');if(cash)fl(P.x,P.y-30,'+'+fmt(cash),LIME,34);fl(P.x,P.y-60,'+'+cl+' CLOUT',PINK,24);
   toast(q===1?pick(['CRIME PAYS','FLAWLESS FRAUD','VICTIMLESS! (NOT REALLY)']):'GOOD ENOUGH FOR CORPORATE','y');
+  if(a.sec){S.secrets++;fl(P.x,P.y-90,'+1 TRADE SECRET',CYAN,22)}
+  if(a.imm){S.immune=a.imm;toast('IMMUNITY: '+a.imm+' SECONDS','c')}
   if(a.post&&!ctxPosts.includes(a.post))ctxPosts.unshift(a.post)}
 $('mhit').onclick=miniHit;$('track').onpointerdown=miniHit;
 
@@ -379,9 +412,9 @@ function win(){sfx('promo');const para=4e8;S.cash+=para;
   showInfo('You have been fired',
    '<p class="sub">Severance: '+fmt(para)+'. You admit nothing.</p><p>The board ousts you after "recent events." You leave in a towncar with a golden parachute and a book deal: <em>Radical Accountability</em>.</p>'+
    '<p><strong>Net worth:</strong> '+fmt(S.cash)+'<br><strong>Crimes committed:</strong> '+S.crimes+'<br><strong>Employees harassed:</strong> '+S.harassed+
-   '<br><strong>Tips left:</strong> '+S.tips+' ('+S.noTips+' baristas stiffed)<br><strong>LinkedOut posts:</strong> '+S.posts+' · '+S.followers.toLocaleString('en-US')+' followers<br><strong>SEC settlements:</strong> '+S.busts+' ('+fmt(S.fines)+')<br><strong>Lessons learned:</strong> 0</p>',
+   '<br><strong>Tips left:</strong> '+S.tips+' ('+S.noTips+' baristas stiffed)<br><strong>LinkedOut posts:</strong> '+S.posts+' · '+S.followers.toLocaleString('en-US')+' followers<br><strong>SEC settlements:</strong> '+S.busts+' ('+fmt(S.fines)+')<br><strong>Affairs:</strong> '+S.affairs+' · <strong>Divorces:</strong> '+S.divorces+' ('+fmt(S.alimony)+')<br><strong>Lessons learned:</strong> 0</p>',
    'Do it all again',restart)}
-function restart(){Object.assign(S,{cash:0,clout:0,rank:0,heat:0,followers:12,postCd:0,harassed:0,tips:0,noTips:0,posts:0,fines:0,crimes:0,busts:0,promoTold:false});
+function restart(){Object.assign(S,{cash:0,clout:0,rank:0,heat:0,followers:12,postCd:0,harassed:0,tips:0,noTips:0,posts:0,fines:0,crimes:0,busts:0,promoTold:false,drama:0,affairs:0,secrets:0,immune:0,divorces:0,alimony:0,exes:[]});
   for(const a of ACTIONS)a.t=0;feed=[];ctxPosts=[];agents=[];floaters=[];P.veh=null;P.x=HQ.x;P.y=HQ.y+30;spawn();setMode('play')}
 
 /* ---------- tipping ---------- */
@@ -432,17 +465,28 @@ function harass(){const n=near.npc;if(!n)return;const seg=P.veh&&P.veh.type==='s
   S.harassed++;S.cash+=cash;addClout(cl);sfx('hit');
   fl(P.x,P.y-34,n.emp?pick(HARASS):pick(CIVIL),'#fff',19);fl(P.x,P.y-58,'+'+cl+' CLOUT'+(cash?'  +'+fmt(cash):''),PINK,22);
   if(n.emp&&Math.random()<.15)toast('HR COMPLAINT FILED. HR REPORTS TO YOU','c')}
-function bust(){S.busts++;const fine=Math.floor(S.cash*.35);S.cash-=fine;S.fines+=fine;sfx('bad');shake=.6;
-  if(!ctxPosts.includes(BUST_POST))ctxPosts.unshift(BUST_POST);
-  showInfo('Subpoenaed!','<p class="sub">The SEC caught up with you.</p><p>You settle for <strong>'+fmt(fine)+'</strong> without admitting or denying wrongdoing. The stock rises 4% on the news.</p><p>Nobody goes to jail. Nobody ever goes to jail.</p>','Back to work',()=>{
-    S.heat=0;agents=[];if(P.veh){P.veh.spd=0;P.veh=null}P.x=HQ.x;P.y=HQ.y+30})}
+function flirt(){const n=near.fl;if(!n)return;n.had=true;n.cd=20;n.bub=pick(SWOON);n.bt=2.8;
+  S.affairs++;S.exes.push(n.name);const cl=12+S.rank*3;addClout(cl);addDrama(.7+Math.random()*.5);sfx('hit');
+  fl(P.x,P.y-34,pick(FLIRT),'#fff',19);fl(P.x,P.y-58,'+'+cl+' CLOUT  ♥ AFFAIR #'+S.affairs,PINK,22);
+  if(S.affairs===1)ctxPosts.unshift(AFFAIR_POST)}
+function bust(a){sfx('bad');shake=.6;const home=()=>{if(P.veh){P.veh.spd=0;P.veh=null}P.x=HQ.x;P.y=HQ.y+30};
+  const calm=()=>{S.drama=0;agents=agents.filter(x=>x.kind==='sec');home()};
+  if(a.kind==='sec'){S.busts++;const fine=Math.floor(S.cash*.35);S.cash-=fine;S.fines+=fine;
+    if(!ctxPosts.includes(BUST_POST))ctxPosts.unshift(BUST_POST);
+    showInfo('Subpoenaed!','<p class="sub">The SEC caught up with you.</p><p>You settle for <strong>'+fmt(fine)+'</strong> without admitting or denying wrongdoing. The stock rises 4% on the news.</p><p>Nobody goes to jail. Nobody ever goes to jail.</p>','Back to work',()=>{
+      S.heat=0;agents=agents.filter(x=>x.kind!=='sec');home()})}
+  else if(a.kind==='wife'){S.divorces++;const fine=Math.floor(S.cash*.5);S.cash-=fine;S.alimony+=fine;
+    if(!ctxPosts.includes(DIVORCE_POST))ctxPosts.unshift(DIVORCE_POST);
+    showInfo('Served!','<p class="sub">Your wife found you. She brought a lawyer.</p><p>She takes <strong>'+fmt(fine)+'</strong>, the house, the other house and, somehow, Gary\'s loyalty.</p><p>You will remarry by Friday. Wife #'+(S.divorces+1)+' has already been warned.</p>','Remarry by Friday',calm)}
+  else{const fine=Math.floor(S.cash*.15),lost=Math.floor(S.followers*.25);S.cash-=fine;S.followers-=lost;addClout(-20);
+    showInfo(a.name+' found you','<p class="sub">You told her you were "basically separated."</p><p>She posts the screenshots. You lose <strong>'+lost.toLocaleString('en-US')+' followers</strong> and 20 clout, then pay <strong>'+fmt(fine)+'</strong> for an NDA.</p><p>Your publicist calls it "a private family matter."</p>','Deny everything',calm)}}
 
 /* ---------- input ---------- */
 let keys={};const joy={on:false,id:-1,ox:0,oy:0,x:0,y:0};
 function press(k){
   if(k==='m'){toggleMute();return}
   if(mode==='title'){if(k==='enter'||k===' ')start()}
-  else if(mode==='play'){if(k==='e'||k==='enter')act();else if(k==='f')harass();else if(k==='r')ride();else if(k==='l')openPhone()}
+  else if(mode==='play'){if(k==='e'||k==='enter')act();else if(k==='f')harass();else if(k==='r')ride();else if(k==='l')openPhone();else if(k==='g')flirt()}
   else if(mode==='menu'){if(k==='escape')setMode('play');else if(k>='1'&&k<='9'){const f=menuActs[+k-1];if(f)f()}}
   else if(mode==='mini'){if(k===' '||k==='e')miniHit()}
   else if(mode==='tip'){if(k==='1')giveTip(25);else if(k==='2')giveTip(30);else if(k==='3')giveTip(40);else if(k==='n')noTip()}
@@ -458,7 +502,7 @@ cv.addEventListener('pointerdown',e=>{if(mode!=='play'||joy.on)return;joy.on=tru
 cv.addEventListener('pointermove',e=>{if(!joy.on||e.pointerId!==joy.id)return;let dx=(e.clientX-joy.ox)/50,dy=(e.clientY-joy.oy)/50;const m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m}joy.x=dx;joy.y=dy});
 const joyEnd=e=>{if(e.pointerId===joy.id)joy.on=false};cv.addEventListener('pointerup',joyEnd);cv.addEventListener('pointercancel',joyEnd);
 const bind=(id,fn)=>{$(id).addEventListener('click',e=>{e.currentTarget.blur();if(mode==='play')fn()})};
-bind('tE',act);bind('tF',harass);bind('tR',ride);bind('tL',openPhone);bind('bphone',openPhone);
+bind('tE',act);bind('tF',harass);bind('tR',ride);bind('tL',openPhone);bind('tG',flirt);bind('bphone',openPhone);
 function toggleMute(){musicOn=!musicOn;$('bmute').textContent='Music: '+(musicOn?'on':'off')}
 $('bmute').onclick=e=>{e.currentTarget.blur();toggleMute()};
 function start(){initAudio();if(AC&&AC.state==='suspended')AC.resume();setMode('play');toast('COMMIT CRIMES. GET PROMOTED. LEARN NOTHING','y')}
@@ -500,18 +544,20 @@ function update(dt){time+=dt;
     const dx=n.tx-n.x,dy=n.ty-n.y,d=Math.hypot(dx,dy),sp=n.sp*(n.state==='flee'?3:1);
     if(d<5||!n.dx&&!n.dy)npcPick(n);else{n.x+=dx/d*sp*dt;n.y+=dy/d*sp*dt;n.ang=Math.atan2(dy,dx);n.ph+=dt*sp*.09}}
   // heat + agents
-  let close=false;for(const a of agents)if(Math.hypot(a.x-P.x,a.y-P.y)<520)close=true;
-  S.heat=Math.max(0,S.heat-dt*(close?.03:.085));
-  const want=Math.floor(S.heat);
-  while(agents.length>want){let fi=0,fd=-1;agents.forEach((a,i)=>{const d=Math.hypot(a.x-P.x,a.y-P.y);if(d>fd){fd=d;fi=i}});agents.splice(fi,1)}
-  if(agents.length<want){const[tx,ty]=randTile((t,x,y)=>{if(t===2)return false;const d=Math.hypot((x+.5)*TS-P.x,(y+.5)*TS-P.y);return d>520&&d<900});
-    agents.push({x:(tx+.5)*TS,y:(ty+.5)*TS,ang:0,ph:0,car:agents.length>=3})}
+  let closeS=false,closeD=false;for(const a of agents)if(Math.hypot(a.x-P.x,a.y-P.y)<520){if(a.kind==='sec')closeS=true;else closeD=true}
+  S.immune=Math.max(0,S.immune-dt);S.heat=Math.max(0,S.heat-dt*(closeS?.03:.085)*(S.immune>0?2.5:1));S.drama=Math.max(0,S.drama-dt*(closeD?.012:.035));
+  for(const sec of[true,false]){const want=Math.floor(sec?S.heat:S.drama),mine=agents.filter(a=>(a.kind==='sec')===sec);
+    if(mine.length>want){let far=mine[0],fd=-1;for(const a of mine){const d=Math.hypot(a.x-P.x,a.y-P.y);if(d>fd){fd=d;far=a}}agents.splice(agents.indexOf(far),1)}
+    else if(mine.length<want){const[tx,ty]=randTile((t,x,y)=>{if(t===2)return false;const d=Math.hypot((x+.5)*TS-P.x,(y+.5)*TS-P.y);return d>520&&d<900});
+      const kind=sec?'sec':mine.some(a=>a.kind==='wife')?'ex':'wife';
+      agents.push({x:(tx+.5)*TS,y:(ty+.5)*TS,ang:0,ph:0,kind,car:mine.length>=3,name:kind==='ex'?(S.exes[S.exes.length-mine.length]||pick(WOMEN)):'Your wife'});
+      if(kind==='wife'){toast('YOUR WIFE SAW THE TEXTS');sfx('siren')}else if(kind==='ex')toast(agents[agents.length-1].name.toUpperCase()+' WANTS A WORD')}}
   flowT-=dt;if(flowT<=0){flowT=.35;buildFlow()}
   for(const a of agents){const tx=Math.floor(a.x/TS),ty=Math.floor(a.y/TS);let gx=P.x,gy=P.y;const here=flow[tx+ty*MW];
     if(here>1){let best=here;for(const[dx,dy]of D4){const nx=tx+dx,ny=ty+dy;if(tile(nx,ny)===2)continue;const f=flow[nx+ny*MW];if(f>=0&&f<best){best=f;gx=(nx+.5)*TS;gy=(ny+.5)*TS}}}
-    const dx=gx-a.x,dy=gy-a.y,d=Math.hypot(dx,dy)||1,sp=a.car?335:150+S.heat*11;
+    const dx=gx-a.x,dy=gy-a.y,d=Math.hypot(dx,dy)||1,sp=a.kind==='sec'?(a.car?335:150+S.heat*11):(a.car?320:156+S.drama*9);
     moveCircle(a,dx/d*sp*dt,dy/d*sp*dt,12);a.ang=Math.atan2(dy,dx);a.ph+=dt*13;
-    if(Math.hypot(a.x-P.x,a.y-P.y)<(P.veh?30:24)){bust();return}}
+    if(Math.hypot(a.x-P.x,a.y-P.y)<(P.veh?30:24)){bust(a);return}}
   for(let i=0;i<agents.length;i++)for(let j=i+1;j<agents.length;j++){const a=agents[i],b=agents[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
     if(d<26&&d>0){const p=(26-d)/2;moveCircle(a,-dx/d*p,-dy/d*p,12);moveCircle(b,dx/d*p,dy/d*p,12)}}
   // timers
@@ -521,9 +567,10 @@ function update(dt){time+=dt;
   near.poi=null;for(const p of POIS)if(Math.hypot(p.x-P.x,p.y-P.y)<64)near.poi=p;
   near.veh=null;if(!P.veh){let bd=58;for(const v of vehicles){const d=Math.hypot(v.x-P.x,v.y-P.y);if(d<bd){bd=d;near.veh=v}}}
   near.npc=null;{let bd=P.veh&&P.veh.type==='segway'?130:P.veh?75:62;for(const n of npcs){if(n.cd>0||n.state==='down')continue;const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<bd){bd=d;near.npc=n}}}
+  near.fl=null;{let bd=P.veh?80:64;for(const n of npcs){if(!n.fl||n.had||n.state==='down')continue;const d=Math.hypot(n.x-P.x,n.y-P.y);if(d<bd){bd=d;near.fl=n}}}
 }
-function poiAvail(p){if(p.id==='hq'&&S.clout>=NEED[S.rank])return 2;if(p.tip)return S.cash>=p.tip[1]?1:0;if(p.id==='lobby')return S.heat>=1?1:0;
-  for(const a of ACTIONS)if(a.p===p.id&&a.r<=S.rank&&a.t<=0&&!(a.h<0&&S.heat<.5&&a.cash===0))return 1;return 0}
+function poiAvail(p){if(p.id==='hq'&&S.clout>=NEED[S.rank])return 2;if(p.tip)return S.cash>=p.tip[1]?1:0;if(p.id==='lobby')return S.heat>=1?1:0;if(p.id==='jewel')return S.drama>=1?1:0;if(p.id==='spy')return S.secrets>0?1:0;
+  for(const a of ACTIONS)if(a.p===p.id&&a.r<=S.rank&&a.t<=0&&S.cash>=(a.cost||0)&&!(a.sec&&S.secrets>=3)&&!(a.h<0&&S.heat<.5&&a.cash===0))return 1;return 0}
 
 /* ---------- rendering ---------- */
 function ell(x,y,rx,ry,st){cx.beginPath();cx.ellipse(x,y,rx,ry,0,0,TAU);cx.fill();if(st)cx.stroke()}
@@ -583,15 +630,18 @@ function render(){
     cx.fillStyle=av===2?PINK:av?YEL:'#b9b2cc';cx.strokeStyle=INK;cx.lineWidth=4;cx.globalAlpha=.9;ell(0,0,30*pu,30*pu,true);cx.globalAlpha=1;
     cx.rotate(time*1.5);cx.setLineDash([10,9]);cx.lineWidth=3;cx.beginPath();cx.arc(0,0,40,0,TAU);cx.stroke();cx.setLineDash([]);cx.restore();
     cx.font='34px '+DISPLAY;cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle=av?INK:'#6b6385';cx.fillText(av===2?'!':'$',p.x,p.y+3);}
+  person(SPY.x+30,SPY.y-6,PI*.75,0,{body:'#c9a66b',skin:'#e0ac7e',hair:'#3b2a1a',glass:true,shoe:'#3b2a1a'});
   // parked vehicles
   for(const v of vehicles)if(v!==P.veh&&vis(v.x,v.y,60))drawVeh(v,false);
   // npcs
   for(const n of npcs){if(!vis(n.x,n.y,40))continue;
     person(n.x,n.y,n.ang,n.ph,{body:n.col,skin:n.skin,hair:n.hair,moving:n.state!=='down',lan:n.emp});
+    if(n.fl&&!n.had)label('♥',n.x,n.y-28+Math.sin(time*5+n.ph)*3,18,PINK);
     if(n.state==='down'){for(let i=0;i<3;i++){const a=time*6+i*2.1;label('★',n.x+Math.cos(a)*18,n.y-18+Math.sin(a)*6,14,YEL)}}
     if(n.state==='flee'){cx.fillStyle=CYAN;for(let i=0;i<2;i++)ell(n.x+(i?9:-9)+Math.sin(time*20+i)*2,n.y-12-((time*40+i*9)%14),2.5,3.5)}}
   // agents
-  for(const a of agents){if(a.car){drawVehAgent(a)}else person(a.x,a.y,a.ang,a.ph,{body:'#8d8799',skin:'#f0c8a0',hair:'#3b2a1a',out:'#c8102e',moving:true,tie:'#c8102e',glass:true})}
+  for(const a of agents){if(a.car){drawVehAgent(a)}else if(a.kind==='sec')person(a.x,a.y,a.ang,a.ph,{body:'#8d8799',skin:'#f0c8a0',hair:'#3b2a1a',out:'#c8102e',moving:true,tie:'#c8102e',glass:true});
+    else person(a.x,a.y,a.ang,a.ph,{body:a.kind==='wife'?'#7b3cff':'#ff5a5a',skin:'#f6d2b0',hair:a.kind==='wife'?'#c98b2b':'#111',out:PINK,moving:true})}
   // player
   if(P.veh){drawVeh(P.veh,true);if(P.veh.type!=='towncar')person(P.x,P.y,P.ang,0,PSTYLE)}else person(P.x,P.y,P.ang,P.ph,PSTYLE);
   if(P.boost>0){cx.strokeStyle=YEL;cx.lineWidth=3;cx.setLineDash([6,8]);cx.beginPath();cx.arc(P.x,P.y,26,time*4,time*4+TAU);cx.stroke();cx.setLineDash([])}
@@ -622,7 +672,7 @@ function render(){
     cx.restore()}
   // labels + bubbles + floaters
   for(const p of POIS){const d=Math.hypot(p.x-P.x,p.y-P.y);if(d<300&&d>64)label(p.s,p.x,p.y-52+Math.sin(time*4)*4,22,YEL,-.06)}
-  for(const a of agents)if(vis(a.x,a.y,40))label('SEC',a.x,a.y-30,17,'#ff5a5a');
+  for(const a of agents)if(vis(a.x,a.y,40))label(a.kind==='sec'?'SEC':a.kind==='wife'?'WIFE':a.name+' (EX)',a.x,a.y-30,17,a.kind==='sec'?'#ff5a5a':'#ff8fc0');
   cx.font='800 13px Rubik,system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
   for(const n of npcs){if(n.bt<=0||!n.bub||!vis(n.x,n.y,150))continue;const w=cx.measureText(n.bub).width+16,bx=n.x-w/2,by=n.y-52;
     cx.fillStyle='#fff';cx.strokeStyle=INK;cx.lineWidth=3;cx.beginPath();cx.roundRect(bx,by,w,24,8);cx.fill();cx.stroke();
@@ -639,21 +689,22 @@ function render(){
   if(joy.on){cx.globalAlpha=.5;cx.fillStyle=INK;ell(joy.ox,joy.oy,54,54);cx.fillStyle=YEL;ell(joy.ox+joy.x*50,joy.oy+joy.y*50,24,24);cx.globalAlpha=1}
   // minimap
   const g=mmx;g.drawImage(mmBase,0,0);for(const p of POIS){const av=poiAvail(p);g.fillStyle=av===2?PINK:av?YEL:'#6b6385';g.fillRect(p.x/TS*2-2,p.y/TS*2-2,5,5)}
-  g.fillStyle='#ff3b3b';for(const a of agents)g.fillRect(a.x/TS*2-2,a.y/TS*2-2,4,4);
+  for(const a of agents){g.fillStyle=a.kind==='sec'?'#ff3b3b':'#ff8fc0';g.fillRect(a.x/TS*2-2,a.y/TS*2-2,4,4)}
   g.fillStyle=Math.sin(time*8)>0?'#fff':CYAN;g.fillRect(P.x/TS*2-3,P.y/TS*2-3,6,6);
 }
-function drawVehAgent(a){cx.save();cx.translate(a.x,a.y);cx.rotate(a.ang);cx.fillStyle='#f6f1e7';cx.strokeStyle='#c8102e';cx.lineWidth=3;cx.beginPath();cx.roundRect(-28,-14,56,28,7);cx.fill();cx.stroke();
-  cx.fillStyle='#3a3357';cx.fillRect(2,-10,10,20);cx.fillRect(-20,-10,7,20);cx.fillStyle=Math.sin(time*18)>0?'#ff3b3b':'#2b6bff';cx.fillRect(-8,-8,6,16);cx.restore()}
+function drawVehAgent(a){cx.save();cx.translate(a.x,a.y);cx.rotate(a.ang);cx.fillStyle=a.kind==='sec'?'#f6f1e7':a.kind==='wife'?'#c9a66b':'#ff5a5a';cx.strokeStyle=a.kind==='sec'?'#c8102e':PINK;cx.lineWidth=3;cx.beginPath();cx.roundRect(-28,-14,56,28,7);cx.fill();cx.stroke();
+  cx.fillStyle='#3a3357';cx.fillRect(2,-10,10,20);cx.fillRect(-20,-10,7,20);if(a.kind==='sec'){cx.fillStyle=Math.sin(time*18)>0?'#ff3b3b':'#2b6bff';cx.fillRect(-8,-8,6,16)}cx.restore()}
 const mmx=$('mm').getContext('2d');
-const heatEls=[...document.querySelectorAll('#heat i')];
+const heatEls=[...document.querySelectorAll('#heat i')],dramaEls=[...document.querySelectorAll('#drama i')];
 function hud(){$('rank').textContent=RANKS[S.rank];$('cash').textContent=fmt(S.cash);
   const prev=S.rank?NEED[S.rank-1]:0,need=NEED[S.rank];
   $('clouttxt').textContent='CLOUT '+S.clout+' / '+need;$('cloutfill').style.width=clamp((S.clout-prev)/(need-prev)*100,0,100)+'%';
-  heatEls.forEach((e,i)=>e.classList.toggle('on',S.heat>i+.001&&(S.heat>=i+1||S.heat>i)));
-  $('goal').textContent=S.clout>=need?(S.rank===9?'The board is waiting at Synergex Tower':'Promotion waiting at Synergex Tower'):S.heat>=1?'SEC agents inbound. Ride something. Shred or bribe to cool off.':S.rank===0&&S.clout<20?'Stand on the $ outside a building and press E':'';
+  heatEls.forEach((e,i)=>e.classList.toggle('on',S.heat>i+.001));dramaEls.forEach((e,i)=>e.classList.toggle('on',S.drama>i+.001));
+  $('goal').textContent=S.clout>=need?(S.rank===9?'The board is waiting at Synergex Tower':'Promotion waiting at Synergex Tower'):S.heat>=1?'SEC agents inbound. Ride something. Shred or bribe to cool off.':S.drama>=1?'Your love life is catching up. Outrun it or buy jewelry.':S.immune>0?'City Hall immunity: '+Math.ceil(S.immune)+'s':S.secrets?'Trade secrets in your jacket: '+S.secrets+'. Find the spy.':S.rank===0&&S.clout<20?'Stand on the $ outside a building and press E':'';
   const pr=[];
   if(mode==='play'){if(near.poi)pr.push('<span><b>E</b> '+near.poi.name+'</span>');
     if(P.veh)pr.push('<span><b>R</b> Hop off the '+VT[P.veh.type].name+'</span>');else if(near.veh)pr.push('<span><b>R</b> Ride the '+VT[near.veh.type].name+'</span>');
+    if(near.fl)pr.push('<span><b>G</b> Flirt with '+near.fl.name+'</span>');
     if(near.npc)pr.push('<span><b>F</b> '+(near.npc.emp?'Harass '+near.npc.name:'Bother a stranger')+'</span>')}
   const h=pr.join('');if(h!==hud.last){$('prompt').innerHTML=h;hud.last=h}}
 let last=0;
@@ -666,6 +717,6 @@ function frame(t){requestAnimationFrame(frame);const dt=Math.min(.05,(t-last)/10
   shake=Math.max(0,shake-dt);if(matchMedia('(prefers-reduced-motion:reduce)').matches)shake=0;
   render();hud()}
 resize();buildFlow();requestAnimationFrame(frame);
-window.__wcc={S,P,get mode(){return mode},POIS,ACTIONS};
+window.__wcc={S,P,get mode(){return mode},POIS,ACTIONS,npcs:()=>npcs};
 })();
 </script>
