@@ -2,7 +2,7 @@
 
 A top-down open-city crime game about failing upward. You are Jet Wong, an unpaid intern in a black leather jacket, and the only way up the corporate ladder is fraud.
 
-- **Crimes:** stand on the `$` marker outside a building and press `E`. Each crime is a timing minigame; better timing means more cash and clout, sloppy timing means SEC heat.
+- **Crimes:** stand on the `$` marker outside a building and press `E`. Each crime is one of four minigames: stop the needle, spray-sign a forged signature by dragging through the marks, mash to shred, or punch in an arrow code. Do it well for more cash and clout; botch it and the SEC notices.
 - **Promotions:** fill the clout bar, then return to Synergex Tower. Ten ranks, Unpaid Intern to CEO, then a golden parachute.
 - **Rides:** e-scooters from the start, Segways at Middle Manager, a Towncar with a private driver at VP of Vibes.
 - **Being awful:** harass employees (`F`), never tip at the coffee shops (the no-tip button fights back), and post to LinkedOut (`L`).
