@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caption Clinic — subtitle timing repair</title>
+<meta name="description" content="Offline SRT and WebVTT timing repair: shift, stretch, edit and download subtitle cues with a before/after preview.">
+<style>
+:root{
+  --bg:#121417;--panel:#1b1e23;--panel2:#23272e;--line:#343943;--text:#eeebe3;--muted:#a3a8b1;
+  --cap:#ffd84a;--after:#57d3c2;--before:#8d929b;--err:#ff8a7a;--warn:#f4b54d;--ok:#8fd694;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 var(--sans);overflow-x:hidden}
+a{color:var(--cap)}
+header{padding:18px 16px 8px;max-width:1180px;margin:0 auto}
+h1{margin:0;font-size:1.6rem;letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+h1 .badge{font:600 .72rem/1 var(--mono);background:var(--cap);color:#1a1500;padding:6px 7px;border-radius:4px}
+.lede{margin:6px 0 0;color:var(--muted);max-width:62ch}
+main{max-width:1180px;margin:0 auto;padding:8px 12px 48px;display:grid;gap:14px}
+@media (min-width:960px){main{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}.span2{grid-column:1/-1}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+h2{margin:0 0 10px;font-size:1.05rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--muted);font-size:.85rem}
+h3{margin:14px 0 8px;font-size:.95rem;color:var(--muted);font-weight:600}
+p.help{margin:4px 0 10px;color:var(--muted);font-size:.9rem}
+button,select,input,textarea{font:inherit;color:inherit}
+button,.btn{min-height:44px;min-width:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:var(--text);touch-action:manipulation}
+button:hover{border-color:#59606c}
+button.primary{background:var(--cap);color:#1a1500;border-color:var(--cap);font-weight:650}
+button.teal{background:#1f3b38;border-color:#2f6e66}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=number],select,textarea{min-height:44px;background:#0f1114;border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical}
+input.time{font-family:var(--mono);font-size:.95rem}
+:focus{outline:none}
+:focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 6px rgba(255,216,74,.55)}
+[aria-invalid=true]{border-color:var(--err)!important}
+label{display:block;font-size:.88rem;color:var(--muted);margin-bottom:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row>*{flex:0 0 auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.field{min-width:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+#status{min-height:1.4em;margin:8px 0 0;font-size:.92rem}
+#status.err{color:var(--err)}
+#status.ok{color:var(--ok)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:10px;margin-top:8px}
+.drop.over{border-color:var(--cap);background:#2a2614}
+/* preview screens */
+.screens{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.screen{position:relative;aspect-ratio:16/10;border-radius:8px;overflow:hidden;background:
+  radial-gradient(120% 90% at 30% 20%,#3a4250 0%,#1e232b 55%,#0c0e11 100%);border:1px solid var(--line)}
+.screen .tag{position:absolute;top:6px;left:6px;font:600 .7rem/1 var(--mono);padding:4px 6px;border-radius:4px;background:#000a;color:var(--muted)}
+.screen.after .tag{color:var(--after)}
+.screen .cap{position:absolute;left:6%;right:6%;bottom:8%;text-align:center;font-weight:600;font-size:clamp(.72rem,2.6vw,1.05rem);line-height:1.3;white-space:pre-line}
+.screen .cap span{background:rgba(0,0,0,.78);color:#fff;padding:2px 6px;border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.screen.after .cap span{box-shadow:inset 0 -2px 0 var(--after)}
+.transport{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:10px}
+#clock{font:600 .95rem var(--mono);min-width:9ch;text-align:right}
+input[type=range]{width:100%;min-height:44px;accent-color:var(--cap);margin:0}
+/* timeline */
+.tl{margin-top:10px;user-select:none;-webkit-user-select:none}
+.lane{position:relative;height:48px;background:#0f1114;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:4px;touch-action:pan-y}
+.lane.after{height:56px}
+.lanelabel{font:600 .72rem var(--mono);color:var(--muted);display:flex;justify-content:space-between}
+.blk{position:absolute;top:6px;bottom:6px;border-radius:5px;font-size:.7rem;line-height:1.1;padding:3px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:6px}
+.lane.before .blk{border:1px dashed var(--before);color:var(--before);background:#20232a}
+.lane.after .blk{border:1px solid #2f8d80;background:#173a36;color:#d9f6f1;cursor:grab;touch-action:none;min-height:0;min-width:6px;display:block;text-align:left;justify-content:flex-start}
+.lane.after .blk.sel{background:var(--after);color:#082320;border-color:#fff}
+.lane.after .blk.bad{border-color:var(--err)}
+.lane.after .blk:focus-visible{outline-offset:-3px}
+.ph{position:absolute;top:0;bottom:0;width:2px;background:var(--cap);pointer-events:none}
+.ticks{position:relative;height:16px;font:.68rem var(--mono);color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+/* editor */
+.nudges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:6px}
+.nudges button{padding:6px 4px;font-size:.85rem;font-family:var(--mono)}
+.delta{font:.82rem var(--mono);color:var(--muted);margin-top:4px;min-height:1.2em}
+.delta b{color:var(--after);font-weight:600}
+/* list */
+.list{list-style:none;margin:0;padding:0;max-height:480px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.list li+li{border-top:1px solid var(--line)}
+.list button{width:100%;border:0;border-radius:0;background:transparent;justify-content:flex-start;text-align:left;display:grid;grid-template-columns:3.2ch 1fr;gap:4px 10px;padding:8px 10px}
+.list button[aria-current=true]{background:#24312f;box-shadow:inset 4px 0 0 var(--after)}
+.list .n{font:600 .8rem var(--mono);color:var(--muted)}
+.list .t{font:.8rem var(--mono);color:var(--muted)}
+.list .x{grid-column:2;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.list .iss{grid-column:2;font-size:.78rem}
+.e{color:var(--err)}.w{color:var(--warn)}
+.issues{margin:0;padding:10px 12px;border-radius:8px;background:#0f1114;border:1px solid var(--line);font-size:.9rem}
+.issues.clean{border-color:#2f5e35}
+details{margin-top:8px}
+summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--muted)}
+pre.out{white-space:pre-wrap;word-break:break-word;font:.78rem var(--mono);max-height:200px;overflow:auto;background:#0f1114;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0 0}
+.check{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--text);font-size:.92rem;margin:0}
+.check input{width:22px;height:22px;accent-color:var(--after)}
+footer{max-width:1180px;margin:0 auto;padding:0 16px 30px;color:var(--muted);font-size:.85rem}
+@media (max-width:420px){.grid3{grid-template-columns:1fr 1fr}.nudges{grid-template-columns:repeat(2,minmax(0,1fr))}.transport{grid-template-columns:auto 1fr}#clock{grid-column:1/-1;text-align:left}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Caption Clinic <span class="badge">SRT · VTT</span></h1>
+  <p class="lede">Bring in subtitles that drift, overlap or arrive late. Shift or stretch the whole track, nudge single cues, fix the text, then download a repaired file. Everything runs in this page — nothing is uploaded or stored.</p>
+</header>
+<main>
+  <section class="span2" aria-labelledby="h-in">
+    <h2 id="h-in">1 · Bring in cues <small id="loadedInfo">nothing loaded</small></h2>
+    <div class="row">
+      <button type="button" class="primary" id="btnSample">Load synthetic sample</button>
+      <label class="btn" for="file" style="margin:0;color:var(--text);font-size:1rem">Choose .srt / .vtt file</label>
+      <input type="file" id="file" accept=".srt,.vtt,.txt,text/vtt,application/x-subrip,text/plain" class="sr">
+    </div>
+    <details id="pasteBox">
+      <summary>Or paste subtitle text</summary>
+      <div class="drop" id="drop">
+        <label for="paste">Paste SRT or WebVTT text (you can also drop a file here)</label>
+        <textarea id="paste" rows="6" spellcheck="false" placeholder="1&#10;00:00:01,000 --> 00:00:03,000&#10;First line of dialogue"></textarea>
+        <div class="row" style="margin-top:8px"><button type="button" class="teal" id="btnParse">Read pasted text</button></div>
+      </div>
+    </details>
+    <p id="status" role="status" aria-live="polite"></p>
+    <ul id="warnList" class="muted" style="margin:0;padding-left:20px;font-size:.88rem"></ul>
+  </section>
+
+  <section aria-labelledby="h-pv">
+    <h2 id="h-pv">2 · Before / after preview</h2>
+    <p class="help">“Before” is the file as imported; “After” is your repaired version. Play or scrub to compare.</p>
+    <div class="screens">
+      <div class="screen before" aria-label="Before preview"><span class="tag">BEFORE</span><div class="cap" id="capBefore"></div></div>
+      <div class="screen after" aria-label="After preview"><span class="tag">AFTER</span><div class="cap" id="capAfter" aria-live="off"></div></div>
+    </div>
+    <div class="transport">
+      <button type="button" id="btnPlay" aria-label="Play preview">▶</button>
+      <div><label for="scrub" class="sr">Preview position</label><input type="range" id="scrub" min="0" max="1000" step="10" value="0"></div>
+      <span id="clock" aria-live="off">00:00.000</span>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label for="zoom" class="sr">Timeline zoom</label>
+      <select id="zoom" style="width:auto"><option value="10000">10 s window</option><option value="20000" selected>20 s window</option><option value="60000">1 min window</option><option value="180000">3 min window</option></select>
+      <label for="speed" class="sr">Playback speed</label>
+      <select id="speed" style="width:auto"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+    </div>
+    <div class="tl" id="tl">
+      <div class="ticks" id="ticks" aria-hidden="true"></div>
+      <div class="lanelabel"><span>BEFORE (imported)</span></div>
+      <div class="lane before" id="laneBefore" aria-hidden="true"></div>
+      <div class="lanelabel"><span>AFTER — drag a block, or focus it and use ← → (Shift = 1 s)</span></div>
+      <div class="lane after" id="laneAfter" role="group" aria-label="Repaired cues on timeline"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-ed">
+    <h2 id="h-ed">3 · Selected cue <small id="selInfo"></small></h2>
+    <div id="editor">
+      <p class="help" id="noSel">Load cues, then pick one from the list or timeline.</p>
+      <div id="edBody" hidden>
+        <div class="grid2">
+          <div class="field"><label for="edStart">Start</label><input type="text" class="time" id="edStart" spellcheck="false" autocomplete="off" aria-describedby="timeHelp"></div>
+          <div class="field"><label for="edEnd">End</label><input type="text" class="time" id="edEnd" spellcheck="false" autocomplete="off" aria-describedby="timeHelp"></div>
+        </div>
+        <p class="help" id="timeHelp" style="margin-top:4px">Type 00:01:02,500 · 1:02.5 · or seconds like 62.5, then press Enter.</p>
+        <div class="delta" id="edDelta"></div>
+        <div class="nudges" role="group" aria-label="Nudge start">
+          <button type="button" data-n="start" data-d="-100" aria-label="Start 100 milliseconds earlier">S −0.1</button>
+          <button type="button" data-n="start" data-d="100" aria-label="Start 100 milliseconds later">S +0.1</button>
+          <button type="button" data-n="end" data-d="-100" aria-label="End 100 milliseconds earlier">E −0.1</button>
+          <button type="button" data-n="end" data-d="100" aria-label="End 100 milliseconds later">E +0.1</button>
+        </div>
+        <div class="nudges" role="group" aria-label="Move whole cue">
+          <button type="button" data-n="both" data-d="-1000" aria-label="Move cue 1 second earlier">⇤ −1 s</button>
+          <button type="button" data-n="both" data-d="-100" aria-label="Move cue 100 milliseconds earlier">← −0.1</button>
+          <button type="button" data-n="both" data-d="100" aria-label="Move cue 100 milliseconds later">+0.1 →</button>
+          <button type="button" data-n="both" data-d="1000" aria-label="Move cue 1 second later">+1 s ⇥</button>
+        </div>
+        <label for="edText" style="margin-top:10px">Cue text</label>
+        <textarea id="edText" rows="3"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button type="button" id="btnPrev" aria-label="Previous cue">◀ Prev</button>
+          <button type="button" id="btnNext" aria-label="Next cue">Next ▶</button>
+          <button type="button" id="btnSeek">Play from here</button>
+          <button type="button" id="btnInsert">Insert after</button>
+          <button type="button" id="btnDelete">Delete</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-track">
+    <h2 id="h-track">4 · Whole-track repair</h2>
+    <div class="row" style="margin-bottom:6px">
+      <label for="scope" style="margin:0">Apply to</label>
+      <select id="scope" style="width:auto"><option value="all">All cues</option><option value="from">Selected cue onward</option></select>
+    </div>
+    <h3>Offset</h3>
+    <div class="row">
+      <div class="field" style="flex:1 1 140px"><label for="offMs">Milliseconds (negative = earlier)</label><input type="number" id="offMs" step="100" value="-1800" inputmode="numeric"></div>
+      <button type="button" class="teal" id="btnOffset" style="align-self:flex-end">Shift</button>
+    </div>
+    <div class="grid3" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:8px" role="group" aria-label="Quick offsets">
+      <button type="button" data-off="-1000">−1 s</button><button type="button" data-off="-100">−0.1 s</button>
+      <button type="button" data-off="100">+0.1 s</button><button type="button" data-off="1000">+1 s</button>
+    </div>
+    <p class="help">Times that would go below zero are clamped to 0:00 and reported.</p>
+
+    <h3>Stretch</h3>
+    <div class="grid2">
+      <div class="field"><label for="factor">Factor (×)</label><input type="number" id="factor" step="0.0001" min="0.1" max="10" value="1"></div>
+      <div class="field"><label for="preset">Frame-rate presets</label>
+        <select id="preset">
+          <option value="">Choose…</option>
+          <option value="0.95904">23.976 → 25 fps (×0.95904)</option>
+          <option value="1.04271">25 → 23.976 fps (×1.04271)</option>
+          <option value="0.96">24 → 25 fps (×0.96)</option>
+          <option value="1.041667">25 → 24 fps (×1.041667)</option>
+          <option value="0.999">29.97 → 30 fps (×0.999)</option>
+          <option value="1.001001">30 → 29.97 fps (×1.001001)</option>
+        </select></div>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <div class="field"><label for="anchorMode">Anchor (stays fixed)</label>
+        <select id="anchorMode"><option value="first">First cue start</option><option value="sel">Selected cue start</option><option value="custom">Custom time</option></select></div>
+      <div class="field"><label for="anchorTime">Custom anchor time</label><input type="text" class="time" id="anchorTime" value="0:00.000" disabled spellcheck="false"></div>
+    </div>
+    <p class="help" id="stretchPreview" aria-live="polite"></p>
+    <button type="button" class="teal" id="btnStretch">Stretch</button>
+
+    <h3>Two-point sync</h3>
+    <p class="help">Know where two cues should really start? Enter their numbers and true times; the clinic computes the stretch and shift.</p>
+    <div class="grid2">
+      <div class="field"><label for="tpA">Cue #</label><input type="number" id="tpA" min="1" value="1" inputmode="numeric"></div>
+      <div class="field"><label for="tpAt">should start at</label><input type="text" class="time" id="tpAt" spellcheck="false" placeholder="0:01.200"></div>
+      <div class="field"><label for="tpB">Cue #</label><input type="number" id="tpB" min="1" value="2" inputmode="numeric"></div>
+      <div class="field"><label for="tpBt">should start at</label><input type="text" class="time" id="tpBt" spellcheck="false" placeholder="0:40.000"></div>
+    </div>
+    <p class="help" id="tpInfo" aria-live="polite"></p>
+    <button type="button" class="teal" id="btnTwoPoint">Apply two-point sync</button>
+
+    <h3>Tidy</h3>
+    <div class="row">
+      <button type="button" id="btnSort">Sort by start</button>
+      <button type="button" id="btnTrim">Trim overlaps</button>
+      <button type="button" id="btnUndo" disabled>Undo</button>
+      <button type="button" id="btnReset">Reset to imported</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-list">
+    <h2 id="h-list">5 · Cues <small id="countInfo"></small></h2>
+    <div class="issues" id="issues" role="status" aria-live="polite">No cues yet.</div>
+    <div class="row" style="margin:8px 0">
+      <label class="check"><input type="checkbox" id="onlyBad"> Show only cues with problems</label>
+      <button type="button" id="btnNextBad">Next problem</button>
+    </div>
+    <ol class="list" id="list" aria-label="Cue list"></ol>
+  </section>
+
+  <section aria-labelledby="h-out">
+    <h2 id="h-out">6 · Download</h2>
+    <div class="field"><label for="fname">File name (without extension)</label><input type="text" id="fname" value="captions-repaired" spellcheck="false"></div>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="primary" id="btnSrt">Download .srt</button>
+      <button type="button" class="primary" id="btnVtt">Download .vtt</button>
+      <button type="button" id="btnCopy">Copy SRT text</button>
+    </div>
+    <p class="help" id="exportNote">SRT export renumbers cues 1…n and drops WebVTT position settings. WebVTT export keeps cue settings and identifiers. Cues with no text are left out of both.</p>
+    <details><summary>Preview SRT output</summary><pre class="out" id="outPreview"></pre></details>
+  </section>
+</main>
+<footer>Caption Clinic works offline from a single file. Imported text stays in this tab and disappears when you close it. Styling tags such as &lt;i&gt; are kept as plain text.</footer>
+
+<script id="core">
+/* Pure subtitle logic — no DOM. Tested separately. */
+const CC = (() => {
+  let uidSeq = 0;
+  const uid = () => 'c' + (++uidSeq);
+
+  // Timestamp: [hh:]mm:ss[,.]fff  — fraction 1–3 digits, padded on the right.
+  function parseStamp(s) {
+    const m = /^(?:(\d+):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/.exec(String(s).trim());
+    if (!m) return NaN;
+    const h = m[1] ? +m[1] : 0, mi = +m[2], se = +m[3];
+    const f = m[4] ? +(m[4] + '00').slice(0, 3) : 0;
+    if (se > 59 || (m[1] && mi > 59)) return NaN;
+    return ((h * 60 + mi) * 60 + se) * 1000 + f;
+  }
+  // UI input: timestamp, or plain seconds ("62.5").
+  function parseInputTime(s) {
+    s = String(s).trim();
+    if (/^\d+(?:\.\d+)?$/.test(s)) return Math.round(parseFloat(s) * 1000);
+    return parseStamp(s);
+  }
+  function pad(n, w) { return String(n).padStart(w, '0'); }
+  function formatTime(ms, fmt) {
+    ms = Math.max(0, Math.round(ms));
+    const h = Math.floor(ms / 3600000), mi = Math.floor(ms / 60000) % 60, se = Math.floor(ms / 1000) % 60, f = ms % 1000;
+    return pad(h, 2) + ':' + pad(mi, 2) + ':' + pad(se, 2) + (fmt === 'vtt' ? '.' : ',') + pad(f, 3);
+  }
+  function formatShort(ms) {
+    const neg = ms < 0; ms = Math.abs(Math.round(ms));
+    const h = Math.floor(ms / 3600000), mi = Math.floor(ms / 60000) % 60, se = Math.floor(ms / 1000) % 60, f = ms % 1000;
+    return (neg ? '−' : '') + (h ? h + ':' + pad(mi, 2) : pad(mi, 2)) + ':' + pad(se, 2) + '.' + pad(f, 3);
+  }
+  function formatDelta(ms) {
+    if (!ms) return '±0';
+    return (ms > 0 ? '+' : '−') + (Math.abs(ms) / 1000).toFixed(3).replace(/\.?0+$/, '') + ' s';
+  }
+
+  function parse(input) {
+    const text = String(input == null ? '' : input).replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+    const lines = text.split('\n');
+    const format = /^WEBVTT(?:[ \t].*)?$/.test((lines[0] || '').trim()) ? 'vtt' : 'srt';
+    const cues = [], warnings = [];
+    let cur = null, label = null, labelLine = 0, inHeader = format === 'vtt', skip = false;
+    const finish = () => {
+      if (!cur) return;
+      while (cur.lines.length && !cur.lines[cur.lines.length - 1].trim()) cur.lines.pop();
+      cur.text = cur.lines.join('\n').trim();
+      delete cur.lines;
+      cues.push(cur); cur = null;
+    };
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i], t = raw.trim(), ln = i + 1;
+      if (!t) {
+        finish();
+        if (label !== null) warnings.push(`Line ${labelLine}: “${label.slice(0, 40)}” has no timing line — skipped.`);
+        label = null; inHeader = false; skip = false; continue;
+      }
+      if (inHeader || skip) continue;
+      const ai = t.indexOf('-->');
+      if (ai >= 0) {
+        // A timing line. If the previous cue had no blank line after it, its last numeric line is our label.
+        if (cur) {
+          const last = cur.lines[cur.lines.length - 1];
+          let carried = null;
+          if (cur.lines.length > 1 && /^\d+$/.test((last || '').trim())) carried = cur.lines.pop().trim();
+          finish();
+          warnings.push(`Line ${ln}: missing blank line between cues — read as a new cue.`);
+          label = carried;
+        }
+        const left = t.slice(0, ai).trim();
+        const rest = t.slice(ai + 3).trim();
+        const sp = rest.search(/\s/);
+        const right = sp < 0 ? rest : rest.slice(0, sp);
+        const settings = sp < 0 ? '' : rest.slice(sp).trim();
+        const start = parseStamp(left), end = parseStamp(right);
+        if (isNaN(start) || isNaN(end)) {
+          warnings.push(`Line ${ln}: couldn't read timing “${t.slice(0, 60)}” — cue skipped.`);
+          label = null; skip = true; continue;
+        }
+        cur = { uid: uid(), label: label || '', start, end, text: '', settings: format === 'vtt' ? settings : '', line: ln, lines: [] };
+        label = null; continue;
+      }
+      if (cur) { cur.lines.push(raw.replace(/\s+$/, '')); continue; }
+      if (label === null) {
+        if (format === 'vtt' && /^(NOTE|STYLE|REGION)(\s|$)/.test(t)) { skip = true; continue; }
+        label = t; labelLine = ln; continue;
+      }
+      warnings.push(`Line ${labelLine}: text without a timing line — skipped.`);
+      label = null; skip = true;
+    }
+    finish();
+    if (label !== null) warnings.push(`Line ${labelLine}: “${label.slice(0, 40)}” has no timing line — skipped.`);
+    return { format, cues, warnings };
+  }
+
+  const clone = cues => cues.map(c => Object.assign({}, c));
+
+  // Shift by deltaMs from index `from` onward. Clamp at 0.
+  function shift(cues, deltaMs, from = 0) {
+    deltaMs = Math.round(+deltaMs);
+    if (!isFinite(deltaMs)) throw new Error('Offset must be a number of milliseconds.');
+    let clamped = 0;
+    const out = clone(cues).map((c, i) => {
+      if (i < from) return c;
+      const s = c.start + deltaMs, e = c.end + deltaMs;
+      if (s < 0 || e < 0) clamped++;
+      c.start = Math.max(0, s); c.end = Math.max(0, e);
+      return c;
+    });
+    return { cues: out, clamped };
+  }
+
+  // t' = anchor + (t - anchor) * factor
+  function stretch(cues, factor, anchor = 0, from = 0) {
+    factor = +factor; anchor = +anchor;
+    if (!isFinite(factor) || factor < 0.1 || factor > 10) throw new Error('Factor must be between 0.1 and 10.');
+    if (!isFinite(anchor) || anchor < 0) throw new Error('Anchor must be a time at or after 0.');
+    let clamped = 0;
+    const map = t => { const v = Math.round(anchor + (t - anchor) * factor); if (v < 0) { clamped++; return 0; } return v; };
+    const out = clone(cues).map((c, i) => { if (i < from) return c; c.start = map(c.start); c.end = map(c.end); return c; });
+    return { cues: out, clamped };
+  }
+
+  // Map two (old -> new) start times onto a line: returns factor & offset applied after stretching around aOld.
+  function twoPoint(aOld, aNew, bOld, bNew) {
+    if ([aOld, aNew, bOld, bNew].some(v => !isFinite(v))) throw new Error('All four times are needed.');
+    if (aOld === bOld) throw new Error('Pick two cues that start at different times.');
+    const factor = (bNew - aNew) / (bOld - aOld);
+    if (!(factor >= 0.1 && factor <= 10)) throw new Error('Those times imply a factor of ' + factor.toFixed(4) + ', which is outside 0.1–10.');
+    return { factor, anchor: aOld, offset: aNew - aOld };
+  }
+  function applyTwoPoint(cues, tp) {
+    const a = stretch(cues, tp.factor, tp.anchor);
+    const b = shift(a.cues, tp.offset);
+    return { cues: b.cues, clamped: a.clamped + b.clamped };
+  }
+
+  function sortCues(cues) {
+    return clone(cues).map((c, i) => [c, i]).sort((x, y) => x[0].start - y[0].start || x[0].end - y[0].end || x[1] - y[1]).map(p => p[0]);
+  }
+
+  function trimOverlaps(cues) {
+    const out = clone(cues); let n = 0;
+    for (let i = 0; i + 1 < out.length; i++) {
+      const c = out[i], nx = out[i + 1];
+      if (nx.start >= c.start && nx.start < c.end && nx.start > c.start) { c.end = nx.start; n++; }
+    }
+    return { cues: out, trimmed: n };
+  }
+
+  // Issues: error = will play wrongly; warn = legal but suspicious.
+  function validate(cues) {
+    const issues = [];
+    cues.forEach((c, i) => {
+      if (!(c.end > c.start)) issues.push({ i, uid: c.uid, sev: 'error', kind: 'duration', msg: 'Ends at or before it starts' });
+      if (!c.text.trim()) issues.push({ i, uid: c.uid, sev: 'warn', kind: 'empty', msg: 'No text — left out of export' });
+      if (i > 0) {
+        const p = cues[i - 1];
+        if (c.start < p.start) issues.push({ i, uid: c.uid, sev: 'error', kind: 'order', msg: 'Starts before the previous cue (out of order)' });
+        else if (c.start < p.end) issues.push({ i, uid: c.uid, sev: 'warn', kind: 'overlap', msg: 'Overlaps previous cue by ' + (p.end - c.start) + ' ms' });
+      }
+    });
+    return issues;
+  }
+
+  function cleanText(t, fmt) {
+    let s = String(t).replace(/\r\n?/g, '\n').replace(/\n[ \t]*(\n[ \t]*)+/g, '\n').trim();
+    if (fmt === 'vtt') s = s.replace(/-->/g, '->');
+    return s;
+  }
+  function serialize(cues, fmt) {
+    const kept = cues.filter(c => cleanText(c.text, fmt));
+    if (fmt === 'vtt') {
+      return 'WEBVTT\n\n' + kept.map(c => {
+        const id = c.label && !/-->/.test(c.label) ? c.label + '\n' : '';
+        return id + formatTime(c.start, 'vtt') + ' --> ' + formatTime(c.end, 'vtt') + (c.settings ? ' ' + c.settings : '') + '\n' + cleanText(c.text, 'vtt');
+      }).join('\n\n') + '\n';
+    }
+    return kept.map((c, i) => (i + 1) + '\n' + formatTime(c.start, 'srt') + ' --> ' + formatTime(c.end, 'srt') + '\n' + cleanText(c.text, 'srt')).join('\n\n') + '\n';
+  }
+
+  const activeAt = (cues, t) => cues.filter(c => c.start <= t && t < c.end);
+  const makeCue = (start, end, text) => ({ uid: uid(), label: '', start, end, text: text || '', settings: '' });
+
+  return { parseStamp, parseInputTime, formatTime, formatShort, formatDelta, parse, shift, stretch, twoPoint, applyTwoPoint, sortCues, trimOverlaps, validate, serialize, cleanText, activeAt, makeCue, clone };
+})();
+if (typeof module !== 'undefined') module.exports = CC;
+</script>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+const SAMPLE = `1
+00:00:02,600 --> 00:00:05,300
+Before we start, clear a space
+and lay down an old sheet.
+
+2
+00:00:05.900 --> 00:00:08,700
+Tip the pot on its side
+and squeeze it gently.
+
+00:00:09,100 --> 00:00:12,400
+Ease the roots out —
+don't pull by the stem.
+
+4
+00:00:15,800 --> 00:00:14,900
+Loosen the outer roots with your fingers.
+
+5
+00:00:12,200 --> 00:00:15,600
+See how they've circled the bottom?
+
+6
+00:00:17,400 --> 00:00:20,900
+Add fresh mix to the new pot,
+about a third of the way up.
+
+7
+00:00:20,500 --> 00:00:23,800
+Set the plant so the soil line
+sits just below the rim.
+8
+00:00:24,300 --> 00:00:27,000
+Fill around the sides and firm it lightly.
+
+9
+00:00:27,600 --> 00:00:30,200
+
+
+10
+00:00:30,900 --> 00:00:34,400
+Water slowly until it drains,
+then let it rest out of direct sun.
+`;
+
+const S = { orig: [], cues: [], fmt: 'srt', sel: null, t: 0, playing: false, hist: [], name: 'captions' };
+const HMAX = 60;
+
+function status(msg, kind) { const el = $('status'); el.textContent = msg; el.className = kind || ''; }
+function snapshot() { S.hist.push(CC.clone(S.cues)); if (S.hist.length > HMAX) S.hist.shift(); $('btnUndo').disabled = false; }
+function commit(cues, msg, kind) { snapshot(); S.cues = cues; render(); if (msg) status(msg, kind || 'ok'); }
+const selIndex = () => S.cues.findIndex(c => c.uid === S.sel);
+const total = () => Math.max(10000, ...S.cues.map(c => c.end), ...S.orig.map(c => c.end)) + 1500;
+
+function load(text, name) {
+  const r = CC.parse(text);
+  const w = $('warnList'); w.innerHTML = '';
+  if (!r.cues.length) { status('No cues found. Check that each cue has a line like 00:00:01,000 --> 00:00:03,000.', 'err'); r.warnings.slice(0, 8).forEach(x => { const li = document.createElement('li'); li.textContent = x; w.appendChild(li); }); return; }
+  S.orig = CC.clone(r.cues); S.cues = CC.clone(r.cues); S.fmt = r.format; S.hist = []; $('btnUndo').disabled = true;
+  S.sel = r.cues[0].uid; S.t = Math.max(0, r.cues[0].start - 500);
+  S.name = (name || 'captions').replace(/\.(srt|vtt|txt)$/i, '');
+  $('fname').value = S.name + '-repaired';
+  $('loadedInfo').textContent = `${r.cues.length} cues · ${r.format === 'vtt' ? 'WebVTT' : 'SRT'}`;
+  r.warnings.slice(0, 12).forEach(x => { const li = document.createElement('li'); li.textContent = x; w.appendChild(li); });
+  if (r.warnings.length > 12) { const li = document.createElement('li'); li.textContent = `…and ${r.warnings.length - 12} more.`; w.appendChild(li); }
+  status(`Loaded ${r.cues.length} cues${r.warnings.length ? ` with ${r.warnings.length} reading note${r.warnings.length > 1 ? 's' : ''} below` : ''}.`, 'ok');
+  render();
+}
+
+/* ---------- rendering ---------- */
+function render() { renderPreview(); renderTimeline(); renderEditor(); renderList(); renderStretchPreview(); renderOutput(); }
+
+function capHTML(cues) { return CC.activeAt(cues, S.t).map(c => '<span>' + esc(c.text) + '</span>').join('<br>'); }
+function renderPreview() {
+  const T = total();
+  const sc = $('scrub'); sc.max = T; sc.value = S.t;
+  sc.setAttribute('aria-valuetext', CC.formatShort(S.t));
+  $('clock').textContent = CC.formatShort(S.t);
+  $('capBefore').innerHTML = capHTML(S.orig);
+  $('capAfter').innerHTML = capHTML(S.cues);
+}
+
+function windowStart() {
+  const W = +$('zoom').value;
+  return Math.max(0, Math.min(S.t - W * 0.3, total() - W));
+}
+function renderTimeline() {
+  const W = +$('zoom').value, ws = windowStart(), we = ws + W;
+  const pct = t => ((t - ws) / W * 100).toFixed(3) + '%';
+  const bad = new Set(CC.validate(S.cues).filter(x => x.sev === 'error').map(x => x.uid));
+  const inWin = c => c.end >= ws && c.start <= we || (c.end <= c.start && c.start >= ws && c.start <= we);
+  const blk = (c, after) => {
+    const w = Math.max(0.6, (Math.max(c.end, c.start) - c.start) / W * 100);
+    const n = S.cues.indexOf(c) + 1;
+    const txt = esc(c.text.split('\n')[0] || '(no text)');
+    if (!after) return `<div class="blk" style="left:${pct(c.start)};width:${w}%">${txt}</div>`;
+    return `<button type="button" class="blk${c.uid === S.sel ? ' sel' : ''}${bad.has(c.uid) ? ' bad' : ''}" data-uid="${c.uid}" style="left:${pct(c.start)};width:${w}%" aria-label="Cue ${n}, ${CC.formatShort(c.start)} to ${CC.formatShort(c.end)}: ${txt}. Arrow keys nudge.">${txt}</button>`;
+  };
+  const ph = `<div class="ph" style="left:${pct(S.t)}"></div>`;
+  $('laneBefore').innerHTML = S.orig.filter(inWin).map(c => blk(c, false)).join('') + ph;
+  const ae = document.activeElement, focused = ae && $('laneAfter').contains(ae) ? ae.dataset.uid : null;
+  $('laneAfter').innerHTML = S.cues.filter(inWin).map(c => blk(c, true)).join('') + ph;
+  if (focused) { const el = $('laneAfter').querySelector(`[data-uid="${focused}"]`); if (el) el.focus({ preventScroll: true }); }
+  const step = W <= 10000 ? 1000 : W <= 20000 ? 2000 : W <= 60000 ? 10000 : 30000;
+  let tk = '';
+  for (let t = Math.ceil(ws / step) * step; t <= we; t += step) tk += `<span style="left:${pct(t)}">${CC.formatShort(t).replace(/\.000$/, '')}</span>`;
+  $('ticks').innerHTML = tk;
+}
+
+function renderEditor() {
+  const i = selIndex(), has = i >= 0;
+  $('noSel').hidden = has; $('edBody').hidden = !has;
+  $('selInfo').textContent = has ? `#${i + 1} of ${S.cues.length}` : '';
+  if (!has) return;
+  const c = S.cues[i];
+  const fmt = S.fmt;
+  if (document.activeElement !== $('edStart')) { $('edStart').value = CC.formatTime(c.start, fmt); $('edStart').removeAttribute('aria-invalid'); }
+  if (document.activeElement !== $('edEnd')) { $('edEnd').value = CC.formatTime(c.end, fmt); $('edEnd').removeAttribute('aria-invalid'); }
+  if (document.activeElement !== $('edText')) $('edText').value = c.text;
+  const o = S.orig.find(x => x.uid === c.uid);
+  $('edDelta').innerHTML = o
+    ? `Was ${CC.formatShort(o.start)} → now <b>${CC.formatShort(c.start)}</b> (${CC.formatDelta(c.start - o.start)}) · length ${((c.end - c.start) / 1000).toFixed(2)} s`
+    : `New cue · length ${((c.end - c.start) / 1000).toFixed(2)} s`;
+  $('btnPrev').disabled = i <= 0; $('btnNext').disabled = i >= S.cues.length - 1;
+}
+
+function renderList() {
+  const issues = CC.validate(S.cues);
+  const by = new Map();
+  issues.forEach(x => { if (!by.has(x.uid)) by.set(x.uid, []); by.get(x.uid).push(x); });
+  const nErr = issues.filter(x => x.sev === 'error').length, nWarn = issues.length - nErr;
+  const box = $('issues');
+  $('countInfo').textContent = S.cues.length ? `${S.cues.length} total` : '';
+  if (!S.cues.length) { box.textContent = 'No cues yet.'; box.className = 'issues'; }
+  else if (!issues.length) { box.textContent = '✓ Timings are in order with no overlaps or empty cues.'; box.className = 'issues clean'; }
+  else {
+    const kinds = {};
+    issues.forEach(x => kinds[x.kind] = (kinds[x.kind] || 0) + 1);
+    const names = { duration: 'ends before it starts', order: 'out of order', overlap: 'overlapping', empty: 'empty' };
+    box.className = 'issues';
+    box.innerHTML = `<span class="${nErr ? 'e' : 'w'}">${nErr ? `${nErr} problem${nErr > 1 ? 's' : ''} to fix` : ''}${nErr && nWarn ? ' · ' : ''}${nWarn ? `${nWarn} warning${nWarn > 1 ? 's' : ''}` : ''}</span><br><span class="muted">` +
+      Object.keys(kinds).map(k => `${kinds[k]} ${names[k]}`).join(' · ') + (kinds.order ? ' — try “Sort by start”.' : kinds.overlap ? ' — overlaps are legal for two speakers; “Trim overlaps” shortens the earlier cue.' : '') + '</span>';
+  }
+  const lae = document.activeElement, lfoc = lae && $('list').contains(lae) ? lae.dataset.uid : null;
+  const only = $('onlyBad').checked;
+  const html = [];
+  S.cues.forEach((c, i) => {
+    const iss = by.get(c.uid);
+    if (only && !iss) return;
+    html.push(`<li><button type="button" data-uid="${c.uid}" aria-current="${c.uid === S.sel}"><span class="n">${i + 1}</span><span class="t">${CC.formatShort(c.start)} → ${CC.formatShort(c.end)}</span><span class="x">${esc(c.text.replace(/\n/g, ' / ') || '(no text)')}</span>${iss ? `<span class="iss">${iss.map(x => `<span class="${x.sev === 'error' ? 'e' : 'w'}">⚠ ${esc(x.msg)}</span>`).join('<br>')}</span>` : ''}</button></li>`);
+  });
+  $('list').innerHTML = html.join('') || (S.cues.length ? '<li class="muted" style="padding:12px">No problem cues.</li>' : '');
+  if (lfoc) { const el = $('list').querySelector(`[data-uid="${lfoc}"]`); if (el) el.focus({ preventScroll: true }); }
+  $('btnNextBad').disabled = !issues.length;
+}
+
+function anchorTime() {
+  const m = $('anchorMode').value;
+  if (m === 'sel') { const i = selIndex(); return i >= 0 ? S.cues[i].start : NaN; }
+  if (m === 'custom') return CC.parseInputTime($('anchorTime').value);
+  const from = scopeFrom();
+  return S.cues.length ? S.cues[Math.min(from, S.cues.length - 1)].start : 0;
+}
+function scopeFrom() { if ($('scope').value === 'from') { const i = selIndex(); return i < 0 ? 0 : i; } return 0; }
+function renderStretchPreview() {
+  const el = $('stretchPreview');
+  if (!S.cues.length) { el.textContent = ''; return; }
+  const f = +$('factor').value, a = anchorTime();
+  if (!isFinite(a)) { el.innerHTML = '<span class="e">Anchor time not readable.</span>'; return; }
+  try {
+    const r = CC.stretch(S.cues, f, a, scopeFrom());
+    const last = S.cues.length - 1;
+    el.textContent = `Anchor ${CC.formatShort(a)} stays put. Last cue would start ${CC.formatShort(S.cues[last].start)} → ${CC.formatShort(r.cues[last].start)} (${CC.formatDelta(r.cues[last].start - S.cues[last].start)}). Factor below 1 pulls cues earlier.`;
+  } catch (e) { el.innerHTML = '<span class="e">' + esc(e.message) + '</span>'; }
+}
+function renderOutput() { $('outPreview').textContent = S.cues.length ? CC.serialize(S.cues, 'srt') : ''; }
+
+/* ---------- actions ---------- */
+function select(uid, seek) {
+  S.sel = uid; const i = selIndex();
+  if (seek && i >= 0) S.t = S.cues[i].start;
+  render();
+  const li = $('list').querySelector(`[data-uid="${uid}"]`);
+  if (li) li.scrollIntoView({ block: 'nearest' });
+}
+function nudgeCue(uid, which, d) {
+  const i = S.cues.findIndex(c => c.uid === uid); if (i < 0) return;
+  const next = CC.clone(S.cues), c = next[i];
+  if (which === 'both') d = Math.max(d, -c.start);
+  if (which === 'start' || which === 'both') c.start = Math.max(0, c.start + d);
+  if (which === 'end' || which === 'both') c.end = Math.max(0, c.end + d);
+  commit(next, `Cue ${i + 1}: ${which === 'both' ? 'moved' : which + ' moved'} ${CC.formatDelta(d)}.`);
+}
+function applyShift(d) {
+  if (!S.cues.length) return status('Load cues first.', 'err');
+  try {
+    const from = scopeFrom(), r = CC.shift(S.cues, d, from);
+    commit(r.cues, `Shifted ${from ? 'cues ' + (from + 1) + '–' + S.cues.length : 'all cues'} by ${CC.formatDelta(d)}${r.clamped ? `; ${r.clamped} cue${r.clamped > 1 ? 's' : ''} clamped at 0:00` : ''}.`, r.clamped ? '' : 'ok');
+  } catch (e) { status(e.message, 'err'); }
+}
+
+$('btnSample').onclick = () => load(SAMPLE, 'repotting-sample.srt');
+$('btnParse').onclick = () => load($('paste').value, 'pasted');
+$('file').onchange = e => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; };
+function readFile(f) {
+  if (f.size > 5e6) return status('That file is over 5 MB — too large for a subtitle file.', 'err');
+  const r = new FileReader();
+  r.onload = () => load(r.result, f.name);
+  r.onerror = () => status('Could not read that file.', 'err');
+  r.readAsText(f);
+}
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
+drop.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+
+// playback
+let raf = 0, lastTs = 0;
+function tick(ts) {
+  if (!S.playing) return;
+  const dt = lastTs ? ts - lastTs : 0; lastTs = ts;
+  S.t += dt * +$('speed').value;
+  if (S.t >= total()) { S.t = total(); setPlaying(false); }
+  renderPreview(); renderTimeline();
+  if (S.playing) raf = requestAnimationFrame(tick);
+}
+function setPlaying(p) {
+  S.playing = p; lastTs = 0;
+  $('btnPlay').textContent = p ? '❚❚' : '▶'; $('btnPlay').setAttribute('aria-label', p ? 'Pause preview' : 'Play preview');
+  cancelAnimationFrame(raf); if (p) { if (S.t >= total()) S.t = 0; raf = requestAnimationFrame(tick); }
+}
+$('btnPlay').onclick = () => { if (!S.cues.length) return status('Load cues first.', 'err'); setPlaying(!S.playing); };
+$('scrub').oninput = e => { S.t = +e.target.value; renderPreview(); renderTimeline(); };
+$('zoom').onchange = renderTimeline;
+
+// timeline: seek on empty lane, drag blocks
+function laneSeek(e, lane) {
+  if (e.target.closest('.blk')) return;
+  const r = lane.getBoundingClientRect(), W = +$('zoom').value;
+  S.t = Math.max(0, windowStart() + (e.clientX - r.left) / r.width * W);
+  renderPreview(); renderTimeline();
+}
+$('laneBefore').addEventListener('pointerdown', e => laneSeek(e, $('laneBefore')));
+let drag = null;
+$('laneAfter').addEventListener('pointerdown', e => {
+  const b = e.target.closest('.blk');
+  if (!b) return laneSeek(e, $('laneAfter'));
+  const i = S.cues.findIndex(c => c.uid === b.dataset.uid); if (i < 0) return;
+  e.preventDefault();
+  drag = { uid: b.dataset.uid, x: e.clientX, s: S.cues[i].start, e: S.cues[i].end, before: CC.clone(S.cues), moved: false, w: $('laneAfter').getBoundingClientRect().width, ws: windowStart() };
+  $('laneAfter').setPointerCapture(e.pointerId);
+});
+$('laneAfter').addEventListener('pointermove', e => {
+  if (!drag) return;
+  const W = +$('zoom').value;
+  let d = Math.round((e.clientX - drag.x) / drag.w * W / 10) * 10;
+  if (!drag.moved && Math.abs(e.clientX - drag.x) < 4) return;
+  drag.moved = true;
+  d = Math.max(d, -drag.s);
+  const c = S.cues.find(x => x.uid === drag.uid); c.start = drag.s + d; c.end = drag.e + d;
+  // keep view window fixed while dragging
+  const save = S.t; S.t = drag.ws + W * 0.3; renderTimeline(); S.t = save;
+  $('clock').textContent = 'drag ' + CC.formatDelta(d);
+});
+function endDrag() {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.moved) {
+    const c = S.cues.find(x => x.uid === d.uid);
+    S.hist.push(d.before); if (S.hist.length > HMAX) S.hist.shift(); $('btnUndo').disabled = false;
+    S.sel = d.uid; render();
+    status(`Cue ${selIndex() + 1} moved ${CC.formatDelta(c.start - d.s)}.`, 'ok');
+  } else select(d.uid, false);
+}
+$('laneAfter').addEventListener('pointerup', endDrag);
+$('laneAfter').addEventListener('pointercancel', endDrag);
+$('laneAfter').addEventListener('keydown', e => {
+  const b = e.target.closest('.blk'); if (!b) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault(); S.sel = b.dataset.uid;
+    nudgeCue(b.dataset.uid, 'both', (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1000 : 100));
+  } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(b.dataset.uid, false); }
+});
+
+// editor
+document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { if (S.sel) nudgeCue(S.sel, b.dataset.n, +b.dataset.d); });
+function timeField(id, key) {
+  const el = $(id);
+  const apply = () => {
+    const i = selIndex(); if (i < 0) return;
+    const v = CC.parseInputTime(el.value);
+    if (!isFinite(v)) { el.setAttribute('aria-invalid', 'true'); status(`${key === 'start' ? 'Start' : 'End'} time not readable — try 00:01:02,500 or 62.5.`, 'err'); return; }
+    el.removeAttribute('aria-invalid');
+    if (v === S.cues[i][key]) return;
+    const next = CC.clone(S.cues); next[i][key] = v;
+    el.blur(); commit(next, `Cue ${i + 1} ${key} set to ${CC.formatShort(v)}.`);
+  };
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+  el.addEventListener('change', apply);
+}
+timeField('edStart', 'start'); timeField('edEnd', 'end');
+let textSnap = null;
+$('edText').addEventListener('focus', () => { textSnap = CC.clone(S.cues); });
+$('edText').addEventListener('input', e => {
+  const i = selIndex(); if (i < 0) return;
+  S.cues[i].text = e.target.value; renderPreview(); renderTimeline(); renderList(); renderOutput();
+});
+$('edText').addEventListener('change', () => { if (textSnap) { S.hist.push(textSnap); if (S.hist.length > HMAX) S.hist.shift(); $('btnUndo').disabled = false; textSnap = CC.clone(S.cues); status(`Cue ${selIndex() + 1} text updated.`, 'ok'); } });
+$('btnPrev').onclick = () => { const i = selIndex(); if (i > 0) select(S.cues[i - 1].uid, true); };
+$('btnNext').onclick = () => { const i = selIndex(); if (i < S.cues.length - 1) select(S.cues[i + 1].uid, true); };
+$('btnSeek').onclick = () => { const i = selIndex(); if (i < 0) return; S.t = Math.max(0, S.cues[i].start - 300); render(); setPlaying(true); };
+$('btnInsert').onclick = () => {
+  const i = selIndex(); if (i < 0) return;
+  const c = S.cues[i], nx = S.cues[i + 1];
+  const st = c.end + 100, en = nx && nx.start > st + 300 ? Math.min(st + 2000, nx.start - 100) : st + 2000;
+  const n = CC.makeCue(st, en, 'New cue');
+  const next = CC.clone(S.cues); next.splice(i + 1, 0, n);
+  S.sel = n.uid; commit(next, `Inserted cue ${i + 2}. Edit its text below.`);
+  $('edText').focus(); $('edText').select();
+};
+$('btnDelete').onclick = () => {
+  const i = selIndex(); if (i < 0) return;
+  const next = CC.clone(S.cues); next.splice(i, 1);
+  S.sel = next.length ? next[Math.min(i, next.length - 1)].uid : null;
+  commit(next, `Deleted cue ${i + 1}. Undo is available.`);
+};
+
+// list
+$('list').addEventListener('click', e => { const b = e.target.closest('[data-uid]'); if (b) select(b.dataset.uid, true); });
+$('onlyBad').onchange = renderList;
+$('btnNextBad').onclick = () => {
+  const iss = CC.validate(S.cues); if (!iss.length) return;
+  const i = selIndex();
+  const nx = iss.find(x => x.i > i) || iss[0];
+  select(nx.uid, true); status(`Cue ${nx.i + 1}: ${nx.msg}.`, '');
+};
+
+// track tools
+$('btnOffset').onclick = () => { const v = +$('offMs').value; if (!$('offMs').value || !isFinite(v)) return status('Enter an offset in milliseconds, e.g. -1800.', 'err'); applyShift(v); };
+document.querySelectorAll('[data-off]').forEach(b => b.onclick = () => applyShift(+b.dataset.off));
+$('preset').onchange = e => { if (e.target.value) { $('factor').value = e.target.value; renderStretchPreview(); } };
+$('factor').oninput = renderStretchPreview;
+$('scope').onchange = renderStretchPreview;
+$('anchorMode').onchange = e => { $('anchorTime').disabled = e.target.value !== 'custom'; renderStretchPreview(); };
+$('anchorTime').oninput = () => { $('anchorTime').setAttribute('aria-invalid', String(!isFinite(CC.parseInputTime($('anchorTime').value)))); renderStretchPreview(); };
+$('btnStretch').onclick = () => {
+  if (!S.cues.length) return status('Load cues first.', 'err');
+  const a = anchorTime(); if (!isFinite(a)) return status('Anchor time not readable.', 'err');
+  try {
+    const f = +$('factor').value, r = CC.stretch(S.cues, f, a, scopeFrom());
+    commit(r.cues, `Stretched ×${f} around ${CC.formatShort(a)}${r.clamped ? `; ${r.clamped} time${r.clamped > 1 ? 's' : ''} clamped at 0:00` : ''}.`);
+  } catch (e) { status(e.message, 'err'); }
+};
+function readTwoPoint() {
+  const a = Math.round(+$('tpA').value) - 1, b = Math.round(+$('tpB').value) - 1;
+  if (!(a >= 0 && a < S.cues.length && b >= 0 && b < S.cues.length)) throw new Error(`Cue numbers must be between 1 and ${S.cues.length}.`);
+  const at = CC.parseInputTime($('tpAt').value), bt = CC.parseInputTime($('tpBt').value);
+  if (!isFinite(at) || !isFinite(bt)) throw new Error('Enter both true start times, e.g. 0:01.200.');
+  return CC.twoPoint(S.cues[a].start, at, S.cues[b].start, bt);
+}
+['tpA', 'tpB', 'tpAt', 'tpBt'].forEach(id => $(id).addEventListener('input', () => {
+  if (!S.cues.length) return;
+  try { const tp = readTwoPoint(); $('tpInfo').textContent = `Factor ×${tp.factor.toFixed(5)}, then shift ${CC.formatDelta(tp.offset)}.`; }
+  catch (e) { $('tpInfo').textContent = e.message; }
+}));
+$('btnTwoPoint').onclick = () => {
+  if (!S.cues.length) return status('Load cues first.', 'err');
+  try { const tp = readTwoPoint(), r = CC.applyTwoPoint(S.cues, tp); commit(r.cues, `Two-point sync applied: ×${tp.factor.toFixed(5)}, shift ${CC.formatDelta(tp.offset)}${r.clamped ? `; ${r.clamped} clamped at 0:00` : ''}.`); }
+  catch (e) { status(e.message, 'err'); }
+};
+$('btnSort').onclick = () => { if (S.cues.length) commit(CC.sortCues(S.cues), 'Cues sorted by start time.'); };
+$('btnTrim').onclick = () => { if (!S.cues.length) return; const r = CC.trimOverlaps(S.cues); r.trimmed ? commit(r.cues, `Trimmed ${r.trimmed} overlap${r.trimmed > 1 ? 's' : ''}.`) : status('No trimmable overlaps (sort first if cues are out of order).', ''); };
+$('btnUndo').onclick = () => {
+  if (!S.hist.length) return;
+  S.cues = S.hist.pop(); $('btnUndo').disabled = !S.hist.length;
+  if (selIndex() < 0) S.sel = S.cues[0] ? S.cues[0].uid : null;
+  render(); status('Undone.', 'ok');
+};
+$('btnReset').onclick = () => { if (S.orig.length) commit(CC.clone(S.orig), 'Back to the imported version (Undo restores your edits).'); };
+
+// export
+function fileBase() { return ($('fname').value.trim() || 'captions-repaired').replace(/[\\/:*?"<>|]+/g, '-'); }
+function download(fmt) {
+  if (!S.cues.length) return status('Load cues first.', 'err');
+  const txt = CC.serialize(S.cues, fmt);
+  const blob = new Blob([txt], { type: fmt === 'vtt' ? 'text/vtt;charset=utf-8' : 'application/x-subrip;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fileBase() + '.' + fmt;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  const errs = CC.validate(S.cues).filter(x => x.sev === 'error').length;
+  const skipped = S.cues.filter(c => !CC.cleanText(c.text, fmt)).length;
+  status(`Downloaded ${a.download}${skipped ? ` (${skipped} empty cue${skipped > 1 ? 's' : ''} left out)` : ''}.${errs ? ` Note: ${errs} timing problem${errs > 1 ? 's' : ''} still in the file.` : ''}`, errs ? '' : 'ok');
+}
+$('btnSrt').onclick = () => download('srt');
+$('btnVtt').onclick = () => download('vtt');
+$('btnCopy').onclick = async () => {
+  if (!S.cues.length) return status('Load cues first.', 'err');
+  try { await navigator.clipboard.writeText(CC.serialize(S.cues, 'srt')); status('SRT text copied.', 'ok'); }
+  catch (e) { status('Clipboard unavailable here — open “Preview SRT output” and copy manually.', 'err'); }
+};
+
+render();
+})();
+</script>
+</body>
+</html>
